@@ -1,0 +1,46 @@
+{
+  "name": "superinbox-cli",
+  "version": "0.1.0",
+  "description": "SuperInbox CLI - 命令行工具，快速发送内容到你的智能收件箱",
+  "main": "dist/index.js",
+  "type": "module",
+  "bin": {
+    "sinbox": "./dist/cli.js"
+  },
+  "scripts": {
+    "dev": "tsx watch src/cli.ts",
+    "build": "tsc",
+    "start": "node dist/cli.js",
+    "test": "vitest"
+  },
+  "keywords": [
+    "cli",
+    "inbox",
+    "ai",
+    "productivity",
+    "superinbox"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "commander": "^11.1.0",
+    "axios": "^1.6.5",
+    "chalk": "^5.3.0",
+    "ora": "^8.0.1",
+    "cli-table3": "^0.6.3",
+    "inquirer": "^9.2.12",
+    "conf": "^12.0.0",
+    "dotenv": "^16.3.1",
+    "external-editor": "^3.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.5",
+    "@types/inquirer": "^9.0.7",
+    "typescript": "^5.3.3",
+    "tsx": "^4.7.0",
+    "vitest": "^1.2.1"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
