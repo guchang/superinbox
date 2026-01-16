@@ -168,6 +168,7 @@ export interface Statistics {
   todayItems: number
   weekItems: number
   monthItems: number
+  aiSuccessRate: number
 }
 
 // ========== 认证相关类型 ==========

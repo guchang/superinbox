@@ -1,7 +1,7 @@
 import axios, { AxiosError, AxiosInstance, InternalAxiosRequestConfig } from 'axios'
 import type { ApiResponse } from '@/types'
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/v1'
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/v1'
 
 const TOKEN_KEY = "superinbox_auth_token"
 
