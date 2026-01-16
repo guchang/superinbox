@@ -119,6 +119,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isAuthenticated: false,
         isLoading: false,
       })
+      // 跳转到登录页面
+      if (typeof window !== 'undefined') {
+        window.location.href = '/login'
+      }
     }
   }
 
