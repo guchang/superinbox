@@ -8,6 +8,9 @@ const inter = Inter({ subsets: ['latin'] })
 export const metadata: Metadata = {
   title: 'SuperInbox - 智能收件箱管理后台',
   description: '统一管理你的数字信息收件箱',
+  icons: {
+    icon: '/favicon.svg',
+  },
 }
 
 export default function RootLayout({
