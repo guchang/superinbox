@@ -16,6 +16,7 @@ import promptsRoutes from './intelligence/routes/prompts.routes.js';
 import rulesRoutes from './router/routes/rules.routes.js';
 import settingsRoutes from './settings/routes/settings.routes.js';
 import authRoutes from './auth/auth.routes.js';
+import apiKeysRoutes from './api-keys/api-keys.routes.js';
 import { logger } from './middleware/logger.js';
 
 // Create Express app
@@ -93,6 +94,7 @@ app.get('/ping', (req, res) => {
 
 // API v1 routes
 app.use('/v1/auth', authRoutes);
+app.use('/v1/api-keys', apiKeysRoutes);
 app.use('/v1/intelligence', promptsRoutes);
 app.use('/v1/routing', rulesRoutes);
 app.use('/v1/settings', settingsRoutes);

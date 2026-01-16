@@ -5,6 +5,7 @@
 import Database from 'better-sqlite3';
 import { existsSync, mkdirSync } from 'fs';
 import { dirname } from 'path';
+import crypto from 'crypto';
 import type { Item, QueryFilter } from '../types/index.js';
 import { config, isDevelopment } from '../config/index.js';
 
@@ -90,12 +91,27 @@ export class DatabaseManager {
       CREATE TABLE IF NOT EXISTS api_keys (
         id TEXT PRIMARY KEY,
         key_value TEXT NOT NULL UNIQUE,
+        key_preview TEXT,
         user_id TEXT NOT NULL,
+        name TEXT,
         scopes TEXT NOT NULL,
         is_active INTEGER NOT NULL DEFAULT 1,
         created_at TEXT NOT NULL,
         last_used_at TEXT,
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      );
+
+      CREATE TABLE IF NOT EXISTS api_access_logs (
+        id TEXT PRIMARY KEY,
+        api_key_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        endpoint TEXT NOT NULL,
+        method TEXT NOT NULL,
+        status_code INTEGER NOT NULL,
+        ip_address TEXT,
+        user_agent TEXT,
+        timestamp TEXT NOT NULL,
+        FOREIGN KEY (api_key_id) REFERENCES api_keys(id) ON DELETE CASCADE
       );
 
       CREATE TABLE IF NOT EXISTS distribution_configs (
@@ -121,6 +137,11 @@ export class DatabaseManager {
       CREATE INDEX IF NOT EXISTS idx_items_created_at ON items(created_at);
       CREATE INDEX IF NOT EXISTS idx_distribution_results_item_id ON distribution_results(item_id);
       CREATE INDEX IF NOT EXISTS idx_api_keys_key_value ON api_keys(key_value);
+      CREATE INDEX IF NOT EXISTS idx_api_keys_user_id ON api_keys(user_id);
+      CREATE INDEX IF NOT EXISTS idx_api_keys_is_active ON api_keys(is_active);
+      CREATE INDEX IF NOT EXISTS idx_api_access_logs_api_key_id ON api_access_logs(api_key_id);
+      CREATE INDEX IF NOT EXISTS idx_api_access_logs_user_id ON api_access_logs(user_id);
+      CREATE INDEX IF NOT EXISTS idx_api_access_logs_timestamp ON api_access_logs(timestamp);
     `);
 
     this.initialized = true;
@@ -302,13 +323,16 @@ export class DatabaseManager {
   /**
    * Validate API key
    */
-  validateApiKey(keyValue: string): { valid: boolean; userId?: string; scopes?: string[] } {
+  validateApiKey(keyValue: string): { valid: boolean; userId?: string; scopes?: string[]; apiKeyId?: string } {
+    // Hash the API key for comparison
+    const hashedKey = crypto.createHash('sha256').update(keyValue).digest('hex');
+
     const stmt = this.db.prepare(`
-      SELECT user_id, scopes FROM api_keys
+      SELECT id, user_id, scopes FROM api_keys
       WHERE key_value = ? AND is_active = 1
     `);
 
-    const row = stmt.get(keyValue) as any;
+    const row = stmt.get(hashedKey) as any;
 
     if (!row) {
       return { valid: false };
@@ -316,14 +340,15 @@ export class DatabaseManager {
 
     // Update last used timestamp
     const updateStmt = this.db.prepare(`
-      UPDATE api_keys SET last_used_at = ? WHERE key_value = ?
+      UPDATE api_keys SET last_used_at = ? WHERE id = ?
     `);
-    updateStmt.run(new Date().toISOString(), keyValue);
+    updateStmt.run(new Date().toISOString(), row.id);
 
     return {
       valid: true,
       userId: row.user_id,
-      scopes: JSON.parse(row.scopes)
+      scopes: JSON.parse(row.scopes),
+      apiKeyId: row.id
     };
   }
 
@@ -532,6 +557,252 @@ export class DatabaseManager {
     const now = new Date().toISOString();
     const stmt = this.db.prepare('DELETE FROM refresh_tokens WHERE expires_at < ?');
     stmt.run(now);
+  }
+
+  // ========== API Key Methods ==========
+
+  /**
+   * Create a new API key
+   */
+  createApiKey(data: {
+    id: string;
+    keyValue: string;
+    keyPreview?: string;
+    userId: string;
+    name?: string;
+    scopes: string[];
+  }): any {
+    const now = new Date().toISOString();
+    const stmt = this.db.prepare(`
+      INSERT INTO api_keys (id, key_value, key_preview, user_id, name, scopes, is_active, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, 1, ?)
+    `);
+
+    stmt.run(
+      data.id,
+      data.keyValue,
+      data.keyPreview || null,
+      data.userId,
+      data.name || null,
+      JSON.stringify(data.scopes),
+      now
+    );
+
+    return {
+      id: data.id,
+      keyValue: data.keyValue,
+      keyPreview: data.keyPreview,
+      userId: data.userId,
+      name: data.name,
+      scopes: data.scopes,
+      isActive: true,
+      createdAt: now,
+      lastUsedAt: null,
+    };
+  }
+
+  /**
+   * List all API keys for a user
+   */
+  listApiKeysByUserId(userId: string): any[] {
+    const stmt = this.db.prepare(`
+      SELECT id, key_value, key_preview, user_id, name, scopes, is_active, created_at, last_used_at
+      FROM api_keys
+      WHERE user_id = ?
+      ORDER BY created_at DESC
+    `);
+
+    const rows = stmt.all(userId) as any[];
+
+    return rows.map(row => ({
+      id: row.id,
+      keyValue: row.key_value,
+      keyPreview: row.key_preview,
+      userId: row.user_id,
+      name: row.name,
+      scopes: JSON.parse(row.scopes),
+      isActive: row.is_active === 1,
+      createdAt: row.created_at,
+      lastUsedAt: row.last_used_at,
+    }));
+  }
+
+  /**
+   * Get API key by ID
+   */
+  getApiKeyById(id: string): any | null {
+    const stmt = this.db.prepare(`
+      SELECT id, key_value, key_preview, user_id, name, scopes, is_active, created_at, last_used_at
+      FROM api_keys
+      WHERE id = ?
+    `);
+
+    const row = stmt.get(id) as any;
+    if (!row) return null;
+
+    return {
+      id: row.id,
+      keyValue: row.key_value,
+      keyPreview: row.key_preview,
+      userId: row.user_id,
+      name: row.name,
+      scopes: JSON.parse(row.scopes),
+      isActive: row.is_active === 1,
+      createdAt: row.created_at,
+      lastUsedAt: row.last_used_at,
+    };
+  }
+
+  /**
+   * Update API key
+   */
+  updateApiKey(id: string, updates: { name?: string; scopes?: string[] }): any | null {
+    const existing = this.getApiKeyById(id);
+    if (!existing) return null;
+
+    const fields: string[] = [];
+    const values: any[] = [];
+
+    if (updates.name !== undefined) {
+      fields.push('name = ?');
+      values.push(updates.name || null);
+    }
+
+    if (updates.scopes !== undefined) {
+      fields.push('scopes = ?');
+      values.push(JSON.stringify(updates.scopes));
+    }
+
+    if (fields.length === 0) return existing;
+
+    values.push(id);
+
+    const stmt = this.db.prepare(`
+      UPDATE api_keys SET ${fields.join(', ')}
+      WHERE id = ?
+    `);
+
+    stmt.run(...values);
+
+    return this.getApiKeyById(id);
+  }
+
+  /**
+   * Toggle API key status
+   */
+  toggleApiKeyStatus(id: string, isActive: boolean): any | null {
+    const stmt = this.db.prepare('UPDATE api_keys SET is_active = ? WHERE id = ?');
+    const result = stmt.run(isActive ? 1 : 0, id);
+
+    if (result.changes === 0) return null;
+
+    return this.getApiKeyById(id);
+  }
+
+  /**
+   * Delete API key
+   */
+  deleteApiKey(id: string): boolean {
+    const stmt = this.db.prepare('DELETE FROM api_keys WHERE id = ?');
+    const result = stmt.run(id);
+    return result.changes > 0;
+  }
+
+  /**
+   * Update API key's last used timestamp
+   */
+  updateApiKeyLastUsed(keyValue: string): void {
+    const now = new Date().toISOString();
+    const stmt = this.db.prepare('UPDATE api_keys SET last_used_at = ? WHERE key_value = ?');
+    stmt.run(now, keyValue);
+  }
+
+  // ========== API Access Log Methods ==========
+
+  /**
+   * Create an access log entry
+   */
+  createAccessLog(data: {
+    id: string;
+    apiKeyId: string;
+    userId: string;
+    endpoint: string;
+    method: string;
+    statusCode: number;
+    ipAddress?: string;
+    userAgent?: string;
+  }): void {
+    const now = new Date().toISOString();
+    const stmt = this.db.prepare(`
+      INSERT INTO api_access_logs (
+        id, api_key_id, user_id, endpoint, method, status_code,
+        ip_address, user_agent, timestamp
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    stmt.run(
+      data.id,
+      data.apiKeyId,
+      data.userId,
+      data.endpoint,
+      data.method,
+      data.statusCode,
+      data.ipAddress || null,
+      data.userAgent || null,
+      now
+    );
+  }
+
+  /**
+   * Get access logs for an API key
+   */
+  getAccessLogsByApiKeyId(apiKeyId: string, limit = 100, offset = 0): any[] {
+    const stmt = this.db.prepare(`
+      SELECT * FROM api_access_logs
+      WHERE api_key_id = ?
+      ORDER BY timestamp DESC
+      LIMIT ? OFFSET ?
+    `);
+
+    const rows = stmt.all(apiKeyId, limit, offset) as any[];
+
+    return rows.map(row => ({
+      id: row.id,
+      apiKeyId: row.api_key_id,
+      userId: row.user_id,
+      endpoint: row.endpoint,
+      method: row.method,
+      statusCode: row.status_code,
+      ipAddress: row.ip_address,
+      userAgent: row.user_agent,
+      timestamp: row.timestamp,
+    }));
+  }
+
+  /**
+   * Get access logs for a user
+   */
+  getAccessLogsByUserId(userId: string, limit = 100, offset = 0): any[] {
+    const stmt = this.db.prepare(`
+      SELECT * FROM api_access_logs
+      WHERE user_id = ?
+      ORDER BY timestamp DESC
+      LIMIT ? OFFSET ?
+    `);
+
+    const rows = stmt.all(userId, limit, offset) as any[];
+
+    return rows.map(row => ({
+      id: row.id,
+      apiKeyId: row.api_key_id,
+      userId: row.user_id,
+      endpoint: row.endpoint,
+      method: row.method,
+      statusCode: row.status_code,
+      ipAddress: row.ip_address,
+      userAgent: row.user_agent,
+      timestamp: row.timestamp,
+    }));
   }
 }
 
