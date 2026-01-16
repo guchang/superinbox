@@ -7,7 +7,7 @@ import ora from 'ora';
 import { api } from '../api/client.js';
 import type { LoginRequest } from '../types/index.js';
 
-export async function login(username?: string, password?: string) {
+export async function login(username?: string) {
   // Check if already logged in
   if (api.isLoggedIn()) {
     const user = api.getCurrentUserFromCache();
@@ -18,12 +18,23 @@ export async function login(username?: string, password?: string) {
 
   let credentials: LoginRequest;
 
-  // If credentials provided as arguments
-  if (username && password) {
-    credentials = { username, password };
+  // Always use interactive prompt for credentials
+  const inquirer = (await import('inquirer')).default;
+
+  // If username provided as argument, only prompt for password
+  if (username) {
+    const answers = await inquirer.prompt([
+      {
+        type: 'password',
+        name: 'password',
+        message: '密码:',
+        mask: '*',
+        validate: (input: string) => input.length > 0 || '请输入密码'
+      }
+    ]);
+    credentials = { username, password: answers.password };
   } else {
-    // Interactive prompt for credentials
-    const inquirer = (await import('inquirer')).default;
+    // Prompt for both username and password
     const answers = await inquirer.prompt([
       {
         type: 'input',

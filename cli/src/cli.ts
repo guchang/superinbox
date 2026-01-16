@@ -112,10 +112,9 @@ program
 program
   .command('login')
   .description('登录账户')
-  .argument('[username]', '用户名')
-  .argument('[password]', '密码')
-  .action(async (username, password) => {
-    await login(username, password);
+  .argument('[username]', '用户名（可选，不提供则交互式输入）')
+  .action(async (username) => {
+    await login(username);
   });
 
 // Logout command
