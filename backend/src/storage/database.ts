@@ -36,6 +36,25 @@ export class DatabaseManager {
     if (this.initialized) return;
 
     this.db.exec(`
+      CREATE TABLE IF NOT EXISTS users (
+        id TEXT PRIMARY KEY,
+        username TEXT NOT NULL UNIQUE,
+        email TEXT NOT NULL UNIQUE,
+        password_hash TEXT NOT NULL,
+        role TEXT NOT NULL DEFAULT 'user',
+        created_at TEXT NOT NULL,
+        last_login_at TEXT
+      );
+
+      CREATE TABLE IF NOT EXISTS refresh_tokens (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        token TEXT NOT NULL UNIQUE,
+        expires_at TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      );
+
       CREATE TABLE IF NOT EXISTS items (
         id TEXT PRIMARY KEY,
         user_id TEXT NOT NULL,
@@ -51,7 +70,8 @@ export class DatabaseManager {
         distributed_targets TEXT,
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL,
-        processed_at TEXT
+        processed_at TEXT,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
       );
 
       CREATE TABLE IF NOT EXISTS distribution_results (
@@ -74,7 +94,8 @@ export class DatabaseManager {
         scopes TEXT NOT NULL,
         is_active INTEGER NOT NULL DEFAULT 1,
         created_at TEXT NOT NULL,
-        last_used_at TEXT
+        last_used_at TEXT,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
       );
 
       CREATE TABLE IF NOT EXISTS distribution_configs (
@@ -86,9 +107,14 @@ export class DatabaseManager {
         conditions TEXT,
         config TEXT NOT NULL,
         created_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
       );
 
+      CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
+      CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+      CREATE INDEX IF NOT EXISTS idx_refresh_tokens_token ON refresh_tokens(token);
+      CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user_id ON refresh_tokens(user_id);
       CREATE INDEX IF NOT EXISTS idx_items_user_id ON items(user_id);
       CREATE INDEX IF NOT EXISTS idx_items_status ON items(status);
       CREATE INDEX IF NOT EXISTS idx_items_intent ON items(intent);
@@ -166,6 +192,13 @@ export class DatabaseManager {
     if (filter.source) {
       query += ' AND source = ?';
       params.push(filter.source);
+    }
+
+    if (filter.query) {
+      // 使用 LIKE 进行全文搜索
+      query += ' AND (original_content LIKE ? OR summary LIKE ? OR suggested_title LIKE ?)';
+      const searchTerm = `%${filter.query}%`;
+      params.push(searchTerm, searchTerm, searchTerm);
     }
 
     // Sorting
@@ -330,6 +363,175 @@ export class DatabaseManager {
    */
   private camelToSnake(str: string): string {
     return str.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+  }
+
+  // ========== User Methods ==========
+
+  /**
+   * Create a new user
+   */
+  createUser(user: {
+    id: string;
+    username: string;
+    email: string;
+    passwordHash: string;
+    role?: string;
+  }): { id: string; username: string; email: string; role: string; createdAt: Date } {
+    const now = new Date().toISOString();
+    const stmt = this.db.prepare(`
+      INSERT INTO users (id, username, email, password_hash, role, created_at)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `);
+
+    stmt.run(
+      user.id,
+      user.username,
+      user.email,
+      user.passwordHash,
+      user.role || 'user',
+      now
+    );
+
+    return {
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      role: user.role || 'user',
+      createdAt: new Date(now),
+    };
+  }
+
+  /**
+   * Get user by ID
+   */
+  getUserById(id: string): any | null {
+    const stmt = this.db.prepare('SELECT * FROM users WHERE id = ?');
+    const row = stmt.get(id) as any;
+    if (!row) return null;
+
+    return {
+      id: row.id,
+      username: row.username,
+      email: row.email,
+      role: row.role,
+      createdAt: new Date(row.created_at),
+      lastLoginAt: row.last_login_at ? new Date(row.last_login_at) : undefined,
+    };
+  }
+
+  /**
+   * Get user by username
+   */
+  getUserByUsername(username: string): any | null {
+    const stmt = this.db.prepare('SELECT * FROM users WHERE username = ?');
+    const row = stmt.get(username) as any;
+    if (!row) return null;
+
+    return {
+      id: row.id,
+      username: row.username,
+      email: row.email,
+      passwordHash: row.password_hash,
+      role: row.role,
+      createdAt: new Date(row.created_at),
+      lastLoginAt: row.last_login_at ? new Date(row.last_login_at) : undefined,
+    };
+  }
+
+  /**
+   * Get user by email
+   */
+  getUserByEmail(email: string): any | null {
+    const stmt = this.db.prepare('SELECT * FROM users WHERE email = ?');
+    const row = stmt.get(email) as any;
+    if (!row) return null;
+
+    return {
+      id: row.id,
+      username: row.username,
+      email: row.email,
+      passwordHash: row.password_hash,
+      role: row.role,
+      createdAt: new Date(row.created_at),
+      lastLoginAt: row.last_login_at ? new Date(row.last_login_at) : undefined,
+    };
+  }
+
+  /**
+   * Update user's last login time
+   */
+  updateUserLastLogin(userId: string): void {
+    const now = new Date().toISOString();
+    const stmt = this.db.prepare('UPDATE users SET last_login_at = ? WHERE id = ?');
+    stmt.run(now, userId);
+  }
+
+  // ========== Refresh Token Methods ==========
+
+  /**
+   * Create a refresh token
+   */
+  createRefreshToken(data: {
+    id: string;
+    userId: string;
+    token: string;
+    expiresAt: Date;
+  }): void {
+    const now = new Date().toISOString();
+    const stmt = this.db.prepare(`
+      INSERT INTO refresh_tokens (id, user_id, token, expires_at, created_at)
+      VALUES (?, ?, ?, ?, ?)
+    `);
+
+    stmt.run(
+      data.id,
+      data.userId,
+      data.token,
+      data.expiresAt.toISOString(),
+      now
+    );
+  }
+
+  /**
+   * Get refresh token by token string
+   */
+  getRefreshToken(token: string): any | null {
+    const stmt = this.db.prepare('SELECT * FROM refresh_tokens WHERE token = ?');
+    const row = stmt.get(token) as any;
+    if (!row) return null;
+
+    return {
+      id: row.id,
+      userId: row.user_id,
+      token: row.token,
+      expiresAt: new Date(row.expires_at),
+      createdAt: new Date(row.created_at),
+    };
+  }
+
+  /**
+   * Delete refresh token
+   */
+  deleteRefreshToken(token: string): void {
+    const stmt = this.db.prepare('DELETE FROM refresh_tokens WHERE token = ?');
+    stmt.run(token);
+  }
+
+  /**
+   * Delete all refresh tokens for a user
+   */
+  deleteUserRefreshTokens(userId: string): void {
+    const stmt = this.db.prepare('DELETE FROM refresh_tokens WHERE user_id = ?');
+    stmt.run(userId);
+  }
+
+  /**
+   * Clean up expired refresh tokens
+   */
+  cleanupExpiredRefreshTokens(): void {
+    const now = new Date().toISOString();
+    const stmt = this.db.prepare('DELETE FROM refresh_tokens WHERE expires_at < ?');
+    stmt.run(now);
   }
 }
 
