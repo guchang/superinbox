@@ -1,54 +1,149 @@
+"use client"
+
+import { useQuery } from '@tanstack/react-query'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Inbox, BrainCircuit, GitBranch, Activity } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { settingsApi } from '@/lib/api/settings'
+import { inboxApi } from '@/lib/api/inbox'
+import {
+  Inbox,
+  BrainCircuit,
+  TrendingUp,
+  Clock,
+  CheckCircle,
+  AlertCircle,
+  Plus,
+  Search,
+} from 'lucide-react'
+import { IntentType, ItemStatus } from '@/types'
+import { formatRelativeTime } from '@/lib/utils'
+import Link from 'next/link'
+import { CommandSearch } from '@/components/shared/command-search'
+import { useState, useMemo } from 'react'
 
-const stats = [
-  {
-    title: '总条目',
-    value: '1,234',
-    description: '本月新增 +128',
-    icon: Inbox,
-  },
-  {
-    title: 'AI 处理',
-    value: '98.5%',
-    description: '分析成功率',
-    icon: BrainCircuit,
-  },
-  {
-    title: '路由规则',
-    value: '12',
-    description: '活跃规则',
-    icon: GitBranch,
-  },
-  {
-    title: '系统状态',
-    value: '正常',
-    description: '所有服务运行正常',
-    icon: Activity,
-  },
-]
+const getIntentLabel = (intent: string): string => {
+  const labels: Record<string, string> = {
+    todo: '待办',
+    idea: '想法',
+    expense: '支出',
+    schedule: '日程',
+    note: '笔记',
+    bookmark: '书签',
+    unknown: '未知',
+  }
+  return labels[intent] || intent
+}
 
-const recentItems = [
-  { id: '1', content: '明天下午3点和张三开会', intent: 'schedule', time: '2分钟前' },
-  { id: '2', content: '买咖啡花了25元', intent: 'expense', time: '15分钟前' },
-  { id: '3', content: '突然想到可以做一个自动整理邮件的工具', intent: 'idea', time: '1小时前' },
-]
+const getIntentColor = (intent: string): string => {
+  const colors: Record<string, string> = {
+    todo: 'bg-blue-500',
+    idea: 'bg-purple-500',
+    expense: 'bg-red-500',
+    schedule: 'bg-green-500',
+    note: 'bg-yellow-500',
+    bookmark: 'bg-pink-500',
+    unknown: 'bg-gray-500',
+  }
+  return colors[intent] || 'bg-gray-500'
+}
 
 export default function DashboardPage() {
+  const [searchFilters, setSearchFilters] = useState({ query: '' })
+
+  // 获取统计数据
+  const { data: statsData, isLoading: statsLoading } = useQuery({
+    queryKey: ['statistics'],
+    queryFn: () => settingsApi.getStatistics(),
+  })
+
+  // 获取最近条目
+  const { data: itemsData } = useQuery({
+    queryKey: ['inbox', { limit: 10, sortBy: 'createdAt', sortOrder: 'desc' as const }],
+    queryFn: () => inboxApi.getItems({ limit: 10, sortBy: 'createdAt', sortOrder: 'desc' }),
+  })
+
+  const stats = statsData?.data
+  const recentItems = itemsData?.data?.items || []
+
+  // 计算待处理数量
+  const pendingCount = (stats?.itemsByStatus?.pending || 0) + (stats?.itemsByStatus?.processing || 0)
+
+  const statCards = [
+    {
+      title: '总条目',
+      value: stats?.totalItems?.toLocaleString() || '0',
+      description: `本月 +${stats?.monthItems || 0}`,
+      icon: Inbox,
+      color: 'text-blue-600',
+    },
+    {
+      title: 'AI 处理率',
+      value: `${stats?.aiSuccessRate || 0}%`,
+      description: '分析成功率',
+      icon: BrainCircuit,
+      color: 'text-purple-600',
+    },
+    {
+      title: '今日新增',
+      value: `+${stats?.todayItems || 0}`,
+      description: '今天创建的条目',
+      icon: TrendingUp,
+      color: 'text-green-600',
+    },
+    {
+      title: '待处理',
+      value: pendingCount.toString(),
+      description: '需要处理的条目',
+      icon: Clock,
+      color: 'text-orange-600',
+    },
+  ]
+
+  // 计算意图分布百分比
+  const intentDistribution = useMemo(() => {
+    if (!stats?.itemsByIntent) return []
+    const total = stats.totalItems || 1
+    return Object.entries(stats.itemsByIntent)
+      .filter(([_, count]) => count > 0)
+      .sort(([, a], [, b]) => b - a)
+      .map(([intent, count]) => ({
+        intent: intent as IntentType,
+        count,
+        percentage: Math.round((count / total) * 100),
+      }))
+  }, [stats])
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">仪表板</h1>
-        <p className="text-muted-foreground">欢迎使用 SuperInbox 智能收件箱</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">仪表板</h1>
+          <p className="text-muted-foreground">欢迎使用 SuperInbox 智能收件箱</p>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" asChild>
+            <Link href="/inbox">
+              <Plus className="h-4 w-4 mr-2" />
+              添加
+            </Link>
+          </Button>
+          <Button variant="outline" size="sm" asChild>
+            <Link href="/inbox">
+              <Search className="h-4 w-4 mr-2" />
+              搜索
+            </Link>
+          </Button>
+        </div>
       </div>
 
-      {/* Stats */}
+      {/* 统计卡片 */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {stats.map((stat) => (
+        {statCards.map((stat) => (
           <Card key={stat.title}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
-              <stat.icon className="h-4 w-4 text-muted-foreground" />
+              <stat.icon className={`h-4 w-4 ${stat.color}`} />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stat.value}</div>
@@ -58,26 +153,138 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      {/* Recent Items */}
-      <Card>
-        <CardHeader>
-          <CardTitle>最近条目</CardTitle>
-          <CardDescription>最新的收件箱条目</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {recentItems.map((item) => (
-              <div key={item.id} className="flex items-center justify-between border-b pb-4 last:border-0">
-                <div className="flex-1">
-                  <p className="text-sm font-medium">{item.content}</p>
-                  <p className="text-xs text-muted-foreground">{item.time}</p>
+      <div className="grid gap-6 md:grid-cols-2">
+        {/* 意图分布 */}
+        <Card>
+          <CardHeader>
+            <CardTitle>意图分布</CardTitle>
+            <CardDescription>按意图类型分类的条目分布</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {statsLoading ? (
+              <div className="text-center text-muted-foreground py-8">加载中...</div>
+            ) : intentDistribution.length === 0 ? (
+              <div className="text-center text-muted-foreground py-8">暂无数据</div>
+            ) : (
+              <div className="space-y-4">
+                {intentDistribution.map(({ intent, count, percentage }) => (
+                  <div key={intent} className="space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="font-medium capitalize">{getIntentLabel(intent)}</span>
+                      <span className="text-muted-foreground">{count} ({percentage}%)</span>
+                    </div>
+                    <div className="h-2 bg-secondary rounded-full overflow-hidden">
+                      <div
+                        className={`h-full ${getIntentColor(intent)} transition-all`}
+                        style={{ width: `${percentage}%` }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* 状态分布 */}
+        <Card>
+          <CardHeader>
+            <CardTitle>状态分布</CardTitle>
+            <CardDescription>按处理状态分类的条目</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {statsLoading ? (
+              <div className="text-center text-muted-foreground py-8">加载中...</div>
+            ) : (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="h-4 w-4 text-green-600" />
+                    <span className="text-sm">已完成</span>
+                  </div>
+                  <Badge variant="secondary">{stats?.itemsByStatus?.completed || 0}</Badge>
                 </div>
-                <div className="capitalize text-xs text-muted-foreground">
-                  {item.intent}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-4 w-4 text-orange-600" />
+                    <span className="text-sm">处理中</span>
+                  </div>
+                  <Badge variant="secondary">{stats?.itemsByStatus?.processing || 0}</Badge>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="h-4 w-4 text-red-600" />
+                    <span className="text-sm">失败</span>
+                  </div>
+                  <Badge variant="destructive">{stats?.itemsByStatus?.failed || 0}</Badge>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Inbox className="h-4 w-4 text-gray-600" />
+                    <span className="text-sm">待处理</span>
+                  </div>
+                  <Badge variant="outline">{stats?.itemsByStatus?.pending || 0}</Badge>
                 </div>
               </div>
-            ))}
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* 最近条目 */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>最近条目</CardTitle>
+              <CardDescription>最新的收件箱条目</CardDescription>
+            </div>
+            <Button variant="ghost" size="sm" asChild>
+              <Link href="/inbox">查看全部 →</Link>
+            </Button>
           </div>
+        </CardHeader>
+        <CardContent>
+          {recentItems.length === 0 ? (
+            <div className="text-center text-muted-foreground py-8">
+              暂无条目，<Link href="/inbox" className="text-primary hover:underline">创建第一个条目</Link>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {recentItems.map((item) => (
+                <Link
+                  key={item.id}
+                  href={`/inbox/${item.id}`}
+                  className="block hover:bg-accent/50 rounded-lg transition-colors"
+                >
+                  <div className="flex items-start justify-between gap-4 p-3 border-b last:border-0">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Badge
+                          variant={
+                            item.status === ItemStatus.COMPLETED
+                              ? 'default'
+                              : item.status === ItemStatus.FAILED
+                                ? 'destructive'
+                                : 'secondary'
+                          }
+                        >
+                          {item.analysis?.intent || IntentType.UNKNOWN}
+                        </Badge>
+                        <Badge variant="outline" className="text-xs">
+                          {item.source}
+                        </Badge>
+                      </div>
+                      <p className="text-sm line-clamp-2">{item.content}</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {formatRelativeTime(item.createdAt)}
+                      </p>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
