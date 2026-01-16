@@ -1,7 +1,9 @@
-import axios, { AxiosError, AxiosInstance } from 'axios'
+import axios, { AxiosError, AxiosInstance, InternalAxiosRequestConfig } from 'axios'
 import type { ApiResponse } from '@/types'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/v1'
+
+const TOKEN_KEY = "superinbox_auth_token"
 
 class ApiClient {
   private client: AxiosInstance
@@ -15,32 +17,39 @@ class ApiClient {
       timeout: 30000,
     })
 
-    // 请求拦截器
+    // 请求拦截器：添加 JWT Token
     this.client.interceptors.request.use(
-      (config) => {
-        // 从 localStorage 获取 API Key，使用 Bearer token 格式
-        let apiKey = localStorage.getItem('superinbox_api_key')
+      (config: InternalAxiosRequestConfig) => {
+        // 从 localStorage 获取 JWT Token
+        const token = typeof window !== 'undefined'
+          ? localStorage.getItem(TOKEN_KEY)
+          : null
 
-        // 如果没有配置 API Key，使用默认的开发密钥
-        if (!apiKey) {
-          apiKey = 'dev-key-change-this-in-production'
-          localStorage.setItem('superinbox_api_key', apiKey)
+        if (token) {
+          config.headers = config.headers || {}
+          config.headers['Authorization'] = `Bearer ${token}`
         }
 
-        config.headers['Authorization'] = `Bearer ${apiKey}`
         return config
       },
       (error) => Promise.reject(error)
     )
 
-    // 响应拦截器
+    // 响应拦截器：处理 401 错误
     this.client.interceptors.response.use(
       (response) => response,
       (error: AxiosError) => {
         if (error.response?.status === 401) {
-          // 未授权，清除 API Key 并重定向到设置页面
-          localStorage.removeItem('superinbox_api_key')
-          window.location.href = '/settings'
+          // 未授权，清除认证数据并重定向到登录页
+          if (typeof window !== 'undefined') {
+            localStorage.removeItem(TOKEN_KEY)
+            localStorage.removeItem('superinbox_refresh_token')
+            localStorage.removeItem('superinbox_user')
+            // 只有当前不在登录页时才重定向
+            if (!window.location.pathname.includes('/login')) {
+              window.location.href = '/login'
+            }
+          }
         }
         return Promise.reject(error)
       }
