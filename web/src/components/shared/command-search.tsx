@@ -581,7 +581,7 @@ export function CommandSearch({ filters, onFiltersChange, availableSources = [] 
                               <Badge variant="outline" className="text-xs">{suggestion.text}</Badge>
                             </>
                           )}
-                          {suggestion.type === 'value' && (
+                          {suggestion.type === 'value' && suggestion.option && (
                             <>
                               <Badge variant="outline" className="text-xs">{suggestion.option.label}</Badge>
                               <span className="text-sm">{suggestion.text.replace(suggestion.option.prefix, '')}</span>

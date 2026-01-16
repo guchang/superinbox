@@ -101,6 +101,8 @@ export interface FilterParams extends PaginationParams {
   status?: ItemStatus
   source?: string
   search?: string
+  sortBy?: 'createdAt' | 'updatedAt' | 'priority'
+  sortOrder?: 'asc' | 'desc'
 }
 
 // API Key 类型
