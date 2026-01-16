@@ -164,7 +164,13 @@ export const requireScope = (scope: string) => {
       return;
     }
 
-    if (!req.user.scopes.includes(scope)) {
+    if (!hasScope(req.user.scopes, scope)) {
+      console.warn(`Access denied: user lacks required scope '${scope}'`, {
+        userId: req.user.userId,
+        userScopes: req.user.scopes,
+        requiredScope: scope,
+      });
+
       res.status(403).json({
         success: false,
         error: {
@@ -178,6 +184,110 @@ export const requireScope = (scope: string) => {
     next();
   };
 };
+
+/**
+ * Check if user has multiple required scopes (all must be present)
+ */
+export const requireScopes = (...scopes: string[]) => {
+  return (req: Request, res: Response, next: NextFunction): void => {
+    if (!req.user) {
+      res.status(401).json({
+        success: false,
+        error: {
+          code: 'UNAUTHORIZED',
+          message: 'Authentication required'
+        }
+      });
+      return;
+    }
+
+    const missingScopes = scopes.filter(scope => !hasScope(req.user!.scopes, scope));
+
+    if (missingScopes.length > 0) {
+      console.warn(`Access denied: user lacks required scopes`, {
+        userId: req.user.userId,
+        userScopes: req.user.scopes,
+        requiredScopes: scopes,
+        missingScopes,
+      });
+
+      res.status(403).json({
+        success: false,
+        error: {
+          code: 'INSUFFICIENT_SCOPE',
+          message: `Required scopes: ${scopes.join(', ')}`
+        }
+      });
+      return;
+    }
+
+    next();
+  };
+};
+
+/**
+ * Check if user has any of the required scopes (at least one must be present)
+ */
+export const requireAnyScope = (...scopes: string[]) => {
+  return (req: Request, res: Response, next: NextFunction): void => {
+    if (!req.user) {
+      res.status(401).json({
+        success: false,
+        error: {
+          code: 'UNAUTHORIZED',
+          message: 'Authentication required'
+        }
+      });
+      return;
+    }
+
+    const hasAnyScope = scopes.some(scope => hasScope(req.user!.scopes, scope));
+
+    if (!hasAnyScope) {
+      console.warn(`Access denied: user lacks any required scope`, {
+        userId: req.user.userId,
+        userScopes: req.user.scopes,
+        requiredScopes: scopes,
+      });
+
+      res.status(403).json({
+        success: false,
+        error: {
+          code: 'INSUFFICIENT_SCOPE',
+          message: `Required one of scopes: ${scopes.join(', ')}`
+        }
+      });
+      return;
+    }
+
+    next();
+  };
+};
+
+/**
+ * Helper function to check if user has a specific scope
+ * Supports admin:full (grants all permissions) and content:* wildcards
+ */
+function hasScope(userScopes: string[], requiredScope: string): boolean {
+  // Check for admin full access
+  if (userScopes.includes('admin:full')) {
+    return true;
+  }
+
+  // Check for exact match
+  if (userScopes.includes(requiredScope)) {
+    return true;
+  }
+
+  // Check for content:* wildcard
+  if (requiredScope.startsWith('content:')) {
+    if (userScopes.includes('content:all')) {
+      return true;
+    }
+  }
+
+  return false;
+}
 
 /**
  * Combined authentication - accepts JWT Token or API Key
