@@ -35,10 +35,18 @@ uploads/
 coverage/
 .nyc_output/
 
+# 测试运行产物
+test-results/
+playwright-report/
+playwright/.cache/
+
 # 临时文件
 tmp/
 temp/
 .cache/
+
+# 本地插件和开发工具
+plugins/
 
 # 系统文件
 Thumbs.db
