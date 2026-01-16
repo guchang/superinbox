@@ -42,3 +42,14 @@ temp/
 
 # 系统文件
 Thumbs.db
+
+# 运行时文件
+*.pid
+.backend.pid
+.frontend.pid
+
+# Claude Code 配置
+.claude/
+
+# 项目根目录文件（可选）
+package.json
