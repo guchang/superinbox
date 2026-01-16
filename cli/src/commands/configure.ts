@@ -22,6 +22,7 @@ export async function configure(): Promise<void> {
         name: 'action',
         message: t('config.title'),
         choices: [
+          { name: t('config.mainMenu.language'), value: 'language' },
           { name: t('config.mainMenu.apiConnection'), value: 'api' },
           { name: t('config.mainMenu.defaultValues'), value: 'defaults' },
           { name: t('config.mainMenu.displayPreferences'), value: 'display' },
@@ -33,6 +34,9 @@ export async function configure(): Promise<void> {
     ]);
 
     switch (action) {
+      case 'language':
+        await configureLanguage();
+        break;
       case 'api':
         await configureApiConnection();
         break;
@@ -53,6 +57,23 @@ export async function configure(): Promise<void> {
         break;
     }
   }
+}
+
+async function configureLanguage(): Promise<void> {
+  const { value } = await inquirer.prompt([
+    {
+      type: 'list',
+      name: 'value',
+      message: t('config.language.prompt'),
+      default: config.get().display.language,
+      choices: [
+        { name: 'English', value: 'en' },
+        { name: '中文', value: 'zh' },
+      ],
+    },
+  ]);
+  config.set('display.language', value);
+  display.success(t('config.common.success'));
 }
 
 async function configureApiConnection(): Promise<void> {
@@ -227,7 +248,6 @@ async function configureDisplayPreferences(): Promise<void> {
         name: 'action',
         message: t('config.displayPreferences.title'),
         choices: [
-          { name: t('config.displayPreferences.setLanguage'), value: 'language' },
           { name: t('config.displayPreferences.setCompact'), value: 'compact' },
           { name: t('config.displayPreferences.setColor'), value: 'color' },
           { name: t('config.displayPreferences.setDateFormat'), value: 'dateFormat' },
@@ -239,23 +259,6 @@ async function configureDisplayPreferences(): Promise<void> {
     ]);
 
     switch (action) {
-      case 'language': {
-        const { value } = await inquirer.prompt([
-          {
-            type: 'list',
-            name: 'value',
-            message: t('config.displayPreferences.languagePrompt'),
-            default: config.get().display.language,
-            choices: [
-              { name: 'English', value: 'en' },
-              { name: '中文', value: 'zh' },
-            ],
-          },
-        ]);
-        config.set('display.language', value);
-        display.success(t('config.common.success'));
-        break;
-      }
       case 'compact': {
         const { value } = await inquirer.prompt([
           {

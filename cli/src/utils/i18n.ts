@@ -11,12 +11,16 @@ interface Translations {
   config: {
     title: string;
     mainMenu: {
+      language: string;
       apiConnection: string;
       defaultValues: string;
       displayPreferences: string;
       behaviorSettings: string;
       viewConfig: string;
       exit: string;
+    };
+    language: {
+      prompt: string;
     };
     apiConnection: {
       title: string;
@@ -40,14 +44,12 @@ interface Translations {
     };
     displayPreferences: {
       title: string;
-      setLanguage: string;
       setCompact: string;
       setColor: string;
       setDateFormat: string;
       setMaxItems: string;
       resetToDefaults: string;
       back: string;
-      languagePrompt: string;
       compactPrompt: string;
       colorPrompt: string;
       dateFormatPrompt: string;
@@ -78,12 +80,16 @@ const translations: Record<Language, Translations> = {
     config: {
       title: 'SuperInbox CLI Configuration',
       mainMenu: {
+        language: 'Language / 语言',
         apiConnection: 'API Connection',
         defaultValues: 'Default Values',
         displayPreferences: 'Display Preferences',
         behaviorSettings: 'Behavior Settings',
         viewConfig: 'View Current Config',
         exit: 'Exit',
+      },
+      language: {
+        prompt: 'Select language:',
       },
       apiConnection: {
         title: 'Configure API Connection',
@@ -107,14 +113,12 @@ const translations: Record<Language, Translations> = {
       },
       displayPreferences: {
         title: 'Configure Display Preferences',
-        setLanguage: 'Set Language',
         setCompact: 'Set Compact Mode',
         setColor: 'Set Color Output',
         setDateFormat: 'Set Date Format',
         setMaxItems: 'Set Max Items to Display',
         resetToDefaults: 'Reset Display Preferences to Defaults',
         back: 'Back to Main Menu',
-        languagePrompt: 'Select language:',
         compactPrompt: 'Enable compact mode?',
         colorPrompt: 'Enable color output?',
         dateFormatPrompt: 'Select date format:',
@@ -143,12 +147,16 @@ const translations: Record<Language, Translations> = {
     config: {
       title: 'SuperInbox CLI 配置',
       mainMenu: {
+        language: 'Language / 语言',
         apiConnection: 'API 连接',
         defaultValues: '默认值',
         displayPreferences: '显示偏好',
         behaviorSettings: '行为设置',
         viewConfig: '查看当前配置',
         exit: '退出',
+      },
+      language: {
+        prompt: '选择语言:',
       },
       apiConnection: {
         title: '配置 API 连接',
@@ -172,14 +180,12 @@ const translations: Record<Language, Translations> = {
       },
       displayPreferences: {
         title: '配置显示偏好',
-        setLanguage: '设置语言',
         setCompact: '设置紧凑模式',
         setColor: '设置彩色输出',
         setDateFormat: '设置日期格式',
         setMaxItems: '设置最大显示条目数',
         resetToDefaults: '恢复显示偏好默认值',
         back: '返回主菜单',
-        languagePrompt: '选择语言:',
         compactPrompt: '是否启用紧凑模式？',
         colorPrompt: '是否启用彩色输出？',
         dateFormatPrompt: '选择日期格式:',
