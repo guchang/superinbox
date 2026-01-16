@@ -251,6 +251,7 @@ export interface QueryFilter {
   status?: ItemStatus;
   intent?: IntentType;
   source?: string;
+  query?: string; // 全文搜索
   startDate?: Date;
   endDate?: Date;
   tags?: string[];

@@ -10,6 +10,7 @@ import { add } from './commands/add.js';
 import { list } from './commands/list.js';
 import { show } from './commands/show.js';
 import { edit } from './commands/edit.js';
+import { deleteItem } from './commands/delete.js';
 import { status } from './commands/status.js';
 import { configure } from './commands/configure.js';
 
@@ -73,6 +74,16 @@ program
   .argument('<id>', '条目 ID')
   .action(async (id) => {
     await show(id);
+  });
+
+// Delete command
+program
+  .command('delete')
+  .alias('rm')
+  .description('删除条目')
+  .argument('[id]', '条目 ID (不提供则从列表中选择)')
+  .action(async (id) => {
+    await deleteItem(id);
   });
 
 // Status command

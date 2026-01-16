@@ -156,6 +156,7 @@ export class InboxController {
         status: req.query.status as string,
         intent: req.query.intent as string,
         source: req.query.source as string,
+        query: req.query.query as string, // 添加搜索查询支持
         limit: req.query.limit ? parseInt(req.query.limit as string) : undefined,
         offset: req.query.offset ? parseInt(req.query.offset as string) : undefined,
         sortBy: req.query.sortBy as string,
@@ -358,18 +359,26 @@ export class InboxController {
       // Analyze with AI
       const analysis = await this.ai.analyzeContent(item.originalContent, item.contentType);
 
+      // Determine status based on analysis quality
+      // Mark as failed if intent is unknown and confidence is low
+      const shouldMarkAsFailed =
+        analysis.intent === 'unknown' &&
+        (!analysis.confidence || analysis.confidence < 0.3);
+
       // Update with AI results
       this.db.updateItem(itemId, {
         intent: analysis.intent,
         entities: analysis.entities,
         summary: analysis.summary,
         suggestedTitle: analysis.suggestedTitle,
-        status: 'completed',
+        status: shouldMarkAsFailed ? 'failed' : 'completed',
         processedAt: new Date()
       });
 
-      // Trigger distribution if configured
-      await this.distributeItemAsync(item);
+      // Only trigger distribution for successfully processed items
+      if (!shouldMarkAsFailed) {
+        await this.distributeItemAsync(item);
+      }
     } catch (error) {
       console.error(`AI processing failed for item ${itemId}:`, error);
       this.db.updateItem(itemId, { status: 'failed' });

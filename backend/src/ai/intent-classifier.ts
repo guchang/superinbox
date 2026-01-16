@@ -26,23 +26,13 @@ export class IntentClassifier {
     const systemPrompt = this.buildSystemPrompt();
     const userPrompt = this.buildUserPrompt(content, contentType);
 
-    try {
-      const result = await this.llm.chatJson<AIAnalysisResult & { reasoning?: string }>([
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt }
-      ]);
+    const result = await this.llm.chatJson<AIAnalysisResult & { reasoning?: string }>([
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userPrompt }
+    ]);
 
-      // Validate and normalize the result
-      return this.validateResult(result);
-    } catch (error) {
-      console.error('Intent classification failed:', error);
-      // Return a safe fallback
-      return {
-        intent: IntentType.UNKNOWN,
-        entities: {},
-        confidence: 0
-      };
-    }
+    // Validate and normalize the result
+    return this.validateResult(result);
   }
 
   /**
