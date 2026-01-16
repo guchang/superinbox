@@ -25,7 +25,7 @@ for (const envPath of envPaths) {
 
 const defaultConfig: Config = {
   api: {
-    baseUrl: process.env.API_BASE_URL ?? 'http://localhost:3000/v1',
+    baseUrl: process.env.API_BASE_URL ?? 'http://localhost:3001/v1',
     key: process.env.API_KEY ?? 'dev-key-change-this-in-production',
     timeout: parseInt(process.env.API_TIMEOUT ?? '30000')
   },
@@ -34,8 +34,15 @@ const defaultConfig: Config = {
     type: process.env.DEFAULT_TYPE ?? 'text'
   },
   display: {
+    language: 'en',
     compact: false,
-    color: true
+    color: true,
+    dateFormat: 'relative',
+    maxItems: 20
+  },
+  behavior: {
+    autoWait: false,
+    confirmDelete: true
   }
 };
 

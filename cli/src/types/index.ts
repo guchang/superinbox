@@ -18,8 +18,15 @@ export interface Config {
     type: string;
   };
   display: {
+    language: 'en' | 'zh';
     compact: boolean;
     color: boolean;
+    dateFormat: 'relative' | 'absolute';
+    maxItems: number;
+  };
+  behavior: {
+    autoWait: boolean;
+    confirmDelete: boolean;
   };
 }
 

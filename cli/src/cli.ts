@@ -100,12 +100,9 @@ program
 // Config command
 program
   .command('config')
-  .description('管理配置')
-  .argument('<action>', '操作: get, set, reset')
-  .argument('[key]', '配置键')
-  .argument('[value]', '配置值')
-  .action(async (action, key, value) => {
-    await configure(action, key, value);
+  .description('Interactive configuration wizard')
+  .action(async () => {
+    await configure();
   });
 
 // Login command
