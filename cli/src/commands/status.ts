@@ -7,31 +7,32 @@ import ora from 'ora';
 import { api } from '../api/client.js';
 import { config } from '../config/manager.js';
 import { display } from '../utils/display.js';
+import { t } from '../utils/i18n.js';
 
 export async function status(): Promise<void> {
-  const spinner = ora('Checking server status...').start();
+  const spinner = ora(t('commands.status.checking')).start();
 
   try {
     const health = await api.healthCheck();
-    spinner.succeed('Server is running');
+    spinner.succeed(t('commands.status.running'));
 
     console.log('');
-    console.log(chalk.gray('Version:  ') + chalk.white(health.version));
-    console.log(chalk.gray('Status:   ') + chalk.green(health.status));
-    console.log(chalk.gray('Endpoint: ') + chalk.cyan(config.get().api.baseUrl));
+    console.log(chalk.gray(`${t('commands.status.version')}  `) + chalk.white(health.version));
+    console.log(chalk.gray(`${t('commands.status.status')}   `) + chalk.green(health.status));
+    console.log(chalk.gray(`${t('commands.status.endpoint')} `) + chalk.cyan(config.get().api.baseUrl));
 
     // Show login status
     if (api.isLoggedIn()) {
       const user = api.getCurrentUserFromCache();
-      console.log(chalk.gray('User:     ') + chalk.green(`${user?.username} (${user?.email})`));
+      console.log(chalk.gray(`${t('commands.status.user')}     `) + chalk.green(`${user?.username} (${user?.email})`));
     } else {
-      console.log(chalk.gray('User:     ') + chalk.yellow('未登录'));
+      console.log(chalk.gray(`${t('commands.status.user')}     `) + chalk.yellow(t('commands.status.notLoggedIn')));
     }
 
     console.log('');
 
   } catch (error) {
-    spinner.fail('Server check failed');
+    spinner.fail(t('commands.status.failed'));
     display.error(error instanceof Error ? error.message : 'Cannot connect to server');
     process.exit(1);
   }

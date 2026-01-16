@@ -5,11 +5,13 @@
 import chalk from 'chalk';
 import ora from 'ora';
 import { api } from '../api/client.js';
+import { t, getLanguage } from '../utils/i18n.js';
+import { display } from '../utils/display.js';
 
 export async function logout() {
   // Check if logged in
   if (!api.isLoggedIn()) {
-    console.log(chalk.yellow('未登录，无需退出'));
+    console.log(chalk.yellow(getLanguage() === 'zh' ? '未登录，无需退出' : 'Not logged in'));
     return;
   }
 
@@ -21,26 +23,26 @@ export async function logout() {
     {
       type: 'confirm',
       name: 'confirm',
-      message: `确定要退出登录吗? (${user?.username})`,
+      message: `${t('commands.logout.confirm')} (${user?.username})`,
       default: false
     }
   ]);
 
   if (!confirm) {
-    console.log(chalk.gray('已取消'));
+    display.info(t('config.common.cancelled'));
     return;
   }
 
-  const spinner = ora('退出登录中...').start();
+  const spinner = ora(t('commands.logout.loggingOut')).start();
 
   try {
     await api.logout();
 
-    spinner.succeed(chalk.green('已退出登录'));
+    spinner.succeed(chalk.green(t('commands.logout.success')));
     console.log('');
 
   } catch (error) {
-    spinner.fail(chalk.red('退出登录失败'));
+    spinner.fail(chalk.red(t('commands.logout.failed')));
     if (error instanceof Error) {
       console.log(chalk.red(error.message));
     }

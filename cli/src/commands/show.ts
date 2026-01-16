@@ -6,6 +6,7 @@ import chalk from 'chalk';
 import { api } from '../api/client.js';
 import { display } from '../utils/display.js';
 import { requireAuth } from '../utils/auth-check.js';
+import { t } from '../utils/i18n.js';
 
 export async function show(id?: string): Promise<void> {
   try {
@@ -18,7 +19,7 @@ export async function show(id?: string): Promise<void> {
       const items = await api.listItems({ limit: 20 });
 
       if (items.length === 0) {
-        display.info('暂无条目');
+        display.info(t('commands.show.empty'));
         return;
       }
 
@@ -27,7 +28,7 @@ export async function show(id?: string): Promise<void> {
         {
           type: 'list',
           name: 'selectedId',
-          message: '选择要查看的条目:',
+          message: t('commands.show.selectItem'),
           choices: items.map(item => ({
             name: `${item.originalContent.substring(0, 60)}${item.originalContent.length > 60 ? '...' : ''}`,
             value: item.id,
@@ -51,19 +52,19 @@ export async function show(id?: string): Promise<void> {
       {
         type: 'list',
         name: 'action',
-        message: '选择操作:',
+        message: t('commands.show.selectAction'),
         choices: [
-          { name: '编辑条目', value: 'edit' },
-          { name: '删除条目', value: 'delete' },
-          { name: '返回列表', value: 'list' },
-          { name: '退出', value: 'exit' },
+          { name: t('commands.show.edit'), value: 'edit' },
+          { name: t('commands.show.delete'), value: 'delete' },
+          { name: t('commands.show.backToList'), value: 'list' },
+          { name: t('commands.show.exit'), value: 'exit' },
         ],
       },
     ]);
 
     switch (action) {
       case 'edit':
-        console.log(chalk.yellow('编辑功能开发中...'));
+        console.log(chalk.yellow(t('commands.show.editInProgress')));
         break;
 
       case 'delete':
@@ -77,7 +78,7 @@ export async function show(id?: string): Promise<void> {
         break;
 
       case 'exit':
-        console.log(chalk.gray('退出'));
+        console.log(chalk.gray(t('commands.list.exiting')));
         break;
     }
 

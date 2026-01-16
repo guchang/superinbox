@@ -7,6 +7,7 @@ import ora from 'ora';
 import { api } from '../api/client.js';
 import { display } from '../utils/display.js';
 import { requireAuth } from '../utils/auth-check.js';
+import { t } from '../utils/i18n.js';
 
 export async function deleteItem(id?: string, returnToList: boolean = false): Promise<void> {
   try {
@@ -19,7 +20,7 @@ export async function deleteItem(id?: string, returnToList: boolean = false): Pr
       const items = await api.listItems({ limit: 20 });
 
       if (items.length === 0) {
-        display.info('暂无条目可删除');
+        display.info(t('commands.delete.empty'));
         return;
       }
 
@@ -28,7 +29,7 @@ export async function deleteItem(id?: string, returnToList: boolean = false): Pr
         {
           type: 'list',
           name: 'selectedId',
-          message: '选择要删除的条目:',
+          message: t('commands.delete.selectItem'),
           choices: items.map(item => ({
             name: `${item.originalContent.substring(0, 60)}${item.originalContent.length > 60 ? '...' : ''} (${item.intent})`,
             value: item.id,
@@ -40,20 +41,20 @@ export async function deleteItem(id?: string, returnToList: boolean = false): Pr
     }
 
     // Confirm deletion
-    const spinner = ora('获取条目信息...').start();
+    const spinner = ora('Loading item...').start();
     const item = await api.getItem(targetId!);
     spinner.stop();
 
     const inquirer = (await import('inquirer')).default;
 
-    // 显示条目详情
+    // Display item details
     console.log('');
-    console.log(chalk.yellow('即将删除以下条目:'));
-    console.log(chalk.gray(`  内容: ${item.originalContent.substring(0, 100)}`));
-    console.log(chalk.gray(`  意图: ${item.intent}`));
-    console.log(chalk.gray(`  状态: ${item.status}`));
+    console.log(chalk.yellow('About to delete the following item:'));
+    console.log(chalk.gray(`  Content: ${item.originalContent.substring(0, 100)}`));
+    console.log(chalk.gray(`  Intent: ${item.intent}`));
+    console.log(chalk.gray(`  Status: ${item.status}`));
     if (item.summary) {
-      console.log(chalk.gray(`  摘要: ${item.summary}`));
+      console.log(chalk.gray(`  Summary: ${item.summary}`));
     }
     console.log('');
 
@@ -61,20 +62,20 @@ export async function deleteItem(id?: string, returnToList: boolean = false): Pr
       {
         type: 'confirm',
         name: 'confirmed',
-        message: '确定要删除此条目吗?',
+        message: t('commands.delete.confirm'),
         default: false,
       },
     ]);
 
     if (!confirmed) {
-      display.info('已取消删除');
+      display.info(t('commands.delete.cancelled'));
       return;
     }
 
     // Delete the item
-    const deleteSpinner = ora('删除中...').start();
+    const deleteSpinner = ora(t('commands.delete.deleting')).start();
     await api.deleteItem(targetId!);
-    deleteSpinner.succeed(chalk.green('删除成功'));
+    deleteSpinner.succeed(chalk.green(t('commands.delete.success')));
     console.log('');
 
     // 如果设置了 returnToList 标志，返回列表
@@ -83,11 +84,11 @@ export async function deleteItem(id?: string, returnToList: boolean = false): Pr
         {
           type: 'list',
           name: 'action',
-          message: '选择操作:',
+          message: t('commands.delete.selectAction'),
           choices: [
-            { name: '返回列表', value: 'list' },
-            { name: '继续删除', value: 'continue' },
-            { name: '退出', value: 'exit' },
+            { name: t('commands.delete.backToList'), value: 'list' },
+            { name: t('commands.delete.continueDelete'), value: 'continue' },
+            { name: t('commands.delete.exit'), value: 'exit' },
           ],
         },
       ]);
@@ -101,7 +102,7 @@ export async function deleteItem(id?: string, returnToList: boolean = false): Pr
           await deleteItem(undefined, returnToList);
           break;
         case 'exit':
-          console.log(chalk.gray('退出'));
+          console.log(chalk.gray(t('commands.list.exiting')));
           break;
       }
       return;
@@ -113,7 +114,7 @@ export async function deleteItem(id?: string, returnToList: boolean = false): Pr
         {
           type: 'confirm',
           name: 'continue',
-          message: '是否继续删除其他条目?',
+          message: t('commands.delete.continuePrompt'),
           default: false,
         },
       ]);

@@ -6,6 +6,7 @@ import chalk from 'chalk';
 import { api } from '../api/client.js';
 import { display } from '../utils/display.js';
 import { requireAuth } from '../utils/auth-check.js';
+import { t } from '../utils/i18n.js';
 import type { ListOptions } from '../types/index.js';
 
 export async function list(options: ListOptions = {}): Promise<void> {
@@ -15,7 +16,7 @@ export async function list(options: ListOptions = {}): Promise<void> {
     const items = await api.listItems(options);
 
     if (items.length === 0) {
-      display.info('暂无条目');
+      display.info(t('commands.list.empty'));
       return;
     }
 
@@ -26,7 +27,7 @@ export async function list(options: ListOptions = {}): Promise<void> {
     }
 
     console.log('');
-    display.info(`总计: ${items.length} 条`);
+    display.info(`${t('commands.list.total')}: ${items.length}`);
 
     // 交互式操作提示
     if (!process.stdin.isTTY && !options.json) {
@@ -40,12 +41,12 @@ export async function list(options: ListOptions = {}): Promise<void> {
       {
         type: 'list',
         name: 'action',
-        message: '选择操作:',
+        message: t('commands.list.selectAction'),
         choices: [
-          { name: '查看详情', value: 'show' },
-          { name: '删除条目', value: 'delete' },
-          { name: '刷新列表', value: 'refresh' },
-          { name: '退出', value: 'exit' },
+          { name: t('commands.list.viewDetails'), value: 'show' },
+          { name: t('commands.list.deleteItem'), value: 'delete' },
+          { name: t('commands.list.refresh'), value: 'refresh' },
+          { name: t('commands.list.exit'), value: 'exit' },
         ],
       },
     ]);
@@ -56,7 +57,7 @@ export async function list(options: ListOptions = {}): Promise<void> {
           {
             type: 'list',
             name: 'itemId',
-            message: '选择要查看的条目:',
+            message: t('commands.list.selectItem'),
             choices: items.map(item => ({
               name: `${item.originalContent.substring(0, 50)}${item.originalContent.length > 50 ? '...' : ''}`,
               value: item.id,
@@ -72,7 +73,7 @@ export async function list(options: ListOptions = {}): Promise<void> {
           {
             type: 'list',
             name: 'deleteItemId',
-            message: '选择要删除的条目:',
+            message: t('commands.list.selectToDelete'),
             choices: items.map(item => ({
               name: `${item.originalContent.substring(0, 50)}${item.originalContent.length > 50 ? '...' : ''} (${item.intent})`,
               value: item.id,
@@ -84,12 +85,12 @@ export async function list(options: ListOptions = {}): Promise<void> {
         break;
 
       case 'refresh':
-        console.log(chalk.gray('刷新中...'));
+        console.log(chalk.gray(t('commands.list.refreshing')));
         await list(options);
         break;
 
       case 'exit':
-        console.log(chalk.gray('退出'));
+        console.log(chalk.gray(t('commands.list.exiting')));
         break;
     }
 

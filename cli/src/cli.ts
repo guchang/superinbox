@@ -6,6 +6,7 @@
 
 import { Command } from 'commander';
 import chalk from 'chalk';
+import { t, getLanguage } from './utils/i18n.js';
 import { add } from './commands/add.js';
 import { list } from './commands/list.js';
 import { show } from './commands/show.js';
@@ -22,17 +23,17 @@ const program = new Command();
 // CLI info
 program
   .name('sinbox')
-  .description('SuperInbox CLI - 你的智能收件箱命令行工具')
+  .description('SuperInbox CLI - Your intelligent inbox command-line tool')
   .version('0.1.0');
 
 // Add command
 program
   .command('add')
-  .description('发送内容到收件箱')
-  .argument('<content>', '要发送的内容')
-  .option('-t, --type <type>', '内容类型 (text, image, url, audio)', 'text')
-  .option('-s, --source <source>', '来源标识', 'cli')
-  .option('-w, --wait', '等待 AI 处理完成并显示结果')
+  .description(t('commands.add.description'))
+  .argument('<content>', getLanguage() === 'zh' ? '要发送的内容' : 'Content to send')
+  .option('-t, --type <type>', getLanguage() === 'zh' ? '内容类型 (text, image, url, audio)' : 'Content type (text, image, url, audio)', 'text')
+  .option('-s, --source <source>', getLanguage() === 'zh' ? '来源标识' : 'Source identifier', 'cli')
+  .option('-w, --wait', getLanguage() === 'zh' ? '等待 AI 处理完成并显示结果' : 'Wait for AI processing to complete')
   .action(async (content, options) => {
     await add(content, options);
   });
@@ -40,10 +41,10 @@ program
 // Edit command
 program
   .command('edit')
-  .description('打开编辑器输入内容')
-  .option('-t, --type <type>', '内容类型', 'text')
-  .option('-s, --source <source>', '来源标识', 'cli')
-  .option('-w, --wait', '等待 AI 处理完成')
+  .description(getLanguage() === 'zh' ? '打开编辑器输入内容' : 'Open editor to input content')
+  .option('-t, --type <type>', getLanguage() === 'zh' ? '内容类型' : 'Content type', 'text')
+  .option('-s, --source <source>', getLanguage() === 'zh' ? '来源标识' : 'Source identifier', 'cli')
+  .option('-w, --wait', getLanguage() === 'zh' ? '等待 AI 处理完成' : 'Wait for AI processing')
   .action(async (options) => {
     await edit(options);
   });
@@ -51,14 +52,14 @@ program
 // List command
 program
   .command('list')
-  .description('查看条目列表')
+  .description(t('commands.list.description'))
   .alias('ls')
-  .option('-n, --limit <number>', '显示数量', '20')
-  .option('-o, --offset <number>', '偏移量')
-  .option('--intent <intent>', '按意图筛选 (todo, idea, expense, note, bookmark, schedule)')
-  .option('--status <status>', '按状态筛选 (pending, processing, completed, failed)')
-  .option('--source <source>', '按来源筛选')
-  .option('-j, --json', '以 JSON 格式输出')
+  .option('-n, --limit <number>', getLanguage() === 'zh' ? '显示数量' : 'Display limit', '20')
+  .option('-o, --offset <number>', getLanguage() === 'zh' ? '偏移量' : 'Offset')
+  .option('--intent <intent>', getLanguage() === 'zh' ? '按意图筛选 (todo, idea, expense, note, bookmark, schedule)' : 'Filter by intent')
+  .option('--status <status>', getLanguage() === 'zh' ? '按状态筛选 (pending, processing, completed, failed)' : 'Filter by status')
+  .option('--source <source>', getLanguage() === 'zh' ? '按来源筛选' : 'Filter by source')
+  .option('-j, --json', getLanguage() === 'zh' ? '以 JSON 格式输出' : 'Output in JSON format')
   .action(async (options) => {
     await list({
       limit: parseInt(options.limit),
@@ -73,8 +74,8 @@ program
 // Show command
 program
   .command('show')
-  .description('查看条目详情')
-  .argument('[id]', '条目 ID (不提供则从列表中选择)')
+  .description(t('commands.show.description'))
+  .argument('[id]', getLanguage() === 'zh' ? '条目 ID (不提供则从列表中选择)' : 'Item ID (select from list if not provided)')
   .action(async (id) => {
     await show(id);
   });
@@ -83,8 +84,8 @@ program
 program
   .command('delete')
   .alias('rm')
-  .description('删除条目')
-  .argument('[id]', '条目 ID (不提供则从列表中选择)')
+  .description(t('commands.delete.description'))
+  .argument('[id]', getLanguage() === 'zh' ? '条目 ID (不提供则从列表中选择)' : 'Item ID (select from list if not provided)')
   .action(async (id) => {
     await deleteItem(id);
   });
@@ -92,7 +93,7 @@ program
 // Status command
 program
   .command('status')
-  .description('查看服务状态')
+  .description(t('commands.status.description'))
   .action(async () => {
     await status();
   });
@@ -100,7 +101,7 @@ program
 // Config command
 program
   .command('config')
-  .description('Interactive configuration wizard')
+  .description(t('commands.config.description'))
   .action(async () => {
     await configure();
   });
@@ -108,8 +109,8 @@ program
 // Login command
 program
   .command('login')
-  .description('登录账户')
-  .argument('[username]', '用户名（可选，不提供则交互式输入）')
+  .description(t('commands.login.description'))
+  .argument('[username]', getLanguage() === 'zh' ? '用户名（可选，不提供则交互式输入）' : 'Username (optional, interactive prompt if not provided)')
   .action(async (username) => {
     await login(username);
   });
@@ -117,7 +118,7 @@ program
 // Logout command
 program
   .command('logout')
-  .description('退出登录')
+  .description(t('commands.logout.description'))
   .action(async () => {
     await logout();
   });
@@ -125,7 +126,7 @@ program
 // Register command
 program
   .command('register')
-  .description('注册新账户（在网页中完成）')
+  .description(t('commands.register.description'))
   .action(async () => {
     await register();
   });
@@ -142,10 +143,10 @@ if (!process.argv.slice(2).length) {
 const command = process.argv[2];
 if (!command || command === 'help' || command === '--help' || command === '-h') {
   console.log('');
-  console.log(chalk.cyan.bold('  SuperInbox CLI  '));
-  console.log(chalk.gray('  智能收件箱命令行工具'));
+  console.log(chalk.cyan.bold(`  ${t('help.banner')}  `));
+  console.log(chalk.gray(`  ${t('help.subtitle')}`));
   console.log('');
-  console.log(chalk.gray('  快速开始:'));
+  console.log(chalk.gray(`  ${t('help.quickStart')}`));
   console.log(chalk.white('    sinbox add "明天下午3点开会"'));
   console.log(chalk.white('    sinbox list'));
   console.log('');
