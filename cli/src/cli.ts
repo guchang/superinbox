@@ -13,6 +13,9 @@ import { edit } from './commands/edit.js';
 import { deleteItem } from './commands/delete.js';
 import { status } from './commands/status.js';
 import { configure } from './commands/configure.js';
+import { login } from './commands/login.js';
+import { logout } from './commands/logout.js';
+import { register } from './commands/register.js';
 
 const program = new Command();
 
@@ -71,7 +74,7 @@ program
 program
   .command('show')
   .description('查看条目详情')
-  .argument('<id>', '条目 ID')
+  .argument('[id]', '条目 ID (不提供则从列表中选择)')
   .action(async (id) => {
     await show(id);
   });
@@ -103,6 +106,32 @@ program
   .argument('[value]', '配置值')
   .action(async (action, key, value) => {
     await configure(action, key, value);
+  });
+
+// Login command
+program
+  .command('login')
+  .description('登录账户')
+  .argument('[username]', '用户名')
+  .argument('[password]', '密码')
+  .action(async (username, password) => {
+    await login(username, password);
+  });
+
+// Logout command
+program
+  .command('logout')
+  .description('退出登录')
+  .action(async () => {
+    await logout();
+  });
+
+// Register command
+program
+  .command('register')
+  .description('注册新账户（在网页中完成）')
+  .action(async () => {
+    await register();
   });
 
 // Parse arguments

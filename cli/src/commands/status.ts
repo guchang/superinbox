@@ -19,6 +19,15 @@ export async function status(): Promise<void> {
     console.log(chalk.gray('Version:  ') + chalk.white(health.version));
     console.log(chalk.gray('Status:   ') + chalk.green(health.status));
     console.log(chalk.gray('Endpoint: ') + chalk.cyan(config.get().api.baseUrl));
+
+    // Show login status
+    if (api.isLoggedIn()) {
+      const user = api.getCurrentUserFromCache();
+      console.log(chalk.gray('User:     ') + chalk.green(`${user?.username} (${user?.email})`));
+    } else {
+      console.log(chalk.gray('User:     ') + chalk.yellow('未登录'));
+    }
+
     console.log('');
 
   } catch (error) {

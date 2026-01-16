@@ -86,6 +86,25 @@ export class ConfigManager {
   all(): Config {
     return this.conf.store;
   }
+
+  delete(key: string): void {
+    const keys = key.split('.');
+    const current = this.conf.store as any;
+
+    let target = current;
+    for (let i = 0; i < keys.length - 1; i++) {
+      if (!(keys[i] in target)) {
+        return; // Key doesn't exist
+      }
+      target = target[keys[i]];
+    }
+
+    const lastKey = keys[keys.length - 1];
+    if (lastKey in target) {
+      delete target[lastKey];
+      this.conf.set(current);
+    }
+  }
 }
 
 export const config = new ConfigManager();

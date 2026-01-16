@@ -8,6 +8,11 @@ export interface Config {
     key: string;
     timeout: number;
   };
+  auth?: {
+    token?: string;
+    refreshToken?: string;
+    user?: User;
+  };
   defaults: {
     source: string;
     type: string;
@@ -16,6 +21,26 @@ export interface Config {
     compact: boolean;
     color: boolean;
   };
+}
+
+export interface User {
+  id: string;
+  username: string;
+  email: string;
+  role: string;
+  createdAt: string;
+  lastLoginAt?: string;
+}
+
+export interface LoginRequest {
+  username: string;
+  password: string;
+}
+
+export interface LoginResponse {
+  user: User;
+  token: string;
+  refreshToken: string;
 }
 
 export interface Item {

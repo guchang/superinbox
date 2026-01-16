@@ -6,10 +6,13 @@ import chalk from 'chalk';
 import ora, { Ora } from 'ora';
 import { api } from '../api/client.js';
 import { display } from '../utils/display.js';
+import { requireAuth } from '../utils/auth-check.js';
 import type { CliOptions } from '../types/index.js';
 
 export async function add(content: string, options: CliOptions = {}): Promise<void> {
   try {
+    await requireAuth();
+
     const spinner = ora('Sending to inbox...').start();
 
     // Create item
