@@ -4,13 +4,17 @@
 
 import type { Request, Response, NextFunction } from 'express';
 import { getDatabase } from '../storage/database.js';
-import { config } from '../config/index.js';
+import { verifyToken } from '../utils/jwt.js';
 
 declare global {
   namespace Express {
     interface Request {
       user?: {
         id: string;
+        userId: string;
+        username?: string;
+        email?: string;
+        role?: string;
         scopes: string[];
       };
     }
@@ -18,7 +22,62 @@ declare global {
 }
 
 /**
- * Authenticate API Key middleware
+ * Authenticate JWT Token middleware
+ */
+export const authenticateJwt = (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): void => {
+  try {
+    // Get token from Authorization header or cookie
+    const authHeader = req.headers.authorization;
+    const cookieToken = req.cookies?.superinbox_auth_token;
+    const token = authHeader?.startsWith('Bearer ')
+      ? authHeader.substring(7)
+      : cookieToken;
+
+    if (!token) {
+      res.status(401).json({
+        success: false,
+        error: 'Missing Authorization token'
+      });
+      return;
+    }
+
+    // Verify JWT token
+    const payload = verifyToken(token);
+
+    if (!payload) {
+      res.status(401).json({
+        success: false,
+        error: 'Invalid or expired token'
+      });
+      return;
+    }
+
+    // Attach user info to request
+    req.user = {
+      id: payload.userId,
+      userId: payload.userId,
+      username: payload.username,
+      email: payload.email,
+      role: payload.role,
+      scopes: ['read', 'write'], // Default scopes for JWT users
+    };
+
+    next();
+  } catch (error) {
+    console.error('JWT Authentication error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Authentication failed'
+    });
+  }
+};
+
+/**
+ * Authenticate API Key middleware (for backward compatibility)
  */
 export const authenticateApiKey = (
   req: Request,
@@ -72,6 +131,7 @@ export const authenticateApiKey = (
     // Attach user info to request
     req.user = {
       id: validation.userId ?? 'default-user',
+      userId: validation.userId ?? 'default-user',
       scopes: validation.scopes ?? ['read', 'write']
     };
 
@@ -120,6 +180,73 @@ export const requireScope = (scope: string) => {
 };
 
 /**
+ * Combined authentication - accepts JWT Token or API Key
+ */
+export const authenticate = (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): void => {
+  try {
+    // Get token from Authorization header or cookie
+    const authHeader = req.headers.authorization;
+    const cookieToken = req.cookies?.superinbox_auth_token;
+    const token = authHeader?.startsWith('Bearer ')
+      ? authHeader.substring(7)
+      : cookieToken;
+
+    if (!token) {
+      res.status(401).json({
+        success: false,
+        error: 'Missing Authorization token or API key'
+      });
+      return;
+    }
+
+    // Try JWT verification first
+    const payload = verifyToken(token);
+    if (payload) {
+      req.user = {
+        id: payload.userId,
+        userId: payload.userId,
+        username: payload.username,
+        email: payload.email,
+        role: payload.role,
+        scopes: ['read', 'write'],
+      };
+      next();
+      return;
+    }
+
+    // Fall back to API key validation
+    const db = getDatabase();
+    const validation = db.validateApiKey(token);
+
+    if (validation.valid) {
+      req.user = {
+        id: validation.userId ?? 'default-user',
+        userId: validation.userId ?? 'default-user',
+        scopes: validation.scopes ?? ['read', 'write']
+      };
+      next();
+      return;
+    }
+
+    // Neither JWT nor API key is valid
+    res.status(401).json({
+      success: false,
+      error: 'Invalid token or API key'
+    });
+  } catch (error) {
+    console.error('Authentication error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Authentication failed'
+    });
+  }
+};
+
+/**
  * Optional authentication - attaches user if valid, but doesn't require it
  */
 export const optionalAuth = (
@@ -129,19 +256,39 @@ export const optionalAuth = (
 ): void => {
   try {
     const authHeader = req.headers.authorization;
+    const cookieToken = req.cookies?.superinbox_auth_token;
+    const token = authHeader?.startsWith('Bearer ')
+      ? authHeader.substring(7)
+      : cookieToken;
 
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    if (!token) {
       next();
       return;
     }
 
-    const apiKey = authHeader.substring(7);
+    // Try JWT verification first
+    const payload = verifyToken(token);
+    if (payload) {
+      req.user = {
+        id: payload.userId,
+        userId: payload.userId,
+        username: payload.username,
+        email: payload.email,
+        role: payload.role,
+        scopes: ['read', 'write'],
+      };
+      next();
+      return;
+    }
+
+    // Fall back to API key validation
     const db = getDatabase();
-    const validation = db.validateApiKey(apiKey);
+    const validation = db.validateApiKey(token);
 
     if (validation.valid) {
       req.user = {
         id: validation.userId ?? 'default-user',
+        userId: validation.userId ?? 'default-user',
         scopes: validation.scopes ?? ['read', 'write']
       };
     }

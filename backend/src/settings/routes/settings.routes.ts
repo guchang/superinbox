@@ -3,12 +3,12 @@
  */
 
 import { Router } from 'express';
-import { authenticateApiKey } from '../../middleware/auth.js';
+import { authenticate } from '../../middleware/auth.js';
 
 const router = Router();
 
 // Statistics endpoint
-router.get('/statistics', authenticateApiKey, (req, res) => {
+router.get('/statistics', authenticate, (req, res) => {
   res.json({
     success: true,
     data: {
@@ -40,7 +40,7 @@ router.get('/statistics', authenticateApiKey, (req, res) => {
 });
 
 // API Keys endpoints
-router.get('/api-keys', authenticateApiKey, (req, res) => {
+router.get('/api-keys', authenticate, (req, res) => {
   res.json({
     success: true,
     data: [
@@ -57,7 +57,7 @@ router.get('/api-keys', authenticateApiKey, (req, res) => {
   });
 });
 
-router.post('/api-keys', authenticateApiKey, (req, res) => {
+router.post('/api-keys', authenticate, (req, res) => {
   res.json({
     success: true,
     data: {
@@ -70,12 +70,12 @@ router.post('/api-keys', authenticateApiKey, (req, res) => {
   });
 });
 
-router.delete('/api-keys/:id', authenticateApiKey, (req, res) => {
+router.delete('/api-keys/:id', authenticate, (req, res) => {
   res.json({ success: true });
 });
 
 // Logs endpoint
-router.get('/logs', authenticateApiKey, (req, res) => {
+router.get('/logs', authenticate, (req, res) => {
   res.json({
     success: true,
     data: {

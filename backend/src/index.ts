@@ -6,6 +6,7 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
+import cookieParser from 'cookie-parser';
 import { config } from './config/index.js';
 import { getDatabase, closeDatabase } from './storage/database.js';
 import { initializeAdapters } from './router/index.js';
@@ -14,6 +15,7 @@ import inboxRoutes from './capture/routes/inbox.routes.js';
 import promptsRoutes from './intelligence/routes/prompts.routes.js';
 import rulesRoutes from './router/routes/rules.routes.js';
 import settingsRoutes from './settings/routes/settings.routes.js';
+import authRoutes from './auth/auth.routes.js';
 import { logger } from './middleware/logger.js';
 
 // Create Express app
@@ -59,6 +61,9 @@ app.use('/api', limiter);
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+// Cookie parser
+app.use(cookieParser());
+
 // ============================================
 // Request Logging
 // ============================================
@@ -87,6 +92,7 @@ app.get('/ping', (req, res) => {
 // ============================================
 
 // API v1 routes
+app.use('/v1/auth', authRoutes);
 app.use('/v1/intelligence', promptsRoutes);
 app.use('/v1/routing', rulesRoutes);
 app.use('/v1/settings', settingsRoutes);

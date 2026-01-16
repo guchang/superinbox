@@ -3,12 +3,12 @@
  */
 
 import { Router } from 'express';
-import { authenticateApiKey } from '../../middleware/auth.js';
+import { authenticate } from '../../middleware/auth.js';
 
 const router = Router();
 
 // Placeholder routes for prompt templates
-router.get('/prompts', authenticateApiKey, (req, res) => {
+router.get('/prompts', authenticate, (req, res) => {
   res.json({
     success: true,
     data: [
@@ -27,7 +27,7 @@ router.get('/prompts', authenticateApiKey, (req, res) => {
   });
 });
 
-router.get('/prompts/:id', authenticateApiKey, (req, res) => {
+router.get('/prompts/:id', authenticate, (req, res) => {
   res.json({
     success: true,
     data: {
@@ -44,7 +44,7 @@ router.get('/prompts/:id', authenticateApiKey, (req, res) => {
   });
 });
 
-router.post('/prompts', authenticateApiKey, (req, res) => {
+router.post('/prompts', authenticate, (req, res) => {
   res.json({
     success: true,
     data: {
@@ -56,7 +56,7 @@ router.post('/prompts', authenticateApiKey, (req, res) => {
   });
 });
 
-router.put('/prompts/:id', authenticateApiKey, (req, res) => {
+router.put('/prompts/:id', authenticate, (req, res) => {
   res.json({
     success: true,
     data: {
@@ -67,7 +67,7 @@ router.put('/prompts/:id', authenticateApiKey, (req, res) => {
   });
 });
 
-router.delete('/prompts/:id', authenticateApiKey, (req, res) => {
+router.delete('/prompts/:id', authenticate, (req, res) => {
   res.json({ success: true });
 });
 

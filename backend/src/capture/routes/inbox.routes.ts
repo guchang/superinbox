@@ -4,7 +4,7 @@
 
 import { Router } from 'express';
 import { inboxController } from '../controllers/inbox.controller.js';
-import { authenticateApiKey } from '../../middleware/auth.js';
+import { authenticate } from '../../middleware/auth.js';
 import { validateRequest } from '../../middleware/validation.js';
 
 const router = Router();
@@ -12,66 +12,66 @@ const router = Router();
 /**
  * @route   POST /v1/inbox
  * @desc    Create a new item from inbox input
- * @access  Private (API Key)
+ * @access  Private (JWT or API Key)
  */
 router.post(
   '/inbox',
-  authenticateApiKey,
+  authenticate,
   inboxController.createItem
 );
 
 /**
  * @route   GET /v1/items
  * @desc    Get all items with filtering
- * @access  Private (API Key)
+ * @access  Private (JWT or API Key)
  */
 router.get(
   '/items',
-  authenticateApiKey,
+  authenticate,
   inboxController.getItems
 );
 
 /**
  * @route   GET /v1/items/:id
  * @desc    Get a single item by ID
- * @access  Private (API Key)
+ * @access  Private (JWT or API Key)
  */
 router.get(
   '/items/:id',
-  authenticateApiKey,
+  authenticate,
   inboxController.getItem
 );
 
 /**
  * @route   PUT /v1/items/:id
  * @desc    Update an item
- * @access  Private (API Key)
+ * @access  Private (JWT or API Key)
  */
 router.put(
   '/items/:id',
-  authenticateApiKey,
+  authenticate,
   inboxController.updateItem
 );
 
 /**
  * @route   DELETE /v1/items/:id
  * @desc    Delete an item
- * @access  Private (API Key)
+ * @access  Private (JWT or API Key)
  */
 router.delete(
   '/items/:id',
-  authenticateApiKey,
+  authenticate,
   inboxController.deleteItem
 );
 
 /**
  * @route   POST /v1/items/:id/distribute
  * @desc    Manually trigger distribution for an item
- * @access  Private (API Key)
+ * @access  Private (JWT or API Key)
  */
 router.post(
   '/items/:id/distribute',
-  authenticateApiKey,
+  authenticate,
   inboxController.triggerDistribution
 );
 

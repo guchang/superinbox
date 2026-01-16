@@ -3,12 +3,12 @@
  */
 
 import { Router } from 'express';
-import { authenticateApiKey } from '../../middleware/auth.js';
+import { authenticate } from '../../middleware/auth.js';
 
 const router = Router();
 
 // Placeholder routes for routing rules
-router.get('/rules', authenticateApiKey, (req, res) => {
+router.get('/rules', authenticate, (req, res) => {
   res.json({
     success: true,
     data: [
@@ -31,7 +31,7 @@ router.get('/rules', authenticateApiKey, (req, res) => {
   });
 });
 
-router.get('/rules/:id', authenticateApiKey, (req, res) => {
+router.get('/rules/:id', authenticate, (req, res) => {
   res.json({
     success: true,
     data: {
@@ -52,7 +52,7 @@ router.get('/rules/:id', authenticateApiKey, (req, res) => {
   });
 });
 
-router.post('/rules', authenticateApiKey, (req, res) => {
+router.post('/rules', authenticate, (req, res) => {
   res.json({
     success: true,
     data: {
@@ -64,7 +64,7 @@ router.post('/rules', authenticateApiKey, (req, res) => {
   });
 });
 
-router.put('/rules/:id', authenticateApiKey, (req, res) => {
+router.put('/rules/:id', authenticate, (req, res) => {
   res.json({
     success: true,
     data: {
@@ -75,11 +75,11 @@ router.put('/rules/:id', authenticateApiKey, (req, res) => {
   });
 });
 
-router.delete('/rules/:id', authenticateApiKey, (req, res) => {
+router.delete('/rules/:id', authenticate, (req, res) => {
   res.json({ success: true });
 });
 
-router.post('/rules/:id/test', authenticateApiKey, (req, res) => {
+router.post('/rules/:id/test', authenticate, (req, res) => {
   res.json({
     success: true,
     data: {
