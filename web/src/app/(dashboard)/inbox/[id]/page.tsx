@@ -1,17 +1,21 @@
 "use client"
 
-import { useQuery } from '@tanstack/react-query'
-import { useParams } from 'next/navigation'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useParams, useRouter } from 'next/navigation'
 import { inboxApi } from '@/lib/api/inbox'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { formatDate } from '@/lib/utils'
 import { IntentType, ItemStatus } from '@/types'
-import { ArrowLeft, RefreshCw } from 'lucide-react'
+import { ArrowLeft, RefreshCw, Trash2 } from 'lucide-react'
 import Link from 'next/link'
+import { useToast } from '@/hooks/use-toast'
 
 export default function InboxDetailPage() {
+  const router = useRouter()
+  const queryClient = useQueryClient()
+  const { toast } = useToast()
   const params = useParams()
   const id = params.id as string
 
@@ -22,6 +26,34 @@ export default function InboxDetailPage() {
   })
 
   const item = itemData?.data
+
+  // 删除 mutation
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      await inboxApi.deleteItem(id)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['inbox'] })
+      toast({
+        title: '删除成功',
+        description: '条目已成功删除',
+      })
+      router.push('/inbox')
+    },
+    onError: (error) => {
+      toast({
+        title: '删除失败',
+        description: error instanceof Error ? error.message : '未知错误',
+        variant: 'destructive',
+      })
+    },
+  })
+
+  const handleDelete = () => {
+    if (confirm('确定要删除这条记录吗？')) {
+      deleteMutation.mutate()
+    }
+  }
 
   const getIntentBadgeVariant = (intent: IntentType) => {
     const variants: Record<IntentType, any> = {
@@ -66,9 +98,19 @@ export default function InboxDetailPage() {
             <p className="text-muted-foreground">ID: {item.id}</p>
           </div>
         </div>
-        <Button variant="outline" size="icon" onClick={() => refetch()}>
-          <RefreshCw className="h-4 w-4" />
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" size="icon" onClick={() => refetch()}>
+            <RefreshCw className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="destructive"
+            size="icon"
+            onClick={handleDelete}
+            disabled={deleteMutation.isPending}
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">

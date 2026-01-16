@@ -1,24 +1,92 @@
 "use client"
 
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { inboxApi } from '@/lib/api/inbox'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { formatRelativeTime } from '@/lib/utils'
 import { IntentType, ItemStatus } from '@/types'
-import { Eye, RefreshCw } from 'lucide-react'
+import { Eye, RefreshCw, Trash2 } from 'lucide-react'
 import Link from 'next/link'
+import { useToast } from '@/hooks/use-toast'
+import { useState, useMemo } from 'react'
+import { CommandSearch, SearchFilters } from '@/components/shared/command-search'
 
 export default function InboxPage() {
+  const queryClient = useQueryClient()
+  const { toast } = useToast()
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [searchFilters, setSearchFilters] = useState<SearchFilters>({ query: '' })
+
+  // 构建查询参数
+  const queryParams = useMemo(() => {
+    const params: any = { limit: 100 }
+
+    if (searchFilters.query) {
+      params.query = searchFilters.query
+    }
+    if (searchFilters.intent) {
+      params.intent = searchFilters.intent
+    }
+    if (searchFilters.status) {
+      params.status = searchFilters.status
+    }
+    if (searchFilters.source) {
+      params.source = searchFilters.source
+    }
+
+    return params
+  }, [searchFilters])
+
   const { data: itemsData, isLoading, refetch } = useQuery({
-    queryKey: ['inbox'],
-    queryFn: () => inboxApi.getItems({ limit: 20 }),
+    queryKey: ['inbox', queryParams],
+    queryFn: () => inboxApi.getItems(queryParams),
   })
 
   const items = itemsData?.data?.items || []
+
+  // 获取所有可用的来源（需要从所有数据中获取，而不是筛选后的数据）
+  const { data: allItemsData } = useQuery({
+    queryKey: ['inbox', { limit: 1000 }], // 获取所有数据用于提取 source
+    queryFn: () => inboxApi.getItems({ limit: 1000 }),
+  })
+
+  const availableSources = useMemo(() => {
+    const sources = new Set((allItemsData?.data?.items || []).map(item => item.source))
+    return Array.from(sources).sort()
+  }, [allItemsData])
+
+  // 删除 mutation
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      setDeletingId(id)
+      await inboxApi.deleteItem(id)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['inbox'] })
+      toast({
+        title: '删除成功',
+        description: '条目已成功删除',
+      })
+    },
+    onError: (error) => {
+      toast({
+        title: '删除失败',
+        description: error instanceof Error ? error.message : '未知错误',
+        variant: 'destructive',
+      })
+    },
+    onSettled: () => {
+      setDeletingId(null)
+    },
+  })
+
+  const handleDelete = async (id: string) => {
+    if (confirm('确定要删除这条记录吗？')) {
+      await deleteMutation.mutateAsync(id)
+    }
+  }
 
   const getIntentBadgeVariant = (intent: IntentType) => {
     const variants: Record<IntentType, any> = {
@@ -55,40 +123,19 @@ export default function InboxPage() {
         </Button>
       </div>
 
-      {/* Filters */}
-      <Card>
-        <CardContent className="pt-6">
-          <div className="flex gap-4">
-            <Input placeholder="搜索内容..." className="max-w-sm" />
-            <Select>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="按意图筛选" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">全部意图</SelectItem>
-                <SelectItem value={IntentType.TODO}>待办事项</SelectItem>
-                <SelectItem value={IntentType.IDEA}>想法</SelectItem>
-                <SelectItem value={IntentType.EXPENSE}>支出</SelectItem>
-                <SelectItem value={IntentType.NOTE}>笔记</SelectItem>
-                <SelectItem value={IntentType.BOOKMARK}>书签</SelectItem>
-                <SelectItem value={IntentType.SCHEDULE}>日程</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="按状态筛选" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">全部状态</SelectItem>
-                <SelectItem value={ItemStatus.PENDING}>待处理</SelectItem>
-                <SelectItem value={ItemStatus.PROCESSING}>处理中</SelectItem>
-                <SelectItem value={ItemStatus.COMPLETED}>已完成</SelectItem>
-                <SelectItem value={ItemStatus.FAILED}>失败</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </CardContent>
-      </Card>
+      {/* 搜索和筛选 */}
+      <CommandSearch
+        filters={searchFilters}
+        onFiltersChange={setSearchFilters}
+        availableSources={availableSources}
+      />
+
+      {/* 结果统计 */}
+      {(searchFilters.query || searchFilters.intent || searchFilters.status || searchFilters.source) && (
+        <div className="text-sm text-muted-foreground">
+          找到 {items.length} 条结果
+        </div>
+      )}
 
       {/* Items List */}
       {isLoading ? (
@@ -100,7 +147,9 @@ export default function InboxPage() {
       ) : items.length === 0 ? (
         <Card>
           <CardContent className="py-8 text-center text-muted-foreground">
-            暂无数据
+            {searchFilters.query || searchFilters.intent || searchFilters.status || searchFilters.source
+              ? '没有找到匹配的条目'
+              : '暂无数据'}
           </CardContent>
         </Card>
       ) : (
@@ -124,11 +173,21 @@ export default function InboxPage() {
                       {formatRelativeTime(item.createdAt)}
                     </p>
                   </div>
-                  <Link href={`/inbox/${item.id}`}>
-                    <Button variant="ghost" size="icon">
-                      <Eye className="h-4 w-4" />
+                  <div className="flex items-center gap-1">
+                    <Link href={`/inbox/${item.id}`}>
+                      <Button variant="ghost" size="icon">
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                    </Link>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleDelete(item.id)}
+                      disabled={deletingId === item.id}
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
                     </Button>
-                  </Link>
+                  </div>
                 </div>
               </CardContent>
             </Card>
