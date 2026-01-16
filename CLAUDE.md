@@ -568,6 +568,28 @@ npm test
 
 ## 编码规范
 
+### 语言要求 (IMPORTANT)
+
+**所有代码和 Git 提交必须使用英文：**
+
+1. **Git Commit Messages** - 必须使用英文
+   - ✅ 正确: `feat(cli): add JWT authentication support`
+   - ❌ 错误: `feat(cli): 添加 JWT 认证支持`
+
+2. **代码注释** - 必须使用英文
+   - ✅ 正确: `// Check if user is logged in`
+   - ❌ 错误: `// 检查用户是否已登录`
+
+3. **变量/函数命名** - 必须使用英文
+   - ✅ 正确: `getUserById`, `isAuthenticated`
+   - ❌ 错误: `huoQuYongHu`, `yiDengLu`
+
+4. **允许使用中文的场景：**
+   - 用户界面文本（UI labels, messages, prompts）
+   - 面向用户的文档（README 的中文版本）
+   - 用户可见的错误消息
+   - 日志输出中的描述性文本
+
 ### TypeScript 规范
 
 - 使用 **ES Modules** (`"type": "module"`)
@@ -576,6 +598,7 @@ npm test
 - 优先使用 `const`/`let`，避免 `var`
 - 使用箭头函数
 - 显式类型注解（函数参数、返回值）
+- **所有注释必须使用英文**
 
 ### 命名约定
 
@@ -588,6 +611,8 @@ npm test
 
 ### Git 提交规范
 
+**重要：所有 Git Commit 消息必须使用英文**
+
 遵循 [Conventional Commits](https://www.conventionalcommits.org/)：
 
 ```
@@ -599,14 +624,14 @@ npm test
 ```
 
 **类型:**
-- `feat`: 新功能
-- `fix`: Bug 修复
-- `docs`: 文档更新
-- `style`: 代码格式（不影响功能）
-- `refactor`: 重构
-- `perf`: 性能优化
-- `test`: 测试相关
-- `chore`: 构建/工具链相关
+- `feat`: New feature
+- `fix`: Bug fix
+- `docs`: Documentation updates
+- `style`: Code formatting (no functional changes)
+- `refactor`: Code refactoring
+- `perf`: Performance improvements
+- `test`: Test-related changes
+- `chore`: Build/toolchain changes
 
 **示例:**
 ```
@@ -616,6 +641,17 @@ Implement POST /v1/inbox/batch to support creating
 multiple items in a single request.
 
 Closes #123
+```
+
+**更多示例:**
+```
+fix(cli): fix logout error when clearing auth config
+
+- Remove undefined value assignment to config
+- Add delete() method to ConfigManager
+- Use config.delete() to clear auth data
+
+Closes #456
 ```
 
 ---
