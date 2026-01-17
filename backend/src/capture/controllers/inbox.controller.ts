@@ -33,6 +33,21 @@ const updateItemSchema = z.object({
   priority: z.enum(['low', 'medium', 'high', 'urgent']).optional()
 });
 
+const batchCreateSchema = z.object({
+  entries: z.array(z.object({
+    content: z.string().min(1, 'Content is required').max(10000),
+    type: z.enum(['text', 'image', 'url', 'audio', 'file', 'mixed']).optional(),
+    source: z.string().max(100).optional(),
+    metadata: z.record(z.unknown()).optional()
+  })).min(1, 'At least one entry is required')
+});
+
+const searchSchema = z.object({
+  q: z.string().min(1, 'Query parameter is required'),
+  intent: z.enum(['todo', 'idea', 'expense', 'note', 'bookmark', 'schedule', 'unknown']).optional(),
+  limit: z.coerce.number().int().positive().max(100).optional()
+});
+
 export class InboxController {
   private db = getDatabase();
   private ai = getAIService();
@@ -413,6 +428,195 @@ export class InboxController {
         }
       });
     } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Delete item from inbox (new API format)
+   * DELETE /v1/inbox/:id
+   */
+  deleteItemFromInbox = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { id } = req.params;
+      const userId = req.user?.id ?? 'default-user';
+
+      const existing = this.db.getItemById(id);
+
+      if (!existing) {
+        res.status(404).json({
+          success: false,
+          error: {
+            code: 'NOT_FOUND',
+            message: 'Item not found'
+          }
+        });
+        return;
+      }
+
+      // Check ownership
+      if (existing.userId !== userId) {
+        res.status(403).json({
+          success: false,
+          error: {
+            code: 'FORBIDDEN',
+            message: 'Access denied'
+          }
+        });
+        return;
+      }
+
+      this.db.deleteItem(id);
+
+      res.json({
+        success: true,
+        message: '记录已删除'
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Create multiple items in one request
+   * POST /v1/inbox/batch
+   */
+  createItemsBatch = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { entries } = req.body;
+
+      // Basic validation: entries must be an array
+      if (!Array.isArray(entries) || entries.length === 0) {
+        res.status(400).json({
+          success: false,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'entries must be a non-empty array'
+          }
+        });
+        return;
+      }
+
+      const userId = req.user?.id ?? 'default-user';
+
+      const results: Array<{
+        id?: string;
+        content: string;
+        status?: string;
+        error?: string;
+  }> = [];
+
+      let succeeded = 0;
+      let failed = 0;
+
+      // Process each entry individually
+      for (const entry of entries) {
+        try {
+          // Validate individual entry
+          const validatedEntry = createItemSchema.parse(entry);
+
+          const item: Item = {
+            id: uuidv4(),
+            userId,
+            originalContent: validatedEntry.content,
+            contentType: (validatedEntry.type ?? 'text') as ContentType,
+            source: validatedEntry.source ?? 'api',
+            intent: 'unknown' as any,
+            entities: {},
+            status: 'pending' as ItemStatus,
+            priority: 'medium' as Priority,
+            distributedTargets: [],
+            distributionResults: [],
+            createdAt: new Date(),
+            updatedAt: new Date()
+          };
+
+          // Save to database
+          this.db.createItem(item);
+
+          // Trigger async AI processing
+          this.processItemAsync(item.id).catch(error => {
+            console.error(`Failed to process item ${item.id}:`, error);
+          });
+
+          results.push({
+            id: item.id,
+            content: validatedEntry.content,
+            status: 'pending'
+          });
+
+          succeeded++;
+        } catch (error) {
+          failed++;
+          results.push({
+            content: entry.content || '(empty)',
+            error: error instanceof z.ZodError
+              ? error.errors.map(e => e.message).join(', ')
+              : (error instanceof Error ? error.message : 'Unknown error')
+          });
+        }
+      }
+
+      res.json({
+        total: entries.length,
+        succeeded,
+        failed,
+        entries: results
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Search items by keyword
+   * GET /v1/inbox/search
+   */
+  searchItems = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      // Validate query parameters
+      const query = searchSchema.parse(req.query);
+      const userId = req.user?.id ?? 'default-user';
+
+      // Build filter
+      const filter: QueryFilter = {
+        query: query.q,
+        intent: query.intent,
+        limit: query.limit ?? 20,
+        offset: 0
+      };
+
+      // Get items
+      const items = this.db.getItemsByUserId(userId, filter);
+
+      // Filter by keyword in content (additional filtering on top of database query)
+      const filteredItems = items.filter(item =>
+        item.originalContent.includes(query.q)
+      );
+
+      res.json({
+        entries: filteredItems.map(item => ({
+          id: item.id,
+          content: item.originalContent,
+          source: item.source,
+          intent: item.intent,
+          entities: item.entities,
+          status: item.status,
+          createdAt: item.createdAt.toISOString()
+        }))
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        res.status(400).json({
+          success: false,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Invalid query parameters',
+            details: error.errors
+          }
+        });
+        return;
+      }
       next(error);
     }
   };

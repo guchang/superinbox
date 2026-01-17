@@ -249,3 +249,165 @@ describe('GET /v1/inbox/:id', () => {
     expect(response.status).toBe(404);
   });
 });
+
+// Task 5: DELETE /v1/inbox/:id
+describe('DELETE /v1/inbox/:id', () => {
+  it('should delete an item', async () => {
+    const createResponse = await request(app)
+      .post('/v1/inbox')
+      .set('Authorization', `Bearer ${testContext.testApiKey}`)
+      .send({ content: 'To be deleted', source: 'test' });
+    const itemId = createResponse.body.data.id;
+
+    const response = await request(app)
+      .delete(`/v1/inbox/${itemId}`)
+      .set('Authorization', `Bearer ${testContext.testApiKey}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body).toHaveProperty('success', true);
+    expect(response.body).toHaveProperty('message', '记录已删除');
+
+    // Verify deletion
+    const getResponse = await request(app)
+      .get(`/v1/inbox/${itemId}`)
+      .set('Authorization', `Bearer ${testContext.testApiKey}`);
+    expect(getResponse.status).toBe(404);
+  });
+
+  it('should return 404 when deleting non-existent item', async () => {
+    const response = await request(app)
+      .delete('/v1/inbox/non-existent-id')
+      .set('Authorization', `Bearer ${testContext.testApiKey}`);
+
+    expect(response.status).toBe(404);
+    expect(response.body).toHaveProperty('success', false);
+    expect(response.body.error).toHaveProperty('code', 'NOT_FOUND');
+  });
+});
+
+// Task 6: POST /v1/inbox/batch
+describe('POST /v1/inbox/batch', () => {
+  it('should create multiple items', async () => {
+    const response = await request(app)
+      .post('/v1/inbox/batch')
+      .set('Authorization', `Bearer ${testContext.testApiKey}`)
+      .send({
+        entries: [
+          { content: 'First', source: 'web' },
+          { content: 'Second', source: 'web' },
+          { content: 'https://example.com', source: 'web' }
+        ]
+      });
+
+    expect(response.status).toBe(200);
+    expect(response.body).toHaveProperty('total', 3);
+    expect(response.body).toHaveProperty('succeeded', 3);
+    expect(response.body).toHaveProperty('failed', 0);
+    expect(response.body.entries).toHaveLength(3);
+  });
+
+  it('should handle partial failures', async () => {
+    const response = await request(app)
+      .post('/v1/inbox/batch')
+      .set('Authorization', `Bearer ${testContext.testApiKey}`)
+      .send({
+        entries: [
+          { content: 'Valid', source: 'test' },
+          { content: '', source: 'test' }, // Invalid - empty content
+          { content: 'Another valid', source: 'test' }
+        ]
+      });
+
+    expect(response.status).toBe(200);
+    expect(response.body.succeeded).toBeLessThan(3);
+    expect(response.body.failed).toBeGreaterThan(0);
+    expect(response.body).toHaveProperty('total', 3);
+  });
+
+  it('should return 400 for missing entries array', async () => {
+    const response = await request(app)
+      .post('/v1/inbox/batch')
+      .set('Authorization', `Bearer ${testContext.testApiKey}`)
+      .send({});
+
+    expect(response.status).toBe(400);
+    expect(response.body).toHaveProperty('success', false);
+    expect(response.body.error).toHaveProperty('code', 'VALIDATION_ERROR');
+  });
+
+  it('should return 400 for empty entries array', async () => {
+    const response = await request(app)
+      .post('/v1/inbox/batch')
+      .set('Authorization', `Bearer ${testContext.testApiKey}`)
+      .send({ entries: [] });
+
+    expect(response.status).toBe(400);
+    expect(response.body).toHaveProperty('success', false);
+    expect(response.body.error).toHaveProperty('code', 'VALIDATION_ERROR');
+  });
+});
+
+// Task 7: GET /v1/inbox/search
+describe('GET /v1/inbox/search', () => {
+  beforeEach(async () => {
+    await createTestItem({ content: '打车去公司花了 30 元', source: 'test' });
+    await createTestItem({ content: '打车去机场花了 100 元', source: 'test' });
+    await createTestItem({ content: '买咖啡花了 15 元', source: 'test' });
+  });
+
+  it('should search by keyword', async () => {
+    const response = await request(app)
+      .get('/v1/inbox/search')
+      .set('Authorization', `Bearer ${testContext.testApiKey}`)
+      .query({ q: '打车' });
+
+    expect(response.status).toBe(200);
+    expect(response.body.entries.length).toBeGreaterThan(0);
+    response.body.entries.forEach((entry: any) => {
+      expect(entry.content).toContain('打车');
+    });
+  });
+
+  it('should combine search with intent filter', async () => {
+    const response = await request(app)
+      .get('/v1/inbox/search')
+      .set('Authorization', `Bearer ${testContext.testApiKey}`)
+      .query({ q: '打车', intent: 'expense' });
+
+    expect(response.status).toBe(200);
+    response.body.entries.forEach((entry: any) => {
+      expect(entry.content).toContain('打车');
+      expect(entry.intent).toBe('expense');
+    });
+  });
+
+  it('should respect limit parameter', async () => {
+    const response = await request(app)
+      .get('/v1/inbox/search')
+      .set('Authorization', `Bearer ${testContext.testApiKey}`)
+      .query({ q: '打车', limit: 1 });
+
+    expect(response.status).toBe(200);
+    expect(response.body.entries.length).toBeLessThanOrEqual(1);
+  });
+
+  it('should return 400 for missing query parameter', async () => {
+    const response = await request(app)
+      .get('/v1/inbox/search')
+      .set('Authorization', `Bearer ${testContext.testApiKey}`);
+
+    expect(response.status).toBe(400);
+    expect(response.body).toHaveProperty('success', false);
+    expect(response.body.error).toHaveProperty('code', 'VALIDATION_ERROR');
+  });
+
+  it('should return empty array when no results found', async () => {
+    const response = await request(app)
+      .get('/v1/inbox/search')
+      .set('Authorization', `Bearer ${testContext.testApiKey}`)
+      .query({ q: 'nonexistentkeywordxyz' });
+
+    expect(response.status).toBe(200);
+    expect(response.body.entries).toEqual([]);
+  });
+});

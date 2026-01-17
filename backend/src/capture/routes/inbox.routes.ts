@@ -32,6 +32,30 @@ router.get(
 );
 
 /**
+ * @route   GET /v1/inbox/search
+ * @desc    Search items by keyword (documented API)
+ * @access  Private (API Key)
+ * NOTE: Must come before /inbox/:id to avoid being matched as :id
+ */
+router.get(
+  '/inbox/search',
+  authenticate,
+  inboxController.searchItems
+);
+
+/**
+ * @route   POST /v1/inbox/batch
+ * @desc    Create multiple items in one request (documented API)
+ * @access  Private (API Key)
+ * NOTE: Must come before /inbox/:id to avoid being matched as :id
+ */
+router.post(
+  '/inbox/batch',
+  authenticate,
+  inboxController.createItemsBatch
+);
+
+/**
  * @route   GET /v1/inbox/:id
  * @desc    Get a single item by ID (documented API)
  * @access  Private (API Key)
@@ -40,6 +64,17 @@ router.get(
   '/inbox/:id',
   authenticate,
   inboxController.getItem
+);
+
+/**
+ * @route   DELETE /v1/inbox/:id
+ * @desc    Delete an item by ID (documented API)
+ * @access  Private (API Key)
+ */
+router.delete(
+  '/inbox/:id',
+  authenticate,
+  inboxController.deleteItemFromInbox
 );
 
 /**
