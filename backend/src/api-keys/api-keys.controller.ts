@@ -250,6 +250,8 @@ export const updateApiKeyController = async (req: Request, res: Response): Promi
 /**
  * Toggle API key status (enable/disable)
  * POST /v1/api-keys/:id/toggle
+ * @legacy  This endpoint is maintained for backward compatibility.
+ *          New code should use POST /v1/api-keys/:id/enable or /disable instead.
  */
 export const toggleApiKeyController = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -311,6 +313,124 @@ export const toggleApiKeyController = async (req: Request, res: Response): Promi
     res.status(500).json({
       success: false,
       error: 'Failed to toggle API key',
+    });
+  }
+};
+
+/**
+ * Disable an API key
+ * POST /v1/api-keys/:id/disable
+ */
+export const disableApiKeyController = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const userId = req.user?.userId;
+    const db = getDatabase();
+
+    const apiKey = db.getApiKeyById(id);
+
+    if (!apiKey) {
+      res.status(404).json({
+        success: false,
+        error: {
+          code: 'API_KEY_NOT_FOUND',
+          message: 'API key not found'
+        }
+      });
+      return;
+    }
+
+    // Verify ownership
+    if (apiKey.userId !== userId) {
+      res.status(403).json({
+        success: false,
+        error: {
+          code: 'API_KEY_FORBIDDEN',
+          message: 'Access denied'
+        }
+      });
+      return;
+    }
+
+    const updated = db.updateApiKey(id, { isActive: false });
+
+    res.json({
+      success: true,
+      message: 'API Key 已禁用',
+      data: {
+        id: updated.id,
+        name: updated.name,
+        status: 'disabled',
+        disabledAt: new Date().toISOString()
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'API_KEY_DISABLE_FAILED',
+        message: 'Failed to disable API key',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      }
+    });
+  }
+};
+
+/**
+ * Enable an API key
+ * POST /v1/api-keys/:id/enable
+ */
+export const enableApiKeyController = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const userId = req.user?.userId;
+    const db = getDatabase();
+
+    const apiKey = db.getApiKeyById(id);
+
+    if (!apiKey) {
+      res.status(404).json({
+        success: false,
+        error: {
+          code: 'API_KEY_NOT_FOUND',
+          message: 'API key not found'
+        }
+      });
+      return;
+    }
+
+    // Verify ownership
+    if (apiKey.userId !== userId) {
+      res.status(403).json({
+        success: false,
+        error: {
+          code: 'API_KEY_FORBIDDEN',
+          message: 'Access denied'
+        }
+      });
+      return;
+    }
+
+    const updated = db.updateApiKey(id, { isActive: true });
+
+    res.json({
+      success: true,
+      message: 'API Key 已启用',
+      data: {
+        id: updated.id,
+        name: updated.name,
+        status: 'active',
+        enabledAt: new Date().toISOString()
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'API_KEY_ENABLE_FAILED',
+        message: 'Failed to enable API key',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      }
     });
   }
 };

@@ -125,6 +125,8 @@ router.delete(
  * @route   POST /v1/items/:id/distribute
  * @desc    Manually trigger distribution for an item
  * @access  Private (JWT or API Key)
+ * @legacy  This route is maintained for backward compatibility.
+ *           New code should use POST /v1/routing/dispatch/:id instead.
  */
 router.post(
   '/items/:id/distribute',

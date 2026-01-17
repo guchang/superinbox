@@ -94,7 +94,8 @@ app.get('/ping', (req, res) => {
 
 // API v1 routes
 app.use('/v1/auth', authRoutes);
-app.use('/v1/api-keys', apiKeysRoutes);
+app.use('/v1/auth/api-keys', apiKeysRoutes); // Documented path (Task 11)
+app.use('/v1/api-keys', apiKeysRoutes);      // Legacy path (backward compatibility)
 app.use('/v1/intelligence', promptsRoutes);
 app.use('/v1/routing', rulesRoutes);
 app.use('/v1/settings', settingsRoutes);

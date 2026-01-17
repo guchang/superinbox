@@ -9,6 +9,8 @@ import {
   getApiKeyController,
   updateApiKeyController,
   toggleApiKeyController,
+  disableApiKeyController,
+  enableApiKeyController,
   regenerateApiKeyController,
   deleteApiKeyController,
   getApiKeyLogsController,
@@ -46,9 +48,25 @@ router.get('/:id', authenticateJwt, getApiKeyController);
 router.patch('/:id', authenticateJwt, updateApiKeyController);
 
 /**
+ * @route   POST /v1/api-keys/:id/disable
+ * @desc    Disable an API key
+ * @access  Private (requires JWT authentication)
+ */
+router.post('/:id/disable', authenticateJwt, disableApiKeyController);
+
+/**
+ * @route   POST /v1/api-keys/:id/enable
+ * @desc    Enable an API key
+ * @access  Private (requires JWT authentication)
+ */
+router.post('/:id/enable', authenticateJwt, enableApiKeyController);
+
+/**
  * @route   POST /v1/api-keys/:id/toggle
  * @desc    Enable or disable an API key
  * @access  Private (requires JWT authentication)
+ * @legacy  This endpoint is maintained for backward compatibility.
+ *          New code should use POST /v1/api-keys/:id/enable or /disable instead.
  */
 router.post('/:id/toggle', authenticateJwt, toggleApiKeyController);
 

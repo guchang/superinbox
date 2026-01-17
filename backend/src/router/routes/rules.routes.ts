@@ -4,6 +4,7 @@
 
 import { Router } from 'express';
 import { authenticate } from '../../middleware/auth.js';
+import { dispatchItem } from '../controllers/dispatch.controller.js';
 
 const router = Router();
 
@@ -88,5 +89,12 @@ router.post('/rules/:id/test', authenticate, (req, res) => {
     }
   });
 });
+
+/**
+ * @route   POST /v1/routing/dispatch/:id
+ * @desc    Manually dispatch an item to configured adapters
+ * @access  Private (requires authentication)
+ */
+router.post('/dispatch/:id', authenticate, dispatchItem);
 
 export default router;
