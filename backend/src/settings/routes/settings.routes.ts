@@ -116,8 +116,13 @@ router.get('/statistics', authenticate, (req: Request, res: Response): void => {
   }
 });
 
-// API Keys endpoints
+// API Keys endpoints - DEPRECATED
+// These endpoints are now available at /v1/auth/api-keys
+// This route is kept for backward compatibility and will be removed in v0.2.0
+
 router.get('/api-keys', authenticate, (req, res) => {
+  res.setHeader('X-Deprecated', 'true');
+  res.setHeader('X-Deprecation-Message', 'Use GET /v1/auth/api-keys instead');
   res.json({
     success: true,
     data: [
@@ -130,11 +135,14 @@ router.get('/api-keys', authenticate, (req, res) => {
         isActive: true,
         createdAt: new Date().toISOString(),
       }
-    ]
+    ],
+    _warning: 'This endpoint is deprecated. Use /v1/auth/api-keys instead.'
   });
 });
 
 router.post('/api-keys', authenticate, (req, res) => {
+  res.setHeader('X-Deprecated', 'true');
+  res.setHeader('X-Deprecation-Message', 'Use POST /v1/auth/api-keys instead');
   res.json({
     success: true,
     data: {
@@ -143,22 +151,32 @@ router.post('/api-keys', authenticate, (req, res) => {
       ...req.body,
       isActive: true,
       createdAt: new Date().toISOString(),
-    }
+    },
+    _warning: 'This endpoint is deprecated. Use /v1/auth/api-keys instead.'
   });
 });
 
 router.delete('/api-keys/:id', authenticate, (req, res) => {
-  res.json({ success: true });
+  res.setHeader('X-Deprecated', 'true');
+  res.setHeader('X-Deprecation-Message', 'Use DELETE /v1/auth/api-keys/:id instead');
+  res.json({
+    success: true,
+    _warning: 'This endpoint is deprecated. Use /v1/auth/api-keys/:id instead.'
+  });
 });
 
-// Logs endpoint
+// Logs endpoint - DEPRECATED
+// Will be removed in v0.2.0
 router.get('/logs', authenticate, (req, res) => {
+  res.setHeader('X-Deprecated', 'true');
+  res.setHeader('X-Deprecation-Message', 'This endpoint will be removed in v0.2.0');
   res.json({
     success: true,
     data: {
       logs: [],
       total: 0,
-    }
+    },
+    _warning: 'This endpoint is deprecated and will be removed in v0.2.0. Use proper logging infrastructure instead.'
   });
 });
 

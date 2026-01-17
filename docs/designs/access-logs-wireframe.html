@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>访问日志系统 - 设计示意图</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      background: #f8f9fa;
+      color: #1a1a1a;
+      line-height: 1.6;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    /* 页面头部 */
+    .page-header {
+      background: white;
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 20px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .page-title {
+      font-size: 28px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .page-description {
+      color: #64748b;
+      font-size: 14px;
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 12px;
+      margin-top: 20px;
+    }
+
+    .btn {
+      padding: 10px 20px;
+      border-radius: 8px;
+      border: none;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-primary {
+      background: #0f172a;
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: #1e293b;
+    }
+
+    .btn-outline {
+      background: white;
+      border: 1px solid #e2e8f0;
+      color: #475569;
+    }
+
+    .btn-outline:hover {
+      background: #f8fafc;
+    }
+
+    /* 筛选器区域 */
+    .filters-section {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .quick-filters {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .filter-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .filter-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .filter-select {
+      padding: 8px 12px;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      font-size: 14px;
+      min-width: 140px;
+      background: white;
+    }
+
+    .search-box {
+      position: relative;
+      flex: 1;
+      max-width: 400px;
+    }
+
+    .search-input {
+      width: 100%;
+      padding: 8px 12px 8px 36px;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+
+    .search-icon {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #94a3b8;
+      font-size: 14px;
+    }
+
+    .btn-advanced {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      background: #f1f5f9;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    .badge {
+      background: #0f172a;
+      color: white;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 11px;
+    }
+
+    /* 高级筛选（折叠） */
+    .advanced-filters {
+      margin-top: 20px;
+      padding-top: 20px;
+      border-top: 1px solid #e2e8f0;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+    }
+
+    .checkbox-group {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .checkbox-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 14px;
+    }
+
+    /* 标签栏 */
+    .tags-bar {
+      display: flex;
+      gap: 8px;
+      padding: 12px 20px;
+      background: #f8fafc;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      background: white;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      font-size: 13px;
+    }
+
+    .tag-remove {
+      color: #94a3b8;
+      cursor: pointer;
+      font-size: 16px;
+    }
+
+    .tag-remove:hover {
+      color: #ef4444;
+    }
+
+    /* 表格区域 */
+    .table-container {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      overflow: hidden;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    thead {
+      background: #f8fafc;
+    }
+
+    th {
+      padding: 14px 16px;
+      text-align: left;
+      font-size: 12px;
+      font-weight: 600;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border-bottom: 1px solid #e2e8f0;
+    }
+
+    td {
+      padding: 14px 16px;
+      border-bottom: 1px solid #f1f5f9;
+      font-size: 14px;
+    }
+
+    tr:hover {
+      background: #f8fafc;
+    }
+
+    /* 徽章样式 */
+    .badge-success {
+      background: #dcfce7;
+      color: #166534;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .badge-error {
+      background: #fee2e2;
+      color: #991b1b;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .badge-denied {
+      background: #fef3c7;
+      color: #92400e;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .method-badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .method-get {
+      background: #dbeafe;
+      color: #1e40af;
+    }
+
+    .method-post {
+      background: #dcfce7;
+      color: #166534;
+    }
+
+    .method-put {
+      background: #fef3c7;
+      color: #92400e;
+    }
+
+    .method-delete {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+
+    .latency {
+      font-weight: 600;
+      font-size: 13px;
+    }
+
+    .latency-good {
+      color: #22c55e;
+    }
+
+    .latency-warn {
+      color: #f59e0b;
+    }
+
+    .latency-bad {
+      color: #ef4444;
+    }
+
+    .code {
+      background: #f1f5f9;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-family: 'Monaco', 'Menlo', monospace;
+      font-size: 12px;
+    }
+
+    /* 展开行 */
+    .detail-row {
+      background: #f8fafc;
+    }
+
+    .detail-content {
+      padding: 20px;
+    }
+
+    .detail-section {
+      margin-bottom: 20px;
+    }
+
+    .detail-title {
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 12px;
+      color: #475569;
+    }
+
+    .detail-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+    }
+
+    .detail-item {
+      background: white;
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid #e2e8f0;
+    }
+
+    .detail-label {
+      font-size: 12px;
+      color: #64748b;
+      margin-bottom: 4px;
+    }
+
+    .detail-value {
+      font-size: 13px;
+      word-break: break-all;
+    }
+
+    .error-box {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      border-radius: 8px;
+      padding: 12px;
+    }
+
+    .error-code {
+      color: #dc2626;
+      font-family: monospace;
+      font-size: 13px;
+    }
+
+    /* 分页 */
+    .pagination {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 20px;
+      border-top: 1px solid #e2e8f0;
+      background: #f8fafc;
+    }
+
+    .pagination-info {
+      font-size: 14px;
+      color: #64748b;
+    }
+
+    .pagination-controls {
+      display: flex;
+      gap: 8px;
+    }
+
+    .page-btn {
+      padding: 8px 16px;
+      border: 1px solid #e2e8f0;
+      background: white;
+      border-radius: 6px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    .page-btn.active {
+      background: #0f172a;
+      color: white;
+      border-color: #0f172a;
+    }
+
+    /* 单个 Key 页面头部 */
+    .key-header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 20px;
+      color: white;
+    }
+
+    .key-name {
+      font-size: 24px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .key-meta {
+      display: flex;
+      gap: 20px;
+      font-size: 14px;
+      opacity: 0.9;
+    }
+
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: white;
+      text-decoration: none;
+      margin-bottom: 16px;
+      font-size: 14px;
+    }
+
+    /* 响应式 */
+    @media (max-width: 768px) {
+      .quick-filters {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .search-box {
+        max-width: none;
+      }
+
+      .advanced-filters {
+        grid-template-columns: 1fr;
+      }
+
+      .detail-grid {
+        grid-template-columns: 1fr;
+      }
+
+      table {
+        font-size: 12px;
+      }
+
+      th, td {
+        padding: 10px 12px;
+      }
+    }
+
+    .note {
+      background: #fef3c7;
+      border-left: 4px solid #f59e0b;
+      padding: 12px 16px;
+      margin: 20px 0;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+
+    .section-title {
+      font-size: 20px;
+      font-weight: 700;
+      margin: 40px 0 20px 0;
+      padding-bottom: 10px;
+      border-bottom: 2px solid #e2e8f0;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1 style="text-align: center; margin-bottom: 40px;">
+      SuperInbox 访问日志系统 - 设计示意图
+    </h1>
+
+    <!-- 全局日志页面 -->
+    <h2 class="section-title">1. 全局访问日志页面 (/settings/logs)</h2>
+
+    <!-- 页面头部 -->
+    <div class="page-header">
+      <div class="page-title">访问日志审计</div>
+      <div class="page-description">查看和分析所有 API Key 的访问记录，包括成功请求、失败请求和权限拒绝记录</div>
+      <div class="header-actions">
+        <button class="btn btn-outline">📊 查看统计</button>
+        <button class="btn btn-primary">📥 导出日志</button>
+      </div>
+    </div>
+
+    <!-- 筛选器 -->
+    <div class="filters-section">
+      <div class="quick-filters">
+        <div class="filter-group">
+          <label class="filter-label">时间范围</label>
+          <select class="filter-select">
+            <option>今天</option>
+            <option>本周</option>
+            <option selected>本月</option>
+            <option>自定义</option>
+          </select>
+        </div>
+
+        <div class="filter-group">
+          <label class="filter-label">状态</label>
+          <select class="filter-select">
+            <option selected>全部状态</option>
+            <option>成功</option>
+            <option>失败</option>
+            <option>拒绝</option>
+          </select>
+        </div>
+
+        <div class="search-box">
+          <span class="search-icon">🔍</span>
+          <input type="text" class="search-input" placeholder="搜索接口路径，如 /inbox">
+        </div>
+
+        <button class="btn-advanced">
+          ⚙️ 高级筛选
+          <span class="badge">已启用</span>
+        </button>
+      </div>
+
+      <!-- 高级筛选（展开状态） -->
+      <div class="advanced-filters">
+        <div class="filter-group">
+          <label class="filter-label">HTTP 方法</label>
+          <div class="checkbox-group">
+            <label class="checkbox-item"><input type="checkbox" checked> GET</label>
+            <label class="checkbox-item"><input type="checkbox" checked> POST</label>
+            <label class="checkbox-item"><input type="checkbox"> PUT</label>
+            <label class="checkbox-item"><input type="checkbox"> DELETE</label>
+          </div>
+        </div>
+
+        <div class="filter-group">
+          <label class="filter-label">IP 地址</label>
+          <input type="text" class="filter-select" placeholder="输入 IP 地址...">
+        </div>
+
+        <div class="filter-group">
+          <label class="filter-label">状态码</label>
+          <div style="display: flex; gap: 8px;">
+            <input type="number" class="filter-select" placeholder="最小" style="width: 100px;">
+            <input type="number" class="filter-select" placeholder="最大" style="width: 100px;">
+          </div>
+        </div>
+
+        <div class="filter-group">
+          <label class="filter-label">API Key</label>
+          <select class="filter-select">
+            <option>全部 API Keys</option>
+            <option>iOS Shortcuts</option>
+            <option>Webhook Integration</option>
+            <option>CLI Tool</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- 已选筛选标签 -->
+    <div class="tags-bar">
+      <span class="tag">时间: 本月 ✕</span>
+      <span class="tag">状态: 成功 ✕</span>
+      <span class="tag">方法: GET, POST ✕</span>
+    </div>
+
+    <!-- 表格 -->
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 50px;"><input type="checkbox"></th>
+            <th style="width: 180px;">时间</th>
+            <th>接口路径</th>
+            <th style="width: 100px;">方法</th>
+            <th style="width: 120px;">状态</th>
+            <th style="width: 100px;">耗时</th>
+            <th style="width: 150px;">IP 地址</th>
+            <th style="width: 180px;">API Key</th>
+            <th style="width: 80px;"></th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- 正常行 -->
+          <tr>
+            <td><input type="checkbox"></td>
+            <td>
+              <div>2026-01-15</div>
+              <div style="font-size: 12px; color: #94a3b8;">14:32:15</div>
+            </td>
+            <td><span class="code">/api/v1/inbox</span></td>
+            <td><span class="method-badge method-post">POST</span></td>
+            <td><span class="badge-success">成功</span> <span style="font-size: 12px; color: #94a3b8;">200</span></td>
+            <td><span class="latency latency-good">156ms</span></td>
+            <td style="color: #64748b;">192.168.1.100</td>
+            <td>iOS Shortcuts</td>
+            <td style="text-align: center;">▼</td>
+          </tr>
+
+          <!-- 展开的详情行 -->
+          <tr class="detail-row">
+            <td colspan="9">
+              <div class="detail-content">
+                <div class="detail-section">
+                  <div class="detail-title">📤 请求详情</div>
+                  <div class="detail-grid">
+                    <div class="detail-item">
+                      <div class="detail-label">完整 URL</div>
+                      <div class="detail-value">https://api.superinbox.com/api/v1/inbox</div>
+                    </div>
+                    <div class="detail-item">
+                      <div class="detail-label">请求体</div>
+                      <div class="detail-value" style="font-family: monospace; font-size: 11px;">
+                        {"content": "打车花了 30 元", "source": "ios"}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="detail-section">
+                  <div class="detail-title">📥 响应详情</div>
+                  <div style="display: flex; gap: 24px; font-size: 13px;">
+                    <span><strong>状态码:</strong> 200</span>
+                    <span><strong>响应大小:</strong> 512 B</span>
+                    <span><strong>响应时间:</strong> 156ms</span>
+                  </div>
+                </div>
+              </div>
+            </td>
+          </tr>
+
+          <!-- 慢请求 -->
+          <tr>
+            <td><input type="checkbox"></td>
+            <td>
+              <div>2026-01-15</div>
+              <div style="font-size: 12px; color: #94a3b8;">14:30:42</div>
+            </td>
+            <td><span class="code">/api/v1/inbox/search</span></td>
+            <td><span class="method-badge method-get">GET</span></td>
+            <td><span class="badge-success">成功</span> <span style="font-size: 12px; color: #94a3b8;">200</span></td>
+            <td><span class="latency latency-bad">2341ms</span></td>
+            <td style="color: #64748b;">10.0.0.45</td>
+            <td>Webhook Integration</td>
+            <td style="text-align: center;">▼</td>
+          </tr>
+
+          <!-- 失败请求 -->
+          <tr>
+            <td><input type="checkbox"></td>
+            <td>
+              <div>2026-01-15</div>
+              <div style="font-size: 12px; color: #94a3b8;">14:28:33</div>
+            </td>
+            <td><span class="code">/api/v1/inbox</span></td>
+            <td><span class="method-badge method-post">POST</span></td>
+            <td><span class="badge-error">失败</span> <span style="font-size: 12px; color: #94a3b8;">500</span></td>
+            <td><span class="latency latency-warn">89ms</span></td>
+            <td style="color: #64748b;">172.16.0.50</td>
+            <td>CLI Tool</td>
+            <td style="text-align: center;">▼</td>
+          </tr>
+
+          <!-- 权限拒绝 -->
+          <tr>
+            <td><input type="checkbox"></td>
+            <td>
+              <div>2026-01-15</div>
+              <div style="font-size: 12px; color: #94a3b8;">14:25:18</div>
+            </td>
+            <td><span class="code">/api/v1/auth/api-keys</span></td>
+            <td><span class="method-badge method-get">GET</span></td>
+            <td><span class="badge-denied">拒绝</span> <span style="font-size: 12px; color: #94a3b8;">403</span></td>
+            <td><span class="latency latency-good">45ms</span></td>
+            <td style="color: #64748b;">203.0.113.8</td>
+            <td>Third Party App</td>
+            <td style="text-align: center;">▼</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- 分页 -->
+      <div class="pagination">
+        <div class="pagination-info">
+          显示 1-4 条，共 1,523 条记录
+        </div>
+        <div class="pagination-controls">
+          <button class="page-btn">上一页</button>
+          <button class="page-btn active">1</button>
+          <button class="page-btn">2</button>
+          <button class="page-btn">3</button>
+          <button class="page-btn">...</button>
+          <button class="page-btn">153</button>
+          <button class="page-btn">下一页</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 单个 Key 日志页面 -->
+    <h2 class="section-title">2. 单个 API Key 日志页面 (/settings/api-keys/[id]/logs)</h2>
+
+    <!-- Key 信息头部 -->
+    <div class="key-header">
+      <a href="#" class="back-link">← 返回 API Keys</a>
+      <div class="key-name">iOS Shortcuts</div>
+      <div class="key-meta">
+        <span>Key: sk_live_abc123...</span>
+        <span>•</span>
+        <span>创建于 2026-01-10</span>
+        <span>•</span>
+        <span>共 523 次调用</span>
+      </div>
+      <div style="margin-top: 16px; display: flex; gap: 12px;">
+        <button class="btn" style="background: rgba(255,255,255,0.2); color: white;">📊 查看统计</button>
+        <button class="btn" style="background: rgba(255,255,255,0.2); color: white;">✏️ 编辑 Key</button>
+      </div>
+    </div>
+
+    <!-- 表格（复用，只是多了 Key 过滤） -->
+    <div class="note">
+      <strong>注意：</strong>表格组件与全局日志页面完全相同，只是筛选器默认已选中该 API Key，且表格中不显示"API Key"列。
+    </div>
+
+    <!-- 导出对话框 -->
+    <h2 class="section-title">3. 导出对话框</h2>
+
+    <div class="table-container" style="padding: 24px; max-width: 600px;">
+      <h3 style="margin-bottom: 20px;">导出访问日志</h3>
+
+      <div style="margin-bottom: 20px;">
+        <label style="display: block; font-weight: 600; margin-bottom: 8px; font-size: 14px;">导出格式</label>
+        <div style="display: flex; gap: 12px;">
+          <label style="display: flex; align-items: center; gap: 6px;">
+            <input type="radio" name="format" checked> CSV
+          </label>
+          <label style="display: flex; align-items: center; gap: 6px;">
+            <input type="radio" name="format"> JSON
+          </label>
+          <label style="display: flex; align-items: center; gap: 6px;">
+            <input type="radio" name="format"> XLSX
+          </label>
+        </div>
+      </div>
+
+      <div style="margin-bottom: 20px;">
+        <label style="display: block; font-weight: 600; margin-bottom: 8px; font-size: 14px;">包含字段</label>
+        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;">
+          <label style="display: flex; align-items: center; gap: 6px; font-size: 14px;">
+            <input type="checkbox" checked> 时间戳
+          </label>
+          <label style="display: flex; align-items: center; gap: 6px; font-size: 14px;">
+            <input type="checkbox" checked> HTTP 方法
+          </label>
+          <label style="display: flex; align-items: center; gap: 6px; font-size: 14px;">
+            <input type="checkbox" checked> 接口路径
+          </label>
+          <label style="display: flex; align-items: center; gap: 6px; font-size: 14px;">
+            <input type="checkbox" checked> 状态码
+          </label>
+          <label style="display: flex; align-items: center; gap: 6px; font-size: 14px;">
+            <input type="checkbox" checked> 耗时
+          </label>
+          <label style="display: flex; align-items: center; gap: 6px; font-size: 14px;">
+            <input type="checkbox"> IP 地址
+          </label>
+          <label style="display: flex; align-items: center; gap: 6px; font-size: 14px;">
+            <input type="checkbox"> User-Agent
+          </label>
+          <label style="display: flex; align-items: center; gap: 6px; font-size: 14px;">
+            <input type="checkbox"> 请求体
+          </label>
+        </div>
+      </div>
+
+      <div style="margin-bottom: 20px; padding: 12px; background: #f8fafc; border-radius: 6px; font-size: 13px; color: #64748b;">
+        <strong>时间范围：</strong> 将导出当前筛选器设定的时间范围（2026-01-01 至 2026-01-15）
+      </div>
+
+      <div style="margin-bottom: 20px; padding: 12px; background: #fef3c7; border-radius: 6px; font-size: 13px;">
+        <strong>⚠️ 注意：</strong> 当前筛选结果包含 1,523 条记录，将使用异步导出。完成后将通过通知提示。
+      </div>
+
+      <div style="display: flex; gap: 12px; justify-content: flex-end;">
+        <button class="btn btn-outline">取消</button>
+        <button class="btn btn-primary">开始导出</button>
+      </div>
+    </div>
+
+  </div>
+</body>
+</html>
