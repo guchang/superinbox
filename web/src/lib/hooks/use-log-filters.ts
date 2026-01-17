@@ -72,16 +72,25 @@ export function useLogFilters() {
   const updateFilter = useCallback(<K extends keyof LogFilters>(key: K, value: LogFilters[K]) => {
     const newParams = new URLSearchParams(searchParams)
 
+    // Map filter keys to URL param names
+    const urlParamMap: Record<string, string> = {
+      ipAddress: 'ip',
+      apiKeyId: 'apiKey',
+      searchQuery: 'q',
+    }
+
+    const urlKey = urlParamMap[key] || key
+
     if (value === undefined || value === '' || value === DEFAULT_FILTERS[key]) {
-      newParams.delete(key)
+      newParams.delete(urlKey)
     } else if (Array.isArray(value)) {
       if (value.length === 0) {
-        newParams.delete(key)
+        newParams.delete(urlKey)
       } else {
-        newParams.set(key, value.join(','))
+        newParams.set(urlKey, value.join(','))
       }
     } else {
-      newParams.set(key, String(value))
+      newParams.set(urlKey, String(value))
     }
 
     // Reset page number (except when updating page itself)

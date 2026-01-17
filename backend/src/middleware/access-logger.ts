@@ -197,6 +197,7 @@ export interface AccessLogQuery {
   startDate?: string;
   endDate?: string;
   method?: string;
+  methods?: string[];
   endpoint?: string;
   status?: 'success' | 'error' | 'denied';
   page?: number;
@@ -261,7 +262,11 @@ export function queryAccessLogs(query: AccessLogQuery): {
     params.push(query.endDate);
   }
 
-  if (query.method) {
+  if (query.methods && query.methods.length > 0) {
+    const placeholders = query.methods.map(() => '?').join(',');
+    conditions.push(`method IN (${placeholders})`);
+    params.push(...query.methods);
+  } else if (query.method) {
     conditions.push('method = ?');
     params.push(query.method);
   }
@@ -314,7 +319,7 @@ export function queryAccessLogs(query: AccessLogQuery): {
     LIMIT ? OFFSET ?
   `);
 
-  const rows = logsStmt.run(...params, limit, offset);
+  const rows = logsStmt.all(...params, limit, offset);
   const logs: AccessLogEntry[] = (rows as any).map((row: any) => ({
     id: row.id,
     apiKeyId: row.apiKeyId,

@@ -38,11 +38,11 @@ export function AdvancedFilters({
 
   return (
     <div className="px-4 py-4 border-t bg-muted/30 space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* HTTP methods */}
         <div className="space-y-2">
           <Label>HTTP 方法</Label>
-          <div className="flex flex-wrap gap-3">
+          <div className="flex gap-4">
             {(['GET', 'POST', 'PUT', 'DELETE'] as HttpMethod[]).map((method) => (
               <label key={method} className="flex items-center gap-2 cursor-pointer">
                 <Checkbox
@@ -64,9 +64,11 @@ export function AdvancedFilters({
             onChange={(e) => onUpdate('ipAddress', e.target.value)}
           />
         </div>
+      </div>
 
-        {/* API Key (global logs only) */}
-        {apiKeys && (
+      {/* API Key (global logs only) - separate row */}
+      {apiKeys && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-2">
             <Label>API Key</Label>
             <Select
@@ -86,8 +88,9 @@ export function AdvancedFilters({
               </SelectContent>
             </Select>
           </div>
-        )}
-      </div>
+          <div></div> {/* Empty space for alignment */}
+        </div>
+      )}
 
       {/* Action buttons */}
       <div className="flex justify-end gap-2">

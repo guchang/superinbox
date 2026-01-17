@@ -10,6 +10,7 @@ import {
   getExportStatus,
   downloadExportFile,
 } from './logs.controller.js';
+import { getStatistics } from './statistics.controller.js';
 import { authenticateJwt } from '../middleware/auth.js';
 
 const router = Router();
@@ -48,5 +49,12 @@ router.get('/logs/exports/:exportId', authenticateJwt, getExportStatus);
  * @access  Private
  */
 router.get('/logs/exports/:exportId/download', authenticateJwt, downloadExportFile);
+
+/**
+ * @route   GET /v1/auth/logs/statistics
+ * @desc    Get API usage statistics (admin only)
+ * @access  Private (requires admin:full scope)
+ */
+router.get('/logs/statistics', authenticateJwt, getStatistics);
 
 export default router;

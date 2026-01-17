@@ -93,3 +93,60 @@ export interface ExportResponse {
     message?: string
   }
 }
+
+// ============================================
+// Statistics Types
+// ============================================
+
+// Time range for statistics
+export type StatisticsTimeRange = 'today' | 'week' | 'month' | 'all'
+
+// Statistics summary
+export interface StatisticsSummary {
+  totalRequests: number
+  successCount: number
+  errorCount: number
+  successRate: number
+  trendPercentage?: number
+}
+
+// Per-key statistics
+export interface KeyStatistics {
+  id: string
+  name: string
+  requests: number
+  successRate: number
+  percentage: number
+  lastUsed: string
+  isActive: boolean
+}
+
+// Trend data point
+export interface TrendDataPoint {
+  date: string
+  requests: number
+}
+
+// Status distribution
+export interface StatusDistribution {
+  status: 'success' | 'error'
+  count: number
+  percentage: number
+}
+
+// Complete statistics response
+export interface StatisticsResponse {
+  summary: StatisticsSummary
+  keyStats: KeyStatistics[]
+  trendData: TrendDataPoint[]
+  statusDistribution: StatusDistribution[]
+  timeRange: StatisticsTimeRange
+  generatedAt: string
+}
+
+// Statistics query parameters
+export interface StatisticsQuery {
+  timeRange: StatisticsTimeRange
+  startDate?: string
+  endDate?: string
+}

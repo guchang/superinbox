@@ -11,6 +11,8 @@ import type {
   ExportRequest,
   ExportTask,
   ExportResponse,
+  StatisticsQuery,
+  StatisticsResponse,
 } from '@/types/logs'
 
 /**
@@ -163,4 +165,21 @@ export async function exportLogsSync(filters: LogFilters, format: string): Promi
   }
 
   return response.blob()
+}
+
+/**
+ * Get API usage statistics (admin only)
+ */
+export async function getStatistics(query: StatisticsQuery): Promise<StatisticsResponse> {
+  const params = new URLSearchParams()
+  params.append('timeRange', query.timeRange)
+
+  if (query.startDate) params.append('startDate', query.startDate)
+  if (query.endDate) params.append('endDate', query.endDate)
+
+  const response = await apiClient.get<StatisticsResponse>(`/auth/logs/statistics?${params.toString()}`)
+  if (!response.data) {
+    throw new Error('No data received from statistics API')
+  }
+  return response.data
 }

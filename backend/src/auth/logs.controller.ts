@@ -28,10 +28,18 @@ export async function getGlobalLogs(req: Request, res: Response): Promise<void> 
     }
 
     // Parse query parameters
+    // Handle multiple method parameters (e.g., ?method=GET&method=POST)
+    const methodParam = req.query.method;
+    const methods = Array.isArray(methodParam)
+      ? methodParam as string[]
+      : methodParam
+        ? [methodParam as string]
+        : undefined;
+
     const query: AccessLogQuery = {
       startDate: req.query.startDate as string,
       endDate: req.query.endDate as string,
-      method: req.query.method as string,
+      methods,
       endpoint: req.query.endpoint as string,
       status: req.query.status as 'success' | 'error' | 'denied' | undefined,
       apiKeyId: req.query.apiKeyId as string,
@@ -93,11 +101,19 @@ export async function getApiKeyLogs(req: Request, res: Response): Promise<void> 
     }
 
     // Parse query parameters
+    // Handle multiple method parameters (e.g., ?method=GET&method=POST)
+    const methodParam = req.query.method;
+    const methods = Array.isArray(methodParam)
+      ? methodParam as string[]
+      : methodParam
+        ? [methodParam as string]
+        : undefined;
+
     const query: AccessLogQuery = {
       apiKeyId: keyId,
       startDate: req.query.startDate as string,
       endDate: req.query.endDate as string,
-      method: req.query.method as string,
+      methods,
       endpoint: req.query.endpoint as string,
       status: req.query.status as 'success' | 'error' | 'denied' | undefined,
       page: parseInt(req.query.page as string) || 1,

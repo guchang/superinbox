@@ -1,19 +1,50 @@
 'use client'
 
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { ArrowLeftToLine, AlertCircle } from 'lucide-react'
+import { AlertCircle } from 'lucide-react'
 import Link from 'next/link'
 import { getAccessLogs } from '@/lib/api/logs'
 import { useLogFilters } from '@/lib/hooks/use-log-filters'
 import { useAuth } from '@/lib/hooks/use-auth'
 import { LogTable } from '@/components/logs/LogTable'
 import { LogFilters } from '@/components/logs/LogFilters'
+import { LogExportDialog } from '@/components/logs/LogExportDialog'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 
 export default function GlobalLogsPage() {
   const { authState } = useAuth()
   const { filters, dateRange, updateFilter, resetFilters } = useLogFilters()
+  const [exportDialogOpen, setExportDialogOpen] = useState(false)
+
+  // All hooks must be called before any conditional returns
+  const hasPermission = authState.user?.scopes?.includes('admin:full') ?? false
+
+  // Fetch log data - always call useQuery, but only enable when authorized
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: ['logs', 'global', filters, dateRange],
+    queryFn: () => getAccessLogs({
+      ...filters,
+      ...dateRange,
+    }),
+    enabled: hasPermission && !authState.isLoading,
+  })
+
+  // Debug: Log auth state to help diagnose permission issues
+  console.log('[GlobalLogsPage] Auth state:', {
+    isLoading: authState.isLoading,
+    isAuthenticated: authState.isAuthenticated,
+    hasUser: !!authState.user,
+    hasPermission,
+    user: authState.user ? {
+      id: authState.user.id,
+      username: authState.user.username,
+      email: authState.user.email,
+      role: authState.user.role,
+      scopes: authState.user.scopes,
+    } : null,
+  })
 
   // Show loading while checking auth
   if (authState.isLoading) {
@@ -24,22 +55,8 @@ export default function GlobalLogsPage() {
     )
   }
 
-  // Debug: Log auth state to help diagnose permission issues
-  console.log('[GlobalLogsPage] Auth state:', {
-    isLoading: authState.isLoading,
-    isAuthenticated: authState.isAuthenticated,
-    hasUser: !!authState.user,
-    user: authState.user ? {
-      id: authState.user.id,
-      username: authState.user.username,
-      email: authState.user.email,
-      role: authState.user.role,
-      scopes: authState.user.scopes,
-    } : null,
-  })
-
   // Permission check - use scopes instead of role
-  if (!authState.user || !authState.user.scopes?.includes('admin:full')) {
+  if (!hasPermission) {
     console.log('[GlobalLogsPage] Permission check failed:', {
       hasUser: !!authState.user,
       scopes: authState.user?.scopes,
@@ -54,15 +71,6 @@ export default function GlobalLogsPage() {
       </Alert>
     )
   }
-
-  // Fetch log data
-  const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ['logs', 'global', filters, dateRange],
-    queryFn: () => getAccessLogs({
-      ...filters,
-      ...dateRange,
-    }),
-  })
 
   const logs = data?.data || []
   const total = data?.total || 0
@@ -83,7 +91,7 @@ export default function GlobalLogsPage() {
               📊 查看统计
             </Link>
           </Button>
-          <Button>
+          <Button onClick={() => setExportDialogOpen(true)}>
             📥 导出日志
           </Button>
         </div>
@@ -125,6 +133,14 @@ export default function GlobalLogsPage() {
         onPageChange={(page) => updateFilter('page', page)}
         onPageSizeChange={(pageSize) => updateFilter('pageSize', pageSize)}
         isGlobalView={true}
+      />
+
+      {/* Export dialog */}
+      <LogExportDialog
+        open={exportDialogOpen}
+        onClose={() => setExportDialogOpen(false)}
+        filters={{ ...filters, ...dateRange }}
+        logCount={total}
       />
     </div>
   )
