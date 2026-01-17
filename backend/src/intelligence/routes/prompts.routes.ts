@@ -1,9 +1,14 @@
 /**
  * Intelligence Layer - Prompt Template Routes
+ *
+ * Includes routes for:
+ * - Prompt template management
+ * - AI parse result retrieval and correction
  */
 
 import { Router } from 'express';
 import { authenticate } from '../../middleware/auth.js';
+import { getParseResult, updateParseResult } from '../controllers/parse.controller.js';
 
 const router = Router();
 
@@ -70,5 +75,12 @@ router.put('/prompts/:id', authenticate, (req, res) => {
 router.delete('/prompts/:id', authenticate, (req, res) => {
   res.json({ success: true });
 });
+
+// Parse result routes
+// GET /v1/intelligence/parse/:id - Retrieve AI parse result
+router.get('/parse/:id', authenticate, getParseResult);
+
+// PATCH /v1/intelligence/parse/:id - Update AI parse result with user correction
+router.patch('/parse/:id', authenticate, updateParseResult);
 
 export default router;
