@@ -18,7 +18,7 @@ export default function ApiKeyLogsPage() {
   const { filters, dateRange, updateFilter, resetFilters } = useLogFilters()
 
   // Permission check
-  if (!authState.user || !authState.user.scopes.includes('admin:full')) {
+  if (!authState.user || !authState.user.scopes?.includes('admin:full')) {
     return (
       <Alert variant="destructive">
         <AlertCircle className="h-4 w-4" />
