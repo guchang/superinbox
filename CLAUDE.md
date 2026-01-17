@@ -486,6 +486,57 @@ class ApiClient {
 }
 ```
 
+### 访问日志与审计
+
+**功能概述：**
+SuperInbox 提供完整的 API 访问日志记录和审计功能，帮助管理员追踪和分析所有 API 请求。
+
+**页面路由：**
+- `/settings/logs` - 全局访问日志（需要 `admin:full` 权限）
+- `/settings/api-keys/[id]/logs` - 单个 API Key 的日志
+
+**功能特性：**
+- **多维度筛选**
+  - 快速筛选：时间范围（今天/本周/本月/自定义）、状态（成功/失败/拒绝）、关键词搜索
+  - 高级筛选：HTTP 方法、IP 地址、API Key
+  - 筛选条件同步到 URL，支持分享和书签
+
+- **日志详情查看**
+  - 展开式详情行，显示完整请求/响应信息
+  - 请求头、请求体、查询参数
+  - 响应状态码、响应大小、响应耗时
+  - 错误信息（错误码、错误消息、详细堆栈）
+
+- **日志导出**
+  - 支持格式：CSV、JSON、XLSX
+  - 字段选择：可自定义导出的字段
+  - 同步导出：< 1000 条立即下载
+  - 异步导出：>= 1000 条后台处理，完成后通知
+
+**技术实现：**
+- `TanStack Query` - 数据获取和缓存
+- `URLSearchParams` - 筛选器状态管理
+- `shadcn/ui` - UI 组件库
+- `date-fns` - 日期格式化
+
+**后端实现：**
+- **日志记录中间件** ([`middleware/access-logger.ts`](backend/src/middleware/access-logger.ts))
+  - 自动记录所有 API 请求
+  - 提取 IP、User-Agent、请求/响应大小
+  - 计算请求耗时
+  - 异步写入数据库（不阻塞响应）
+
+- **数据库表** ([`storage/migrations/run.ts`](backend/src/storage/migrations/run.ts))
+  - `api_access_logs` - 增强的访问日志表
+  - `export_tasks` - 导出任务表
+
+- **API 端点** ([`auth/logs.controller.ts`](backend/src/auth/logs.controller.ts))
+  - `GET /v1/auth/logs` - 查询全局日志
+  - `GET /v1/auth/api-keys/:id/logs` - 查询单个 Key 日志
+  - `POST /v1/auth/logs/export` - 创建导出任务
+  - `GET /v1/auth/logs/exports/:id` - 获取导出状态
+  - `GET /v1/auth/logs/exports/:id/download` - 下载导出文件
+
 ---
 
 ## CLI - 命令行工具
