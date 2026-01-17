@@ -14,7 +14,8 @@ import type {
   Item,
   ContentType,
   ItemStatus,
-  Priority
+  Priority,
+  QueryFilter
 } from '../../types/index.js';
 import { logger } from '../../middleware/logger.js';
 
@@ -145,34 +146,79 @@ export class InboxController {
 
   /**
    * Get items with filtering
-   * GET /v1/items
+   * GET /v1/items and GET /v1/inbox
    */
   getItems = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const userId = req.user?.id ?? 'default-user';
 
-      // Parse query parameters
-      const filter = {
-        status: req.query.status as string,
-        intent: req.query.intent as string,
+      // Parse pagination parameters
+      // Support both 'page' format (new API) and 'offset' format (legacy API)
+      const page = req.query.page ? parseInt(req.query.page as string) : 1;
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 20;
+      const offset = req.query.offset ? parseInt(req.query.offset as string) : (page - 1) * limit;
+
+      // Enforce max limit
+      const maxLimit = 100;
+      const finalLimit = Math.min(limit, maxLimit);
+
+      // Parse filter parameters
+      const filter: QueryFilter = {
+        status: req.query.status as any,
+        intent: req.query.intent as any,
         source: req.query.source as string,
-        query: req.query.query as string, // 添加搜索查询支持
-        limit: req.query.limit ? parseInt(req.query.limit as string) : undefined,
-        offset: req.query.offset ? parseInt(req.query.offset as string) : undefined,
-        sortBy: req.query.sortBy as string,
-        sortOrder: req.query.sortOrder as string
+        query: req.query.query as string,
+        since: req.query.since ? new Date(req.query.since as string) : undefined,
+        startDate: req.query.startDate ? new Date(req.query.startDate as string) : undefined,
+        endDate: req.query.endDate ? new Date(req.query.endDate as string) : undefined,
+        limit: finalLimit,
+        offset: offset,
+        sortBy: req.query.sortBy as any,
+        sortOrder: req.query.sortOrder as any
       };
 
+      // Get total count (for pagination metadata)
+      const countFilter = { ...filter };
+      delete countFilter.limit;
+      delete countFilter.offset;
+      const total = this.db.countItemsByUserId(userId, countFilter);
+
+      // Get items
       const items = this.db.getItemsByUserId(userId, filter);
 
-      res.json({
-        success: true,
-        data: items,
-        meta: {
-          total: items.length,
-          hasMore: false
-        }
-      });
+      // Determine response format based on route path
+      // GET /v1/inbox -> new API format with 'entries'
+      // GET /v1/items -> legacy API format with 'data' and 'meta'
+      const isInboxRoute = req.path === '/v1/inbox' || req.path === '/inbox';
+
+      if (isInboxRoute) {
+        // New API format (GET /v1/inbox)
+        res.json({
+          total,
+          page,
+          limit: finalLimit,
+          entries: items.map(item => ({
+            id: item.id,
+            content: item.originalContent,
+            source: item.source,
+            intent: item.intent,
+            entities: item.entities,
+            status: item.status,
+            createdAt: item.createdAt.toISOString(),
+            routedTo: item.distributedTargets
+          }))
+        });
+      } else {
+        // Legacy API format (GET /v1/items)
+        res.json({
+          success: true,
+          data: items,
+          meta: {
+            total,
+            hasMore: offset + items.length < total
+          }
+        });
+      }
     } catch (error) {
       next(error);
     }
@@ -349,21 +395,34 @@ export class InboxController {
    */
   private async processItemAsync(itemId: string): Promise<void> {
     try {
+      logger.info(`[AI Processing] Starting for item ${itemId}`);
+
       // Update status to processing
       this.db.updateItem(itemId, { status: 'processing' });
 
       // Get item
       const item = this.db.getItemById(itemId);
-      if (!item) return;
+      if (!item) {
+        logger.error(`[AI Processing] Item ${itemId} not found`);
+        return;
+      }
+
+      logger.info(`[AI Processing] Analyzing content: "${item.originalContent.substring(0, 50)}..."`);
 
       // Analyze with AI
       const analysis = await this.ai.analyzeContent(item.originalContent, item.contentType);
+
+      logger.info(`[AI Processing] Analysis result: intent=${analysis.intent}, confidence=${analysis.confidence}`);
 
       // Determine status based on analysis quality
       // Mark as failed if intent is unknown and confidence is low
       const shouldMarkAsFailed =
         analysis.intent === 'unknown' &&
         (!analysis.confidence || analysis.confidence < 0.3);
+
+      if (shouldMarkAsFailed) {
+        logger.warn(`[AI Processing] Item ${itemId} marked as failed: intent=unknown, confidence=${analysis.confidence}`);
+      }
 
       // Update with AI results
       this.db.updateItem(itemId, {
@@ -379,8 +438,13 @@ export class InboxController {
       if (!shouldMarkAsFailed) {
         await this.distributeItemAsync(item);
       }
+
+      logger.info(`[AI Processing] Completed for item ${itemId}`);
     } catch (error) {
-      console.error(`AI processing failed for item ${itemId}:`, error);
+      logger.error(`[AI Processing] Failed for item ${itemId}: ${error}`);
+      if (error instanceof Error) {
+        logger.error(`[AI Processing] Error details: ${error.message}\n${error.stack}`);
+      }
       this.db.updateItem(itemId, { status: 'failed' });
     }
   }

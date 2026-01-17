@@ -21,6 +21,17 @@ router.post(
 );
 
 /**
+ * @route   GET /v1/inbox
+ * @desc    Get all items with filtering (documented API)
+ * @access  Private (API Key)
+ */
+router.get(
+  '/inbox',
+  authenticate,
+  inboxController.getItems
+);
+
+/**
  * @route   GET /v1/items
  * @desc    Get all items with filtering
  * @access  Private (JWT or API Key)

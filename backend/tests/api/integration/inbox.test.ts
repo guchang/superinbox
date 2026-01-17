@@ -148,3 +148,68 @@ describe('POST /v1/inbox', () => {
     });
   });
 });
+
+describe('GET /v1/inbox', () => {
+  it('should return paginated list of items', async () => {
+    const response = await request(app)
+      .get('/v1/inbox')
+      .set('Authorization', `Bearer ${testContext.testApiKey}`)
+      .query({ page: 1, limit: 10 });
+
+    expect(response.status).toBe(200);
+    expect(response.body).toHaveProperty('total');
+    expect(response.body).toHaveProperty('page', 1);
+    expect(response.body).toHaveProperty('limit', 10);
+    expect(response.body).toHaveProperty('entries');
+    expect(Array.isArray(response.body.entries)).toBe(true);
+  });
+
+  it('should filter by intent type', async () => {
+    // Create test item first
+    await createTestItem({ content: 'Buy milk', source: 'test' });
+
+    const response = await request(app)
+      .get('/v1/inbox')
+      .set('Authorization', `Bearer ${testContext.testApiKey}`)
+      .query({ intent: 'todo', limit: 10 });
+
+    expect(response.status).toBe(200);
+    response.body.entries.forEach((entry: any) => {
+      expect(entry.intent).toBe('todo');
+    });
+  });
+
+  it('should filter by source', async () => {
+    const response = await request(app)
+      .get('/v1/inbox')
+      .set('Authorization', `Bearer ${testContext.testApiKey}`)
+      .query({ source: 'telegram', limit: 10 });
+
+    expect(response.status).toBe(200);
+    response.body.entries.forEach((entry: any) => {
+      expect(entry.source).toBe('telegram');
+    });
+  });
+
+  it('should filter by date range', async () => {
+    const startDate = new Date().toISOString();
+    const response = await request(app)
+      .get('/v1/inbox')
+      .set('Authorization', `Bearer ${testContext.testApiKey}`)
+      .query({ startDate, limit: 10 });
+
+    expect(response.status).toBe(200);
+  });
+
+  it('should filter by status', async () => {
+    const response = await request(app)
+      .get('/v1/inbox')
+      .set('Authorization', `Bearer ${testContext.testApiKey}`)
+      .query({ status: 'completed', limit: 10 });
+
+    expect(response.status).toBe(200);
+    response.body.entries.forEach((entry: any) => {
+      expect(entry.status).toBe('completed');
+    });
+  });
+});

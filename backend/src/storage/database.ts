@@ -194,6 +194,57 @@ export class DatabaseManager {
   }
 
   /**
+   * Count items by user ID with filters
+   */
+  countItemsByUserId(userId: string, filter: QueryFilter = {}): number {
+    let query = 'SELECT COUNT(*) as count FROM items WHERE user_id = ?';
+    const params: any[] = [userId];
+
+    if (filter.status) {
+      query += ' AND status = ?';
+      params.push(filter.status);
+    }
+
+    if (filter.intent) {
+      query += ' AND intent = ?';
+      params.push(filter.intent);
+    }
+
+    if (filter.source) {
+      query += ' AND source = ?';
+      params.push(filter.source);
+    }
+
+    // Add since parameter filtering for incremental sync
+    if (filter.since) {
+      query += ' AND updated_at > ?';
+      params.push(filter.since.toISOString());
+    }
+
+    // Add date range filtering
+    if (filter.startDate) {
+      query += ' AND created_at >= ?';
+      params.push(filter.startDate.toISOString());
+    }
+
+    if (filter.endDate) {
+      query += ' AND created_at <= ?';
+      params.push(filter.endDate.toISOString());
+    }
+
+    if (filter.query) {
+      // Use LIKE for full-text search
+      query += ' AND (original_content LIKE ? OR summary LIKE ? OR suggested_title LIKE ?)';
+      const searchTerm = `%${filter.query}%`;
+      params.push(searchTerm, searchTerm, searchTerm);
+    }
+
+    const stmt = this.db.prepare(query);
+    const result = stmt.get(...params) as any;
+    return result.count;
+  }
+
+  /**
    * Get items by user ID with filters
    */
   getItemsByUserId(userId: string, filter: QueryFilter = {}): Item[] {
@@ -213,6 +264,23 @@ export class DatabaseManager {
     if (filter.source) {
       query += ' AND source = ?';
       params.push(filter.source);
+    }
+
+    // Add since parameter filtering for incremental sync
+    if (filter.since) {
+      query += ' AND updated_at > ?';
+      params.push(filter.since.toISOString());
+    }
+
+    // Add date range filtering
+    if (filter.startDate) {
+      query += ' AND created_at >= ?';
+      params.push(filter.startDate.toISOString());
+    }
+
+    if (filter.endDate) {
+      query += ' AND created_at <= ?';
+      params.push(filter.endDate.toISOString());
     }
 
     if (filter.query) {
