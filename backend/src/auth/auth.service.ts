@@ -58,6 +58,11 @@ export async function register(data: RegisterData): Promise<AuthResponse> {
   // Hash password
   const passwordHash = await hashPassword(data.password);
 
+  // Check if this is the first user (make them admin)
+  const allUsers = db.getAllUsers();
+  const isFirstUser = !allUsers || allUsers.length === 0;
+  const userRole = isFirstUser ? 'admin' : 'user';
+
   // Create user
   const userId = uuidv4();
   const user = db.createUser({
@@ -65,7 +70,7 @@ export async function register(data: RegisterData): Promise<AuthResponse> {
     username: data.username,
     email: data.email,
     passwordHash,
-    role: 'user',
+    role: userRole,
   });
 
   // Generate tokens

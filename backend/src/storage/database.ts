@@ -559,6 +559,22 @@ export class DatabaseManager {
     stmt.run(now, userId);
   }
 
+  /**
+   * Get all users
+   */
+  getAllUsers(): any[] {
+    const stmt = this.db.prepare('SELECT * FROM users');
+    const rows = stmt.all() as any[];
+    return rows.map(row => ({
+      id: row.id,
+      username: row.username,
+      email: row.email,
+      role: row.role,
+      createdAt: new Date(row.created_at),
+      lastLoginAt: row.last_login_at ? new Date(row.last_login_at) : undefined,
+    }));
+  }
+
   // ========== Refresh Token Methods ==========
 
   /**
