@@ -1,7 +1,7 @@
 'use client'
 
 import { useQuery } from '@tanstack/react-query'
-import { ArrowLeftToLine } from 'lucide-react'
+import { ArrowLeftToLine, AlertCircle } from 'lucide-react'
 import Link from 'next/link'
 import { getAccessLogs } from '@/lib/api/logs'
 import { useLogFilters } from '@/lib/hooks/use-log-filters'
@@ -10,7 +10,6 @@ import { LogTable } from '@/components/logs/LogTable'
 import { LogFilters } from '@/components/logs/LogFilters'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { AlertCircle } from '@/components/ui/alert'
 
 export default function GlobalLogsPage() {
   const { authState } = useAuth()

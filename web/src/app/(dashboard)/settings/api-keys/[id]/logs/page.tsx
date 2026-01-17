@@ -2,7 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query'
 import { useParams, Link } from 'next/navigation'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, AlertCircle } from 'lucide-react'
 import { getApiKeyLogs } from '@/lib/api/logs'
 import { useLogFilters } from '@/lib/hooks/use-log-filters'
 import { useAuth } from '@/lib/hooks/use-auth'
@@ -10,7 +10,6 @@ import { LogTable } from '@/components/logs/LogTable'
 import { LogFilters } from '@/components/logs/LogFilters'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { AlertCircle } from '@/components/ui/alert'
 
 export default function ApiKeyLogsPage() {
   const params = useParams()
