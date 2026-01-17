@@ -15,9 +15,9 @@ import path from 'path';
  */
 export async function getGlobalLogs(req: Request, res: Response): Promise<void> {
   try {
-    // Check admin permission
+    // Check admin permission using scopes
     const authReq = req as any;
-    if (authReq.user?.role !== 'admin') {
+    if (!authReq.user?.scopes?.includes('admin:full')) {
       res.status(403).json({
         error: {
           code: 'AUTH_INSUFFICIENT_PERMISSION',
@@ -79,7 +79,7 @@ export async function getApiKeyLogs(req: Request, res: Response): Promise<void> 
 
     // Check permission: admin or key owner
     const authReq = req as any;
-    const isAdmin = authReq.user?.role === 'admin';
+    const isAdmin = authReq.user?.scopes?.includes('admin:full');
     const isOwner = authReq.apiKey?.id === keyId;
 
     if (!isAdmin && !isOwner) {
@@ -232,7 +232,7 @@ export async function getExportStatus(req: Request, res: Response): Promise<void
 
     // Check permission
     const authReq = req as any;
-    const isAdmin = authReq.user?.role === 'admin';
+    const isAdmin = authReq.user?.scopes?.includes('admin:full');
     const isOwner = authReq.user?.id === task.user_id;
 
     if (!isAdmin && !isOwner) {
@@ -294,7 +294,7 @@ export async function downloadExportFile(req: Request, res: Response): Promise<v
 
     // Check permission
     const authReq = req as any;
-    const isAdmin = authReq.user?.role === 'admin';
+    const isAdmin = authReq.user?.scopes?.includes('admin:full');
     const isOwner = authReq.user?.id === task.user_id;
 
     if (!isAdmin && !isOwner) {
