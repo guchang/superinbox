@@ -15,8 +15,7 @@
     "lint": "eslint src --ext .ts",
     "db:migrate": "tsx src/storage/migrations/run.ts",
     "db:seed": "tsx src/storage/seeds/run.ts",
-    "migrate:unknown-to-failed": "tsx src/scripts/migrate-unknown-to-failed.ts",
-    "make-admin": "tsx src/scripts/make-admin.ts"
+    "migrate:unknown-to-failed": "tsx src/scripts/migrate-unknown-to-failed.ts"
   },
   "keywords": [
     "inbox",

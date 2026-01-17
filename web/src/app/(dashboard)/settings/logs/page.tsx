@@ -34,14 +34,15 @@ export default function GlobalLogsPage() {
       username: authState.user.username,
       email: authState.user.email,
       role: authState.user.role,
+      scopes: authState.user.scopes,
     } : null,
   })
 
-  // Permission check
-  if (!authState.user || authState.user.role !== 'admin') {
+  // Permission check - use scopes instead of role
+  if (!authState.user || !authState.user.scopes?.includes('admin:full')) {
     console.log('[GlobalLogsPage] Permission check failed:', {
       hasUser: !!authState.user,
-      role: authState.user?.role,
+      scopes: authState.user?.scopes,
     })
     return (
       <Alert variant="destructive">

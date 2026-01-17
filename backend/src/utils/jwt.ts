@@ -13,6 +13,7 @@ export interface TokenPayload {
   username: string;
   email: string;
   role: string;
+  scopes: string[];
 }
 
 /**

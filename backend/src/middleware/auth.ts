@@ -63,7 +63,7 @@ export const authenticateJwt = (
       username: payload.username,
       email: payload.email,
       role: payload.role,
-      scopes: ['read', 'write'], // Default scopes for JWT users
+      scopes: payload.scopes || ['read'], // Use scopes from token
     };
 
     next();
@@ -322,7 +322,7 @@ export const authenticate = (
         username: payload.username,
         email: payload.email,
         role: payload.role,
-        scopes: ['read', 'write'],
+        scopes: payload.scopes || ['read'],
       };
       next();
       return;
@@ -385,7 +385,7 @@ export const optionalAuth = (
         username: payload.username,
         email: payload.email,
         role: payload.role,
-        scopes: ['read', 'write'],
+        scopes: payload.scopes || ['read'],
       };
       next();
       return;

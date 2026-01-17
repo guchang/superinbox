@@ -58,20 +58,18 @@ export async function register(data: RegisterData): Promise<AuthResponse> {
   // Hash password
   const passwordHash = await hashPassword(data.password);
 
-  // Check if this is the first user (make them admin)
-  const allUsers = db.getAllUsers();
-  const isFirstUser = !allUsers || allUsers.length === 0;
-  const userRole = isFirstUser ? 'admin' : 'user';
-
-  // Create user
+  // Create user (all users get 'user' role, but have admin scopes)
   const userId = uuidv4();
   const user = db.createUser({
     id: userId,
     username: data.username,
     email: data.email,
     passwordHash,
-    role: userRole,
+    role: 'user',
   });
+
+  // All password-login users get admin scopes
+  const userScopes = ['admin:full', 'read', 'write', 'content:all'];
 
   // Generate tokens
   const tokenPayload: TokenPayload = {
@@ -79,6 +77,7 @@ export async function register(data: RegisterData): Promise<AuthResponse> {
     username: user.username,
     email: user.email,
     role: user.role,
+    scopes: userScopes,
   };
 
   const token = generateAccessToken(tokenPayload);
@@ -130,12 +129,16 @@ export async function login(credentials: LoginCredentials): Promise<AuthResponse
   // Update last login time
   db.updateUserLastLogin(user.id);
 
+  // All password-login users get admin scopes
+  const userScopes = ['admin:full', 'read', 'write', 'content:all'];
+
   // Generate tokens
   const tokenPayload: TokenPayload = {
     userId: user.id,
     username: user.username,
     email: user.email,
     role: user.role,
+    scopes: userScopes,
   };
 
   const token = generateAccessToken(tokenPayload);
@@ -197,12 +200,16 @@ export async function refreshToken(refreshTokenValue: string): Promise<AuthRespo
     throw new Error('用户不存在');
   }
 
+  // All password-login users get admin scopes
+  const userScopes = ['admin:full', 'read', 'write', 'content:all'];
+
   // Generate new tokens
   const newTokenPayload: TokenPayload = {
     userId: user.id,
     username: user.username,
     email: user.email,
     role: user.role,
+    scopes: userScopes,
   };
 
   const token = generateAccessToken(newTokenPayload);

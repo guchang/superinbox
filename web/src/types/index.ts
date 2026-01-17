@@ -201,6 +201,7 @@ export interface User {
   username: string
   email: string
   role: 'admin' | 'user'
+  scopes: string[]
   createdAt: string
   lastLoginAt?: string
 }
