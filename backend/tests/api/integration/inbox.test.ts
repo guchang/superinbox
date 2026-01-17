@@ -213,3 +213,39 @@ describe('GET /v1/inbox', () => {
     });
   });
 });
+
+describe('GET /v1/inbox/:id', () => {
+  it('should return a single item by ID', async () => {
+    // Create a test item first
+    const createResponse = await request(app)
+      .post('/v1/inbox')
+      .set('Authorization', `Bearer ${testContext.testApiKey}`)
+      .send({ content: 'Test item', source: 'test' });
+
+    const itemId = createResponse.body.data.id;
+
+    const response = await request(app)
+      .get(`/v1/inbox/${itemId}`)
+      .set('Authorization', `Bearer ${testContext.testApiKey}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body).toHaveProperty('id', itemId);
+    expect(response.body).toHaveProperty('content', 'Test item');
+    expect(response.body).toHaveProperty('source', 'test');
+    expect(response.body).toHaveProperty('parsed');
+    expect(response.body.parsed).toHaveProperty('intent');
+    expect(response.body.parsed).toHaveProperty('confidence');
+    expect(response.body.parsed).toHaveProperty('entities');
+    expect(response.body).toHaveProperty('routingHistory');
+    expect(response.body).toHaveProperty('createdAt');
+    expect(response.body).toHaveProperty('updatedAt');
+  });
+
+  it('should return 404 for non-existent item', async () => {
+    const response = await request(app)
+      .get('/v1/inbox/non-existent-id')
+      .set('Authorization', `Bearer ${testContext.testApiKey}`);
+
+    expect(response.status).toBe(404);
+  });
+});

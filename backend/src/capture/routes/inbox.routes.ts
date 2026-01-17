@@ -32,6 +32,17 @@ router.get(
 );
 
 /**
+ * @route   GET /v1/inbox/:id
+ * @desc    Get a single item by ID (documented API)
+ * @access  Private (API Key)
+ */
+router.get(
+  '/inbox/:id',
+  authenticate,
+  inboxController.getItem
+);
+
+/**
  * @route   GET /v1/items
  * @desc    Get all items with filtering
  * @access  Private (JWT or API Key)

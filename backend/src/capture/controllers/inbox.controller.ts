@@ -103,7 +103,7 @@ export class InboxController {
 
   /**
    * Get item by ID
-   * GET /v1/items/:id
+   * GET /v1/items/:id and GET /v1/inbox/:id
    */
   getItem = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
@@ -135,10 +135,37 @@ export class InboxController {
         return;
       }
 
-      res.json({
-        success: true,
-        data: item
-      });
+      // Determine response format based on route path
+      // GET /v1/inbox/:id -> new API format (unwrapped)
+      // GET /v1/items/:id -> legacy API format (wrapped)
+      const isInboxRoute = req.originalUrl?.includes('/inbox/') || req.url?.includes('/inbox/');
+
+      if (isInboxRoute) {
+        // New API format (GET /v1/inbox/:id)
+        res.json({
+          id: item.id,
+          content: item.originalContent,
+          source: item.source,
+          parsed: {
+            intent: item.intent,
+            confidence: 1.0, // Default confidence as it's not stored in current model
+            entities: item.entities
+          },
+          routingHistory: item.distributionResults.map(result => ({
+            adapter: result.targetId,
+            status: result.status,
+            timestamp: result.timestamp || new Date().toISOString()
+          })),
+          createdAt: item.createdAt.toISOString(),
+          updatedAt: item.updatedAt.toISOString()
+        });
+      } else {
+        // Legacy API format (GET /v1/items/:id)
+        res.json({
+          success: true,
+          data: item
+        });
+      }
     } catch (error) {
       next(error);
     }
