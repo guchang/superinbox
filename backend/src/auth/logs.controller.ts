@@ -17,11 +17,11 @@ export async function getGlobalLogs(req: Request, res: Response): Promise<void> 
   try {
     // Check admin permission
     const authReq = req as any;
-    if (!authReq.user?.scopes?.includes('admin:full')) {
+    if (authReq.user?.role !== 'admin') {
       res.status(403).json({
         error: {
-          code: 'AUTH_INSUFFICIENT_SCOPE',
-          message: 'Admin permission required (admin:full)',
+          code: 'AUTH_INSUFFICIENT_PERMISSION',
+          message: 'Admin permission required',
         },
       });
       return;
@@ -79,13 +79,13 @@ export async function getApiKeyLogs(req: Request, res: Response): Promise<void> 
 
     // Check permission: admin or key owner
     const authReq = req as any;
-    const isAdmin = authReq.user?.scopes?.includes('admin:full');
+    const isAdmin = authReq.user?.role === 'admin';
     const isOwner = authReq.apiKey?.id === keyId;
 
     if (!isAdmin && !isOwner) {
       res.status(403).json({
         error: {
-          code: 'AUTH_INSUFFICIENT_SCOPE',
+          code: 'AUTH_INSUFFICIENT_PERMISSION',
           message: 'You do not have permission to view logs for this API key',
         },
       });
@@ -232,13 +232,13 @@ export async function getExportStatus(req: Request, res: Response): Promise<void
 
     // Check permission
     const authReq = req as any;
-    const isAdmin = authReq.user?.scopes?.includes('admin:full');
+    const isAdmin = authReq.user?.role === 'admin';
     const isOwner = authReq.user?.id === task.user_id;
 
     if (!isAdmin && !isOwner) {
       res.status(403).json({
         error: {
-          code: 'AUTH_INSUFFICIENT_SCOPE',
+          code: 'AUTH_INSUFFICIENT_PERMISSION',
           message: 'You do not have permission to view this export',
         },
       });
@@ -294,13 +294,13 @@ export async function downloadExportFile(req: Request, res: Response): Promise<v
 
     // Check permission
     const authReq = req as any;
-    const isAdmin = authReq.user?.scopes?.includes('admin:full');
+    const isAdmin = authReq.user?.role === 'admin';
     const isOwner = authReq.user?.id === task.user_id;
 
     if (!isAdmin && !isOwner) {
       res.status(403).json({
         error: {
-          code: 'AUTH_INSUFFICIENT_SCOPE',
+          code: 'AUTH_INSUFFICIENT_PERMISSION',
           message: 'You do not have permission to download this export',
         },
       });

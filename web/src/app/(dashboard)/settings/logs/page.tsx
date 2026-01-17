@@ -16,13 +16,13 @@ export default function GlobalLogsPage() {
   const { filters, dateRange, updateFilter, resetFilters } = useLogFilters()
 
   // Permission check
-  if (!authState.user || !authState.user.scopes?.includes('admin:full')) {
+  if (!authState.user || authState.user.role !== 'admin') {
     return (
       <Alert variant="destructive">
         <AlertCircle className="h-4 w-4" />
         <AlertTitle>权限不足</AlertTitle>
         <AlertDescription>
-          您需要 admin:full 权限才能访问此页面
+          您需要管理员权限才能访问此页面
         </AlertDescription>
       </Alert>
     )

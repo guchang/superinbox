@@ -492,7 +492,7 @@ class ApiClient {
 SuperInbox 提供完整的 API 访问日志记录和审计功能，帮助管理员追踪和分析所有 API 请求。
 
 **页面路由：**
-- `/settings/logs` - 全局访问日志（需要 `admin:full` 权限）
+- `/settings/logs` - 全局访问日志（需要 `管理员` 权限）
 - `/settings/api-keys/[id]/logs` - 单个 API Key 的日志
 
 **功能特性：**
