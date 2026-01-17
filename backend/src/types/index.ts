@@ -252,6 +252,7 @@ export interface QueryFilter {
   intent?: IntentType;
   source?: string;
   query?: string; // 全文搜索
+  since?: Date; // Incremental sync filter - return items updated after this timestamp
   startDate?: Date;
   endDate?: Date;
   tags?: string[];

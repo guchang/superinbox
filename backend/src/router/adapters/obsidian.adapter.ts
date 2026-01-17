@@ -4,12 +4,13 @@
 
 import { BaseAdapter } from '../adapter.interface.js';
 import type { Item, DistributionResult } from '../../types/index.js';
+import { AdapterType } from '../../types/index.js';
 import { logger } from '../../middleware/logger.js';
 import { existsSync, mkdirSync, writeFileSync } from 'fs';
 import { join } from 'path';
 
 export class ObsidianAdapter extends BaseAdapter {
-  readonly type = 'obsidian' as const;
+  readonly type: AdapterType = AdapterType.OBSIDIAN;
   readonly name = 'Obsidian Adapter';
 
   /**

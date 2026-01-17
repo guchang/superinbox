@@ -15,8 +15,34 @@ export default function GlobalLogsPage() {
   const { authState } = useAuth()
   const { filters, dateRange, updateFilter, resetFilters } = useLogFilters()
 
+  // Show loading while checking auth
+  if (authState.isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-muted-foreground">加载中...</div>
+      </div>
+    )
+  }
+
+  // Debug: Log auth state to help diagnose permission issues
+  console.log('[GlobalLogsPage] Auth state:', {
+    isLoading: authState.isLoading,
+    isAuthenticated: authState.isAuthenticated,
+    hasUser: !!authState.user,
+    user: authState.user ? {
+      id: authState.user.id,
+      username: authState.user.username,
+      email: authState.user.email,
+      role: authState.user.role,
+    } : null,
+  })
+
   // Permission check
   if (!authState.user || authState.user.role !== 'admin') {
+    console.log('[GlobalLogsPage] Permission check failed:', {
+      hasUser: !!authState.user,
+      role: authState.user?.role,
+    })
     return (
       <Alert variant="destructive">
         <AlertCircle className="h-4 w-4" />

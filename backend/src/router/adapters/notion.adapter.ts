@@ -4,11 +4,12 @@
 
 import { BaseAdapter } from '../adapter.interface.js';
 import type { Item, DistributionResult } from '../../types/index.js';
+import { AdapterType } from '../../types/index.js';
 import { logger } from '../../middleware/logger.js';
 import axios from 'axios';
 
 export class NotionAdapter extends BaseAdapter {
-  readonly type = 'notion' as const;
+  readonly type: AdapterType = AdapterType.NOTION;
   readonly name = 'Notion Adapter';
 
   /**
