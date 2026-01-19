@@ -84,6 +84,10 @@ const validateConfig = (): AppConfig => {
       },
       cors: {
         origin: env.CORS_ORIGIN
+      },
+      storage: {
+        uploadDir: env.UPLOAD_DIR,
+        maxUploadSize: env.MAX_UPLOAD_SIZE
       }
     };
   } catch (error) {

@@ -62,7 +62,7 @@ export class DatabaseManager {
         original_content TEXT NOT NULL,
         content_type TEXT NOT NULL,
         source TEXT NOT NULL,
-        intent TEXT NOT NULL,
+        category TEXT NOT NULL,
         entities TEXT,
         summary TEXT,
         suggested_title TEXT,
@@ -133,7 +133,7 @@ export class DatabaseManager {
       CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user_id ON refresh_tokens(user_id);
       CREATE INDEX IF NOT EXISTS idx_items_user_id ON items(user_id);
       CREATE INDEX IF NOT EXISTS idx_items_status ON items(status);
-      CREATE INDEX IF NOT EXISTS idx_items_intent ON items(intent);
+      CREATE INDEX IF NOT EXISTS idx_items_category ON items(category);
       CREATE INDEX IF NOT EXISTS idx_items_created_at ON items(created_at);
       CREATE INDEX IF NOT EXISTS idx_distribution_results_item_id ON distribution_results(item_id);
       CREATE INDEX IF NOT EXISTS idx_api_keys_key_value ON api_keys(key_value);
@@ -154,7 +154,7 @@ export class DatabaseManager {
     const stmt = this.db.prepare(`
       INSERT INTO items (
         id, user_id, original_content, content_type, source,
-        intent, entities, summary, suggested_title,
+        category, entities, summary, suggested_title,
         status, priority, distributed_targets,
         created_at, updated_at, processed_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -166,7 +166,7 @@ export class DatabaseManager {
       item.originalContent,
       item.contentType,
       item.source,
-      item.intent,
+      item.category,
       JSON.stringify(item.entities),
       item.summary ?? null,
       item.suggestedTitle ?? null,
@@ -205,9 +205,9 @@ export class DatabaseManager {
       params.push(filter.status);
     }
 
-    if (filter.intent) {
-      query += ' AND intent = ?';
-      params.push(filter.intent);
+    if (filter.category) {
+      query += ' AND category = ?';
+      params.push(filter.category);
     }
 
     if (filter.source) {
@@ -256,9 +256,9 @@ export class DatabaseManager {
       params.push(filter.status);
     }
 
-    if (filter.intent) {
-      query += ' AND intent = ?';
-      params.push(filter.intent);
+    if (filter.category) {
+      query += ' AND category = ?';
+      params.push(filter.category);
     }
 
     if (filter.source) {
@@ -325,7 +325,7 @@ export class DatabaseManager {
       UPDATE items SET
         original_content = ?,
         content_type = ?,
-        intent = ?,
+        category = ?,
         entities = ?,
         summary = ?,
         suggested_title = ?,
@@ -340,7 +340,7 @@ export class DatabaseManager {
     stmt.run(
       updated.originalContent,
       updated.contentType,
-      updated.intent,
+      updated.category,
       JSON.stringify(updated.entities),
       updated.summary ?? null,
       updated.suggestedTitle ?? null,
@@ -437,7 +437,7 @@ export class DatabaseManager {
       originalContent: row.original_content,
       contentType: row.content_type,
       source: row.source,
-      intent: row.intent,
+      category: row.category,
       entities: JSON.parse(row.entities || '{}'),
       summary: row.summary,
       suggestedTitle: row.suggested_title,

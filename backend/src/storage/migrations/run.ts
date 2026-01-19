@@ -17,7 +17,7 @@ const migrations = [
         original_content TEXT NOT NULL,
         content_type TEXT NOT NULL,
         source TEXT NOT NULL,
-        intent TEXT NOT NULL,
+        category TEXT NOT NULL,
         entities TEXT,
         summary TEXT,
         suggested_title TEXT,
@@ -72,7 +72,7 @@ const migrations = [
 
       CREATE INDEX IF NOT EXISTS idx_items_user_id ON items(user_id);
       CREATE INDEX IF NOT EXISTS idx_items_status ON items(status);
-      CREATE INDEX IF NOT EXISTS idx_items_intent ON items(intent);
+      CREATE INDEX IF NOT EXISTS idx_items_category ON items(category);
       CREATE INDEX IF NOT EXISTS idx_items_created_at ON items(created_at);
       CREATE INDEX IF NOT EXISTS idx_distribution_results_item_id ON distribution_results(item_id);
       CREATE INDEX IF NOT EXISTS idx_api_keys_key_value ON api_keys(key_value);
@@ -140,6 +140,20 @@ const migrations = [
       CREATE INDEX IF NOT EXISTS idx_export_tasks_user_id ON export_tasks(user_id);
       CREATE INDEX IF NOT EXISTS idx_export_tasks_status ON export_tasks(status);
       CREATE INDEX IF NOT EXISTS idx_export_tasks_expires_at ON export_tasks(expires_at);
+    `
+  },
+  {
+    version: '003',
+    name: 'rename_intent_to_category',
+    up: `
+      -- Drop old index on intent
+      DROP INDEX IF EXISTS idx_items_intent;
+
+      -- Rename intent column to category
+      ALTER TABLE items RENAME COLUMN intent TO category;
+
+      -- Create new index on category
+      CREATE INDEX IF NOT EXISTS idx_items_category ON items(category);
     `
   }
 ];
