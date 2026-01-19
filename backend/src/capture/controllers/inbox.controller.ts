@@ -5,6 +5,8 @@
 import { v4 as uuidv4 } from 'uuid';
 import { z } from 'zod';
 import type { Request, Response, NextFunction } from 'express';
+import fs from 'fs';
+import path from 'path';
 import { getDatabase } from '../../storage/database.js';
 import { getAIService } from '../../ai/service.js';
 import { getRouterService } from '../../router/router.service.js';
@@ -12,11 +14,11 @@ import type {
   CreateItemRequest,
   CreateItemResponse,
   Item,
-  ContentType,
   ItemStatus,
   Priority,
   QueryFilter
 } from '../../types/index.js';
+import { ContentType } from '../../types/index.js';
 import { logger } from '../../middleware/logger.js';
 
 // Validation schemas
@@ -44,7 +46,7 @@ const batchCreateSchema = z.object({
 
 const searchSchema = z.object({
   q: z.string().min(1, 'Query parameter is required'),
-  intent: z.enum(['todo', 'idea', 'expense', 'note', 'bookmark', 'schedule', 'unknown']).optional(),
+  category: z.enum(['todo', 'idea', 'expense', 'note', 'bookmark', 'schedule', 'unknown']).optional(),
   limit: z.coerce.number().int().positive().max(100).optional()
 });
 
@@ -70,7 +72,7 @@ export class InboxController {
         originalContent: body.content,
         contentType: (body.type ?? 'text') as ContentType,
         source: body.source ?? 'api',
-        intent: 'unknown' as any,
+        category: 'unknown' as any,
         entities: {},
         status: 'pending' as ItemStatus,
         priority: 'medium' as Priority,
@@ -92,7 +94,7 @@ export class InboxController {
       const response: CreateItemResponse = {
         id: item.id,
         status: item.status,
-        intent: item.intent,
+        category: item.category,
         message: 'Item received and is being processed'
       };
 
@@ -162,7 +164,7 @@ export class InboxController {
           content: item.originalContent,
           source: item.source,
           parsed: {
-            intent: item.intent,
+            category: item.category,
             confidence: 1.0, // Default confidence as it's not stored in current model
             entities: item.entities
           },
@@ -207,7 +209,7 @@ export class InboxController {
       // Parse filter parameters
       const filter: QueryFilter = {
         status: req.query.status as any,
-        intent: req.query.intent as any,
+        category: req.query.category as any,
         source: req.query.source as string,
         query: req.query.query as string,
         since: req.query.since ? new Date(req.query.since as string) : undefined,
@@ -243,7 +245,7 @@ export class InboxController {
             id: item.id,
             content: item.originalContent,
             source: item.source,
-            intent: item.intent,
+            category: item.category,
             entities: item.entities,
             status: item.status,
             createdAt: item.createdAt.toISOString(),
@@ -521,7 +523,7 @@ export class InboxController {
             originalContent: validatedEntry.content,
             contentType: (validatedEntry.type ?? 'text') as ContentType,
             source: validatedEntry.source ?? 'api',
-            intent: 'unknown' as any,
+            category: 'unknown' as any,
             entities: {},
             status: 'pending' as ItemStatus,
             priority: 'medium' as Priority,
@@ -581,7 +583,7 @@ export class InboxController {
       // Build filter
       const filter: QueryFilter = {
         query: query.q,
-        intent: query.intent,
+        category: query.category as any,
         limit: query.limit ?? 20,
         offset: 0
       };
@@ -599,7 +601,7 @@ export class InboxController {
           id: item.id,
           content: item.originalContent,
           source: item.source,
-          intent: item.intent,
+          category: item.category,
           entities: item.entities,
           status: item.status,
           createdAt: item.createdAt.toISOString()
@@ -643,22 +645,32 @@ export class InboxController {
       // Analyze with AI
       const analysis = await this.ai.analyzeContent(item.originalContent, item.contentType);
 
-      logger.info(`[AI Processing] Analysis result: intent=${analysis.intent}, confidence=${analysis.confidence}`);
+      logger.info(`[AI Processing] Analysis result: category=${analysis.category}, confidence=${analysis.confidence}`);
 
       // Determine status based on analysis quality
-      // Mark as failed if intent is unknown and confidence is low
+      // Mark as failed if category is unknown and confidence is low
       const shouldMarkAsFailed =
-        analysis.intent === 'unknown' &&
+        analysis.category === 'unknown' &&
         (!analysis.confidence || analysis.confidence < 0.3);
 
       if (shouldMarkAsFailed) {
-        logger.warn(`[AI Processing] Item ${itemId} marked as failed: intent=unknown, confidence=${analysis.confidence}`);
+        logger.warn(`[AI Processing] Item ${itemId} marked as failed: category=unknown, confidence=${analysis.confidence}`);
       }
 
       // Update with AI results
+      // Preserve file metadata if present
+      const fileMetadata = {
+        filePath: item.entities?.filePath,
+        fileName: item.entities?.fileName,
+        fileSize: item.entities?.fileSize,
+        mimeType: item.entities?.mimeType,
+        // Preserve allFiles array for multi-file items
+        allFiles: item.entities?.allFiles
+      };
+
       this.db.updateItem(itemId, {
-        intent: analysis.intent,
-        entities: analysis.entities,
+        category: analysis.category,
+        entities: { ...analysis.entities, ...fileMetadata },
         summary: analysis.summary,
         suggestedTitle: analysis.suggestedTitle,
         status: shouldMarkAsFailed ? 'failed' : 'completed',
@@ -707,6 +719,362 @@ export class InboxController {
       logger.error(`Distribution failed for item ${item.id}:`, error);
     }
   }
+
+  /**
+   * Create a new item with file upload
+   * POST /v1/inbox/file
+   */
+  createItemWithFile = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      // Check if file was uploaded
+      if (!req.file) {
+        res.status(400).json({
+          success: false,
+          error: 'No file uploaded'
+        });
+        return;
+      }
+
+      const file = req.file as Express.Multer.File;
+      const userId = req.user?.id ?? 'default-user';
+      const content = req.body.content || `File: ${file.originalname}`;
+      const source = req.body.source || 'api';
+
+      // Determine content type from file mimetype
+      let contentType: ContentType = ContentType.FILE;
+      if (file.mimetype.startsWith('image/')) {
+        contentType = ContentType.IMAGE;
+      } else if (file.mimetype.startsWith('audio/')) {
+        contentType = ContentType.AUDIO;
+      }
+
+      // Create item object with file path
+      const item: Item = {
+        id: uuidv4(),
+        userId,
+        originalContent: content,
+        contentType,
+        source,
+        category: 'unknown' as any,
+        entities: {
+          filePath: file.path,
+          fileName: Buffer.from(file.originalname, 'latin1').toString('utf8'),
+          fileSize: file.size,
+          mimeType: file.mimetype
+        },
+        status: 'pending' as ItemStatus,
+        priority: 'medium' as Priority,
+        distributedTargets: [],
+        distributionResults: [],
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+
+      // Save to database
+      this.db.createItem(item);
+
+      // Trigger async AI processing
+      this.processItemAsync(item.id).catch(error => {
+        console.error(`Failed to process item ${item.id}:`, error);
+      });
+
+      // Respond immediately with pending status
+      const response: CreateItemResponse = {
+        id: item.id,
+        status: item.status,
+        category: item.category,
+        message: 'File uploaded and is being processed'
+      };
+
+      res.status(201).json({
+        success: true,
+        data: response
+      });
+
+      logger.info(`[Inbox] Item created with file upload: ${item.id} (${file.originalname})`);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Create a new item with multiple file uploads
+   * POST /v1/inbox/files
+   */
+  createItemWithMultipleFiles = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        res.status(401).json({ success: false, error: 'User not authenticated' });
+        return;
+      }
+
+      const files = req.files as Express.Multer.File[];
+      if (!files || files.length === 0) {
+        res.status(400).json({ success: false, error: 'No files uploaded' });
+        return;
+      }
+
+      const { content = '', source = 'api' } = req.body;
+      const contentType = 'file' as ContentType;
+
+      // Create file list for content
+      const fileList = files.map(file => `📎 ${Buffer.from(file.originalname, 'latin1').toString('utf8')} (${(file.size / 1024).toFixed(1)}KB)`).join('\n');
+      const finalContent = content ? 
+        `${content}\n\n附件 (${files.length} 个文件):\n${fileList}` :
+        `多文件上传 (${files.length} 个文件):\n${fileList}`;
+
+      // Store all files info in entities
+      const filesInfo = files.map(file => ({
+        filePath: file.path,
+        fileName: Buffer.from(file.originalname, 'latin1').toString('utf8'),
+        fileSize: file.size,
+        mimeType: file.mimetype
+      }));
+
+      const item: Item = {
+        id: uuidv4(),
+        userId,
+        originalContent: finalContent,
+        contentType,
+        source,
+        category: 'unknown' as any,
+        entities: {
+          // Store primary file info (first file)
+          filePath: files[0].path,
+          fileName: Buffer.from(files[0].originalname, 'latin1').toString('utf8'),
+          fileSize: files[0].size,
+          mimeType: files[0].mimetype,
+          // Store all files info
+          allFiles: filesInfo
+        },
+        status: 'pending' as ItemStatus,
+        priority: 'medium' as Priority,
+        distributedTargets: [],
+        distributionResults: [],
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+
+      // Save to database
+      await this.db.createItem(item);
+
+      // Trigger async AI processing
+      this.processItemAsync(item.id).catch(error => {
+        console.error(`Failed to process item ${item.id}:`, error);
+      });
+
+      const response: CreateItemResponse = {
+        id: item.id,
+        status: item.status,
+        category: item.category,
+        message: `${files.length} files uploaded and are being processed`
+      };
+
+      res.status(201).json({
+        success: true,
+        data: response
+      });
+
+      logger.info(`[Inbox] Item created with multiple files: ${item.id} (${files.length} files)`);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Serve uploaded file for inline viewing
+   * GET /v1/inbox/:id/file
+   * GET /v1/inbox/:id/file/:index (for multi-file items)
+   */
+  serveFile = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { id, index } = req.params;
+      const userId = req.user?.id ?? 'default-user';
+
+      const item = this.db.getItemById(id);
+      if (!item || item.userId !== userId) {
+        res.status(404).json({ success: false, error: 'Item not found' });
+        return;
+      }
+
+      let filePath: string;
+      let fileName: string;
+      let mimeType: string;
+
+      // If index is provided and allFiles exists, serve specific file
+      if (index !== undefined && item.entities?.allFiles) {
+        const fileIndex = parseInt(index);
+        const allFiles = item.entities.allFiles as Array<{
+          filePath: string;
+          fileName: string;
+          fileSize: number;
+          mimeType: string;
+        }>;
+
+        if (fileIndex >= 0 && fileIndex < allFiles.length) {
+          const targetFile = allFiles[fileIndex];
+          filePath = targetFile.filePath;
+          fileName = targetFile.fileName;
+          mimeType = targetFile.mimeType;
+        } else {
+          res.status(404).json({ success: false, error: 'File index out of range' });
+          return;
+        }
+      } else {
+        // Serve primary file (backward compatibility)
+        filePath = item.entities?.filePath as string;
+        fileName = (item.entities?.fileName as string) || path.basename(filePath || '');
+        mimeType = (item.entities?.mimeType as string) || 'application/octet-stream';
+      }
+
+      if (!filePath || !fs.existsSync(filePath)) {
+        res.status(404).json({ success: false, error: 'File not found' });
+        return;
+      }
+
+      // 使用 RFC 5987 标准处理中文文件名
+      const encodedFileName = encodeURIComponent(fileName);
+      res.setHeader('Content-Disposition', `inline; filename*=UTF-8''${encodedFileName}`);
+      res.setHeader('Content-Type', mimeType);
+
+      const fileStream = fs.createReadStream(filePath);
+      fileStream.pipe(res);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Download uploaded file as attachment
+   * GET /v1/inbox/:id/file/download
+   * GET /v1/inbox/:id/file/:index/download (for multi-file items)
+   */
+  downloadFile = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { id, index } = req.params;
+      const userId = req.user?.id ?? 'default-user';
+
+      const item = this.db.getItemById(id);
+      if (!item || item.userId !== userId) {
+        res.status(404).json({ success: false, error: 'Item not found' });
+        return;
+      }
+
+      let filePath: string;
+      let fileName: string;
+      let mimeType: string;
+
+      if (index !== undefined && item.entities?.allFiles) {
+        const fileIndex = parseInt(index);
+        const allFiles = item.entities.allFiles as Array<{
+          filePath: string;
+          fileName: string;
+          fileSize: number;
+          mimeType: string;
+        }>;
+
+        if (fileIndex >= 0 && fileIndex < allFiles.length) {
+          const targetFile = allFiles[fileIndex];
+          filePath = targetFile.filePath;
+          fileName = targetFile.fileName;
+          mimeType = targetFile.mimeType;
+        } else {
+          res.status(404).json({ success: false, error: 'File index out of range' });
+          return;
+        }
+      } else {
+        filePath = item.entities?.filePath as string;
+        fileName = (item.entities?.fileName as string) || path.basename(filePath || '');
+        mimeType = (item.entities?.mimeType as string) || 'application/octet-stream';
+      }
+
+      if (!filePath || !fs.existsSync(filePath)) {
+        res.status(404).json({ success: false, error: 'File not found' });
+        return;
+      }
+
+      const encodedFileName = encodeURIComponent(fileName);
+      res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodedFileName}`);
+      res.setHeader('Content-Type', mimeType);
+
+      const fileStream = fs.createReadStream(filePath);
+      fileStream.pipe(res);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Retry AI processing for failed items
+   * POST /v1/inbox/:id/retry
+   */
+  retryAIProcessing = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { id } = req.params;
+      const userId = req.user?.id ?? 'default-user';
+
+      const item = this.db.getItemById(id);
+
+      if (!item) {
+        res.status(404).json({
+          success: false,
+          error: {
+            code: 'NOT_FOUND',
+            message: 'Item not found'
+          }
+        });
+        return;
+      }
+
+      // Check ownership
+      if (item.userId !== userId) {
+        res.status(403).json({
+          success: false,
+          error: {
+            code: 'FORBIDDEN',
+            message: 'Access denied'
+          }
+        });
+        return;
+      }
+
+      // Only allow retry for failed items
+      if (item.status !== 'failed') {
+        res.status(400).json({
+          success: false,
+          error: {
+            code: 'INVALID_STATUS',
+            message: 'Only failed items can be retried'
+          }
+        });
+        return;
+      }
+
+      // Reset status to pending and trigger processing
+      this.db.updateItem(id, { 
+        status: 'pending',
+        updatedAt: new Date()
+      });
+
+      // Trigger async AI processing
+      this.processItemAsync(item.id).catch(error => {
+        console.error(`Failed to retry processing item ${item.id}:`, error);
+      });
+
+      res.json({
+        success: true,
+        data: {
+          message: 'AI processing retry triggered',
+          status: 'pending'
+        }
+      });
+
+      logger.info(`[Inbox] AI processing retry triggered for item ${item.id}`);
+    } catch (error) {
+      next(error);
+    }
+  };
 }
 
 export const inboxController = new InboxController();
