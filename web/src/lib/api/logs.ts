@@ -178,8 +178,19 @@ export async function getStatistics(query: StatisticsQuery): Promise<StatisticsR
   if (query.endDate) params.append('endDate', query.endDate)
 
   const response = await apiClient.get<StatisticsResponse>(`/auth/logs/statistics?${params.toString()}`)
-  if (!response.data) {
-    throw new Error('No data received from statistics API')
+  if (response && typeof response === 'object') {
+    if ('summary' in response) {
+      return response as unknown as StatisticsResponse
+    }
+    if ('data' in response && response.data) {
+      return response.data
+    }
+    if ('error' in response && response.error) {
+      throw new Error(response.error)
+    }
+    if ('message' in response && response.message) {
+      throw new Error(response.message)
+    }
   }
-  return response.data
+  throw new Error('No data received from statistics API')
 }
