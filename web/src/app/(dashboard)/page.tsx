@@ -13,16 +13,14 @@ import {
   Clock,
   CheckCircle,
   AlertCircle,
-  Plus,
-  Search,
 } from 'lucide-react'
-import { IntentType, ItemStatus } from '@/types'
+import { CategoryType, ItemStatus } from '@/types'
 import { formatRelativeTime } from '@/lib/utils'
 import Link from 'next/link'
 import { CommandSearch } from '@/components/shared/command-search'
 import { useState, useMemo } from 'react'
 
-const getIntentLabel = (intent: string): string => {
+const getIntentLabel = (category: string): string => {
   const labels: Record<string, string> = {
     todo: '待办',
     idea: '想法',
@@ -32,10 +30,10 @@ const getIntentLabel = (intent: string): string => {
     bookmark: '书签',
     unknown: '未知',
   }
-  return labels[intent] || intent
+  return labels[category] || category
 }
 
-const getIntentColor = (intent: string): string => {
+const getIntentColor = (category: string): string => {
   const colors: Record<string, string> = {
     todo: 'bg-blue-500',
     idea: 'bg-purple-500',
@@ -45,7 +43,7 @@ const getIntentColor = (intent: string): string => {
     bookmark: 'bg-pink-500',
     unknown: 'bg-gray-500',
   }
-  return colors[intent] || 'bg-gray-500'
+  return colors[category] || 'bg-gray-500'
 }
 
 export default function DashboardPage() {
@@ -100,15 +98,15 @@ export default function DashboardPage() {
     },
   ]
 
-  // 计算意图分布百分比
-  const intentDistribution = useMemo(() => {
-    if (!stats?.itemsByIntent) return []
+  // 计算分类分布百分比
+  const categoryDistribution = useMemo(() => {
+    if (!stats?.itemsByCategory) return []
     const total = stats.totalItems || 1
-    return Object.entries(stats.itemsByIntent)
+    return Object.entries(stats.itemsByCategory)
       .filter(([_, count]) => count > 0)
       .sort(([, a], [, b]) => b - a)
-      .map(([intent, count]) => ({
-        intent: intent as IntentType,
+      .map(([category, count]) => ({
+        category: category as CategoryType,
         count,
         percentage: Math.round((count / total) * 100),
       }))
@@ -120,20 +118,6 @@ export default function DashboardPage() {
         <div>
           <h1 className="text-3xl font-bold">仪表板</h1>
           <p className="text-muted-foreground">欢迎使用 SuperInbox 智能收件箱</p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" asChild>
-            <Link href="/inbox">
-              <Plus className="h-4 w-4 mr-2" />
-              添加
-            </Link>
-          </Button>
-          <Button variant="outline" size="sm" asChild>
-            <Link href="/inbox">
-              <Search className="h-4 w-4 mr-2" />
-              搜索
-            </Link>
-          </Button>
         </div>
       </div>
 
@@ -157,25 +141,25 @@ export default function DashboardPage() {
         {/* 意图分布 */}
         <Card>
           <CardHeader>
-            <CardTitle>意图分布</CardTitle>
-            <CardDescription>按意图类型分类的条目分布</CardDescription>
+            <CardTitle>分类分布</CardTitle>
+            <CardDescription>按内容类型分类的条目分布</CardDescription>
           </CardHeader>
           <CardContent>
             {statsLoading ? (
               <div className="text-center text-muted-foreground py-8">加载中...</div>
-            ) : intentDistribution.length === 0 ? (
+            ) : categoryDistribution.length === 0 ? (
               <div className="text-center text-muted-foreground py-8">暂无数据</div>
             ) : (
               <div className="space-y-4">
-                {intentDistribution.map(({ intent, count, percentage }) => (
-                  <div key={intent} className="space-y-2">
+                {categoryDistribution.map(({ category, count, percentage }) => (
+                  <div key={category} className="space-y-2">
                     <div className="flex items-center justify-between text-sm">
-                      <span className="font-medium capitalize">{getIntentLabel(intent)}</span>
+                      <span className="font-medium capitalize">{getIntentLabel(category)}</span>
                       <span className="text-muted-foreground">{count} ({percentage}%)</span>
                     </div>
                     <div className="h-2 bg-secondary rounded-full overflow-hidden">
                       <div
-                        className={`h-full ${getIntentColor(intent)} transition-all`}
+                        className={`h-full ${getIntentColor(category)} transition-all`}
                         style={{ width: `${percentage}%` }}
                       />
                     </div>
@@ -269,7 +253,7 @@ export default function DashboardPage() {
                                 : 'secondary'
                           }
                         >
-                          {item.analysis?.intent || IntentType.UNKNOWN}
+                          {item.analysis?.category || CategoryType.UNKNOWN}
                         </Badge>
                         <Badge variant="outline" className="text-xs">
                           {item.source}

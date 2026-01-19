@@ -20,7 +20,7 @@ export default function RoutingPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">路由规则</h1>
+          <h1 className="text-3xl font-bold">分发规则</h1>
           <p className="text-muted-foreground">配置智能分发规则</p>
         </div>
         <div className="flex gap-2">
@@ -41,7 +41,7 @@ export default function RoutingPage() {
         <CardHeader>
           <CardTitle>规则列表</CardTitle>
           <CardDescription>
-            按优先级排序的路由规则，优先级高的规则先执行
+            按优先级排序的分发规则，优先级高的规则先执行
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -49,7 +49,7 @@ export default function RoutingPage() {
             <div className="text-center py-8 text-muted-foreground">加载中...</div>
           ) : rules.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
-              暂无路由规则
+              暂无分发规则
             </div>
           ) : (
             <div className="space-y-4">

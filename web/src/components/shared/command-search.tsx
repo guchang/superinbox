@@ -12,24 +12,24 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command"
-import { IntentType, ItemStatus } from '@/types'
+import { CategoryType, ItemStatus } from '@/types'
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 
 // 搜索选项类型
-type SearchOptionType = 'intent' | 'status' | 'source'
+type SearchOptionType = 'category' | 'status' | 'source'
 
 interface SearchOption {
   id: SearchOptionType
   label: string
   keywords: string[]
-  prefix: string // 用于输入的前缀，如 "status:", "intent:"
+  prefix: string // 用于输入的前缀，如 "status:", "category:"
   values: Array<{ value: string; label: string }>
 }
 
 // 搜索解析结果
 interface ParsedSearch {
   query: string // 全文搜索文本
-  intent?: IntentType
+  category?: CategoryType
   status?: ItemStatus
   source?: string
 }
@@ -42,24 +42,24 @@ interface CommandSearchProps {
 
 export interface SearchFilters {
   query: string
-  intent?: IntentType
+  category?: CategoryType
   status?: ItemStatus
   source?: string
 }
 
 const SEARCH_OPTIONS: SearchOption[] = [
   {
-    id: 'intent',
-    label: '意图',
-    keywords: ['intent', '意图'],
-    prefix: 'intent:',
+    id: 'category',
+    label: '分类',
+    keywords: ['category', '分类'],
+    prefix: 'category:',
     values: [
-      { value: IntentType.TODO, label: '待办事项' },
-      { value: IntentType.IDEA, label: '想法' },
-      { value: IntentType.EXPENSE, label: '支出' },
-      { value: IntentType.NOTE, label: '笔记' },
-      { value: IntentType.BOOKMARK, label: '书签' },
-      { value: IntentType.SCHEDULE, label: '日程' },
+      { value: CategoryType.TODO, label: '待办事项' },
+      { value: CategoryType.IDEA, label: '想法' },
+      { value: CategoryType.EXPENSE, label: '支出' },
+      { value: CategoryType.NOTE, label: '笔记' },
+      { value: CategoryType.BOOKMARK, label: '书签' },
+      { value: CategoryType.SCHEDULE, label: '日程' },
     ]
   },
   {
@@ -101,10 +101,10 @@ function parseSearchString(input: string, availableSources: string[]): ParsedSea
       continue
     }
 
-    // 检查是否是 intent:xxx
-    const intentMatch = part.match(/^intent:(\w+)$/i)
-    if (intentMatch) {
-      result.intent = intentMatch[1] as IntentType
+    // 检查是否是 category:xxx
+    const categoryMatch = part.match(/^category:(\w+)$/i)
+    if (categoryMatch) {
+      result.category = categoryMatch[1] as CategoryType
       continue
     }
 
@@ -126,7 +126,7 @@ function parseSearchString(input: string, availableSources: string[]): ParsedSea
 
 // 模拟搜索历史
 const mockSearchHistory = [
-  'intent:todo status:completed',
+  'category:todo status:completed',
   '开会',
   'status:failed',
 ]
@@ -141,7 +141,7 @@ export function CommandSearch({ filters, onFiltersChange, availableSources = [] 
   // 初始化输入值和选中索引
   React.useEffect(() => {
     const parts: string[] = []
-    if (filters.intent) parts.push(`intent:${filters.intent}`)
+    if (filters.category) parts.push(`category:${filters.category}`)
     if (filters.status) parts.push(`status:${filters.status}`)
     if (filters.source) parts.push(`source:${filters.source}`)
     if (filters.query) parts.push(filters.query)
@@ -263,7 +263,7 @@ export function CommandSearch({ filters, onFiltersChange, availableSources = [] 
     }
 
     // 如果没有匹配的选项，显示可能匹配的选项前缀
-    // 当用户输入 "i" 时，显示 "intent:" 选项
+    // 当用户输入 "i" 时，显示 "category:" 选项
     searchOptionsWithSources.forEach(option => {
       // 检查选项前缀或关键词是否以用户输入开头
       if (option.prefix.toLowerCase().startsWith(lastPart.toLowerCase()) ||
@@ -286,7 +286,7 @@ export function CommandSearch({ filters, onFiltersChange, availableSources = [] 
     const parsed = parseSearchString(value, availableSources)
     onFiltersChange({
       query: parsed.query,
-      intent: parsed.intent,
+      category: parsed.category,
       status: parsed.status,
       source: parsed.source
     })

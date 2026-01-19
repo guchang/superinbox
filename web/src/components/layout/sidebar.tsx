@@ -8,7 +8,6 @@ import {
   GitBranch,
   Settings,
   Home,
-  FileText,
   Key,
   Activity,
   BarChart3,
@@ -37,14 +36,8 @@ const navigationData = [
   {
     title: 'AI 引擎',
     items: [
-      { name: '分析概览', href: '/ai', icon: BrainCircuit },
-      { name: 'Prompt 管理', href: '/ai/prompts', icon: FileText },
-    ]
-  },
-  {
-    title: '路由规则',
-    items: [
-      { name: '规则管理', href: '/routing', icon: GitBranch },
+      { name: '分类管理', href: '/ai', icon: BrainCircuit },
+      { name: '分发规则', href: '/routing', icon: GitBranch },
     ]
   },
   {
