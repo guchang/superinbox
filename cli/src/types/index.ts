@@ -56,7 +56,7 @@ export interface Item {
   originalContent: string;
   contentType: string;
   source: string;
-  intent: string;
+  category: string;
   entities: any;
   summary?: string;
   suggestedTitle?: string;
@@ -71,7 +71,7 @@ export interface Item {
 export interface CreateItemResponse {
   id: string;
   status: string;
-  intent: string;
+  category: string;
   message: string;
 }
 
@@ -90,12 +90,13 @@ export interface CliOptions {
   source?: string;
   wait?: boolean;
   timeout?: number;
+  file?: string;
 }
 
 export interface ListOptions {
   limit?: number;
   offset?: number;
-  intent?: string;
+  category?: string;
   status?: string;
   source?: string;
   json?: boolean;

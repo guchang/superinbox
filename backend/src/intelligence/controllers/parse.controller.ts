@@ -35,7 +35,7 @@ export async function getParseResult(req: Request, res: Response): Promise<void>
       entryId: item.id,
       originalContent: item.originalContent,
       parsed: {
-        intent: item.intent,
+        category: item.category,
         confidence: 0.8, // Default confidence for now
         entities: item.entities || {}
       },
@@ -61,7 +61,7 @@ export async function getParseResult(req: Request, res: Response): Promise<void>
 export async function updateParseResult(req: Request, res: Response): Promise<void> {
   try {
     const { id } = req.params;
-    const { intent, entities, feedback } = req.body;
+    const { category, entities, feedback } = req.body;
     const userId = req.user?.id ?? 'default-user';
     const db = getDatabase();
 
@@ -80,7 +80,7 @@ export async function updateParseResult(req: Request, res: Response): Promise<vo
 
     // Update item with corrected data
     const updatedItem = db.updateItem(id, {
-      intent: intent || item.intent,
+      category: category || item.category,
       entities: entities || item.entities,
       status: 'completed',
       processedAt: new Date()

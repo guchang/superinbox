@@ -6,8 +6,8 @@ export enum ContentType {
   AUDIO = 'audio',
 }
 
-// 意图类型
-export enum IntentType {
+// Category type
+export enum CategoryType {
   TODO = 'todo',
   IDEA = 'idea',
   EXPENSE = 'expense',
@@ -15,6 +15,18 @@ export enum IntentType {
   BOOKMARK = 'bookmark',
   SCHEDULE = 'schedule',
   UNKNOWN = 'unknown',
+}
+
+// 动态分类
+export interface Category {
+  id: string
+  key: string
+  name: string
+  description?: string
+  examples?: string[]
+  isActive: boolean
+  createdAt: string
+  updatedAt: string
 }
 
 // 处理状态
@@ -41,7 +53,7 @@ export interface Entity {
 
 // AI 分析结果
 export interface AIAnalysis {
-  intent: IntentType
+  category: CategoryType
   confidence: number
   entities: Entity[]
   summary?: string
@@ -61,6 +73,19 @@ export interface Item {
   createdAt: string
   updatedAt: string
   processedAt?: string
+  // File related fields
+  hasFile?: boolean
+  fileName?: string
+  mimeType?: string
+  fileSize?: number
+  filePath?: string
+  // Multiple files support
+  allFiles?: Array<{
+    fileName: string
+    mimeType: string
+    fileSize: number
+    filePath: string
+  }>
 }
 
 // API 响应类型
@@ -97,7 +122,7 @@ export interface CreateItemRequest {
 
 // 筛选参数
 export interface FilterParams extends PaginationParams {
-  intent?: IntentType
+  category?: CategoryType
   status?: ItemStatus
   source?: string
   search?: string
@@ -128,10 +153,24 @@ export interface PromptTemplate {
   id: string
   name: string
   description: string
-  intent: IntentType
+  category: CategoryType
   template: string
   variables: string[]
   isActive: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+// AI 分类模板版本
+export interface AiTemplateVersion {
+  id: string
+  name: string
+  description?: string
+  prompt: string
+  isActive: boolean
+  confirmedCoverage: string[]
+  aiCoverage: string[]
+  confirmedAt?: string
   createdAt: string
   updatedAt: string
 }
@@ -150,7 +189,7 @@ export interface RoutingRule {
 }
 
 export interface RuleCondition {
-  field: 'intent' | 'source' | 'priority' | 'content'
+  field: 'category' | 'source' | 'priority' | 'content'
   operator: 'equals' | 'contains' | 'matches' | 'in'
   value: any
 }
@@ -163,7 +202,7 @@ export interface RuleAction {
 // 统计数据
 export interface Statistics {
   totalItems: number
-  itemsByIntent: Record<IntentType, number>
+  itemsByCategory: Record<CategoryType, number>
   itemsByStatus: Record<ItemStatus, number>
   itemsBySource: Record<string, number>
   avgProcessingTime: number

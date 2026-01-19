@@ -26,8 +26,8 @@ router.get('/statistics', authenticate, (req: Request, res: Response): void => {
 
     const totalItems = allItems.length;
 
-    // Count by intent
-    const itemsByIntent: Record<string, number> = {
+    // Count by category
+    const itemsByCategory: Record<string, number> = {
       todo: 0,
       idea: 0,
       expense: 0,
@@ -59,9 +59,9 @@ router.get('/statistics', authenticate, (req: Request, res: Response): void => {
     let processedCount = 0;
 
     allItems.forEach((item) => {
-      // Count by intent
-      const intent = item.intent || 'unknown';
-      itemsByIntent[intent] = (itemsByIntent[intent] || 0) + 1;
+      // Count by category
+      const category = item.category || 'unknown';
+      itemsByCategory[category] = (itemsByCategory[category] || 0) + 1;
 
       // Count by status
       const status = item.status || 'unknown';
@@ -97,7 +97,7 @@ router.get('/statistics', authenticate, (req: Request, res: Response): void => {
       success: true,
       data: {
         totalItems,
-        itemsByIntent,
+        itemsByCategory,
         itemsByStatus,
         itemsBySource,
         avgProcessingTime,

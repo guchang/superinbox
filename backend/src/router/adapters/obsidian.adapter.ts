@@ -99,7 +99,7 @@ export class ObsidianAdapter extends BaseAdapter {
     // Frontmatter
     lines.push('---');
     lines.push(`created: ${item.createdAt.toISOString()}`);
-    lines.push(`intent: ${item.intent}`);
+    lines.push(`category: ${item.category}`);
     lines.push(`status: ${item.status}`);
     lines.push(`source: ${item.source}`);
 

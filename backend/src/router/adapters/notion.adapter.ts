@@ -115,7 +115,7 @@ export class NotionAdapter extends BaseAdapter {
     if (typeProperty) {
       properties[typeProperty] = {
         select: {
-          name: item.intent
+          name: item.category
         }
       };
     }

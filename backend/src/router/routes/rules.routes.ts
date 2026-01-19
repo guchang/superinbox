@@ -19,7 +19,7 @@ router.get('/rules', authenticate, (req, res) => {
         description: 'Route todo items to Notion',
         priority: 1,
         conditions: [
-          { field: 'intent', operator: 'equals', value: 'todo' }
+          { field: 'category', operator: 'equals', value: 'todo' }
         ],
         actions: [
           { type: 'notion', config: { databaseId: 'xxx' } }

@@ -37,7 +37,7 @@ export class WebhookAdapter extends BaseAdapter {
       // Prepare payload
       const payload = {
         id: item.id,
-        intent: item.intent,
+        category: item.category,
         content: item.originalContent,
         summary: item.summary,
         entities: item.entities,

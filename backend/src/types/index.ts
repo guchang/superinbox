@@ -19,16 +19,16 @@ export enum ContentType {
 }
 
 /**
- * 意图分类
+ * Content Category - Classification of content type
  */
-export enum IntentType {
-  TODO = 'todo',           // 待办事项
-  IDEA = 'idea',           // 想法/灵感
-  EXPENSE = 'expense',     // 消费记录
-  NOTE = 'note',           // 笔记
-  BOOKMARK = 'bookmark',   // 书签/收藏
-  SCHEDULE = 'schedule',   // 日程安排
-  UNKNOWN = 'unknown'      // 未知类型
+export enum CategoryType {
+  TODO = 'todo',           // Todo item - tasks or action items
+  IDEA = 'idea',           // Idea/Inspiration - sudden thoughts, creative ideas
+  EXPENSE = 'expense',     // Expense record - shopping, payments, bills
+  NOTE = 'note',           // Note - study notes, meeting records, information
+  BOOKMARK = 'bookmark',   // Bookmark/Favorite - web links, articles, resources
+  SCHEDULE = 'schedule',   // Schedule - appointments, meetings, reminders with time
+  UNKNOWN = 'unknown'      // Unknown type - content that cannot be clearly classified
 }
 
 /**
@@ -94,15 +94,28 @@ export interface ExtractedEntities {
   // 链接
   urls?: string[];
 
+  // 文件相关
+  filePath?: string;
+  fileName?: string;
+  fileSize?: number;
+  mimeType?: string;
+  // 多文件支持
+  allFiles?: Array<{
+    filePath: string;
+    fileName: string;
+    fileSize: number;
+    mimeType: string;
+  }>;
+
   // 自定义字段
   customFields?: Record<string, unknown>;
 }
 
 /**
- * AI 处理结果
+ * AI Analysis Result
  */
 export interface AIAnalysisResult {
-  intent: IntentType;
+  category: CategoryType;
   entities: ExtractedEntities;
   summary?: string;
   suggestedTitle?: string;
@@ -111,24 +124,24 @@ export interface AIAnalysisResult {
 }
 
 /**
- * 项目 - 核心数据模型
+ * Item - Core data model
  */
 export interface Item {
   id: string;
   userId: string;
 
-  // 原始内容
+  // Original content
   originalContent: string;
   contentType: ContentType;
   source: string;
 
-  // AI 分析结果
-  intent: IntentType;
+  // AI analysis result
+  category: CategoryType;
   entities: ExtractedEntities;
   summary?: string;
   suggestedTitle?: string;
 
-  // 状态管理
+  // Status management
   status: ItemStatus;
   priority: Priority;
 
@@ -235,23 +248,23 @@ export interface CreateItemRequest {
 }
 
 /**
- * 创建项目响应
+ * Create item response
  */
 export interface CreateItemResponse {
   id: string;
   status: ItemStatus;
-  intent: IntentType;
+  category: CategoryType;
   message: string;
 }
 
 /**
- * 查询过滤器
+ * Query filter
  */
 export interface QueryFilter {
   status?: ItemStatus;
-  intent?: IntentType;
+  category?: CategoryType;
   source?: string;
-  query?: string; // 全文搜索
+  query?: string; // Full-text search
   since?: Date; // Incremental sync filter - return items updated after this timestamp
   startDate?: Date;
   endDate?: Date;
@@ -312,6 +325,10 @@ export interface AppConfig {
   };
   cors: {
     origin: string;
+  };
+  storage: {
+    uploadDir: string;
+    maxUploadSize: number;
   };
 }
 
