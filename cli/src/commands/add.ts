@@ -15,18 +15,28 @@ export async function add(content: string, options: CliOptions = {}): Promise<vo
 
     const spinner = ora('Sending to inbox...').start();
 
-    // Create item
-    const result = await api.createItem(content, {
-      type: options.type,
-      source: options.source
-    });
+    let result;
 
-    spinner.succeed('Item created');
+    // Handle file upload
+    if (options.file) {
+      result = await api.uploadFile(options.file, {
+        content: content || undefined,
+        source: options.source
+      });
+      spinner.succeed('File uploaded');
+    } else {
+      // Create item
+      result = await api.createItem(content, {
+        type: options.type,
+        source: options.source
+      });
+      spinner.succeed('Item created');
+    }
 
     // Show result
     display.success(`Created item ${chalk.cyan(result.id)}`);
     console.log(chalk.gray(`  Status: ${result.status}`));
-    console.log(chalk.gray(`  Intent: ${result.intent}`));
+    console.log(chalk.gray(`  Category: ${result.category}`));
 
     // Wait for AI processing if requested
     if (options.wait) {

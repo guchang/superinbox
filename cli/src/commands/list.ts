@@ -22,6 +22,7 @@ export async function list(options: ListOptions = {}): Promise<void> {
 
     if (options.json) {
       console.log(JSON.stringify(items, null, 2));
+      return;
     } else {
       display.table(items, options.limit !== undefined && options.limit > 10);
     }
@@ -75,7 +76,7 @@ export async function list(options: ListOptions = {}): Promise<void> {
             name: 'deleteItemId',
             message: t('commands.list.selectToDelete'),
             choices: items.map(item => ({
-              name: `${item.originalContent.substring(0, 50)}${item.originalContent.length > 50 ? '...' : ''} (${item.intent})`,
+              name: `${item.originalContent.substring(0, 50)}${item.originalContent.length > 50 ? '...' : ''} (${item.category})`,
               value: item.id,
             })),
           },

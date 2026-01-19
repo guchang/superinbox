@@ -77,7 +77,7 @@ export const display = {
 
       const row = [
         item.id.substring(0, 8),
-        colorizeIntent(item.intent),
+        colorizeIntent(item.category),
         content,
         colorizeStatus(item.status)
       ];
@@ -103,7 +103,7 @@ export const display = {
     console.log('');
 
     console.log(chalk.gray('ID:            ') + chalk.white(item.id));
-    console.log(chalk.gray('Intent:        ') + colorizeIntent(item.intent));
+    console.log(chalk.gray('Intent:        ') + colorizeIntent(item.category));
     console.log(chalk.gray('Status:        ') + colorizeStatus(item.status));
     console.log(chalk.gray('Type:          ') + chalk.white(item.contentType));
     console.log(chalk.gray('Source:        ') + chalk.white(item.source));
@@ -169,9 +169,9 @@ export const display = {
 };
 
 /**
- * Colorize intent
+ * Colorize category
  */
-function colorizeIntent(intent: string): string {
+function colorizeIntent(category: string): string {
   const colors: Record<string, (text: string) => string> = {
     todo: chalk.green,
     idea: chalk.yellow,
@@ -182,8 +182,8 @@ function colorizeIntent(intent: string): string {
     unknown: chalk.gray
   };
 
-  const color = colors[intent] ?? chalk.white;
-  return color(intent);
+  const color = colors[category] ?? chalk.white;
+  return color(category);
 }
 
 /**

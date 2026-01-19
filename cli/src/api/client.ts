@@ -3,6 +3,8 @@
  */
 
 import axios, { type AxiosInstance, type AxiosError } from 'axios';
+import FormData from 'form-data';
+import fs from 'fs';
 import { config } from '../config/manager.js';
 import type { ApiResponse, Item, CreateItemResponse, ListOptions, LoginRequest, LoginResponse } from '../types/index.js';
 
@@ -56,6 +58,42 @@ export class ApiClient {
   }
 
   /**
+   * Upload file and create item
+   */
+  async uploadFile(
+    filePath: string,
+    options: { content?: string; source?: string } = {}
+  ): Promise<CreateItemResponse> {
+    // Check if file exists
+    if (!fs.existsSync(filePath)) {
+      throw new Error(`File not found: ${filePath}`);
+    }
+
+    // Create form data
+    const formData = new FormData();
+    formData.append('file', fs.createReadStream(filePath));
+    if (options.content) {
+      formData.append('content', options.content);
+    }
+    if (options.source) {
+      formData.append('source', options.source);
+    }
+
+    // Make request with different headers for multipart
+    const response = await this.client.post<ApiResponse<CreateItemResponse>>('/inbox/file', formData, {
+      headers: {
+        ...formData.getHeaders()
+      }
+    });
+
+    if (!response.data.success || !response.data.data) {
+      throw new Error(response.data.error?.message ?? 'Failed to upload file');
+    }
+
+    return response.data.data;
+  }
+
+  /**
    * Get item by ID
    */
   async getItem(id: string): Promise<Item> {
@@ -76,7 +114,7 @@ export class ApiClient {
 
     if (options.limit) params.append('limit', options.limit.toString());
     if (options.offset) params.append('offset', options.offset.toString());
-    if (options.intent) params.append('intent', options.intent);
+    if (options.category) params.append('category', options.category);
     if (options.status) params.append('status', options.status);
     if (options.source) params.append('source', options.source);
 

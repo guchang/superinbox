@@ -30,12 +30,18 @@ program
 program
   .command('add')
   .description(t('commands.add.description'))
-  .argument('<content>', getLanguage() === 'zh' ? '要发送的内容' : 'Content to send')
+  .argument('[content]', getLanguage() === 'zh' ? '要发送的内容（使用 --file 时可选）' : 'Content to send (optional when using --file)')
   .option('-t, --type <type>', getLanguage() === 'zh' ? '内容类型 (text, image, url, audio)' : 'Content type (text, image, url, audio)', 'text')
   .option('-s, --source <source>', getLanguage() === 'zh' ? '来源标识' : 'Source identifier', 'cli')
   .option('-w, --wait', getLanguage() === 'zh' ? '等待 AI 处理完成并显示结果' : 'Wait for AI processing to complete')
+  .option('-f, --file <path>', getLanguage() === 'zh' ? '上传文件路径' : 'File path to upload')
   .action(async (content, options) => {
-    await add(content, options);
+    // Validate that either content or file is provided
+    if (!content && !options.file) {
+      console.error(getLanguage() === 'zh' ? '错误：必须提供内容或文件' : 'Error: Either content or file must be provided');
+      process.exit(1);
+    }
+    await add(content || '', options);
   });
 
 // Edit command
@@ -56,7 +62,7 @@ program
   .alias('ls')
   .option('-n, --limit <number>', getLanguage() === 'zh' ? '显示数量' : 'Display limit', '20')
   .option('-o, --offset <number>', getLanguage() === 'zh' ? '偏移量' : 'Offset')
-  .option('--intent <intent>', getLanguage() === 'zh' ? '按意图筛选 (todo, idea, expense, note, bookmark, schedule)' : 'Filter by intent')
+  .option('--category <category>', getLanguage() === 'zh' ? '按分类筛选 (todo, idea, expense, note, bookmark, schedule)' : 'Filter by category')
   .option('--status <status>', getLanguage() === 'zh' ? '按状态筛选 (pending, processing, completed, failed)' : 'Filter by status')
   .option('--source <source>', getLanguage() === 'zh' ? '按来源筛选' : 'Filter by source')
   .option('-j, --json', getLanguage() === 'zh' ? '以 JSON 格式输出' : 'Output in JSON format')
@@ -64,7 +70,7 @@ program
     await list({
       limit: parseInt(options.limit),
       offset: options.offset ? parseInt(options.offset) : undefined,
-      intent: options.intent,
+      category: options.category,
       status: options.status,
       source: options.source,
       json: options.json
