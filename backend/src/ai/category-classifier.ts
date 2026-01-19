@@ -1,26 +1,26 @@
 /**
- * Intent Classifier - AI-Powered Intent Recognition
+ * Category Classifier - AI-Powered Content Classification
  */
 
 import type { LLMClient } from './llm-client.js';
 import type { AIAnalysisResult, ExtractedEntities } from '../types/index.js';
-import { IntentType, ContentType } from '../types/index.js';
+import { CategoryType, ContentType } from '../types/index.js';
 
-const INTENT_DESCRIPTIONS = {
-  [IntentType.TODO]: '待办事项 - 需要完成的任务或行动项',
-  [IntentType.IDEA]: '想法/灵感 - 突然的想法、创意或灵感记录',
-  [IntentType.EXPENSE]: '消费记录 - 购物、支付、账单等金钱相关',
-  [IntentType.NOTE]: '笔记 - 学习笔记、会议记录、信息整理',
-  [IntentType.BOOKMARK]: '书签收藏 - 网页链接、文章、资源收藏',
-  [IntentType.SCHEDULE]: '日程安排 - 有特定时间的约会、会议、提醒',
-  [IntentType.UNKNOWN]: '未知类型 - 无法明确分类的内容'
+const CATEGORY_DESCRIPTIONS: Record<CategoryType, string> = {
+  [CategoryType.TODO]: 'todo - Tasks or action items that need to be completed',
+  [CategoryType.IDEA]: 'idea - Sudden thoughts, creative ideas, or inspiration records',
+  [CategoryType.EXPENSE]: 'expense - Shopping, payments, bills, or money-related records',
+  [CategoryType.NOTE]: 'note - Study notes, meeting records, or information organization',
+  [CategoryType.BOOKMARK]: 'bookmark - Web links, articles, or resource collections',
+  [CategoryType.SCHEDULE]: 'schedule - Appointments, meetings, or reminders with specific time',
+  [CategoryType.UNKNOWN]: 'unknown - Content that cannot be clearly classified'
 };
 
-export class IntentClassifier {
+export class CategoryClassifier {
   constructor(private llm: LLMClient) {}
 
   /**
-   * Classify intent and extract entities from content
+   * Classify content category and extract entities
    */
   async analyze(content: string, contentType: ContentType = ContentType.TEXT): Promise<AIAnalysisResult> {
     const systemPrompt = this.buildSystemPrompt();
@@ -36,72 +36,72 @@ export class IntentClassifier {
   }
 
   /**
-   * Build system prompt for intent classification
+   * Build system prompt for category classification
    */
   private buildSystemPrompt(): string {
-    return `你是 SuperInbox 的 AI 助手，负责分析用户输入的内容并识别其意图。
+    return `You are SuperInbox's AI assistant, responsible for analyzing user input and classifying it into categories.
 
-你的任务是：
-1. 识别内容的主要意图类型
-2. 提取关键实体信息（日期、金额、标签、联系人等）
-3. 生成简短摘要
-4. 建议一个合适的标题
+Your tasks:
+1. Identify the primary category of the content
+2. Extract key entity information (dates, amounts, tags, contacts, etc.)
+3. Generate a brief summary
+4. Suggest an appropriate title
 
-支持的意图类型：
-${Object.entries(INTENT_DESCRIPTIONS)
+Supported categories:
+${Object.entries(CATEGORY_DESCRIPTIONS)
   .map(([key, desc]) => `- ${key}: ${desc}`)
   .join('\n')}
 
-响应格式（必须是有效的 JSON）：
+Response format (must be valid JSON):
 \`\`\`json
 {
-  "intent": "todo|idea|expense|note|bookmark|schedule|unknown",
+  "category": "todo|idea|expense|note|bookmark|schedule|unknown",
   "entities": {
     "dates": ["2024-01-15", "2024-01-20"],
     "dueDate": "2024-01-15",
     "startDate": "2024-01-15",
     "amount": 99.99,
     "currency": "CNY",
-    "tags": ["购物", "重要"],
-    "category": "购物",
-    "people": ["张三"],
-    "location": "北京",
+    "tags": ["shopping", "important"],
+    "category": "shopping",
+    "people": ["Zhang San"],
+    "location": "Beijing",
     "urls": ["https://example.com"]
   },
-  "summary": "简短的内容摘要（1-2句话）",
-  "suggestedTitle": "建议的标题",
+  "summary": "Brief content summary (1-2 sentences)",
+  "suggestedTitle": "Suggested title",
   "confidence": 0.95,
-  "reasoning": "判断依据"
+  "reasoning": "Judgment basis"
 }
 \`\`\`
 
-注意事项：
-- 日期格式必须是 ISO 8601 (YYYY-MM-DD)
-- 金额使用数字类型
-- confidence 是 0-1 之间的数字
-- 只返回 JSON，不要有其他文字`;
+Notes:
+- Date format must be ISO 8601 (YYYY-MM-DD)
+- Amount uses number type
+- confidence is a number between 0-1
+- Return only JSON, no other text`;
   }
 
   /**
    * Build user prompt with content
    */
   private buildUserPrompt(content: string, contentType: ContentType): string {
-    return `请分析以下内容：
+    return `Please analyze the following content:
 
-内容类型：${contentType}
-内容：
+Content type: ${contentType}
+Content:
 ${content}
 
-请识别意图并提取实体信息。`;
+Please identify the category and extract entity information.`;
   }
 
   /**
    * Validate and normalize the analysis result
    */
   private validateResult(result: any): AIAnalysisResult {
-    // Ensure intent is valid
-    if (!Object.values(IntentType).includes(result.intent)) {
-      result.intent = IntentType.UNKNOWN;
+    // Ensure category is valid
+    if (!Object.values(CategoryType).includes(result.category)) {
+      result.category = CategoryType.UNKNOWN;
     }
 
     // Ensure entities object exists
@@ -130,7 +130,7 @@ ${content}
     };
 
     return {
-      intent: result.intent,
+      category: result.category,
       entities,
       summary: result.summary,
       suggestedTitle: result.suggestedTitle,
@@ -147,7 +147,7 @@ export async function batchClassify(
   llm: LLMClient,
   contents: Array<{ content: string; type: ContentType }>
 ): Promise<AIAnalysisResult[]> {
-  const classifier = new IntentClassifier(llm);
+  const classifier = new CategoryClassifier(llm);
   const results: AIAnalysisResult[] = [];
 
   for (const item of contents) {
