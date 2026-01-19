@@ -6,6 +6,11 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function formatRelativeTime(dateString: string): string {
+  // Only calculate relative time on client side
+  if (typeof window === 'undefined') {
+    return formatDate(dateString)
+  }
+
   const date = new Date(dateString)
   const now = new Date()
   const diff = now.getTime() - date.getTime()
@@ -47,13 +52,15 @@ export function formatBytes(bytes: number, decimals = 2): string {
  */
 export function formatDate(dateString: string): string {
   const date = new Date(dateString)
-  return date.toLocaleDateString('zh-CN', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  })
+
+  // Format manually to avoid locale differences between server and client
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  const hours = String(date.getHours()).padStart(2, '0')
+  const minutes = String(date.getMinutes()).padStart(2, '0')
+  const seconds = String(date.getSeconds()).padStart(2, '0')
+
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
 }
 

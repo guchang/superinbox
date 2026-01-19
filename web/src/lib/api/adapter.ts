@@ -9,7 +9,7 @@ interface BackendItem {
   originalContent: string
   contentType: string
   source: string
-  intent: string
+  category: string
   entities: Record<string, any>
   summary: string | null
   suggestedTitle: string | null
@@ -27,14 +27,30 @@ interface BackendItem {
  */
 export function adaptBackendItem(backendItem: BackendItem): Item {
   // 构建 analysis 对象
-  const analysis: AIAnalysis | undefined = backendItem.intent
+  const analysis: AIAnalysis | undefined = backendItem.category
     ? {
-        intent: backendItem.intent as any,
+        category: backendItem.category as any,
         confidence: 1.0, // 后端没有提供置信度，默认为 1.0
         entities: adaptEntities(backendItem.entities),
         summary: backendItem.summary || undefined,
       }
     : undefined
+
+  // Extract file-related fields from entities
+  const entities = backendItem.entities || {};
+  const hasFile = !!(entities.filePath || entities.fileName);
+  const fileName = entities.fileName as string | undefined;
+  const mimeType = entities.mimeType as string | undefined;
+  const fileSize = entities.fileSize as number | undefined;
+  const filePath = entities.filePath as string | undefined;
+  
+  // Extract multiple files info
+  const allFiles = entities.allFiles as Array<{
+    fileName: string
+    mimeType: string
+    fileSize: number
+    filePath: string
+  }> | undefined;
 
   return {
     id: backendItem.id,
@@ -48,14 +64,25 @@ export function adaptBackendItem(backendItem: BackendItem): Item {
     createdAt: backendItem.createdAt,
     updatedAt: backendItem.updatedAt,
     processedAt: backendItem.processedAt,
+    // File related fields
+    hasFile,
+    fileName,
+    mimeType,
+    fileSize,
+    filePath,
+    allFiles,
   }
 }
 
 /**
  * 适配实体数据
  */
-function adaptEntities(backendEntities: Record<string, any>): Entity[] {
+function adaptEntities(backendEntities?: Record<string, any> | null): Entity[] {
   const entities: Entity[] = []
+
+  if (!backendEntities) {
+    return entities
+  }
 
   for (const [type, value] of Object.entries(backendEntities)) {
     if (Array.isArray(value)) {

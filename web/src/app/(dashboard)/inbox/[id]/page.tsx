@@ -6,11 +6,12 @@ import { inboxApi } from '@/lib/api/inbox'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { formatDate } from '@/lib/utils'
-import { IntentType, ItemStatus } from '@/types'
-import { ArrowLeft, RefreshCw, Trash2 } from 'lucide-react'
+import { formatRelativeTime } from '@/lib/utils'
+import { CategoryType, ItemStatus } from '@/types'
+import { ArrowLeft, RefreshCw, Trash2, Loader2 } from 'lucide-react'
 import Link from 'next/link'
 import { useToast } from '@/hooks/use-toast'
+import { FilePreview } from '@/components/file-preview'
 
 export default function InboxDetailPage() {
   const router = useRouter()
@@ -55,23 +56,33 @@ export default function InboxDetailPage() {
     }
   }
 
-  const getIntentBadgeVariant = (intent: IntentType) => {
-    const variants: Record<IntentType, any> = {
-      [IntentType.TODO]: 'default',
-      [IntentType.IDEA]: 'secondary',
-      [IntentType.EXPENSE]: 'destructive',
-      [IntentType.NOTE]: 'outline',
-      [IntentType.BOOKMARK]: 'outline',
-      [IntentType.SCHEDULE]: 'default',
-      [IntentType.UNKNOWN]: 'secondary',
+  const getCategoryBadgeVariant = (category: CategoryType) => {
+    const variants: Record<CategoryType, any> = {
+      [CategoryType.TODO]: 'default',
+      [CategoryType.IDEA]: 'secondary',
+      [CategoryType.EXPENSE]: 'destructive',
+      [CategoryType.NOTE]: 'outline',
+      [CategoryType.BOOKMARK]: 'outline',
+      [CategoryType.SCHEDULE]: 'default',
+      [CategoryType.UNKNOWN]: 'secondary',
     }
-    return variants[intent] || 'outline'
+    return variants[category] || 'outline'
+  }
+
+  const getStatusBadgeVariant = (status: ItemStatus) => {
+    const variants: Record<ItemStatus, any> = {
+      [ItemStatus.PENDING]: 'secondary',
+      [ItemStatus.PROCESSING]: 'outline',
+      [ItemStatus.COMPLETED]: 'default',
+      [ItemStatus.FAILED]: 'destructive',
+    }
+    return variants[status] || 'outline'
   }
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <p className="text-muted-foreground">加载中...</p>
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
       </div>
     )
   }
@@ -86,6 +97,7 @@ export default function InboxDetailPage() {
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Link href="/inbox">
@@ -95,7 +107,7 @@ export default function InboxDetailPage() {
           </Link>
           <div>
             <h1 className="text-3xl font-bold">条目详情</h1>
-            <p className="text-muted-foreground">ID: {item.id}</p>
+            <p className="text-muted-foreground">ID: {id}</p>
           </div>
         </div>
         <div className="flex gap-2">
@@ -108,100 +120,173 @@ export default function InboxDetailPage() {
             onClick={handleDelete}
             disabled={deleteMutation.isPending}
           >
-            <Trash2 className="h-4 w-4" />
+            {deleteMutation.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Trash2 className="h-4 w-4" />
+            )}
           </Button>
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        {/* Content */}
+      {/* Status & Category */}
+      <div className="flex items-center gap-2">
+        <Badge variant={getCategoryBadgeVariant(item.analysis?.category || CategoryType.UNKNOWN)}>
+          {item.analysis?.category || CategoryType.UNKNOWN}
+        </Badge>
+        <Badge variant={getStatusBadgeVariant(item.status)} className="gap-1">
+          {item.status === ItemStatus.PROCESSING && (
+            <Loader2 className="h-3 w-3 animate-spin" />
+          )}
+          {item.status}
+        </Badge>
+        <Badge variant="outline">{item.source}</Badge>
+        <Badge variant="outline">{item.contentType}</Badge>
+      </div>
+
+      {/* Content */}
+      <Card>
+        <CardHeader>
+          <CardTitle>原始内容</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="whitespace-pre-wrap">{item.content}</p>
+        </CardContent>
+      </Card>
+
+      {/* File Preview */}
+      {item.hasFile && (
         <Card>
           <CardHeader>
-            <CardTitle>内容</CardTitle>
+            <CardTitle>附件</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <p className="text-sm font-medium mb-2">原始内容</p>
-              <p className="text-sm bg-muted p-4 rounded-lg">{item.content}</p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <Badge variant={getIntentBadgeVariant(item.analysis?.intent || IntentType.UNKNOWN)}>
-                {item.analysis?.intent || IntentType.UNKNOWN}
-              </Badge>
-              <Badge variant="outline">{item.contentType}</Badge>
-              <Badge variant="outline">{item.source}</Badge>
-            </div>
+          <CardContent>
+            <FilePreview
+              itemId={item.id}
+              fileName={item.fileName}
+              mimeType={item.mimeType}
+            />
           </CardContent>
         </Card>
+      )}
 
-        {/* AI Analysis */}
+      {/* AI Analysis */}
+      {item.analysis && (
         <Card>
           <CardHeader>
-            <CardTitle>AI 分析</CardTitle>
+            <CardTitle>AI 分析结果</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {item.analysis ? (
-              <>
-                <div>
-                  <p className="text-sm font-medium mb-1">意图</p>
-                  <p className="text-sm">{item.analysis.intent}</p>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-sm text-muted-foreground">意图分类</p>
+                <p className="font-medium">{item.analysis.category}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">置信度</p>
+                <p className="font-medium">
+                  {(item.analysis.confidence * 100).toFixed(1)}%
+                </p>
+              </div>
+            </div>
+
+            {item.analysis.summary && (
+              <div>
+                <p className="text-sm text-muted-foreground mb-2">摘要</p>
+                <p className="text-sm">{item.analysis.summary}</p>
+              </div>
+            )}
+
+            {item.analysis.entities && Object.keys(item.analysis.entities).length > 0 && (
+              <div>
+                <p className="text-sm text-muted-foreground mb-2">提取的实体</p>
+                <div className="space-y-1">
+                  {Object.entries(item.analysis.entities).map(([key, value]) => {
+                    // Skip null/undefined values and internal fields
+                    if (value === null || value === undefined || key === 'customFields') return null
+                    // Display non-empty values
+                    if (typeof value === 'object' && Object.keys(value).length === 0) return null
+                    if (Array.isArray(value) && value.length === 0) return null
+
+                    return (
+                      <div key={key} className="text-sm">
+                        <span className="text-muted-foreground">{key}:</span>{' '}
+                        <span className="font-mono">
+                          {Array.isArray(value) ? JSON.stringify(value) : String(value)}
+                        </span>
+                      </div>
+                    )
+                  })}
                 </div>
-                <div>
-                  <p className="text-sm font-medium mb-1">置信度</p>
-                  <p className="text-sm">{(item.analysis.confidence * 100).toFixed(1)}%</p>
-                </div>
-                {item.analysis.summary && (
-                  <div>
-                    <p className="text-sm font-medium mb-1">摘要</p>
-                    <p className="text-sm">{item.analysis.summary}</p>
-                  </div>
-                )}
-                {item.analysis.entities && item.analysis.entities.length > 0 && (
-                  <div>
-                    <p className="text-sm font-medium mb-2">实体</p>
-                    <div className="flex flex-wrap gap-2">
-                      {item.analysis.entities.map((entity, index) => (
-                        <Badge key={index} variant="secondary">
-                          {entity.type}: {entity.value}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </>
-            ) : (
-              <p className="text-sm text-muted-foreground">暂无 AI 分析结果</p>
+              </div>
             )}
           </CardContent>
         </Card>
+      )}
 
-        {/* Metadata */}
-        <Card className="lg:col-span-2">
+      {/* Metadata */}
+      <Card>
+        <CardHeader>
+          <CardTitle>元数据</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <span className="text-muted-foreground">状态</span>
+              <p className="font-medium">{item.status}</p>
+            </div>
+            <div>
+              <span className="text-muted-foreground">优先级</span>
+              <p className="font-medium">{item.priority}</p>
+            </div>
+            <div>
+              <span className="text-muted-foreground">来源</span>
+              <p className="font-medium">{item.source}</p>
+            </div>
+            <div>
+              <span className="text-muted-foreground">内容类型</span>
+              <p className="font-medium">{item.contentType}</p>
+            </div>
+          </div>
+          <div className="text-sm">
+            <span className="text-muted-foreground">创建时间</span>
+            <p className="font-medium">{formatRelativeTime(item.createdAt)}</p>
+          </div>
+          <div className="text-sm">
+            <span className="text-muted-foreground">更新时间</span>
+            <p className="font-medium">{formatRelativeTime(item.updatedAt)}</p>
+          </div>
+          {item.processedAt && (
+            <div className="text-sm">
+              <span className="text-muted-foreground">处理时间</span>
+              <p className="font-medium">{formatRelativeTime(item.processedAt)}</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Distribution Results */}
+      {item.distributionResults && Object.keys(item.distributionResults).length > 0 && (
+        <Card>
           <CardHeader>
-            <CardTitle>元数据</CardTitle>
+            <CardTitle>分发结果</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <div>
-                <p className="text-xs font-medium text-muted-foreground">状态</p>
-                <p className="text-sm">{item.status}</p>
-              </div>
-              <div>
-                <p className="text-xs font-medium text-muted-foreground">优先级</p>
-                <p className="text-sm">{item.priority}</p>
-              </div>
-              <div>
-                <p className="text-xs font-medium text-muted-foreground">创建时间</p>
-                <p className="text-sm">{formatDate(item.createdAt)}</p>
-              </div>
-              <div>
-                <p className="text-xs font-medium text-muted-foreground">更新时间</p>
-                <p className="text-sm">{formatDate(item.updatedAt)}</p>
-              </div>
+            <div className="space-y-2">
+              {Object.entries(item.distributionResults).map(([target, result]) => (
+                <div key={target} className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">{target}</span>
+                  <Badge
+                    variant={result?.success ? 'default' : 'destructive'}
+                  >
+                    {result?.success ? '成功' : '失败'}
+                  </Badge>
+                </div>
+              ))}
             </div>
           </CardContent>
         </Card>
-      </div>
+      )}
     </div>
   )
 }
