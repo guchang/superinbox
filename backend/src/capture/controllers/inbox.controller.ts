@@ -46,7 +46,7 @@ const batchCreateSchema = z.object({
 
 const searchSchema = z.object({
   q: z.string().min(1, 'Query parameter is required'),
-  category: z.enum(['todo', 'idea', 'expense', 'note', 'bookmark', 'schedule', 'unknown']).optional(),
+  category: z.string().min(1).optional(),
   limit: z.coerce.number().int().positive().max(100).optional()
 });
 
@@ -70,7 +70,7 @@ export class InboxController {
         id: uuidv4(),
         userId,
         originalContent: body.content,
-        contentType: (body.type ?? 'text') as ContentType,
+        contentType: this.resolveContentType(body.content, body.type),
         source: body.source ?? 'api',
         category: 'unknown' as any,
         entities: {},
@@ -521,7 +521,7 @@ export class InboxController {
             id: uuidv4(),
             userId,
             originalContent: validatedEntry.content,
-            contentType: (validatedEntry.type ?? 'text') as ContentType,
+            contentType: this.resolveContentType(validatedEntry.content, validatedEntry.type),
             source: validatedEntry.source ?? 'api',
             category: 'unknown' as any,
             entities: {},
@@ -623,6 +623,19 @@ export class InboxController {
     }
   };
 
+  private resolveContentType(content: string, explicitType?: string): ContentType {
+    if (explicitType) {
+      return explicitType as ContentType;
+    }
+
+    const trimmed = content.trim();
+    if (isLikelyUrl(trimmed)) {
+      return ContentType.URL;
+    }
+
+    return ContentType.TEXT;
+  }
+
   /**
    * Async item processing with AI
    */
@@ -643,7 +656,9 @@ export class InboxController {
       logger.info(`[AI Processing] Analyzing content: "${item.originalContent.substring(0, 50)}..."`);
 
       // Analyze with AI
-      const analysis = await this.ai.analyzeContent(item.originalContent, item.contentType);
+      const analysis = await this.ai.analyzeContent(item.originalContent, item.contentType, {
+        userId: item.userId
+      });
 
       logger.info(`[AI Processing] Analysis result: category=${analysis.category}, confidence=${analysis.confidence}`);
 
@@ -1075,6 +1090,101 @@ export class InboxController {
       next(error);
     }
   };
+
+  /**
+   * Reclassify an item regardless of status
+   * POST /v1/inbox/:id/reclassify
+   */
+  reclassifyItem = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { id } = req.params;
+      const userId = req.user?.id ?? 'default-user';
+
+      const item = this.db.getItemById(id);
+
+      if (!item) {
+        res.status(404).json({
+          success: false,
+          error: {
+            code: 'NOT_FOUND',
+            message: 'Item not found'
+          }
+        });
+        return;
+      }
+
+      // Check ownership
+      if (item.userId !== userId) {
+        res.status(403).json({
+          success: false,
+          error: {
+            code: 'FORBIDDEN',
+            message: 'Access denied'
+          }
+        });
+        return;
+      }
+
+      if (item.status === 'processing') {
+        res.status(400).json({
+          success: false,
+          error: {
+            code: 'INVALID_STATUS',
+            message: 'Item is already processing'
+          }
+        });
+        return;
+      }
+
+      const fileMetadata = {
+        filePath: item.entities?.filePath,
+        fileName: item.entities?.fileName,
+        fileSize: item.entities?.fileSize,
+        mimeType: item.entities?.mimeType,
+        allFiles: item.entities?.allFiles
+      };
+
+      // Reset status and derived fields, keep file metadata
+      this.db.updateItem(id, {
+        status: 'pending',
+        category: 'unknown' as any,
+        entities: fileMetadata,
+        summary: undefined,
+        suggestedTitle: undefined,
+        processedAt: undefined
+      });
+
+      // Trigger async AI processing
+      this.processItemAsync(item.id).catch(error => {
+        console.error(`Failed to reclassify item ${item.id}:`, error);
+      });
+
+      res.json({
+        success: true,
+        data: {
+          message: 'AI reclassification triggered',
+          status: 'pending'
+        }
+      });
+
+      logger.info(`[Inbox] AI reclassification triggered for item ${item.id}`);
+    } catch (error) {
+      next(error);
+    }
+  };
 }
+
+const isLikelyUrl = (value: string): boolean => {
+  if (!value || /\\s/.test(value)) {
+    return false;
+  }
+
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+  } catch {
+    return false;
+  }
+};
 
 export const inboxController = new InboxController();

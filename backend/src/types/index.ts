@@ -31,6 +31,8 @@ export enum CategoryType {
   UNKNOWN = 'unknown'      // Unknown type - content that cannot be clearly classified
 }
 
+export type CategoryKey = string;
+
 /**
  * 项目状态
  */
@@ -115,7 +117,7 @@ export interface ExtractedEntities {
  * AI Analysis Result
  */
 export interface AIAnalysisResult {
-  category: CategoryType;
+  category: CategoryKey;
   entities: ExtractedEntities;
   summary?: string;
   suggestedTitle?: string;
@@ -136,7 +138,7 @@ export interface Item {
   source: string;
 
   // AI analysis result
-  category: CategoryType;
+  category: CategoryKey;
   entities: ExtractedEntities;
   summary?: string;
   suggestedTitle?: string;
@@ -253,7 +255,7 @@ export interface CreateItemRequest {
 export interface CreateItemResponse {
   id: string;
   status: ItemStatus;
-  category: CategoryType;
+  category: CategoryKey;
   message: string;
 }
 
@@ -262,7 +264,7 @@ export interface CreateItemResponse {
  */
 export interface QueryFilter {
   status?: ItemStatus;
-  category?: CategoryType;
+  category?: CategoryKey;
   source?: string;
   query?: string; // Full-text search
   since?: Date; // Incremental sync filter - return items updated after this timestamp

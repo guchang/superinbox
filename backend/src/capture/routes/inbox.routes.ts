@@ -160,6 +160,17 @@ router.post(
 );
 
 /**
+ * @route   POST /v1/inbox/:id/reclassify
+ * @desc    Reclassify an item regardless of status
+ * @access  Private (API Key)
+ */
+router.post(
+  '/inbox/:id/reclassify',
+  authenticate,
+  inboxController.reclassifyItem
+);
+
+/**
  * @route   GET /v1/items
  * @desc    Get all items with filtering
  * @access  Private (JWT or API Key)

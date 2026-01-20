@@ -4,8 +4,11 @@
 
 import { getLLMClient } from './llm-client.js';
 import { CategoryClassifier } from './category-classifier.js';
+import { listCategories } from './store.js';
+import { extractFirstUrl, fetchUrlContent } from './url-extractor.js';
 import type { AIAnalysisResult } from '../types/index.js';
 import { ContentType } from '../types/index.js';
+import { logger } from '../middleware/logger.js';
 
 export class AIService {
   private categoryClassifier: CategoryClassifier;
@@ -18,8 +21,14 @@ export class AIService {
   /**
    * Analyze content and return AI insights
    */
-  async analyzeContent(content: string, contentType: ContentType = ContentType.TEXT): Promise<AIAnalysisResult> {
-    return this.categoryClassifier.analyze(content, contentType);
+  async analyzeContent(
+    content: string,
+    contentType: ContentType = ContentType.TEXT,
+    options?: { userId?: string }
+  ): Promise<AIAnalysisResult> {
+    const preparedContent = await this.prepareContentForAnalysis(content, contentType);
+    const categories = options?.userId ? listCategories(options.userId) : undefined;
+    return this.categoryClassifier.analyze(preparedContent, contentType, categories);
   }
 
   /**
@@ -41,16 +50,19 @@ Summary:`;
   /**
    * Extract entities from content (standalone)
    */
-  async extractEntities(content: string): Promise<AIAnalysisResult['entities']> {
-    const result = await this.analyzeContent(content);
+  async extractEntities(content: string, options?: { userId?: string }): Promise<AIAnalysisResult['entities']> {
+    const result = await this.analyzeContent(content, ContentType.TEXT, options);
     return result.entities;
   }
 
   /**
    * Classify category (standalone)
    */
-  async classifyCategory(content: string): Promise<{ category: string; confidence: number }> {
-    const result = await this.analyzeContent(content);
+  async classifyCategory(
+    content: string,
+    options?: { userId?: string }
+  ): Promise<{ category: string; confidence: number }> {
+    const result = await this.analyzeContent(content, ContentType.TEXT, options);
     return {
       category: result.category,
       confidence: result.confidence
@@ -63,6 +75,68 @@ Summary:`;
   async healthCheck(): Promise<boolean> {
     const llm = getLLMClient();
     return llm.healthCheck();
+  }
+
+  private async prepareContentForAnalysis(content: string, contentType: ContentType): Promise<string> {
+    if (contentType === ContentType.URL) {
+      try {
+        const urlContent = await fetchUrlContent(content);
+        return this.formatUrlContent(urlContent, content);
+      } catch (error) {
+        logger.warn(`[AI] URL fetch failed for "${content}": ${error}`);
+        return content;
+      }
+    }
+
+    const embeddedUrl = extractFirstUrl(content);
+    if (!embeddedUrl) {
+      return content;
+    }
+
+    try {
+      const urlContent = await fetchUrlContent(embeddedUrl);
+      return this.formatEmbeddedUrlContent(content, urlContent, embeddedUrl);
+    } catch (error) {
+      logger.warn(`[AI] Embedded URL fetch failed for "${embeddedUrl}": ${error}`);
+      return content;
+    }
+  }
+
+  private formatUrlContent(urlContent: {
+    url: string;
+    title?: string;
+    description?: string;
+    text?: string;
+  }, fallbackUrl: string): string {
+    const lines: string[] = [];
+    lines.push(`Source URL: ${urlContent.url || fallbackUrl}`);
+    if (urlContent.title) {
+      lines.push(`Title: ${urlContent.title}`);
+    }
+    if (urlContent.description) {
+      lines.push(`Description: ${urlContent.description}`);
+    }
+    if (urlContent.text) {
+      lines.push('Content:');
+      lines.push(urlContent.text);
+    } else {
+      lines.push('Content: (no text extracted)');
+    }
+    return lines.join('\n');
+  }
+
+  private formatEmbeddedUrlContent(
+    originalContent: string,
+    urlContent: { url: string; title?: string; description?: string; text?: string },
+    fallbackUrl: string
+  ): string {
+    const lines: string[] = [];
+    lines.push('User text:');
+    lines.push(originalContent);
+    lines.push('');
+    lines.push('Referenced URL content:');
+    lines.push(this.formatUrlContent(urlContent, fallbackUrl));
+    return lines.join('\n');
   }
 }
 

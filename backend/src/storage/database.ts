@@ -142,6 +142,40 @@ export class DatabaseManager {
       CREATE INDEX IF NOT EXISTS idx_api_access_logs_api_key_id ON api_access_logs(api_key_id);
       CREATE INDEX IF NOT EXISTS idx_api_access_logs_user_id ON api_access_logs(user_id);
       CREATE INDEX IF NOT EXISTS idx_api_access_logs_timestamp ON api_access_logs(timestamp);
+
+      CREATE TABLE IF NOT EXISTS ai_categories (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        key TEXT NOT NULL,
+        name TEXT NOT NULL,
+        description TEXT,
+        examples TEXT,
+        is_active INTEGER NOT NULL DEFAULT 1,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      );
+
+      CREATE TABLE IF NOT EXISTS ai_templates (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        description TEXT,
+        prompt TEXT NOT NULL,
+        is_active INTEGER NOT NULL DEFAULT 0,
+        confirmed_coverage TEXT,
+        ai_coverage TEXT,
+        confirmed_at TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_ai_categories_user_id ON ai_categories(user_id);
+      CREATE INDEX IF NOT EXISTS idx_ai_categories_key ON ai_categories(key);
+      CREATE INDEX IF NOT EXISTS idx_ai_categories_is_active ON ai_categories(is_active);
+      CREATE INDEX IF NOT EXISTS idx_ai_templates_user_id ON ai_templates(user_id);
+      CREATE INDEX IF NOT EXISTS idx_ai_templates_is_active ON ai_templates(is_active);
     `);
 
     this.initialized = true;
@@ -871,6 +905,274 @@ export class DatabaseManager {
       userAgent: row.user_agent,
       timestamp: row.timestamp,
     }));
+  }
+
+  /**
+   * List AI categories for a user
+   */
+  listAiCategories(userId: string): any[] {
+    const stmt = this.db.prepare(`
+      SELECT * FROM ai_categories
+      WHERE user_id = ?
+      ORDER BY created_at ASC
+    `);
+
+    const rows = stmt.all(userId) as any[];
+
+    return rows.map(row => ({
+      id: row.id,
+      userId: row.user_id,
+      key: row.key,
+      name: row.name,
+      description: row.description,
+      examples: row.examples ? JSON.parse(row.examples) : [],
+      isActive: Boolean(row.is_active),
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    }));
+  }
+
+  /**
+   * Create AI category
+   */
+  createAiCategory(category: any): any {
+    const stmt = this.db.prepare(`
+      INSERT INTO ai_categories (
+        id, user_id, key, name, description, examples, is_active, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    stmt.run(
+      category.id,
+      category.userId,
+      category.key,
+      category.name,
+      category.description ?? null,
+      category.examples ? JSON.stringify(category.examples) : null,
+      category.isActive ? 1 : 0,
+      category.createdAt,
+      category.updatedAt
+    );
+
+    return category;
+  }
+
+  /**
+   * Update AI category
+   */
+  updateAiCategory(userId: string, id: string, data: any): any | null {
+    const fields = Object.keys(data)
+      .filter(key => key !== 'id' && key !== 'userId' && key !== 'createdAt')
+      .map(key => {
+        const dbKey = this.camelToSnake(key);
+        let value = data[key];
+        if (key === 'isActive') value = value ? 1 : 0;
+        if (key === 'examples') value = value ? JSON.stringify(value) : null;
+        return `${dbKey} = ?`;
+      });
+
+    if (fields.length === 0) return null;
+
+    const values = Object.keys(data)
+      .filter(key => key !== 'id' && key !== 'userId' && key !== 'createdAt')
+      .map(key => {
+        let value = data[key];
+        if (key === 'isActive') return value ? 1 : 0;
+        if (key === 'examples') return value ? JSON.stringify(value) : null;
+        return value;
+      });
+
+    values.push(new Date().toISOString()); // updated_at
+    values.push(userId);
+    values.push(id);
+
+    const stmt = this.db.prepare(`
+      UPDATE ai_categories
+      SET ${fields.join(', ')}, updated_at = ?
+      WHERE user_id = ? AND id = ?
+    `);
+
+    const result = stmt.run(...values);
+    if (result.changes === 0) return null;
+
+    return this.getAiCategoryById(userId, id);
+  }
+
+  /**
+   * Get AI category by ID
+   */
+  getAiCategoryById(userId: string, id: string): any | null {
+    const stmt = this.db.prepare(`
+      SELECT * FROM ai_categories
+      WHERE user_id = ? AND id = ?
+    `);
+
+    const row = stmt.get(userId, id) as any;
+    if (!row) return null;
+
+    return {
+      id: row.id,
+      userId: row.user_id,
+      key: row.key,
+      name: row.name,
+      description: row.description,
+      examples: row.examples ? JSON.parse(row.examples) : [],
+      isActive: Boolean(row.is_active),
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    };
+  }
+
+  /**
+   * List AI templates for a user
+   */
+  listAiTemplates(userId: string): any[] {
+    const stmt = this.db.prepare(`
+      SELECT * FROM ai_templates
+      WHERE user_id = ?
+      ORDER BY created_at ASC
+    `);
+
+    const rows = stmt.all(userId) as any[];
+
+    return rows.map(row => ({
+      id: row.id,
+      userId: row.user_id,
+      name: row.name,
+      description: row.description,
+      prompt: row.prompt,
+      isActive: Boolean(row.is_active),
+      confirmedCoverage: row.confirmed_coverage ? JSON.parse(row.confirmed_coverage) : [],
+      aiCoverage: row.ai_coverage ? JSON.parse(row.ai_coverage) : [],
+      confirmedAt: row.confirmed_at,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    }));
+  }
+
+  /**
+   * Create AI template
+   */
+  createAiTemplate(template: any): any {
+    const stmt = this.db.prepare(`
+      INSERT INTO ai_templates (
+        id, user_id, name, description, prompt, is_active, 
+        confirmed_coverage, ai_coverage, confirmed_at, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    stmt.run(
+      template.id,
+      template.userId,
+      template.name,
+      template.description ?? null,
+      template.prompt,
+      template.isActive ? 1 : 0,
+      template.confirmedCoverage ? JSON.stringify(template.confirmedCoverage) : null,
+      template.aiCoverage ? JSON.stringify(template.aiCoverage) : null,
+      template.confirmedAt ?? null,
+      template.createdAt,
+      template.updatedAt
+    );
+
+    return template;
+  }
+
+  /**
+   * Update AI template
+   */
+  updateAiTemplate(userId: string, id: string, data: any): any | null {
+    const fields = Object.keys(data)
+      .filter(key => key !== 'id' && key !== 'userId' && key !== 'createdAt')
+      .map(key => {
+        const dbKey = this.camelToSnake(key);
+        let value = data[key];
+        if (key === 'isActive') value = value ? 1 : 0;
+        if (key === 'confirmedCoverage' || key === 'aiCoverage') {
+          value = value ? JSON.stringify(value) : null;
+        }
+        return `${dbKey} = ?`;
+      });
+
+    if (fields.length === 0) return null;
+
+    const values = Object.keys(data)
+      .filter(key => key !== 'id' && key !== 'userId' && key !== 'createdAt')
+      .map(key => {
+        let value = data[key];
+        if (key === 'isActive') return value ? 1 : 0;
+        if (key === 'confirmedCoverage' || key === 'aiCoverage') {
+          return value ? JSON.stringify(value) : null;
+        }
+        return value;
+      });
+
+    values.push(new Date().toISOString()); // updated_at
+    values.push(userId);
+    values.push(id);
+
+    const stmt = this.db.prepare(`
+      UPDATE ai_templates
+      SET ${fields.join(', ')}, updated_at = ?
+      WHERE user_id = ? AND id = ?
+    `);
+
+    const result = stmt.run(...values);
+    if (result.changes === 0) return null;
+
+    return this.getAiTemplateById(userId, id);
+  }
+
+  /**
+   * Get AI template by ID
+   */
+  getAiTemplateById(userId: string, id: string): any | null {
+    const stmt = this.db.prepare(`
+      SELECT * FROM ai_templates
+      WHERE user_id = ? AND id = ?
+    `);
+
+    const row = stmt.get(userId, id) as any;
+    if (!row) return null;
+
+    return {
+      id: row.id,
+      userId: row.user_id,
+      name: row.name,
+      description: row.description,
+      prompt: row.prompt,
+      isActive: Boolean(row.is_active),
+      confirmedCoverage: row.confirmed_coverage ? JSON.parse(row.confirmed_coverage) : [],
+      aiCoverage: row.ai_coverage ? JSON.parse(row.ai_coverage) : [],
+      confirmedAt: row.confirmed_at,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    };
+  }
+
+  /**
+   * Activate AI template (deactivate all others for the user)
+   */
+  activateAiTemplate(userId: string, id: string): any | null {
+    // Deactivate all templates for the user
+    const deactivateStmt = this.db.prepare(`
+      UPDATE ai_templates
+      SET is_active = 0, updated_at = ?
+      WHERE user_id = ?
+    `);
+    deactivateStmt.run(new Date().toISOString(), userId);
+
+    // Activate the specified template
+    const activateStmt = this.db.prepare(`
+      UPDATE ai_templates
+      SET is_active = 1, updated_at = ?
+      WHERE user_id = ? AND id = ?
+    `);
+    const result = activateStmt.run(new Date().toISOString(), userId, id);
+
+    if (result.changes === 0) return null;
+
+    return this.getAiTemplateById(userId, id);
   }
 }
 

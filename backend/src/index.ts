@@ -13,6 +13,8 @@ import { initializeAdapters } from './router/index.js';
 import { requestLogger, errorHandler, notFoundHandler, accessLogMiddleware } from './middleware/index.js';
 import inboxRoutes from './capture/routes/inbox.routes.js';
 import promptsRoutes from './intelligence/routes/prompts.routes.js';
+import categoriesRoutes from './ai/routes/categories.routes.js';
+import aiTemplatesRoutes from './ai/routes/templates.routes.js';
 import rulesRoutes from './router/routes/rules.routes.js';
 import settingsRoutes from './settings/routes/settings.routes.js';
 import authRoutes from './auth/auth.routes.js';
@@ -102,6 +104,8 @@ app.use('/v1/auth', logsRoutes); // Log routes under auth
 app.use('/v1/auth/api-keys', apiKeysRoutes); // Documented path (Task 11)
 app.use('/v1/api-keys', apiKeysRoutes);      // Legacy path (backward compatibility)
 app.use('/v1/intelligence', promptsRoutes);
+app.use('/v1/categories', categoriesRoutes);
+app.use('/v1/ai', aiTemplatesRoutes);
 app.use('/v1/routing', rulesRoutes);
 app.use('/v1/settings', settingsRoutes);
 app.use('/v1', inboxRoutes);
