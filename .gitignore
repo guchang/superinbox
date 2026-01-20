@@ -59,6 +59,9 @@ Thumbs.db
 # Claude Code 配置
 .claude/
 
+# Trae AI 配置
+.trae/
+
 # 项目根目录文件（可选）
 package.json
 
