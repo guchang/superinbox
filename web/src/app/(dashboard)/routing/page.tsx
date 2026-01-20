@@ -21,7 +21,6 @@ export default function RoutingPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">分发规则</h1>
-          <p className="text-muted-foreground">配置智能分发规则</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="icon" onClick={() => refetch()}>

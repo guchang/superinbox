@@ -12,6 +12,18 @@ export interface CoverageParseResponse {
   coverage: string[]
 }
 
+export interface TemplatePreviewRequest {
+  prompt: string
+  content: string
+  categories: Array<{ key: string; name: string }>
+}
+
+export interface TemplatePreviewResponse {
+  category: string
+  confidence?: number
+  reason?: string
+}
+
 export const aiTemplatesApi = {
   async list(): Promise<ApiResponse<AiTemplateVersion[]>> {
     return apiClient.get<AiTemplateVersion[]>('/ai/templates')
@@ -40,5 +52,11 @@ export const aiTemplatesApi = {
       `/ai/templates/${id}/parse-coverage`,
       data
     )
+  },
+
+  async preview(
+    data: TemplatePreviewRequest
+  ): Promise<ApiResponse<TemplatePreviewResponse>> {
+    return apiClient.post<TemplatePreviewResponse>('/ai/templates/preview', data)
   },
 }

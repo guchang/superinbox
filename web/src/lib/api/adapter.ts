@@ -77,6 +77,18 @@ export function adaptBackendItem(backendItem: BackendItem): Item {
 /**
  * 适配实体数据
  */
+function formatEntityValue(value: unknown): string {
+  if (value === null || value === undefined) return ''
+  if (typeof value === 'string') return value
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value)
+  if (value instanceof Date) return value.toISOString()
+  try {
+    return JSON.stringify(value)
+  } catch (error) {
+    return String(value)
+  }
+}
+
 function adaptEntities(backendEntities?: Record<string, any> | null): Entity[] {
   const entities: Entity[] = []
 
@@ -87,10 +99,16 @@ function adaptEntities(backendEntities?: Record<string, any> | null): Entity[] {
   for (const [type, value] of Object.entries(backendEntities)) {
     if (Array.isArray(value)) {
       value.forEach((v) => {
-        entities.push({ type, value: String(v) })
+        const formatted = formatEntityValue(v)
+        if (formatted) {
+          entities.push({ type, value: formatted })
+        }
       })
     } else {
-      entities.push({ type, value: String(value) })
+      const formatted = formatEntityValue(value)
+      if (formatted) {
+        entities.push({ type, value: formatted })
+      }
     }
   }
 

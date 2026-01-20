@@ -1,7 +1,8 @@
 'use client'
 
 import { useQuery } from '@tanstack/react-query'
-import { useParams, Link } from 'next/navigation'
+import { useParams } from 'next/navigation'
+import Link from 'next/link'
 import { ArrowLeft, AlertCircle } from 'lucide-react'
 import { getApiKeyLogs } from '@/lib/api/logs'
 import { useLogFilters } from '@/lib/hooks/use-log-filters'
@@ -17,7 +18,28 @@ export default function ApiKeyLogsPage() {
   const { authState } = useAuth()
   const { filters, dateRange, updateFilter, resetFilters } = useLogFilters()
 
-  // Show loading while checking auth
+  const isAdmin = Boolean(authState.user?.scopes?.includes('admin:full'))
+  const canQuery = !authState.isLoading && isAdmin && Boolean(keyId)
+
+  const { data: apiKey } = useQuery({
+    queryKey: ['apiKey', keyId],
+    queryFn: async () => {
+      const { getApiKey } = await import('@/lib/api/api-keys')
+      return getApiKey(keyId)
+    },
+    enabled: canQuery,
+  })
+
+  const { data, isLoading, error } = useQuery({
+    queryKey: ['logs', 'apiKey', keyId, filters, dateRange],
+    queryFn: () =>
+      getApiKeyLogs(keyId, {
+        ...filters,
+        ...dateRange,
+      }),
+    enabled: canQuery,
+  })
+
   if (authState.isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -26,26 +48,7 @@ export default function ApiKeyLogsPage() {
     )
   }
 
-  // Debug: Log auth state to help diagnose permission issues
-  console.log('[ApiKeyLogsPage] Auth state:', {
-    isLoading: authState.isLoading,
-    isAuthenticated: authState.isAuthenticated,
-    hasUser: !!authState.user,
-    user: authState.user ? {
-      id: authState.user.id,
-      username: authState.user.username,
-      email: authState.user.email,
-      role: authState.user.role,
-      scopes: authState.user.scopes,
-    } : null,
-  })
-
-  // Permission check - use scopes instead of role
-  if (!authState.user || !authState.user.scopes?.includes('admin:full')) {
-    console.log('[ApiKeyLogsPage] Permission check failed:', {
-      hasUser: !!authState.user,
-      scopes: authState.user?.scopes,
-    })
+  if (!isAdmin) {
     return (
       <Alert variant="destructive">
         <AlertCircle className="h-4 w-4" />
@@ -57,31 +60,11 @@ export default function ApiKeyLogsPage() {
     )
   }
 
-  // Fetch API key info
-  const { data: apiKey } = useQuery({
-    queryKey: ['apiKey', keyId],
-    queryFn: async () => {
-      // Reuse existing getApiKey function
-      const { getApiKey } = await import('@/lib/api/api-keys')
-      return getApiKey(keyId)
-    },
-  })
-
-  // Fetch logs (filtered by this key)
-  const { data, isLoading, error } = useQuery({
-    queryKey: ['logs', 'apiKey', keyId, filters, dateRange],
-    queryFn: () => getApiKeyLogs(keyId, {
-      ...filters,
-      ...dateRange,
-    }),
-  })
-
   const logs = data?.data || []
   const total = data?.total || 0
 
   return (
     <div className="space-y-6">
-      {/* Key info header */}
       <div className="bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg p-6 text-white">
         <Link
           href="/settings/api-keys"
@@ -110,7 +93,6 @@ export default function ApiKeyLogsPage() {
         </div>
       </div>
 
-      {/* Error display */}
       {error && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
@@ -121,14 +103,12 @@ export default function ApiKeyLogsPage() {
         </Alert>
       )}
 
-      {/* Filters */}
       <LogFilters
         filters={filters}
         onUpdate={updateFilter}
         onReset={resetFilters}
       />
 
-      {/* Logs table */}
       <LogTable
         logs={logs}
         total={total}

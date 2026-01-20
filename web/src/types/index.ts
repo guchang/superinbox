@@ -17,6 +17,8 @@ export enum CategoryType {
   UNKNOWN = 'unknown',
 }
 
+export type CategoryKey = string
+
 // 动态分类
 export interface Category {
   id: string
@@ -53,7 +55,7 @@ export interface Entity {
 
 // AI 分析结果
 export interface AIAnalysis {
-  category: CategoryType
+  category: CategoryKey
   confidence: number
   entities: Entity[]
   summary?: string
@@ -122,7 +124,7 @@ export interface CreateItemRequest {
 
 // 筛选参数
 export interface FilterParams extends PaginationParams {
-  category?: CategoryType
+  category?: CategoryKey
   status?: ItemStatus
   source?: string
   search?: string
@@ -153,7 +155,7 @@ export interface PromptTemplate {
   id: string
   name: string
   description: string
-  category: CategoryType
+  category: CategoryKey
   template: string
   variables: string[]
   isActive: boolean
@@ -202,7 +204,7 @@ export interface RuleAction {
 // 统计数据
 export interface Statistics {
   totalItems: number
-  itemsByCategory: Record<CategoryType, number>
+  itemsByCategory: Record<CategoryKey, number>
   itemsByStatus: Record<ItemStatus, number>
   itemsBySource: Record<string, number>
   avgProcessingTime: number

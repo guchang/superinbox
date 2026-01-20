@@ -4,6 +4,7 @@
  */
 
 import { apiClient } from './client'
+import { getApiBaseUrl } from './base-url'
 import type {
   AccessLog,
   LogFilters,
@@ -108,7 +109,7 @@ export async function getExportStatus(exportId: string): Promise<{ data: ExportT
  */
 export async function downloadExportFile(exportId: string): Promise<Blob> {
   const TOKEN_KEY = 'superinbox_auth_token'
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/v1'
+  const API_URL = getApiBaseUrl()
   const token = typeof window !== 'undefined' ? localStorage.getItem(TOKEN_KEY) : null
 
   const response = await fetch(`${API_URL}/auth/logs/exports/${exportId}/download`, {
@@ -129,7 +130,7 @@ export async function downloadExportFile(exportId: string): Promise<Blob> {
  */
 export async function exportLogsSync(filters: LogFilters, format: string): Promise<Blob> {
   const TOKEN_KEY = 'superinbox_auth_token'
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/v1'
+  const API_URL = getApiBaseUrl()
   const token = typeof window !== 'undefined' ? localStorage.getItem(TOKEN_KEY) : null
 
   const params = new URLSearchParams()

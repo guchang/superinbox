@@ -1,17 +1,20 @@
 "use client"
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMemo } from 'react'
 import { useParams, useRouter } from 'next/navigation'
+import { categoriesApi } from '@/lib/api/categories'
 import { inboxApi } from '@/lib/api/inbox'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { formatRelativeTime } from '@/lib/utils'
-import { CategoryType, ItemStatus } from '@/types'
-import { ArrowLeft, RefreshCw, Trash2, Loader2 } from 'lucide-react'
+import { CategoryType, ContentType, ItemStatus } from '@/types'
+import { ArrowLeft, RefreshCw, Sparkles, Trash2, Loader2 } from 'lucide-react'
 import Link from 'next/link'
 import { useToast } from '@/hooks/use-toast'
 import { FilePreview } from '@/components/file-preview'
+import { useAutoRefetch } from '@/hooks/use-auto-refetch'
 
 export default function InboxDetailPage() {
   const router = useRouter()
@@ -26,7 +29,20 @@ export default function InboxDetailPage() {
     enabled: !!id,
   })
 
+  const { data: categoriesData } = useQuery({
+    queryKey: ['categories'],
+    queryFn: () => categoriesApi.list(),
+  })
+
   const item = itemData?.data
+  const categoryLabelMap = useMemo(() => {
+    return new Map((categoriesData?.data || []).map((category) => [category.key, category.name]))
+  }, [categoriesData])
+  const { isPolling } = useAutoRefetch({
+    refetch,
+    items: item ? [item] : [],
+    interval: 3000,
+  })
 
   // 删除 mutation
   const deleteMutation = useMutation({
@@ -50,14 +66,35 @@ export default function InboxDetailPage() {
     },
   })
 
+  const reclassifyMutation = useMutation({
+    mutationFn: async () => {
+      await inboxApi.reclassifyItem(id)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['inbox'] })
+      queryClient.invalidateQueries({ queryKey: ['inbox', id] })
+      toast({
+        title: '重新分类已开始',
+        description: '正在重新分析条目',
+      })
+    },
+    onError: (error) => {
+      toast({
+        title: '重新分类失败',
+        description: error instanceof Error ? error.message : '未知错误',
+        variant: 'destructive',
+      })
+    },
+  })
+
   const handleDelete = () => {
     if (confirm('确定要删除这条记录吗？')) {
       deleteMutation.mutate()
     }
   }
 
-  const getCategoryBadgeVariant = (category: CategoryType) => {
-    const variants: Record<CategoryType, any> = {
+  const getCategoryBadgeVariant = (category: string) => {
+    const variants: Record<string, any> = {
       [CategoryType.TODO]: 'default',
       [CategoryType.IDEA]: 'secondary',
       [CategoryType.EXPENSE]: 'destructive',
@@ -95,6 +132,31 @@ export default function InboxDetailPage() {
     )
   }
 
+  const entityGroups = (item.analysis?.entities || []).reduce<Record<string, string[]>>(
+    (acc, entity) => {
+      if (!entity?.type || entity.type === 'customFields') return acc
+      const value = entity.value?.trim()
+      if (!value) return acc
+      if (!acc[entity.type]) acc[entity.type] = []
+      acc[entity.type].push(value)
+      return acc
+    },
+    {}
+  )
+  const entityEntries = Object.entries(entityGroups)
+  const categoryKey = item.analysis?.category ?? 'unknown'
+  const categoryLabel =
+    categoryLabelMap.get(categoryKey) ||
+    ({
+      [CategoryType.TODO]: 'TODO',
+      [CategoryType.IDEA]: 'IDEA',
+      [CategoryType.EXPENSE]: 'EXPENSE',
+      [CategoryType.NOTE]: 'NOTE',
+      [CategoryType.BOOKMARK]: 'BOOKMARK',
+      [CategoryType.SCHEDULE]: 'SCHEDULE',
+      [CategoryType.UNKNOWN]: 'UNKNOWN',
+    }[categoryKey] || categoryKey)
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -111,14 +173,33 @@ export default function InboxDetailPage() {
           </div>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="icon" onClick={() => refetch()}>
-            <RefreshCw className="h-4 w-4" />
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => refetch()}
+            className="h-10 w-10"
+          >
+            <RefreshCw className={`h-4 w-4 ${isPolling ? 'animate-spin' : ''}`} />
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => reclassifyMutation.mutate()}
+            disabled={reclassifyMutation.isPending || item.status === ItemStatus.PROCESSING}
+            className="h-10 gap-2 px-4"
+          >
+            {reclassifyMutation.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Sparkles className="h-4 w-4" />
+            )}
+            重新分类
           </Button>
           <Button
             variant="destructive"
             size="icon"
             onClick={handleDelete}
             disabled={deleteMutation.isPending}
+            className="h-10 w-10"
           >
             {deleteMutation.isPending ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -131,8 +212,8 @@ export default function InboxDetailPage() {
 
       {/* Status & Category */}
       <div className="flex items-center gap-2">
-        <Badge variant={getCategoryBadgeVariant(item.analysis?.category || CategoryType.UNKNOWN)}>
-          {item.analysis?.category || CategoryType.UNKNOWN}
+        <Badge variant={getCategoryBadgeVariant(categoryKey)}>
+          {categoryLabel}
         </Badge>
         <Badge variant={getStatusBadgeVariant(item.status)} className="gap-1">
           {item.status === ItemStatus.PROCESSING && (
@@ -150,7 +231,9 @@ export default function InboxDetailPage() {
           <CardTitle>原始内容</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="whitespace-pre-wrap">{item.content}</p>
+          <p className={`whitespace-pre-wrap ${item.contentType === ContentType.URL ? 'break-all' : 'break-words'}`}>
+            {item.content}
+          </p>
         </CardContent>
       </Card>
 
@@ -180,7 +263,7 @@ export default function InboxDetailPage() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <p className="text-sm text-muted-foreground">意图分类</p>
-                <p className="font-medium">{item.analysis.category}</p>
+                <p className="font-medium">{categoryLabel}</p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">置信度</p>
@@ -197,26 +280,16 @@ export default function InboxDetailPage() {
               </div>
             )}
 
-            {item.analysis.entities && Object.keys(item.analysis.entities).length > 0 && (
+            {entityEntries.length > 0 && (
               <div>
                 <p className="text-sm text-muted-foreground mb-2">提取的实体</p>
                 <div className="space-y-1">
-                  {Object.entries(item.analysis.entities).map(([key, value]) => {
-                    // Skip null/undefined values and internal fields
-                    if (value === null || value === undefined || key === 'customFields') return null
-                    // Display non-empty values
-                    if (typeof value === 'object' && Object.keys(value).length === 0) return null
-                    if (Array.isArray(value) && value.length === 0) return null
-
-                    return (
-                      <div key={key} className="text-sm">
-                        <span className="text-muted-foreground">{key}:</span>{' '}
-                        <span className="font-mono">
-                          {Array.isArray(value) ? JSON.stringify(value) : String(value)}
-                        </span>
-                      </div>
-                    )
-                  })}
+                  {entityEntries.map(([type, values]) => (
+                    <div key={type} className="text-sm">
+                      <span className="text-muted-foreground">{type}:</span>{' '}
+                      <span className="font-mono">{values.join(', ')}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}

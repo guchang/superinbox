@@ -1,20 +1,20 @@
 "use client"
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { categoriesApi } from '@/lib/api/categories'
 import { inboxApi } from '@/lib/api/inbox'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { formatRelativeTime } from '@/lib/utils'
-import { CategoryType, ItemStatus } from '@/types'
-import { Eye, Trash2, Loader2, Clock, Search, RefreshCw } from 'lucide-react'
+import { CategoryType, ContentType, ItemStatus } from '@/types'
+import { Eye, Trash2, Loader2, Clock, RefreshCw } from 'lucide-react'
 import Link from 'next/link'
 import { useToast } from '@/hooks/use-toast'
 import { useState, useMemo } from 'react'
 import { CommandSearch, SearchFilters } from '@/components/shared/command-search'
 import { useAutoRefetch } from '@/hooks/use-auto-refetch'
 import { FilePreview } from '@/components/file-preview'
-import { Input } from '@/components/ui/input'
 
 export default function InboxPage() {
   const queryClient = useQueryClient()
@@ -22,6 +22,20 @@ export default function InboxPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [retryingId, setRetryingId] = useState<string | null>(null)
   const [searchFilters, setSearchFilters] = useState<SearchFilters>({ query: '' })
+
+  const { data: categoriesData } = useQuery({
+    queryKey: ['categories'],
+    queryFn: () => categoriesApi.list(),
+  })
+
+  const categories = categoriesData?.data || []
+  const activeCategories = useMemo(
+    () => categories.filter((category) => category.isActive),
+    [categories]
+  )
+  const categoryLabelMap = useMemo(() => {
+    return new Map(categories.map((category) => [category.key, category.name]))
+  }, [categories])
 
   // 构建查询参数
   const queryParams = useMemo(() => {
@@ -129,7 +143,7 @@ export default function InboxPage() {
   }
 
   // Unified badge that combines category and AI status
-  const getUnifiedBadgeVariant = (category: CategoryType, status: ItemStatus) => {
+  const getUnifiedBadgeVariant = (_category: string, status: ItemStatus) => {
     switch (status) {
       case ItemStatus.PROCESSING:
         return 'outline' // Processing state uses outline variant
@@ -142,7 +156,7 @@ export default function InboxPage() {
     }
   }
 
-  const getUnifiedBadgeLabel = (category: CategoryType, status: ItemStatus) => {
+  const getUnifiedBadgeLabel = (category: string, status: ItemStatus) => {
     switch (status) {
       case ItemStatus.PROCESSING:
         return 'ANALYZING...'
@@ -151,7 +165,7 @@ export default function InboxPage() {
       case ItemStatus.COMPLETED:
       case ItemStatus.PENDING:
       default:
-        const labels: Record<CategoryType, string> = {
+        const labels: Record<string, string> = {
           [CategoryType.TODO]: 'TODO',
           [CategoryType.IDEA]: 'IDEA', 
           [CategoryType.EXPENSE]: 'EXPENSE',
@@ -160,7 +174,7 @@ export default function InboxPage() {
           [CategoryType.SCHEDULE]: 'SCHEDULE',
           [CategoryType.UNKNOWN]: 'UNKNOWN',
         }
-        return labels[category] || 'UNKNOWN'
+        return categoryLabelMap.get(category) || labels[category] || category.toUpperCase()
     }
   }
 
@@ -170,27 +184,21 @@ export default function InboxPage() {
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
         <div className="space-y-1">
           <h1 className="text-3xl font-bold tracking-tight">收件箱</h1>
-          <p className="text-muted-foreground">管理所有收到的信息条目</p>
         </div>
         
-        {/* Search */}
-        <div className="relative max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input 
-            placeholder="搜索条目内容..." 
-            className="pl-9"
-            value={searchFilters.query || ''}
-            onChange={(e) => setSearchFilters(prev => ({ ...prev, query: e.target.value }))}
+        {/* Unified Search - 右对齐，扩展时向左延伸 */}
+        <div className="flex justify-end">
+          <CommandSearch
+            filters={searchFilters}
+            onFiltersChange={setSearchFilters}
+            availableSources={availableSources}
+            availableCategories={activeCategories.map((category) => ({
+              key: category.key,
+              name: category.name,
+            }))}
           />
         </div>
       </div>
-
-      {/* Advanced Filters */}
-      <CommandSearch
-        filters={searchFilters}
-        onFiltersChange={setSearchFilters}
-        availableSources={availableSources}
-      />
 
       {/* Results Count */}
       {(searchFilters.query || searchFilters.category || searchFilters.status || searchFilters.source) && (
@@ -228,13 +236,13 @@ export default function InboxPage() {
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2 h-5">
                     <Badge 
-                      variant={getUnifiedBadgeVariant(item.analysis?.category || CategoryType.UNKNOWN, item.status)}
+                      variant={getUnifiedBadgeVariant(item.analysis?.category ?? 'unknown', item.status)}
                       className="h-5 text-xs font-bold gap-1"
                     >
                       {item.status === ItemStatus.PROCESSING && (
                         <Loader2 className="h-3 w-3 animate-spin" />
                       )}
-                      {getUnifiedBadgeLabel(item.analysis?.category || CategoryType.UNKNOWN, item.status)}
+                      {getUnifiedBadgeLabel(item.analysis?.category ?? 'unknown', item.status)}
                     </Badge>
                     {/* Add retry button for failed items */}
                     {item.status === ItemStatus.FAILED && (
@@ -269,7 +277,7 @@ export default function InboxPage() {
                     item.status === ItemStatus.PROCESSING 
                       ? 'text-muted-foreground italic' 
                       : 'text-foreground'
-                  }`}>
+                  } ${item.contentType === ContentType.URL ? 'break-all' : 'break-words'}`}>
                     {item.content}
                   </p>
 
@@ -308,9 +316,8 @@ export default function InboxPage() {
                     <Link href={`/inbox/${item.id}`}>
                       <Button 
                         variant="outline" 
-                        size="sm"
                         disabled={item.status === ItemStatus.PROCESSING}
-                        className="gap-2 text-xs font-medium"
+                        className="h-9 gap-2 px-3 text-xs font-medium"
                       >
                         <Eye className="h-4 w-4" />
                         查看详情
@@ -325,7 +332,7 @@ export default function InboxPage() {
                         handleDelete(item.id)
                       }}
                       disabled={deletingId === item.id}
-                      className="text-muted-foreground hover:text-destructive"
+                      className="h-9 w-9 text-muted-foreground hover:text-destructive"
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>

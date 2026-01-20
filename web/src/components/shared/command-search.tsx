@@ -12,7 +12,7 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command"
-import { CategoryType, ItemStatus } from '@/types'
+import { CategoryType, ItemStatus, type CategoryKey } from '@/types'
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 
 // 搜索选项类型
@@ -29,7 +29,7 @@ interface SearchOption {
 // 搜索解析结果
 interface ParsedSearch {
   query: string // 全文搜索文本
-  category?: CategoryType
+  category?: CategoryKey
   status?: ItemStatus
   source?: string
 }
@@ -38,11 +38,12 @@ interface CommandSearchProps {
   filters: SearchFilters
   onFiltersChange: (filters: SearchFilters) => void
   availableSources?: string[]
+  availableCategories?: Array<{ key: string; name: string }>
 }
 
 export interface SearchFilters {
   query: string
-  category?: CategoryType
+  category?: CategoryKey
   status?: ItemStatus
   source?: string
 }
@@ -84,7 +85,7 @@ const SEARCH_OPTIONS: SearchOption[] = [
 ]
 
 // 解析搜索字符串
-function parseSearchString(input: string, availableSources: string[]): ParsedSearch {
+function parseSearchString(input: string): ParsedSearch {
   const result: ParsedSearch = {
     query: ''
   }
@@ -102,9 +103,12 @@ function parseSearchString(input: string, availableSources: string[]): ParsedSea
     }
 
     // 检查是否是 category:xxx
-    const categoryMatch = part.match(/^category:(\w+)$/i)
+    const categoryMatch = part.match(/^category:(.+)$/i)
     if (categoryMatch) {
-      result.category = categoryMatch[1] as CategoryType
+      const value = categoryMatch[1].trim()
+      if (value) {
+        result.category = value
+      }
       continue
     }
 
@@ -131,7 +135,12 @@ const mockSearchHistory = [
   'status:failed',
 ]
 
-export function CommandSearch({ filters, onFiltersChange, availableSources = [] }: CommandSearchProps) {
+export function CommandSearch({
+  filters,
+  onFiltersChange,
+  availableSources = [],
+  availableCategories = []
+}: CommandSearchProps) {
   const [open, setOpen] = React.useState(false)
   const [inputValue, setInputValue] = React.useState("")
   const [selectedIndex, setSelectedIndex] = React.useState(-1)
@@ -159,9 +168,17 @@ export function CommandSearch({ filters, onFiltersChange, availableSources = [] 
           values: availableSources.map(s => ({ value: s, label: s }))
         }
       }
+      if (option.id === 'category') {
+        return {
+          ...option,
+          values: availableCategories.length > 0
+            ? availableCategories.map(category => ({ value: category.key, label: category.name }))
+            : option.values
+        }
+      }
       return option
     })
-  }, [availableSources])
+  }, [availableSources, availableCategories])
 
   React.useEffect(() => {
     const down = (e: KeyboardEvent) => {
@@ -283,7 +300,7 @@ export function CommandSearch({ filters, onFiltersChange, availableSources = [] 
 
   // 应用搜索
   const applySearch = (value: string) => {
-    const parsed = parseSearchString(value, availableSources)
+    const parsed = parseSearchString(value)
     onFiltersChange({
       query: parsed.query,
       category: parsed.category,
@@ -444,8 +461,9 @@ export function CommandSearch({ filters, onFiltersChange, availableSources = [] 
       <PopoverTrigger asChild>
         <div
           className={cn(
-            "flex items-center gap-2 px-3 py-2 text-sm bg-background border border-input rounded-md cursor-text hover:bg-accent transition-colors min-h-[40px]",
-            open && "ring-2 ring-ring ring-offset-2"
+            "flex items-center gap-2 px-3 py-2 text-sm bg-background border border-input rounded-md cursor-text hover:bg-accent transition-all duration-200 h-[40px]",
+            open ? "ring-2 ring-ring ring-offset-2 w-full md:w-[500px]" : "w-full md:w-[280px]",
+            "ml-auto" // 右对齐
           )}
           onClick={() => {
             if (!open) {
@@ -483,8 +501,9 @@ export function CommandSearch({ filters, onFiltersChange, availableSources = [] 
         </div>
       </PopoverTrigger>
       <PopoverContent
-        className="p-0 w-[400px] border shadow-lg"
-        align="start"
+        className="p-0 border shadow-lg"
+        align="end"
+        style={{ width: open ? '500px' : '400px' }}
         onOpenAutoFocus={(e: Event) => e.preventDefault()}
       >
         <div className="max-h-[400px] overflow-auto">

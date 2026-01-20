@@ -81,9 +81,6 @@ export default function GlobalLogsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">访问日志审计</h1>
-          <p className="text-muted-foreground">
-            查看和分析所有 API Key 的访问记录
-          </p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" asChild>

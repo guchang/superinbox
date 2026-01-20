@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ItemStatus } from '@/types'
 
 interface AutoRefetchOptions {
@@ -27,12 +27,16 @@ export function useAutoRefetch({
   enabled = true,
 }: AutoRefetchOptions) {
   const intervalRef = useRef<NodeJS.Timeout | null>(null)
+  const [isPolling, setIsPolling] = useState(false)
 
   useEffect(() => {
     if (!enabled) {
       if (intervalRef.current) {
         clearInterval(intervalRef.current)
         intervalRef.current = null
+      }
+      if (isPolling) {
+        setIsPolling(false)
       }
       return
     }
@@ -48,12 +52,16 @@ export function useAutoRefetch({
         intervalRef.current = setInterval(() => {
           refetch()
         }, interval)
+        setIsPolling(true)
       }
     } else {
       // Stop polling when all items are completed/failed
       if (intervalRef.current) {
         clearInterval(intervalRef.current)
         intervalRef.current = null
+      }
+      if (isPolling) {
+        setIsPolling(false)
       }
     }
 
@@ -64,9 +72,9 @@ export function useAutoRefetch({
         intervalRef.current = null
       }
     }
-  }, [items, refetch, interval, enabled])
+  }, [items, refetch, interval, enabled, isPolling])
 
   return {
-    isPolling: intervalRef.current !== null,
+    isPolling,
   }
 }

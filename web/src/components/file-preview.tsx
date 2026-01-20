@@ -10,6 +10,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { inboxApi } from "@/lib/api/inbox"
+import { getApiBaseUrl } from "@/lib/api/base-url"
 
 // VisuallyHidden component for accessibility
 const VisuallyHidden = ({ children }: { children: React.ReactNode }) => (
@@ -38,27 +39,12 @@ interface FilePreviewProps {
   }>
 }
 
-/**
- * Get the API base URL from environment or use default
- */
-function getApiUrl(): string {
-  // Use the backend API URL from environment variable
-  return process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/v1"
-}
-
 export function FilePreview({ itemId, fileName, mimeType, allFiles }: FilePreviewProps) {
   const [imageDataUrl, setImageDataUrl] = useState<string | null>(null)
   const [isLoadingImage, setIsLoadingImage] = useState(false)
 
-  // Get base API URL (may or may not include /v1 suffix)
-  let apiBaseUrl = getApiUrl()
-
-  // Remove /v1 suffix if present to avoid duplication
-  if (apiBaseUrl.endsWith('/v1')) {
-    apiBaseUrl = apiBaseUrl.slice(0, -3)
-  }
-
-  const fileUrl = `${apiBaseUrl}/v1/inbox/${itemId}/file`
+  const apiBaseUrl = getApiBaseUrl()
+  const fileUrl = `${apiBaseUrl}/inbox/${itemId}/file`
 
   const handleDownload = async () => {
     try {
@@ -86,7 +72,7 @@ export function FilePreview({ itemId, fileName, mimeType, allFiles }: FilePrevie
                 // Only show image files
                 if (!file.mimeType.startsWith('image/')) return null
                 
-                const imageUrl = `${apiBaseUrl}/v1/inbox/${itemId}/file/${originalIndex}`
+                const imageUrl = `${apiBaseUrl}/inbox/${itemId}/file/${originalIndex}`
                 
                 return (
                   <div key={originalIndex} className="relative group flex-shrink-0 w-32 h-24">
@@ -158,7 +144,7 @@ export function FilePreview({ itemId, fileName, mimeType, allFiles }: FilePrevie
                         size="sm" 
                         onClick={() => {
                           // Download specific image by index
-                          const downloadUrl = `${apiBaseUrl}/v1/inbox/${itemId}/file/${originalIndex}/download`
+                          const downloadUrl = `${apiBaseUrl}/inbox/${itemId}/file/${originalIndex}/download`
                           const token = typeof window !== 'undefined'
                             ? localStorage.getItem('superinbox_auth_token')
                             : null

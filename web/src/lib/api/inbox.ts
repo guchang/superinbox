@@ -1,4 +1,5 @@
 import { apiClient } from './client'
+import { getApiBaseUrl } from './base-url'
 import { adaptBackendItem, adaptBackendItems } from './adapter'
 import type {
   Item,
@@ -90,6 +91,11 @@ export const inboxApi = {
     return apiClient.post<{ message: string; status: string }>(`/inbox/${id}/retry`)
   },
 
+  // 重新分类
+  async reclassifyItem(id: string): Promise<ApiResponse<{ message: string; status: string }>> {
+    return apiClient.post<{ message: string; status: string }>(`/inbox/${id}/reclassify`)
+  },
+
   // 上传文件
   async uploadFile(formData: FormData): Promise<ApiResponse<Item>> {
     // Don't set Content-Type header for FormData - browser will set it with boundary
@@ -124,12 +130,8 @@ export const inboxApi = {
 
   // 下载文件（带认证）
   async downloadFile(itemId: string, fileName?: string): Promise<void> {
-    // Remove /v1 suffix if present to avoid duplication
-    let baseURL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/v1'
-    if (baseURL.endsWith('/v1')) {
-      baseURL = baseURL.slice(0, -3)
-    }
-    const url = `${baseURL}/v1/inbox/${itemId}/file/download`
+    const baseURL = getApiBaseUrl()
+    const url = `${baseURL}/inbox/${itemId}/file/download`
 
     // Get the token from localStorage
     const token = typeof window !== 'undefined'

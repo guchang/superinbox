@@ -85,7 +85,6 @@ export default function StatisticsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">API 使用统计</h1>
-          <p className="text-muted-foreground">查看您的 API Key 调用情况和使用趋势</p>
         </div>
         <Select value={timeRange} onValueChange={(v) => setTimeRange(v as TimeRange)}>
           <SelectTrigger className="w-[140px]">

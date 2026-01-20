@@ -11,8 +11,9 @@ import type {
   ApiKeysListResponse,
   ApiAccessLogsResponse,
 } from '@/types/api-key'
+import { getApiBaseUrl } from './base-url'
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/v1'
+const API_BASE_URL = getApiBaseUrl()
 
 /**
  * Get authorization token from localStorage

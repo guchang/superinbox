@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { categoriesApi } from '@/lib/api/categories'
 import { settingsApi } from '@/lib/api/settings'
 import { inboxApi } from '@/lib/api/inbox'
 import {
@@ -14,13 +15,13 @@ import {
   CheckCircle,
   AlertCircle,
 } from 'lucide-react'
-import { CategoryType, ItemStatus } from '@/types'
+import { ItemStatus } from '@/types'
 import { formatRelativeTime } from '@/lib/utils'
 import Link from 'next/link'
 import { CommandSearch } from '@/components/shared/command-search'
 import { useState, useMemo } from 'react'
 
-const getIntentLabel = (category: string): string => {
+const getIntentLabel = (category: string, labelMap: Map<string, string>): string => {
   const labels: Record<string, string> = {
     todo: '待办',
     idea: '想法',
@@ -30,7 +31,7 @@ const getIntentLabel = (category: string): string => {
     bookmark: '书签',
     unknown: '未知',
   }
-  return labels[category] || category
+  return labelMap.get(category) || labels[category] || category
 }
 
 const getIntentColor = (category: string): string => {
@@ -48,6 +49,16 @@ const getIntentColor = (category: string): string => {
 
 export default function DashboardPage() {
   const [searchFilters, setSearchFilters] = useState({ query: '' })
+
+  const { data: categoriesData } = useQuery({
+    queryKey: ['categories'],
+    queryFn: () => categoriesApi.list(),
+  })
+
+  const categoryLabelMap = useMemo(() => {
+    const entries = (categoriesData?.data || []).map((category) => [category.key, category.name] as const)
+    return new Map(entries)
+  }, [categoriesData])
 
   // 获取统计数据
   const { data: statsData, isLoading: statsLoading } = useQuery({
@@ -106,7 +117,7 @@ export default function DashboardPage() {
       .filter(([_, count]) => count > 0)
       .sort(([, a], [, b]) => b - a)
       .map(([category, count]) => ({
-        category: category as CategoryType,
+        category,
         count,
         percentage: Math.round((count / total) * 100),
       }))
@@ -117,7 +128,6 @@ export default function DashboardPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">仪表板</h1>
-          <p className="text-muted-foreground">欢迎使用 SuperInbox 智能收件箱</p>
         </div>
       </div>
 
@@ -154,7 +164,9 @@ export default function DashboardPage() {
                 {categoryDistribution.map(({ category, count, percentage }) => (
                   <div key={category} className="space-y-2">
                     <div className="flex items-center justify-between text-sm">
-                      <span className="font-medium capitalize">{getIntentLabel(category)}</span>
+                      <span className="font-medium capitalize">
+                        {getIntentLabel(category, categoryLabelMap)}
+                      </span>
                       <span className="text-muted-foreground">{count} ({percentage}%)</span>
                     </div>
                     <div className="h-2 bg-secondary rounded-full overflow-hidden">
@@ -253,7 +265,7 @@ export default function DashboardPage() {
                                 : 'secondary'
                           }
                         >
-                          {item.analysis?.category || CategoryType.UNKNOWN}
+                          {getIntentLabel(item.analysis?.category ?? 'unknown', categoryLabelMap)}
                         </Badge>
                         <Badge variant="outline" className="text-xs">
                           {item.source}

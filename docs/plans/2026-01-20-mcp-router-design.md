@@ -16,20 +16,26 @@ Integrate Model Context Protocol (MCP) into SuperInbox's routing system, enablin
    - MCP Adapter Configs: Define "how to connect to a platform"
    - Route Rules: Define "what content goes to which platform"
 
-2. **Configuration-Driven**
+2. **Deterministic Routing Semantics**
+   - Routes run in descending priority order (ties by created_at)
+   - Stop on first successful route
+   - If a route still fails after retries, stop and mark distribution failed
+
+3. **Configuration-Driven**
    - All MCP integrations configured via JSON in database
    - No need to write code for new integrations
    - Natural language instructions for data mapping
 
-3. **Intelligent Caching**
+4. **Intelligent Caching**
    - MCP clients cached by `mcp_adapter_config_id`
    - Idle timeout: 5 minutes (configurable)
    - Shared across multiple routes using the same adapter
 
-4. **LLM-Powered Mapping**
+5. **LLM-Powered Mapping**
    - Natural language instructions describe data transformation
    - LLM converts Item data to target tool format
-   - Fallback to simple mapping on LLM failure
+   - Validate output against tool schema; repair once before fallback
+   - Fallback to simple mapping only when schema is optional or route allows it
 
 ## Architecture
 
@@ -40,6 +46,7 @@ backend/src/router/
 ├── mcp/
 │   ├── mcp-client-manager.ts      # MCP process lifecycle management
 │   ├── llm-mapping.service.ts     # LLM data transformation
+│   ├── tool-registry.ts           # Tool discovery + schema cache
 │   ├── unified-route.adapter.ts   # Main adapter implementation
 │   └── schema-validator.ts        # JSON schema validation
 ├── config/
@@ -58,16 +65,17 @@ Manages MCP server process lifecycle with intelligent caching.
 class MCPClientManager {
   // Cache key: mcp_adapter_config_id
   private pool: Map<string, { client: Client; lastUsed: number }>;
+  private inflight: Map<string, Promise<Client>>;
 
   async getClient(
-    routeId: string,
+    adapterId: string,
     config: TargetConfig
   ): Promise<Client>;
 
-  markUsed(routeId: string): void;
+  markUsed(adapterId: string): void;
 
   private async startNewClient(
-    routeId: string,
+    adapterId: string,
     config: TargetConfig
   ): Promise<Client>;
 
@@ -78,6 +86,7 @@ class MCPClientManager {
 **Caching Strategy:**
 - First request: Spawn new stdio process
 - Subsequent requests: Reuse existing client
+- Concurrent requests share one inflight spawn per adapter
 - Background task: Check for idle clients every minute
 - Idle timeout: Close clients unused for 5+ minutes
 
@@ -90,12 +99,14 @@ class LLMMappingService {
   async transform(
     item: Item,
     instructions: string,
-    targetSchema?: JSONSchema
+    targetSchema?: JSONSchema,
+    allowFallback?: boolean
   ): Promise<Record<string, unknown>>;
 
   async preview(
     item: Item,
-    instructions: string
+    instructions: string,
+    targetSchema?: JSONSchema
   ): Promise<{ transformed: unknown; reasoning: string }>;
 }
 ```
@@ -116,10 +127,30 @@ Output JSON format only.
 ```
 
 **Fallback Strategy:**
-- On LLM failure: Use simple field mapping
+- On invalid schema: Retry once with validation error context
+- On LLM failure: Use simple field mapping if allowed
 - Map: `suggestedTitle` → `title`, `originalContent` → `content`, etc.
 
-#### 3. UnifiedRouteAdapter
+#### 3. ToolRegistry
+
+Handles tool discovery and schema caching per adapter.
+
+```typescript
+class ToolRegistry {
+  async getSchema(
+    adapterId: string,
+    toolName: string
+  ): Promise<JSONSchema | undefined>;
+}
+```
+
+**Caching Strategy:**
+- Load via `list_tools` on first use
+- Cache by `(adapterId, toolName)` with TTL + schema hash
+- Persist latest schema in `route_rules.tool_schema_cache`
+- Refresh on hash change or cache miss
+
+#### 4. UnifiedRouteAdapter
 
 Extends `BaseAdapter`, integrates all components.
 
@@ -129,27 +160,43 @@ class UnifiedRouteAdapter extends BaseAdapter {
   readonly name = 'Unified Route Adapter';
 
   async distribute(item: Item): Promise<DistributionResult> {
-    // 1. Get matching route configuration
-    const route = this.getRouteForItem(item);
+    // 1. Get matching route configurations
+    const routes = this.getRoutesForItem(item);
+    const adapterConfigs = await this.loadAdapterConfigs(routes);
 
-    // 2. Transform data via LLM
-    const transformed = await this.llmService.transform(
-      item,
-      route.processing_instructions
-    );
+    for (const route of routes) {
+      // 2. Resolve tool schema (cached per adapter + tool)
+      const toolSchema = await this.toolRegistry.getSchema(
+        route.mcp_adapter_id,
+        route.target_tool_name
+      );
 
-    // 3. Get MCP client (with caching)
-    const client = await this.mcpManager.getClient(
-      route.id,
-      route.target
-    );
+      // 3. Transform data via LLM
+      const transformed = await this.llmService.transform(
+        item,
+        route.processing_instructions,
+        toolSchema,
+        route.allow_fallback
+      );
 
-    // 4. Call MCP tool (with retry)
-    return await this.callWithRetry(
-      client,
-      route.target.tool,
-      transformed
-    );
+      // 4. Get MCP client (with caching)
+      const adapterConfig = adapterConfigs.get(route.mcp_adapter_id);
+      const client = await this.mcpManager.getClient(
+        route.mcp_adapter_id,
+        adapterConfig
+      );
+
+      // 5. Call MCP tool (with retry)
+      await this.callWithRetry(
+        client,
+        route.target_tool_name,
+        transformed
+      );
+
+      return { status: 'ok' };
+    }
+
+    return { status: 'failed' };
   }
 }
 ```
@@ -191,6 +238,10 @@ CREATE TABLE route_rules (
   priority INTEGER DEFAULT 0,
   trigger_conditions TEXT NOT NULL,    -- JSON: conditions array
   processing_instructions TEXT NOT NULL,
+  target_tool_name TEXT NOT NULL,      -- MCP tool name
+  tool_schema_cache TEXT,              -- JSON schema from list_tools
+  tool_schema_hash TEXT,               -- detect schema changes
+  allow_fallback BOOLEAN DEFAULT 0,    -- allow simple mapping fallback
   mcp_adapter_id TEXT NOT NULL,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL,
@@ -211,11 +262,13 @@ Item → RouterService
        ↓
 Find matching routes (trigger conditions, priority)
        ↓
-For each route:
+For each route (ordered by priority):
   1. Transform data (LLMMappingService)
+     - Validate schema, retry once on invalid output
   2. Get MCP client (MCPClientManager with caching)
   3. Call tool (with exponential backoff retry)
   4. Save result
+  5. Stop after first success; stop after retry exhaustion
 ```
 
 ### MCP Client Lifecycle
@@ -229,7 +282,7 @@ MCPClientManager init
 
 First request for adapter:
   - No process in pool
-  - spawn(command, args, env)
+  - spawn(command, args, env) with timeout + startup health check
   - Create Client, connect stdio
   - Store: {client, lastUsed: now}
   - Return client
@@ -299,9 +352,10 @@ Convert to Notion task format:
 | Error Type | Strategy |
 |------------|----------|
 | Config validation | Fail fast, show error in Web UI |
-| MCP tool call (retryable) | Exponential backoff: 1s, 2s, 4s (max 3) |
+| MCP tool call (retryable) | Exponential backoff: 1s, 2s, 4s (max 3), then stop |
 | MCP tool call (non-retryable) | Fail immediately |
-| LLM mapping failure | Fallback to simple field mapping |
+| LLM mapping failure | Fallback to simple field mapping if allowed |
+| Schema validation failure | One repair attempt, then fail route |
 | Process crash | Auto-restart (max 3 times, then mark failed) |
 | Process idle timeout | Automatic cleanup |
 
@@ -387,6 +441,7 @@ Step 2: Create Route Rule
   - Name: "Todos → Notion"
   - Trigger: category = "todo"
   - Target: Select "My Notion"
+  - Tool: "create_page"
   - Instructions: "Convert to Notion task format..."
   - Preview → Test → Save
 ```
@@ -396,7 +451,8 @@ Step 2: Create Route Rule
 ### Unit Tests
 
 - **MCPClientManager**: Cache behavior, idle timeout, process lifecycle
-- **LLMMappingService**: Transformation, fallback logic
+- **LLMMappingService**: Transformation, schema validation, fallback logic
+- **ToolRegistry**: list_tools cache, schema refresh behavior
 - **Retry Logic**: Retry on retryable errors, fail fast on others
 
 ### Integration Tests
@@ -442,6 +498,7 @@ Step 2: Create Route Rule
 1. **Resource Management**: Should we limit number of concurrent MCP processes per user?
 2. **Cost Control**: LLM calls per distribution can add up - implement caching?
 3. **Security**: Validate user-provided MCP commands to prevent injection?
+4. **Schema Drift**: How to handle tool schema changes from MCP servers?
 
 ## References
 

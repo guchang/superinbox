@@ -62,7 +62,6 @@ export default function SettingsPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold">系统设置</h1>
-        <p className="text-muted-foreground">配置系统参数和 API 访问</p>
       </div>
 
       {/* API Configuration */}

@@ -93,7 +93,6 @@ export default function ApiKeysPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">API 密钥管理</h1>
-          <p className="text-muted-foreground">创建和管理 API 访问密钥</p>
         </div>
         <Button onClick={() => handleCreateOrEdit()}>
           <Plus className="mr-2 h-4 w-4" />
@@ -108,7 +107,7 @@ export default function ApiKeysPage() {
       ) : apiKeys.length === 0 ? (
         <div className="text-center py-8 text-muted-foreground">
           <p>还没有 API 密钥</p>
-          <p className="text-sm mt-2">点击上方"创建"按钮开始</p>
+          <p className="text-sm mt-2">点击上方“创建”按钮开始</p>
         </div>
       ) : (
         <div className="border rounded-lg overflow-hidden">
