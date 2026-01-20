@@ -1,7 +1,16 @@
 import axios, { AxiosError, AxiosInstance, InternalAxiosRequestConfig } from 'axios'
 import type { ApiResponse } from '@/types'
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/v1'
+// Dynamic API URL: use current page host in browser, fallback to env var
+const getApiUrl = () => {
+  if (typeof window !== 'undefined') {
+    const protocol = window.location.protocol
+    const host = window.location.hostname
+    const port = 3001 // Backend port
+    return `${protocol}//${host}:${port}/v1`
+  }
+  return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/v1'
+}
 
 const TOKEN_KEY = "superinbox_auth_token"
 
@@ -10,7 +19,7 @@ class ApiClient {
 
   constructor() {
     this.client = axios.create({
-      baseURL: API_URL,
+      baseURL: getApiUrl(),
       headers: {
         'Content-Type': 'application/json',
       },
