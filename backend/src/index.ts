@@ -20,6 +20,7 @@ import settingsRoutes from './settings/routes/settings.routes.js';
 import authRoutes from './auth/auth.routes.js';
 import logsRoutes from './auth/logs.routes.js';
 import apiKeysRoutes from './api-keys/api-keys.routes.js';
+import mcpAdaptersRoutes from './router/routes/mcp-adapters.routes.js';
 import { logger } from './middleware/logger.js';
 
 // Create Express app
@@ -103,6 +104,7 @@ app.use('/v1/auth', authRoutes);
 app.use('/v1/auth', logsRoutes); // Log routes under auth
 app.use('/v1/auth/api-keys', apiKeysRoutes); // Documented path (Task 11)
 app.use('/v1/api-keys', apiKeysRoutes);      // Legacy path (backward compatibility)
+app.use('/v1/mcp-adapters', mcpAdaptersRoutes);
 app.use('/v1/intelligence', promptsRoutes);
 app.use('/v1/categories', categoriesRoutes);
 app.use('/v1/ai', aiTemplatesRoutes);

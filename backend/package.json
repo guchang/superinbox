@@ -27,6 +27,7 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.25.3",
     "@types/multer": "^2.0.0",
     "axios": "^1.6.5",
     "better-sqlite3": "^9.2.2",

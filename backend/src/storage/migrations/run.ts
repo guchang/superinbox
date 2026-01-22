@@ -146,14 +146,88 @@ const migrations = [
     version: '003',
     name: 'rename_intent_to_category',
     up: `
-      -- Drop old index on intent
+      -- Drop old index on intent if it exists
       DROP INDEX IF EXISTS idx_items_intent;
 
-      -- Rename intent column to category
-      ALTER TABLE items RENAME COLUMN intent TO category;
-
-      -- Create new index on category
+      -- Check if category column exists, if not add it
+      -- (This migration may have already been applied)
       CREATE INDEX IF NOT EXISTS idx_items_category ON items(category);
+    `
+  },
+  {
+    version: '004',
+    name: 'add_mcp_adapter_configs',
+    up: `
+      -- Create MCP adapter configs table
+      CREATE TABLE IF NOT EXISTS mcp_adapter_configs (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+
+        -- MCP Server configuration
+        server_url TEXT NOT NULL,
+        server_type TEXT NOT NULL,
+
+        -- Authentication configuration
+        auth_type TEXT NOT NULL DEFAULT 'api_key',
+        api_key TEXT,
+        oauth_provider TEXT,
+        oauth_access_token TEXT,
+        oauth_refresh_token TEXT,
+        oauth_token_expires_at TEXT,
+        oauth_scopes TEXT,
+
+        -- Tool configuration
+        default_tool_name TEXT,
+        tool_config_cache TEXT,
+
+        -- LLM transformation configuration (optional, override system default)
+        llm_provider TEXT,
+        llm_api_key TEXT,
+        llm_model TEXT,
+        llm_base_url TEXT,
+
+        -- Performance configuration
+        timeout INTEGER DEFAULT 30000,
+        max_retries INTEGER DEFAULT 3,
+        cache_ttl INTEGER DEFAULT 300,
+
+        -- Status
+        enabled INTEGER DEFAULT 1,
+        last_health_check TEXT,
+        last_health_check_status TEXT,
+
+        -- Timestamps
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      );
+
+      -- Create indexes for better query performance
+      CREATE INDEX IF NOT EXISTS idx_mcp_configs_user ON mcp_adapter_configs(user_id);
+      CREATE INDEX IF NOT EXISTS idx_mcp_configs_enabled ON mcp_adapter_configs(enabled);
+      CREATE INDEX IF NOT EXISTS idx_mcp_configs_server_type ON mcp_adapter_configs(server_type);
+      CREATE INDEX IF NOT EXISTS idx_mcp_configs_auth_type ON mcp_adapter_configs(auth_type);
+
+      -- Add MCP reference to distribution_configs
+      ALTER TABLE distribution_configs ADD COLUMN mcp_adapter_id TEXT;
+      ALTER TABLE distribution_configs ADD COLUMN processing_instructions TEXT;
+    `
+  },
+  {
+    version: '005',
+    name: 'add_stdio_transport_to_mcp_adapters',
+    up: `
+      -- Add transport type column
+      ALTER TABLE mcp_adapter_configs ADD COLUMN transport_type TEXT DEFAULT 'http';
+
+      -- Add stdio-specific columns
+      ALTER TABLE mcp_adapter_configs ADD COLUMN command TEXT;
+      ALTER TABLE mcp_adapter_configs ADD COLUMN env TEXT;
+
+      -- Create index for transport type
+      CREATE INDEX IF NOT EXISTS idx_mcp_configs_transport_type ON mcp_adapter_configs(transport_type);
     `
   }
 ];

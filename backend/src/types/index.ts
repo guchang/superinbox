@@ -170,7 +170,9 @@ export enum AdapterType {
   WEBHOOK = 'webhook',
   TELEGRAM = 'telegram',
   EMAIL = 'email',
-  CUSTOM = 'custom'
+  CUSTOM = 'custom',
+  MCP = 'mcp',        // Generic MCP adapter
+  MCP_HTTP = 'mcp_http'  // HTTP-based MCP adapter
 }
 
 /**
@@ -182,6 +184,9 @@ export interface DistributionConfig {
   priority: number;
   conditions?: DistributionCondition[];
   config: Record<string, unknown>;
+  mcpAdapterId?: string;
+  id: string;
+  processingInstructions?: string;
 }
 
 /**
@@ -197,6 +202,8 @@ export interface DistributionCondition {
  * 分发结果
  */
 export interface DistributionResult {
+  id?: string;
+  itemId?: string;
   targetId: string;
   adapterType: AdapterType;
   status: 'pending' | 'success' | 'failed';
@@ -376,4 +383,141 @@ export interface IAdapter {
   distribute(item: Item): Promise<DistributionResult>;
   validate(config: Record<string, unknown>): boolean;
   healthCheck(): Promise<boolean>;
+}
+
+// ============================================
+// MCP Types
+// ============================================
+
+/**
+ * MCP Adapter Configuration
+ * Represents a row in mcp_adapter_configs table
+ */
+export interface MCPAdapterConfig {
+  id: string;
+  userId: string;
+  name: string;
+
+  // MCP Server configuration
+  serverUrl: string;
+  serverType: string;  // "notion", "github", "custom"
+  transportType: 'http' | 'stdio';  // Transport layer type
+
+  // stdio-specific configuration
+  command?: string;  // Command to start the MCP server (e.g., "npx @modelcontextprotocol/server-notion")
+  env?: Record<string, string>;  // Environment variables for the command
+
+  // Authentication configuration
+  authType: 'api_key' | 'oauth' | 'none';  // Primary auth method, 'none' for stdio
+  apiKey?: string;  // For API key authentication
+  oauthProvider?: string;  // For OAuth authentication
+  oauthAccessToken?: string;
+  oauthRefreshToken?: string;
+  oauthTokenExpiresAt?: string;
+  oauthScopes?: string;  // JSON string
+
+  // Tool configuration
+  defaultToolName?: string;
+  toolConfigCache?: string;  // JSON string
+
+  // LLM transformation configuration (optional, override system default)
+  llmProvider?: string;
+  llmApiKey?: string;
+  llmModel?: string;
+  llmBaseUrl?: string;
+
+  // Performance configuration
+  timeout?: number;
+  maxRetries?: number;
+  cacheTtl?: number;
+
+  // Status
+  enabled?: number;
+  lastHealthCheck?: string;
+  lastHealthCheckStatus?: string;
+
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * OAuth Provider Configuration
+ */
+export interface OAuthProvider {
+  id: string;  // "notion", "github", "google"
+  name: string;
+  authUrl: string;       // OAuth authorization endpoint
+  tokenUrl: string;      // OAuth token endpoint
+  scopes: string[];       // Default scopes
+  clientId: string;
+  redirectUri: string;
+}
+
+/**
+ * OAuth Token Response
+ */
+export interface OAuthTokenResponse {
+  access_token: string;
+  refresh_token?: string;
+  expires_in?: number;
+  token_type?: string;
+  scope?: string;
+}
+
+/**
+ * LLM Mapping Configuration
+ */
+export interface LLMMappingConfig {
+  provider: string;      // "openai", "anthropic", "custom"
+  apiKey: string;
+  model: string;
+  baseUrl?: string;
+  timeout?: number;
+  maxTokens?: number;
+}
+
+/**
+ * MCP Tool Definition
+ */
+export interface MCPTool {
+  name: string;
+  description?: string;
+  inputSchema: Record<string, unknown>;
+}
+
+/**
+ * MCP Tool Call Request
+ */
+export interface MCPToolCallRequest {
+  name: string;
+  arguments: Record<string, unknown>;
+}
+
+/**
+ * MCP Tool Call Response
+ */
+export interface MCPToolCallResponse {
+  content: unknown;
+  isError?: boolean;
+  metadata?: Record<string, unknown>;
+}
+
+/**
+ * HTTP MCP Client Configuration
+ */
+export interface HttpMcpClientConfig {
+  serverUrl: string;
+  authToken?: string;
+  timeout?: number;
+  maxRetries?: number;
+}
+
+/**
+ * Stdio MCP Client Configuration
+ */
+export interface StdioMcpClientConfig {
+  command: string;  // Command to start the MCP server
+  args?: string[];  // Command arguments
+  env?: Record<string, string>;  // Environment variables
+  timeout?: number;  // Request timeout in milliseconds
 }

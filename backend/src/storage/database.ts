@@ -31,6 +31,13 @@ export class DatabaseManager {
   }
 
   /**
+   * Get the underlying database instance
+   */
+  get database(): Database.Database {
+    return this.db;
+  }
+
+  /**
    * Initialize database schema
    */
   initialize(): void {

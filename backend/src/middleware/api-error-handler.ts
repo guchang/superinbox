@@ -193,6 +193,8 @@ export function notFoundHandler(req: Request, res: Response): void {
           'POST /v1/routing/rules',
           'PUT /v1/routing/rules/:id',
           'DELETE /v1/routing/rules/:id',
+          'POST /v1/routing/rules/:id/test',
+          'POST /v1/routing/connectors/test',
           'POST /v1/routing/dispatch/:id',
           'GET /v1/auth/api-keys',
           'POST /v1/auth/api-keys',

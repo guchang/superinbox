@@ -3,10 +3,11 @@
  */
 
 import { v4 as uuidv4 } from 'uuid';
-import type { Item, DistributionResult, DistributionConfig } from '../types/index.js';
+import type { Item, DistributionResult, DistributionConfig, MCPAdapterConfig, AdapterType } from '../types/index.js';
 import { adapterRegistry, type AdapterRegistry } from './adapter.interface.js';
 import { getDatabase } from '../storage/database.js';
 import { logger } from '../middleware/logger.js';
+import { mcpAdapter } from './adapters/mcp-adapter.js';
 
 export class RouterService {
   private registry: AdapterRegistry;
@@ -38,16 +39,28 @@ export class RouterService {
 
     // Distribute to each target
     for (const config of applicableConfigs) {
-      const adapter = this.registry.get(config.adapterType);
-
-      if (!adapter) {
-        logger.warn(`Adapter ${config.adapterType} not found`);
-        continue;
-      }
-
       try {
-        const result = await adapter.distribute(item);
-        result.itemId = item.id;
+        let result: DistributionResult;
+
+        // Handle MCP adapters specially
+        if (config.adapterType === 'mcp_http' && config.mcpAdapterId) {
+          result = await this.distributeViaMCP(item, config);
+        } else {
+          // Traditional adapter
+          const adapter = this.registry.get(config.adapterType);
+
+          if (!adapter) {
+            logger.warn(`Adapter ${config.adapterType} not found`);
+            continue;
+          }
+
+          const adapterResult = await adapter.distribute(item);
+          result = {
+            ...adapterResult,
+            itemId: item.id
+          };
+        }
+
         results.push(result);
 
         // Save to database
@@ -74,12 +87,110 @@ export class RouterService {
   }
 
   /**
+   * Distribute item via MCP adapter
+   */
+  private async distributeViaMCP(
+    item: Item,
+    config: DistributionConfig & { mcpAdapterId: string }
+  ): Promise<DistributionResult> {
+    // Load MCP adapter config from database
+    const mcpConfig = this.getMCPAdapterConfig(config.mcpAdapterId);
+
+    // Initialize MCP adapter with the MCP config
+    await mcpAdapter.initialize({
+      serverUrl: mcpConfig.serverUrl,
+      serverType: mcpConfig.serverType,
+      authType: mcpConfig.authType,
+      apiKey: mcpConfig.apiKey,
+      oauthAccessToken: mcpConfig.oauthAccessToken
+    });
+
+    // Set distribution config for context
+    mcpAdapter.setDistributionConfig(config);
+
+    // Distribute
+    const result = await mcpAdapter.distribute(item);
+    result.itemId = item.id;
+    result.targetId = config.id;
+
+    return result;
+  }
+
+  /**
    * Get distribution configurations for a user
    */
   private getDistributionConfigs(userId: string): DistributionConfig[] {
-    // TODO: Implement fetching from database
-    // For now, return empty array - configs should be loaded from DB
-    return [];
+    try {
+      const stmt = this.db.database.prepare(`
+        SELECT * FROM distribution_configs
+        WHERE user_id = ?
+        ORDER BY priority DESC, created_at ASC
+      `);
+
+      const rows = stmt.all(userId) as any[];
+
+      return rows.map(row => ({
+        id: row.id,
+        adapterType: row.adapter_type,
+        enabled: Boolean(row.enabled),
+        priority: row.priority,
+        conditions: row.conditions ? JSON.parse(row.conditions) : undefined,
+        config: row.config ? JSON.parse(row.config) : {},
+        mcpAdapterId: row.mcp_adapter_id,
+        processingInstructions: row.processing_instructions
+      }));
+    } catch (error) {
+      logger.error('Failed to load distribution configs:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Get MCP adapter config by ID
+   */
+  private getMCPAdapterConfig(mcpAdapterId: string): MCPAdapterConfig {
+    const stmt = this.db.database.prepare(`
+      SELECT * FROM mcp_adapter_configs
+      WHERE id = ?
+    `);
+
+    const row = stmt.get(mcpAdapterId) as any;
+
+    if (!row) {
+      throw new Error(`MCP adapter config not found: ${mcpAdapterId}`);
+    }
+
+    return {
+      id: row.id,
+      userId: row.user_id,
+      name: row.name,
+      serverUrl: row.server_url,
+      serverType: row.server_type,
+      transportType: row.transport_type || 'http',
+      command: row.command,
+      env: row.env ? JSON.parse(row.env) : undefined,
+      authType: row.auth_type,
+      apiKey: row.api_key,
+      oauthProvider: row.oauth_provider,
+      oauthAccessToken: row.oauth_access_token,
+      oauthRefreshToken: row.oauth_refresh_token,
+      oauthTokenExpiresAt: row.oauth_token_expires_at,
+      oauthScopes: row.oauth_scopes,
+      defaultToolName: row.default_tool_name,
+      toolConfigCache: row.tool_config_cache,
+      llmProvider: row.llm_provider,
+      llmApiKey: row.llm_api_key,
+      llmModel: row.llm_model,
+      llmBaseUrl: row.llm_base_url,
+      timeout: row.timeout,
+      maxRetries: row.max_retries,
+      cacheTtl: row.cache_ttl,
+      enabled: row.enabled,
+      lastHealthCheck: row.last_health_check,
+      lastHealthCheckStatus: row.last_health_check_status,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at
+    };
   }
 
   /**

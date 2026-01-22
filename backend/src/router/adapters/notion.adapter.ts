@@ -1,5 +1,18 @@
 /**
  * Notion Adapter - Distribute items to Notion
+ *
+ * @deprecated Use MCPHttpAdapter with server_url="https://mcp.notion.com/mcp" instead.
+ * This adapter directly calls Notion API and is maintained for backward compatibility only.
+ * New integrations should use the MCP-based approach for better flexibility.
+ *
+ * Migration guide:
+ * 1. Create an MCP adapter config with server_type="notion"
+ * 2. Set server_url to "https://mcp.notion.com/mcp"
+ * 3. Configure OAuth authentication
+ * 4. Use default_tool_name="notion-create-pages"
+ *
+ * @see MCPHttpAdapter
+ * @since 0.1.0
  */
 
 import { BaseAdapter } from '../adapter.interface.js';
