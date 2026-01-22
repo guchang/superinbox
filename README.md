@@ -38,6 +38,29 @@ node start.js
 ./start.sh restart
 ```
 
+## MCP (Codex / Claude Code)
+
+本项目提供 stdio MCP Server，供 Codex 或 Claude Code 调用。使用方式：
+
+1) 先启动后端服务（确保 `http://127.0.0.1:3000` 可访问）
+2) 在你的 MCP 配置里新增如下服务（请替换为你的绝对路径和 API Key）：
+
+```json
+{
+  "mcpServers": {
+    "superinbox": {
+      "command": "/path/to/SuperInbox/backend/node_modules/.bin/tsx",
+      "args": ["/path/to/SuperInbox/backend/src/mcp/server.ts"],
+      "env": {
+        "SUPERINBOX_BASE_URL": "http://127.0.0.1:3000",
+        "SUPERINBOX_API_KEY": "sinbox_xxx"
+      }
+    }
+  }
+}
+```
+
+
 ## 文档
 
 - [快速开始指南](./QUICKSTART.md) - 5分钟快速上手
