@@ -59,8 +59,14 @@ Thumbs.db
 # Claude Code 配置
 .claude/
 
+# MCP 配置
+.mcp.json
+
 # Trae AI 配置
 .trae/
+
+# Web 测试文件
+web/tests/
 
 # 项目根目录文件（可选）
 package.json
