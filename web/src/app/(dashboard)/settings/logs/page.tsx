@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, Suspense } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { AlertCircle } from 'lucide-react'
 import Link from 'next/link'
@@ -13,7 +13,7 @@ import { LogExportDialog } from '@/components/logs/LogExportDialog'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 
-export default function GlobalLogsPage() {
+function GlobalLogsPageContent() {
   const { authState } = useAuth()
   const { filters, dateRange, updateFilter, resetFilters } = useLogFilters()
   const [exportDialogOpen, setExportDialogOpen] = useState(false)
@@ -140,5 +140,14 @@ export default function GlobalLogsPage() {
         logCount={total}
       />
     </div>
+  )
+}
+
+// Wrap in Suspense boundary for SSR
+export default function GlobalLogsPage() {
+  return (
+    <Suspense fallback={<div className="p-6">加载中...</div>}>
+      <GlobalLogsPageContent />
+    </Suspense>
   )
 }

@@ -40,7 +40,7 @@ export function LogFilters({ filters, apiKeys, onUpdate, onReset }: LogFiltersPr
         />
       )}
 
-      <FilterTags filters={filters} onRemove={onUpdate} />
+      <FilterTags filters={filters} onRemove={(key) => onUpdate(key, undefined)} />
     </div>
   )
 }

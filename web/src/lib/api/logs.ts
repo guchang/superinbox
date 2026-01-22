@@ -55,7 +55,8 @@ export async function getAccessLogs(filters: LogFilters): Promise<LogsResponse> 
     params.append('apiKeyId', filters.apiKeyId)
   }
 
-  return apiClient.get<LogsResponse>(`/auth/logs?${params.toString()}`)
+  const response = await apiClient.get<LogsResponse>(`/auth/logs?${params.toString()}`)
+  return response.data!  // Unwrap the data from ApiResponse
 }
 
 /**
@@ -85,7 +86,8 @@ export async function getApiKeyLogs(
     filters.methods.forEach(method => params.append('method', method))
   }
 
-  return apiClient.get<LogsResponse>(`/auth/api-keys/${keyId}/logs?${params.toString()}`)
+  const response = await apiClient.get<LogsResponse>(`/auth/api-keys/${keyId}/logs?${params.toString()}`)
+  return response.data!  // Unwrap the data from ApiResponse
 }
 
 /**
@@ -94,14 +96,16 @@ export async function getApiKeyLogs(
 export async function createExportTask(
   request: ExportRequest
 ): Promise<ExportResponse> {
-  return apiClient.post<ExportResponse>('/auth/logs/export', request)
+  const response = await apiClient.post<ExportResponse>('/auth/logs/export', request)
+  return response.data!
 }
 
 /**
  * Get export task status
  */
 export async function getExportStatus(exportId: string): Promise<{ data: ExportTask }> {
-  return apiClient.get<{ data: ExportTask }>(`/auth/logs/exports/${exportId}`)
+  const response = await apiClient.get<{ data: ExportTask }>(`/auth/logs/exports/${exportId}`)
+  return response.data!
 }
 
 /**

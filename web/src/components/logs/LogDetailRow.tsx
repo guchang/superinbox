@@ -33,7 +33,7 @@ export function LogDetailRow({ log }: LogDetailRowProps) {
             <code className="text-xs break-all">{log.fullUrl}</code>
           </Card>
 
-          {log.requestBody && (
+          {log.requestBody != null && (
             <Card className="p-3">
               <div className="text-xs text-muted-foreground mb-1">请求体</div>
               <pre className="text-xs overflow-auto max-h-32">
@@ -99,7 +99,7 @@ export function LogDetailRow({ log }: LogDetailRowProps) {
                     <span className="text-muted-foreground">错误消息:</span>{' '}
                     <span>{log.error.message}</span>
                   </div>
-                  {log.error.details && (
+                  {log.error.details != null && (
                     <details className="mt-2">
                       <summary className="cursor-pointer text-xs text-muted-foreground">
                         查看详细信息

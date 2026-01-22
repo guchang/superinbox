@@ -13,7 +13,7 @@ class ApiClient {
       headers: {
         'Content-Type': 'application/json',
       },
-      timeout: 30000,
+      timeout: 180000,
     })
 
     // 请求拦截器：添加 JWT Token
