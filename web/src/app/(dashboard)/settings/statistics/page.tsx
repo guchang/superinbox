@@ -158,11 +158,11 @@ export default function StatisticsPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stats.summary.successRate}%</div>
-              <p className="text-xs text-muted-foreground mt-1">
+              <div className="text-xs text-muted-foreground mt-1">
                 <Badge variant="outline" className="text-xs">
                   {stats.summary.successRate >= 99 ? '优秀' : stats.summary.successRate >= 95 ? '良好' : '需改进'}
                 </Badge>
-              </p>
+              </div>
             </CardContent>
           </Card>
 

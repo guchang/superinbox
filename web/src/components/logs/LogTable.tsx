@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, Fragment } from 'react'
 import { format } from 'date-fns'
 import { ChevronDown, ChevronUp } from 'lucide-react'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
@@ -102,8 +102,8 @@ export function LogTable({
         </TableHeader>
         <TableBody>
           {logs.map((log) => (
-            <>
-              <TableRow key={log.id} className="cursor-pointer hover:bg-muted/50">
+            <Fragment key={log.id}>
+              <TableRow className="cursor-pointer hover:bg-muted/50">
                 <TableCell>
                   <Checkbox
                     checked={selectedIds.has(log.id)}
@@ -160,7 +160,7 @@ export function LogTable({
                   </TableCell>
                 </TableRow>
               )}
-            </>
+            </Fragment>
           ))}
         </TableBody>
       </Table>

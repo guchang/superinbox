@@ -432,12 +432,12 @@ export class DatabaseManager {
   /**
    * Validate API key
    */
-  validateApiKey(keyValue: string): { valid: boolean; userId?: string; scopes?: string[]; apiKeyId?: string } {
+  validateApiKey(keyValue: string): { valid: boolean; userId?: string; scopes?: string[]; apiKeyId?: string; apiKeyName?: string } {
     // Hash the API key for comparison
     const hashedKey = crypto.createHash('sha256').update(keyValue).digest('hex');
 
     const stmt = this.db.prepare(`
-      SELECT id, user_id, scopes FROM api_keys
+      SELECT id, user_id, scopes, name FROM api_keys
       WHERE key_value = ? AND is_active = 1
     `);
 
@@ -457,7 +457,8 @@ export class DatabaseManager {
       valid: true,
       userId: row.user_id,
       scopes: JSON.parse(row.scopes),
-      apiKeyId: row.id
+      apiKeyId: row.id,
+      apiKeyName: row.name
     };
   }
 

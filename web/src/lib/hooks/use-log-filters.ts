@@ -39,27 +39,31 @@ export function useLogFilters() {
   // Calculate actual date range (for API calls)
   const dateRange = useMemo(() => {
     const now = new Date()
+    const today = new Date(now)  // Create a copy to avoid mutation
     let startDate: Date
-    let endDate: Date = now
+    let endDate: Date
 
     switch (filters.timeRange) {
       case 'today':
-        startDate = new Date(now.setHours(0, 0, 0, 0))
+        // Start of today (00:00:00) to end of today (23:59:59)
+        startDate = new Date(today.setHours(0, 0, 0, 0))
+        endDate = new Date(now)  // Current time
         break
       case 'week':
-        startDate = new Date(now.setDate(now.getDate() - 7))
+        startDate = new Date(today.setDate(today.getDate() - 7))
+        endDate = new Date(now)
         break
       case 'month':
-        startDate = new Date(now.setDate(now.getDate() - 30))
+        startDate = new Date(today.setDate(today.getDate() - 30))
+        endDate = new Date(now)
         break
       case 'custom':
-        startDate = filters.startDate ? new Date(filters.startDate) : new Date(now.setDate(now.getDate() - 7))
-        if (filters.endDate) {
-          endDate = new Date(filters.endDate)
-        }
+        startDate = filters.startDate ? new Date(filters.startDate) : new Date(new Date(now).setDate(now.getDate() - 7))
+        endDate = filters.endDate ? new Date(filters.endDate) : new Date(now)
         break
       default:
-        startDate = new Date(now.setHours(0, 0, 0, 0))
+        startDate = new Date(new Date(today).setHours(0, 0, 0, 0))
+        endDate = new Date(now)
     }
 
     return {

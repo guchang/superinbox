@@ -55,8 +55,23 @@ export async function getAccessLogs(filters: LogFilters): Promise<LogsResponse> 
     params.append('apiKeyId', filters.apiKeyId)
   }
 
-  const response = await apiClient.get<LogsResponse>(`/auth/logs?${params.toString()}`)
-  return response.data!  // Unwrap the data from ApiResponse
+  // Backend returns: { total, page, limit, logs }
+  // apiClient.get() already returns response.data, so response IS the backend data
+  const backendResponse = await apiClient.get<{ total: number; page: number; limit: number; logs: AccessLog[] }>(
+    `/auth/logs?${params.toString()}`
+  )
+
+  if (!backendResponse) {
+    throw new Error('No data received from logs API')
+  }
+
+  // Transform backend response to match LogsResponse type: { data, total, page, limit }
+  return {
+    data: backendResponse.logs ?? [],
+    total: backendResponse.total ?? 0,
+    page: backendResponse.page ?? 1,
+    limit: backendResponse.limit ?? 20,
+  }
 }
 
 /**
@@ -86,8 +101,23 @@ export async function getApiKeyLogs(
     filters.methods.forEach(method => params.append('method', method))
   }
 
-  const response = await apiClient.get<LogsResponse>(`/auth/api-keys/${keyId}/logs?${params.toString()}`)
-  return response.data!  // Unwrap the data from ApiResponse
+  // Backend returns: { total, page, limit, logs }
+  // apiClient.get() already returns response.data, so response IS the backend data
+  const backendResponse = await apiClient.get<{ total: number; page: number; limit: number; logs: AccessLog[] }>(
+    `/auth/api-keys/${keyId}/logs?${params.toString()}`
+  )
+
+  if (!backendResponse) {
+    throw new Error('No data received from logs API')
+  }
+
+  // Transform backend response to match LogsResponse type
+  return {
+    data: backendResponse.logs ?? [],
+    total: backendResponse.total ?? 0,
+    page: backendResponse.page ?? 1,
+    limit: backendResponse.limit ?? 20,
+  }
 }
 
 /**
@@ -182,20 +212,15 @@ export async function getStatistics(query: StatisticsQuery): Promise<StatisticsR
   if (query.startDate) params.append('startDate', query.startDate)
   if (query.endDate) params.append('endDate', query.endDate)
 
-  const response = await apiClient.get<StatisticsResponse>(`/auth/logs/statistics?${params.toString()}`)
-  if (response && typeof response === 'object') {
-    if ('summary' in response) {
-      return response as unknown as StatisticsResponse
-    }
-    if ('data' in response && response.data) {
-      return response.data
-    }
-    if ('error' in response && response.error) {
-      throw new Error(response.error)
-    }
-    if ('message' in response && response.message) {
-      throw new Error(response.message)
-    }
+  // Backend returns StatisticsResponse directly
+  // apiClient.get() already returns response.data, so response IS the backend data
+  const statistics = await apiClient.get<StatisticsResponse>(
+    `/auth/logs/statistics?${params.toString()}`
+  )
+
+  if (!statistics) {
+    throw new Error('No data received from statistics API')
   }
-  throw new Error('No data received from statistics API')
+
+  return statistics
 }

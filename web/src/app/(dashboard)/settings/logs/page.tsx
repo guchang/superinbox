@@ -2,7 +2,7 @@
 
 import { useState, Suspense } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { AlertCircle } from 'lucide-react'
+import { AlertCircle, Download } from 'lucide-react'
 import Link from 'next/link'
 import { getAccessLogs } from '@/lib/api/logs'
 import { useLogFilters } from '@/lib/hooks/use-log-filters'
@@ -82,16 +82,10 @@ function GlobalLogsPageContent() {
         <div>
           <h1 className="text-3xl font-bold">访问日志审计</h1>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" asChild>
-            <Link href="/settings/statistics">
-              📊 查看统计
-            </Link>
-          </Button>
-          <Button onClick={() => setExportDialogOpen(true)}>
-            📥 导出日志
-          </Button>
-        </div>
+        <Button onClick={() => setExportDialogOpen(true)} size="default">
+          <Download className="mr-2 h-4 w-4" />
+          导出日志
+        </Button>
       </div>
 
       {/* Error display */}

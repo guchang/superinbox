@@ -17,6 +17,11 @@ declare global {
         role?: string;
         scopes: string[];
       };
+      apiKey?: {
+        id: string;
+        name: string;
+        userId: string;
+      };
     }
   }
 }
@@ -133,6 +138,13 @@ export const authenticateApiKey = (
       id: validation.userId ?? 'default-user',
       userId: validation.userId ?? 'default-user',
       scopes: validation.scopes ?? ['read', 'write']
+    };
+
+    // Attach API key info to request (for access logging)
+    req.apiKey = {
+      id: validation.apiKeyId ?? '',
+      name: validation.apiKeyName ?? 'Unknown',
+      userId: validation.userId ?? 'default-user'
     };
 
     next();
@@ -338,6 +350,12 @@ export const authenticate = (
         userId: validation.userId ?? 'default-user',
         scopes: validation.scopes ?? ['read', 'write']
       };
+      // Attach API key info to request (for access logging)
+      req.apiKey = {
+        id: validation.apiKeyId ?? '',
+        name: validation.apiKeyName ?? 'Unknown',
+        userId: validation.userId ?? 'default-user'
+      };
       next();
       return;
     }
@@ -400,6 +418,12 @@ export const optionalAuth = (
         id: validation.userId ?? 'default-user',
         userId: validation.userId ?? 'default-user',
         scopes: validation.scopes ?? ['read', 'write']
+      };
+      // Attach API key info to request (for access logging)
+      req.apiKey = {
+        id: validation.apiKeyId ?? '',
+        name: validation.apiKeyName ?? 'Unknown',
+        userId: validation.userId ?? 'default-user'
       };
     }
 
