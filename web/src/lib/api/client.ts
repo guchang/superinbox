@@ -39,10 +39,16 @@ class ApiClient {
       (error) => Promise.reject(error)
     )
 
-    // 响应拦截器：处理 401 错误
+    // 响应拦截器：处理错误
     this.client.interceptors.response.use(
       (response) => response,
-      (error: AxiosError) => {
+      (error: AxiosError<ApiResponse<unknown>>) => {
+        // 提取后端返回的错误信息
+        const errorMessage = error.response?.data?.error
+          || error.response?.data?.message
+          || error.message
+          || '请求失败'
+
         if (error.response?.status === 401) {
           // 未授权，清除认证数据并重定向到登录页
           if (typeof window !== 'undefined') {
@@ -55,7 +61,16 @@ class ApiClient {
             }
           }
         }
-        return Promise.reject(error)
+
+        // 创建包含后端错误信息的新错误对象
+        const enhancedError = new Error(errorMessage) as Error & {
+          status?: number
+          originalError?: AxiosError
+        }
+        enhancedError.status = error.response?.status
+        enhancedError.originalError = error
+
+        return Promise.reject(enhancedError)
       }
     )
   }

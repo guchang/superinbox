@@ -1,9 +1,24 @@
 import type { Metadata, Viewport } from 'next'
-import { Inter } from 'next/font/google'
+import { Inter, Outfit, DM_Sans } from 'next/font/google'
 import './globals.css'
 import { Providers } from '@/components/providers/providers'
 
-const inter = Inter({ subsets: ['latin'] })
+const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })
+
+// Login page fonts with display swap for better performance
+const outfit = Outfit({
+  subsets: ['latin'],
+  variable: '--font-outfit',
+  display: 'swap',
+  preload: true,
+})
+
+const dmSans = DM_Sans({
+  subsets: ['latin'],
+  variable: '--font-dm-sans',
+  display: 'swap',
+  preload: true,
+})
 
 export const metadata: Metadata = {
   title: 'SuperInbox - 智能收件箱管理后台',
@@ -31,7 +46,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="zh-CN">
-      <body className={inter.className}>
+      <body className={`${inter.variable} ${outfit.variable} ${dmSans.variable} font-sans`}>
         <Providers>{children}</Providers>
       </body>
     </html>

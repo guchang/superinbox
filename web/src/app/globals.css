@@ -85,6 +85,36 @@
     -webkit-overflow-scrolling: touch;
   }
 
+  /* Login page fonts */
+  .font-login-heading {
+    font-family: var(--font-outfit), sans-serif;
+  }
+  .font-login-body {
+    font-family: var(--font-dm-sans), sans-serif;
+  }
+
+  /* Login page animations */
+  @keyframes fadeInUp {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-fade-in-up {
+    animation: fadeInUp 0.6s ease-out forwards;
+    opacity: 0;
+  }
+
+  .delay-100 { animation-delay: 0.1s; }
+  .delay-200 { animation-delay: 0.2s; }
+  .delay-300 { animation-delay: 0.3s; }
+  .delay-400 { animation-delay: 0.4s; }
+
   /* Custom scrollbar styles */
   .scrollbar-thin {
     scrollbar-width: thin;
