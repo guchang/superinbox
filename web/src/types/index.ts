@@ -197,7 +197,7 @@ export interface RuleCondition {
 }
 
 export interface RuleAction {
-  type: 'notion' | 'obsidian' | 'webhook'
+  type: 'notion' | 'obsidian' | 'webhook' | 'mcp_http'
   config: Record<string, any>
 }
 
@@ -253,4 +253,87 @@ export interface AuthState {
   token: string | null
   isAuthenticated: boolean
   isLoading: boolean
+}
+
+// ========== MCP 连接器相关类型 ==========
+
+// MCP 连接器配置类型（与后端对齐）
+export interface MCPConnectorConfig {
+  id: string
+  userId: string
+  name: string
+  serverUrl: string
+  serverType: string
+  transportType: 'http' | 'stdio'
+  command?: string
+  env?: Record<string, string>
+  authType: 'api_key' | 'oauth' | 'none'
+  apiKey?: string
+  oauthProvider?: string
+  oauthAccessToken?: string
+  oauthRefreshToken?: string
+  oauthTokenExpiresAt?: string
+  oauthScopes?: string
+  defaultToolName?: string
+  toolConfigCache?: string
+  llmProvider?: string
+  llmApiKey?: string
+  llmModel?: string
+  llmBaseUrl?: string
+  timeout?: number
+  maxRetries?: number
+  cacheTtl?: number
+  enabled: number
+  lastHealthCheck?: string
+  lastHealthCheckStatus?: 'healthy' | 'unhealthy' | 'error'
+  createdAt: string
+  updatedAt: string
+}
+
+// 连接器列表响应（隐藏敏感信息）
+export interface MCPConnectorListItem {
+  id: string
+  userId: string
+  name: string
+  serverUrl: string
+  serverType: string
+  transportType: 'http' | 'stdio'
+  command?: string
+  authType: string
+  hasApiKey: boolean
+  hasOAuthToken: boolean
+  defaultToolName: string | null
+  enabled: boolean
+  lastHealthCheck: string | null
+  lastHealthCheckStatus: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+// 创建/更新 MCP 连接器请求
+export interface CreateMCPConnectorRequest {
+  name: string
+  serverUrl?: string
+  serverType?: string
+  transportType?: 'http' | 'stdio'
+  command?: string
+  env?: Record<string, string>
+  authType?: 'api_key' | 'oauth' | 'none'
+  apiKey?: string
+  oauthProvider?: string
+  oauthAccessToken?: string
+  defaultToolName?: string
+  enabled?: boolean
+  timeout?: number
+  maxRetries?: number
+  cacheTtl?: number
+}
+
+// 连接器测试响应
+export interface MCPConnectorTestResponse {
+  id: string
+  name: string
+  status: 'healthy' | 'unhealthy'
+  testedAt: string
+  message?: string
 }

@@ -31,4 +31,34 @@ export const routingApi = {
   async testRule(id: string, content: string): Promise<ApiResponse<any>> {
     return apiClient.post<any>(`/routing/rules/${id}/test`, { content })
   },
+
+  // 测试连接器配置
+  async testConnector(config: Record<string, unknown>): Promise<ApiResponse<any>> {
+    return apiClient.post<any>('/routing/connectors/test', { config })
+  },
+
+  // 测试分发内容到 MCP 连接器
+  async testDispatch(data: {
+    content: string
+    mcpAdapterId: string
+    pageId: string
+    instructions: string
+    toolName?: string
+  }): Promise<ApiResponse<{
+    pageId: string
+    status: 'success' | 'failed'
+    toolName?: string
+    toolSchema?: Record<string, unknown>
+    steps?: Array<{
+      step: number
+      toolName: string
+      toolArgs: Record<string, unknown>
+      toolResponse?: unknown
+      error?: string
+    }>
+    error?: string
+  }>> {
+    return apiClient.post('/routing/rules/test-dispatch', data)
+  },
+
 }
