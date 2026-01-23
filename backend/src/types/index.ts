@@ -167,6 +167,7 @@ export interface Item {
 export enum AdapterType {
   NOTION = 'notion',
   OBSIDIAN = 'obsidian',
+  TODOIST = 'todoist',
   WEBHOOK = 'webhook',
   TELEGRAM = 'telegram',
   EMAIL = 'email',
@@ -224,6 +225,9 @@ export interface ApiResponse<T = unknown> {
   success: boolean;
   data?: T;
   error?: ApiError;
+  code?: string;
+  message?: string;
+  params?: Record<string, unknown>;
   meta?: ResponseMeta;
 }
 
@@ -430,6 +434,9 @@ export interface MCPAdapterConfig {
   timeout?: number;
   maxRetries?: number;
   cacheTtl?: number;
+
+  // Logo configuration
+  logoColor?: string;  // Color for auto-generated logo (fallback when no official logo)
 
   // Status
   enabled?: number;

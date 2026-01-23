@@ -242,6 +242,17 @@ const migrations = [
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
       );
     `
+  },
+  {
+    version: '007',
+    name: 'add_logo_color_to_mcp_adapters',
+    up: `
+      -- Add logo color column for auto-generated colored initials
+      ALTER TABLE mcp_adapter_configs ADD COLUMN logo_color TEXT;
+
+      -- Create index for logo color
+      CREATE INDEX IF NOT EXISTS idx_mcp_configs_logo_color ON mcp_adapter_configs(logo_color);
+    `
   }
 ];
 
