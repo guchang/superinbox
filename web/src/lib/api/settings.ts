@@ -1,5 +1,5 @@
 import { apiClient } from './client'
-import type { ApiKey, Statistics, ApiResponse } from '@/types'
+import type { ApiKey, Statistics, ApiResponse, UserSettings } from '@/types'
 
 export const settingsApi = {
   // 获取统计信息
@@ -25,5 +25,15 @@ export const settingsApi = {
   // 获取访问日志
   async getLogs(params?: { limit?: number; offset?: number }): Promise<ApiResponse<any>> {
     return apiClient.get<any>('/settings/logs', params)
+  },
+
+  // 获取用户时区设置
+  async getTimezone(): Promise<ApiResponse<UserSettings>> {
+    return apiClient.get<UserSettings>('/settings/timezone')
+  },
+
+  // 更新用户时区设置
+  async updateTimezone(timezone: string): Promise<ApiResponse<UserSettings>> {
+    return apiClient.put<UserSettings>('/settings/timezone', { timezone })
   },
 }

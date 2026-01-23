@@ -54,6 +54,14 @@ export class DatabaseManager {
         last_login_at TEXT
       );
 
+      CREATE TABLE IF NOT EXISTS user_settings (
+        user_id TEXT PRIMARY KEY,
+        timezone TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      );
+
       CREATE TABLE IF NOT EXISTS refresh_tokens (
         id TEXT PRIMARY KEY,
         user_id TEXT NOT NULL,
@@ -599,6 +607,40 @@ export class DatabaseManager {
     const now = new Date().toISOString();
     const stmt = this.db.prepare('UPDATE users SET last_login_at = ? WHERE id = ?');
     stmt.run(now, userId);
+  }
+
+  /**
+   * Get user timezone setting
+   */
+  getUserTimezone(userId: string): string | null {
+    const stmt = this.db.prepare('SELECT timezone FROM user_settings WHERE user_id = ?');
+    const row = stmt.get(userId) as any;
+    return row?.timezone ?? null;
+  }
+
+  /**
+   * Update or create user timezone setting
+   */
+  setUserTimezone(userId: string, timezone: string | null): { timezone: string | null; updatedAt: string } {
+    const now = new Date().toISOString();
+    const existing = this.db.prepare('SELECT user_id FROM user_settings WHERE user_id = ?').get(userId);
+
+    if (existing) {
+      const updateStmt = this.db.prepare(`
+        UPDATE user_settings
+        SET timezone = ?, updated_at = ?
+        WHERE user_id = ?
+      `);
+      updateStmt.run(timezone, now, userId);
+    } else {
+      const insertStmt = this.db.prepare(`
+        INSERT INTO user_settings (user_id, timezone, created_at, updated_at)
+        VALUES (?, ?, ?, ?)
+      `);
+      insertStmt.run(userId, timezone, now, now);
+    }
+
+    return { timezone, updatedAt: now };
   }
 
   // ========== Refresh Token Methods ==========

@@ -8,16 +8,31 @@ import { Badge } from '@/components/ui/badge'
 import { useState, useEffect } from 'react'
 import { useToast } from '@/hooks/use-toast'
 import { Check, AlertCircle } from 'lucide-react'
+import { settingsApi } from '@/lib/api/settings'
 
 export default function SettingsPage() {
   const [apiKey, setApiKey] = useState('')
   const [currentKey, setCurrentKey] = useState('')
+  const [timezoneInput, setTimezoneInput] = useState('')
+  const [currentTimezone, setCurrentTimezone] = useState<string | null>(null)
+  const [timezoneLoading, setTimezoneLoading] = useState(false)
   const { toast } = useToast()
 
   useEffect(() => {
     // 加载当前保存的 API Key
     const savedKey = localStorage.getItem('superinbox_api_key') || ''
     setCurrentKey(savedKey)
+
+    // 加载用户时区设置
+    settingsApi.getTimezone()
+      .then((response) => {
+        const timezone = response.data?.timezone ?? null
+        setCurrentTimezone(timezone)
+        setTimezoneInput(timezone ?? '')
+      })
+      .catch(() => {
+        // Ignore when unauthenticated or endpoint is unavailable
+      })
   }, [])
 
   const handleSaveApiKey = () => {
@@ -56,6 +71,42 @@ export default function SettingsPage() {
       title: 'API Key 已清除',
       description: '系统将自动使用默认开发密钥',
     })
+  }
+
+  const handleSaveTimezone = async () => {
+    const trimmed = timezoneInput.trim()
+    if (!trimmed) {
+      toast({
+        title: '时区不能为空',
+        description: '请输入有效的 IANA 时区，如 Asia/Shanghai',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    setTimezoneLoading(true)
+    try {
+      const response = await settingsApi.updateTimezone(trimmed)
+      const timezone = response.data?.timezone ?? trimmed
+      setCurrentTimezone(timezone)
+      toast({
+        title: '时区已保存',
+        description: `已更新为 ${timezone}`,
+      })
+    } catch (error) {
+      toast({
+        title: '时区保存失败',
+        description: error instanceof Error ? error.message : '请稍后重试',
+        variant: 'destructive',
+      })
+    } finally {
+      setTimezoneLoading(false)
+    }
+  }
+
+  const handleUseBrowserTimezone = () => {
+    const detected = Intl.DateTimeFormat().resolvedOptions().timeZone
+    setTimezoneInput(detected)
   }
 
   return (
@@ -186,6 +237,72 @@ export default function SettingsPage() {
               </div>
             </a>
           </Button>
+        </CardContent>
+      </Card>
+
+      {/* Timezone Configuration */}
+      <Card>
+        <CardHeader>
+          <CardTitle>时区设置</CardTitle>
+          <CardDescription>
+            设置用户所在地区，用于返回当地时间
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="space-y-2">
+            <Label>当前时区</Label>
+            <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
+              {currentTimezone ? (
+                <>
+                  <Check className="h-5 w-5 text-green-500" />
+                  <div className="flex-1">
+                    <span className="text-sm font-medium">已设置</span>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {currentTimezone}
+                    </p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <AlertCircle className="h-5 w-5 text-yellow-500" />
+                  <div className="flex-1">
+                    <span className="text-sm font-medium">未设置</span>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      将使用 UTC 时间
+                    </p>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="timezone">设置时区</Label>
+            <div className="flex gap-2">
+              <Input
+                id="timezone"
+                placeholder="Asia/Shanghai"
+                value={timezoneInput}
+                onChange={(e) => setTimezoneInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleSaveTimezone()
+                }}
+                className="flex-1"
+              />
+              <Button onClick={handleSaveTimezone} disabled={timezoneLoading}>
+                保存
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              使用 IANA 时区格式，如 Asia/Shanghai、America/Los_Angeles
+            </p>
+          </div>
+
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={handleUseBrowserTimezone}>
+              使用当前浏览器时区
+            </Button>
+          </div>
         </CardContent>
       </Card>
     </div>

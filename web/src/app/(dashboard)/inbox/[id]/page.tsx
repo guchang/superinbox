@@ -323,11 +323,11 @@ export default function InboxDetailPage() {
           </div>
           <div className="text-sm">
             <span className="text-muted-foreground">创建时间</span>
-            <p className="font-medium">{formatRelativeTime(item.createdAt)}</p>
+            <p className="font-medium">{formatRelativeTime(item.createdAtLocal ?? item.createdAt)}</p>
           </div>
           <div className="text-sm">
             <span className="text-muted-foreground">更新时间</span>
-            <p className="font-medium">{formatRelativeTime(item.updatedAt)}</p>
+            <p className="font-medium">{formatRelativeTime(item.updatedAtLocal ?? item.updatedAt)}</p>
           </div>
           {item.processedAt && (
             <div className="text-sm">

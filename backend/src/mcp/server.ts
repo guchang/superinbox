@@ -26,6 +26,36 @@ const toolOk = (payload: unknown) => ({
   content: [{ type: 'text' as const, text: JSON.stringify(payload, null, 2) }]
 });
 
+const applyLocalTimestamps = (payload: unknown): unknown => {
+  if (!payload || typeof payload !== 'object') {
+    return payload;
+  }
+
+  if (Array.isArray(payload)) {
+    return payload.map(item => applyLocalTimestamps(item));
+  }
+
+  const data = payload as Record<string, unknown>;
+  const next: Record<string, unknown> = { ...data };
+
+  if (Array.isArray(next.entries)) {
+    next.entries = (next.entries as unknown[]).map(entry => applyLocalTimestamps(entry));
+  }
+
+  if (typeof next.createdAtLocal === 'string') {
+    next.createdAt = next.createdAtLocal;
+  }
+
+  if (typeof next.updatedAtLocal === 'string') {
+    next.updatedAt = next.updatedAtLocal;
+  }
+
+  delete next.createdAtLocal;
+  delete next.updatedAtLocal;
+
+  return next;
+};
+
 const request = async <T>(
   method: 'GET' | 'POST',
   url: string,
@@ -106,7 +136,7 @@ mcpServer.registerTool(
     if (!result.ok) {
       return toolError(result.message);
     }
-    return toolOk(result.data);
+    return toolOk(applyLocalTimestamps(result.data));
   }
 );
 
@@ -121,7 +151,7 @@ mcpServer.registerTool(
     if (!result.ok) {
       return toolError(result.message);
     }
-    return toolOk(result.data);
+    return toolOk(applyLocalTimestamps(result.data));
   }
 );
 
@@ -136,7 +166,7 @@ mcpServer.registerTool(
     if (!result.ok) {
       return toolError(result.message);
     }
-    return toolOk(result.data);
+    return toolOk(applyLocalTimestamps(result.data));
   }
 );
 
@@ -151,7 +181,7 @@ mcpServer.registerTool(
     if (!result.ok) {
       return toolError(result.message);
     }
-    return toolOk(result.data);
+    return toolOk(applyLocalTimestamps(result.data));
   }
 );
 
@@ -166,7 +196,7 @@ mcpServer.registerTool(
     if (!result.ok) {
       return toolError(result.message);
     }
-    return toolOk(result.data);
+    return toolOk(applyLocalTimestamps(result.data));
   }
 );
 
@@ -181,7 +211,7 @@ mcpServer.registerTool(
     if (!result.ok) {
       return toolError(result.message);
     }
-    return toolOk(result.data);
+    return toolOk(applyLocalTimestamps(result.data));
   }
 );
 
@@ -196,7 +226,7 @@ mcpServer.registerTool(
     if (!result.ok) {
       return toolError(result.message);
     }
-    return toolOk(result.data);
+    return toolOk(applyLocalTimestamps(result.data));
   }
 );
 
@@ -211,7 +241,7 @@ mcpServer.registerTool(
     if (!result.ok) {
       return toolError(result.message);
     }
-    return toolOk(result.data);
+    return toolOk(applyLocalTimestamps(result.data));
   }
 );
 

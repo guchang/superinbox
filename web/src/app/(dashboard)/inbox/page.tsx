@@ -267,7 +267,7 @@ export default function InboxPage() {
                   </div>
                   <div className="flex items-center gap-1 text-xs font-mono text-muted-foreground">
                     <Clock className="h-3 w-3" />
-                    <span>{formatRelativeTime(item.createdAt)} · {item.source.toUpperCase()}</span>
+                    <span>{formatRelativeTime(item.createdAtLocal ?? item.createdAt)} · {item.source.toUpperCase()}</span>
                   </div>
                 </div>
 

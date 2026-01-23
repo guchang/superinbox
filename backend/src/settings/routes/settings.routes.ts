@@ -4,10 +4,15 @@
 
 import { Router } from 'express';
 import type { Request, Response } from 'express';
+import { z } from 'zod';
 import { authenticate } from '../../middleware/auth.js';
 import { getDatabase } from '../../storage/database.js';
+import { isValidTimeZone } from '../../utils/timezone.js';
 
 const router = Router();
+const timezoneSchema = z.object({
+  timezone: z.string().min(1)
+});
 
 // Statistics endpoint
 router.get('/statistics', authenticate, (req: Request, res: Response): void => {
@@ -112,6 +117,67 @@ router.get('/statistics', authenticate, (req: Request, res: Response): void => {
     res.status(500).json({
       success: false,
       error: 'Failed to fetch statistics'
+    });
+  }
+});
+
+// User timezone settings
+router.get('/timezone', authenticate, (req: Request, res: Response): void => {
+  try {
+    const userId = req.user?.id ?? 'default-user';
+    const db = getDatabase();
+    const timezone = db.getUserTimezone(userId);
+
+    res.json({
+      success: true,
+      data: {
+        timezone
+      }
+    });
+  } catch (error) {
+    console.error('Timezone fetch error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch timezone'
+    });
+  }
+});
+
+router.put('/timezone', authenticate, (req: Request, res: Response): void => {
+  try {
+    const userId = req.user?.id ?? 'default-user';
+    const body = timezoneSchema.parse(req.body);
+
+    if (!isValidTimeZone(body.timezone)) {
+      res.status(400).json({
+        success: false,
+        error: 'Invalid time zone'
+      });
+      return;
+    }
+
+    const db = getDatabase();
+    const result = db.setUserTimezone(userId, body.timezone);
+
+    res.json({
+      success: true,
+      data: {
+        timezone: result.timezone,
+        updatedAt: result.updatedAt
+      }
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      res.status(400).json({
+        success: false,
+        error: 'Invalid request body'
+      });
+      return;
+    }
+    console.error('Timezone update error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update timezone'
     });
   }
 });

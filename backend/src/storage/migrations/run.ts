@@ -229,6 +229,19 @@ const migrations = [
       -- Create index for transport type
       CREATE INDEX IF NOT EXISTS idx_mcp_configs_transport_type ON mcp_adapter_configs(transport_type);
     `
+  },
+  {
+    version: '006',
+    name: 'add_user_settings',
+    up: `
+      CREATE TABLE IF NOT EXISTS user_settings (
+        user_id TEXT PRIMARY KEY,
+        timezone TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      );
+    `
   }
 ];
 

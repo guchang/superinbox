@@ -10,6 +10,7 @@ import path from 'path';
 import { getDatabase } from '../../storage/database.js';
 import { getAIService } from '../../ai/service.js';
 import { getRouterService } from '../../router/router.service.js';
+import { formatDateInTimeZone } from '../../utils/timezone.js';
 import type {
   CreateItemRequest,
   CreateItemResponse,
@@ -126,6 +127,7 @@ export class InboxController {
     try {
       const { id } = req.params;
       const userId = req.user?.id ?? 'default-user';
+      const timezone = this.db.getUserTimezone(userId);
 
       const item = this.db.getItemById(id);
 
@@ -158,6 +160,9 @@ export class InboxController {
       const isInboxRoute = req.originalUrl?.includes('/inbox/') || req.url?.includes('/inbox/');
 
       if (isInboxRoute) {
+        const createdAtLocal = timezone ? formatDateInTimeZone(item.createdAt, timezone) : null;
+        const updatedAtLocal = timezone ? formatDateInTimeZone(item.updatedAt, timezone) : null;
+
         // New API format (GET /v1/inbox/:id)
         res.json({
           id: item.id,
@@ -174,13 +179,22 @@ export class InboxController {
             timestamp: result.timestamp || new Date().toISOString()
           })),
           createdAt: item.createdAt.toISOString(),
-          updatedAt: item.updatedAt.toISOString()
+          updatedAt: item.updatedAt.toISOString(),
+          createdAtLocal,
+          updatedAtLocal
         });
       } else {
+        const createdAtLocal = timezone ? formatDateInTimeZone(item.createdAt, timezone) : null;
+        const updatedAtLocal = timezone ? formatDateInTimeZone(item.updatedAt, timezone) : null;
+
         // Legacy API format (GET /v1/items/:id)
         res.json({
           success: true,
-          data: item
+          data: {
+            ...item,
+            createdAtLocal,
+            updatedAtLocal
+          }
         });
       }
     } catch (error) {
@@ -195,6 +209,7 @@ export class InboxController {
   getItems = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const userId = req.user?.id ?? 'default-user';
+      const timezone = this.db.getUserTimezone(userId);
 
       // Parse pagination parameters
       // Support both 'page' format (new API) and 'offset' format (legacy API)
@@ -249,14 +264,21 @@ export class InboxController {
             entities: item.entities,
             status: item.status,
             createdAt: item.createdAt.toISOString(),
+            createdAtLocal: timezone ? formatDateInTimeZone(item.createdAt, timezone) : null,
             routedTo: item.distributedTargets
           }))
         });
       } else {
         // Legacy API format (GET /v1/items)
+        const data = items.map(item => ({
+          ...item,
+          createdAtLocal: timezone ? formatDateInTimeZone(item.createdAt, timezone) : null,
+          updatedAtLocal: timezone ? formatDateInTimeZone(item.updatedAt, timezone) : null
+        }));
+
         res.json({
           success: true,
-          data: items,
+          data,
           meta: {
             total,
             hasMore: offset + items.length < total
@@ -579,6 +601,7 @@ export class InboxController {
       // Validate query parameters
       const query = searchSchema.parse(req.query);
       const userId = req.user?.id ?? 'default-user';
+      const timezone = this.db.getUserTimezone(userId);
 
       // Build filter
       const filter: QueryFilter = {
@@ -604,7 +627,8 @@ export class InboxController {
           category: item.category,
           entities: item.entities,
           status: item.status,
-          createdAt: item.createdAt.toISOString()
+          createdAt: item.createdAt.toISOString(),
+          createdAtLocal: timezone ? formatDateInTimeZone(item.createdAt, timezone) : null
         }))
       });
     } catch (error) {

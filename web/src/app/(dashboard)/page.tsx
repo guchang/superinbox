@@ -273,7 +273,7 @@ export default function DashboardPage() {
                       </div>
                       <p className="text-sm line-clamp-2">{item.content}</p>
                       <p className="text-xs text-muted-foreground mt-1">
-                        {formatRelativeTime(item.createdAt)}
+                        {formatRelativeTime(item.createdAtLocal ?? item.createdAt)}
                       </p>
                     </div>
                   </div>

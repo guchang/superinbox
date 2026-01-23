@@ -19,6 +19,8 @@ interface BackendItem {
   distributionResults: any[]
   createdAt: string
   updatedAt: string
+  createdAtLocal?: string | null
+  updatedAtLocal?: string | null
   processedAt?: string
 }
 
@@ -63,6 +65,8 @@ export function adaptBackendItem(backendItem: BackendItem): Item {
     distributionResults: backendItem.distributionResults,
     createdAt: backendItem.createdAt,
     updatedAt: backendItem.updatedAt,
+    createdAtLocal: backendItem.createdAtLocal ?? null,
+    updatedAtLocal: backendItem.updatedAtLocal ?? null,
     processedAt: backendItem.processedAt,
     // File related fields
     hasFile,

@@ -74,6 +74,8 @@ export interface Item {
   distributionResults?: Record<string, any>
   createdAt: string
   updatedAt: string
+  createdAtLocal?: string | null
+  updatedAtLocal?: string | null
   processedAt?: string
   // File related fields
   hasFile?: boolean
@@ -212,6 +214,11 @@ export interface Statistics {
   weekItems: number
   monthItems: number
   aiSuccessRate: number
+}
+
+export interface UserSettings {
+  timezone: string | null
+  updatedAt?: string
 }
 
 // ========== 认证相关类型 ==========
