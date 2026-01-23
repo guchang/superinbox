@@ -838,8 +838,8 @@
     }
   },
   "mcpAdapters": {
-    "title": "MCP Connectors",
-    "subtitle": "Manage Model Context Protocol connector configurations",
+    "title": "MCP Connectors Management",
+    "subtitle": "",
     "actions": {
       "add": "Add connector",
       "test": "Test connection",
@@ -859,7 +859,8 @@
       "enabled": "Enabled",
       "disabled": "Disabled",
       "healthy": "Healthy",
-      "unhealthy": "Unhealthy"
+      "unhealthy": "Unhealthy",
+      "pending": "Not tested"
     },
     "transport": {
       "stdio": "📡 Stdio",
@@ -986,6 +987,36 @@
       "apiKey": {
         "title": "Enter API key",
         "description": "API key is required (passed as env var to MCP server)"
+      }
+    },
+    "tools": {
+      "title": "Available tools ({count})",
+      "noTools": "No tools information",
+      "unavailable": "Connector is unhealthy, cannot fetch tools list",
+      "notTested": "Please test the connection first to view tools"
+    },
+    "config": {
+      "title": "Configuration",
+      "type": "Type",
+      "transport": "Transport",
+      "command": "Command"
+    },
+    "jsonConfig": {
+      "label": "MCP Configuration JSON",
+      "description": "Paste Claude Desktop MCP configuration JSON to quickly add a connector",
+      "help": {
+        "title": "Configuration Guide",
+        "tip1": "Paste Claude Desktop MCP configuration directly",
+        "tip2": "Supports mcpServers or direct serverName format",
+        "tip3": "command and args are automatically merged into full command",
+        "tip4": "API Token in env is automatically extracted"
+      },
+      "errors": {
+        "required": "Please enter JSON configuration",
+        "invalidJson": "Invalid JSON format",
+        "invalidFormat": "Invalid MCP configuration format",
+        "noServer": "No server configuration found",
+        "noCommand": "Configuration must include command field"
       }
     }
   },

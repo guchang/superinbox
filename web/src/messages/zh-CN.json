@@ -838,8 +838,8 @@
     }
   },
   "mcpAdapters": {
-    "title": "MCP 连接器",
-    "subtitle": "管理 Model Context Protocol 连接器配置",
+    "title": "MCP连接器管理",
+    "subtitle": "",
     "actions": {
       "add": "添加连接器",
       "test": "测试连接",
@@ -984,6 +984,24 @@
       "transport": "传输方式",
       "command": "执行命令"
     },
+    "jsonConfig": {
+      "label": "MCP 配置 JSON",
+      "description": "粘贴 Claude Desktop 的 MCP 配置 JSON 即可快速添加连接器",
+      "help": {
+        "title": "配置说明",
+        "tip1": "直接粘贴 Claude Desktop 的 MCP 配置",
+        "tip2": "支持 mcpServers 或直接 serverName 格式",
+        "tip3": "command 和 args 会自动合并为完整命令",
+        "tip4": "env 中的 API Token 会自动提取"
+      },
+      "errors": {
+        "required": "请输入 JSON 配置",
+        "invalidJson": "JSON 格式错误",
+        "invalidFormat": "无效的 MCP 配置格式",
+        "noServer": "未找到服务器配置",
+        "noCommand": "配置中必须包含 command 字段"
+      }
+    },
     "status": {
       "enabled": "已启用",
       "disabled": "已停用",
@@ -1004,6 +1022,12 @@
         "title": "请输入 API Key",
         "description": "API Key 不能为空（将作为环境变量传递给 MCP 服务器）"
       }
+    },
+    "tools": {
+      "title": "可用工具 ({count})",
+      "noTools": "暂无可用工具",
+      "unavailable": "连接器状态异常，无法获取工具列表",
+      "notTested": "请先测试连接后再查看工具列表"
     }
   },
   "errors": {
