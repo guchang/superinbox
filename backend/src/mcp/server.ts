@@ -67,17 +67,54 @@ const mcpServer = new McpServer({
 });
 
 const itemTypeSchema = z.enum(['text', 'image', 'url', 'audio', 'file', 'mixed']);
+const createItemSchema = z.object({
+  content: z.string().min(1),
+  type: itemTypeSchema.optional(),
+  source: z.string().max(100).optional(),
+  metadata: z.record(z.unknown()).optional()
+});
+const listItemsSchema = z.object({
+  page: z.number().int().positive().optional(),
+  limit: z.number().int().positive().max(100).optional(),
+  status: z.string().optional(),
+  category: z.string().optional(),
+  source: z.string().optional(),
+  query: z.string().optional(),
+  since: z.string().optional(),
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
+  sortBy: z.string().optional(),
+  sortOrder: z.string().optional()
+});
+const searchItemsSchema = z.object({
+  q: z.string().min(1),
+  category: z.string().optional(),
+  limit: z.number().int().positive().max(100).optional()
+});
+const getItemSchema = z.object({
+  id: z.string().min(1)
+});
 
 mcpServer.registerTool(
   'inbox.create',
   {
     description: 'Create a new inbox item (text/url content only).',
-    inputSchema: z.object({
-      content: z.string().min(1),
-      type: itemTypeSchema.optional(),
-      source: z.string().max(100).optional(),
-      metadata: z.record(z.unknown()).optional()
-    })
+    inputSchema: createItemSchema
+  },
+  async (args) => {
+    const result = await request('POST', '/v1/inbox', { data: args });
+    if (!result.ok) {
+      return toolError(result.message);
+    }
+    return toolOk(result.data);
+  }
+);
+
+mcpServer.registerTool(
+  'inbox_create',
+  {
+    description: 'Create a new inbox item (text/url content only).',
+    inputSchema: createItemSchema
   },
   async (args) => {
     const result = await request('POST', '/v1/inbox', { data: args });
@@ -92,22 +129,25 @@ mcpServer.registerTool(
   'inbox.list',
   {
     description: 'List inbox items with optional filtering and pagination.',
-    inputSchema: z.object({
-      page: z.number().int().positive().optional(),
-      limit: z.number().int().positive().max(100).optional(),
-      status: z.string().optional(),
-      category: z.string().optional(),
-      source: z.string().optional(),
-      query: z.string().optional(),
-      since: z.string().optional(),
-      startDate: z.string().optional(),
-      endDate: z.string().optional(),
-      sortBy: z.string().optional(),
-      sortOrder: z.string().optional()
-    }).optional()
+    inputSchema: listItemsSchema
   },
   async (args) => {
-    const result = await request('GET', '/v1/inbox', { params: args || {} });
+    const result = await request('GET', '/v1/inbox', { params: args });
+    if (!result.ok) {
+      return toolError(result.message);
+    }
+    return toolOk(result.data);
+  }
+);
+
+mcpServer.registerTool(
+  'inbox_list',
+  {
+    description: 'List inbox items with optional filtering and pagination.',
+    inputSchema: listItemsSchema
+  },
+  async (args) => {
+    const result = await request('GET', '/v1/inbox', { params: args });
     if (!result.ok) {
       return toolError(result.message);
     }
@@ -119,11 +159,22 @@ mcpServer.registerTool(
   'inbox.search',
   {
     description: 'Search inbox items by keyword.',
-    inputSchema: z.object({
-      q: z.string().min(1),
-      category: z.string().optional(),
-      limit: z.number().int().positive().max(100).optional()
-    })
+    inputSchema: searchItemsSchema
+  },
+  async (args) => {
+    const result = await request('GET', '/v1/inbox/search', { params: args });
+    if (!result.ok) {
+      return toolError(result.message);
+    }
+    return toolOk(result.data);
+  }
+);
+
+mcpServer.registerTool(
+  'inbox_search',
+  {
+    description: 'Search inbox items by keyword.',
+    inputSchema: searchItemsSchema
   },
   async (args) => {
     const result = await request('GET', '/v1/inbox/search', { params: args });
@@ -138,9 +189,22 @@ mcpServer.registerTool(
   'inbox.get',
   {
     description: 'Get an inbox item by id.',
-    inputSchema: z.object({
-      id: z.string().min(1)
-    })
+    inputSchema: getItemSchema
+  },
+  async ({ id }) => {
+    const result = await request('GET', `/v1/inbox/${id}`);
+    if (!result.ok) {
+      return toolError(result.message);
+    }
+    return toolOk(result.data);
+  }
+);
+
+mcpServer.registerTool(
+  'inbox_get',
+  {
+    description: 'Get an inbox item by id.',
+    inputSchema: getItemSchema
   },
   async ({ id }) => {
     const result = await request('GET', `/v1/inbox/${id}`);
