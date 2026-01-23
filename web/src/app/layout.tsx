@@ -1,7 +1,7 @@
-import type { Metadata, Viewport } from 'next'
+import type { Viewport } from 'next'
 import { Inter, Outfit, DM_Sans } from 'next/font/google'
+import { getLocale } from 'next-intl/server'
 import './globals.css'
-import { Providers } from '@/components/providers/providers'
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })
 
@@ -20,14 +20,6 @@ const dmSans = DM_Sans({
   preload: true,
 })
 
-export const metadata: Metadata = {
-  title: 'SuperInbox - 智能收件箱管理后台',
-  description: '统一管理你的数字信息收件箱',
-  icons: {
-    icon: '/favicon.svg',
-  },
-}
-
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
@@ -39,15 +31,17 @@ export const viewport: Viewport = {
   ],
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
+  const locale = await getLocale()
+
   return (
-    <html lang="zh-CN">
+    <html lang={locale}>
       <body className={`${inter.variable} ${outfit.variable} ${dmSans.variable} font-sans`}>
-        <Providers>{children}</Providers>
+        {children}
       </body>
     </html>
   )

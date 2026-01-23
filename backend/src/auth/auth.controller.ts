@@ -10,6 +10,8 @@ import {
   logout,
   getMe,
 } from './auth.service.js';
+import { ApiError } from '../middleware/error-handler.js';
+import { sendError } from '../utils/error-response.js';
 
 /**
  * Register controller
@@ -20,25 +22,31 @@ export const registerController = async (req: Request, res: Response): Promise<v
 
     // Validate input
     if (!username || !email || !password) {
-      res.status(400).json({
-        success: false,
-        error: '用户名、邮箱和密码不能为空',
+      sendError(res, {
+        statusCode: 400,
+        code: 'AUTH.INVALID_INPUT',
+        message: 'Username, email, and password are required',
+        params: { fields: 'username,email,password' }
       });
       return;
     }
 
     if (username.length < 3 || username.length > 20) {
-      res.status(400).json({
-        success: false,
-        error: '用户名长度必须在3-20位之间',
+      sendError(res, {
+        statusCode: 400,
+        code: 'AUTH.INVALID_INPUT',
+        message: 'Username length must be between 3 and 20 characters',
+        params: { field: 'username' }
       });
       return;
     }
 
     if (password.length < 6) {
-      res.status(400).json({
-        success: false,
-        error: '密码至少6位',
+      sendError(res, {
+        statusCode: 400,
+        code: 'AUTH.INVALID_INPUT',
+        message: 'Password must be at least 6 characters',
+        params: { field: 'password' }
       });
       return;
     }
@@ -79,9 +87,20 @@ export const registerController = async (req: Request, res: Response): Promise<v
     });
   } catch (error) {
     console.error('Register error:', error);
-    res.status(400).json({
-      success: false,
-      error: error instanceof Error ? error.message : '注册失败',
+    if (error instanceof ApiError) {
+      sendError(res, {
+        statusCode: error.statusCode,
+        code: error.code,
+        message: error.message,
+        params: error.params,
+        details: error.details
+      });
+      return;
+    }
+    sendError(res, {
+      statusCode: 400,
+      code: 'AUTH.REGISTER_FAILED',
+      message: error instanceof Error ? error.message : 'Register failed'
     });
   }
 };
@@ -95,9 +114,11 @@ export const loginController = async (req: Request, res: Response): Promise<void
 
     // Validate input
     if (!username || !password) {
-      res.status(400).json({
-        success: false,
-        error: '用户名和密码不能为空',
+      sendError(res, {
+        statusCode: 400,
+        code: 'AUTH.INVALID_INPUT',
+        message: 'Username and password are required',
+        params: { fields: 'username,password' }
       });
       return;
     }
@@ -138,9 +159,20 @@ export const loginController = async (req: Request, res: Response): Promise<void
     });
   } catch (error) {
     console.error('Login error:', error);
-    res.status(401).json({
-      success: false,
-      error: error instanceof Error ? error.message : '登录失败',
+    if (error instanceof ApiError) {
+      sendError(res, {
+        statusCode: error.statusCode,
+        code: error.code,
+        message: error.message,
+        params: error.params,
+        details: error.details
+      });
+      return;
+    }
+    sendError(res, {
+      statusCode: 401,
+      code: 'AUTH.LOGIN_FAILED',
+      message: error instanceof Error ? error.message : 'Login failed'
     });
   }
 };
@@ -153,9 +185,10 @@ export const refreshTokenController = async (req: Request, res: Response): Promi
     const { refreshToken } = req.body;
 
     if (!refreshToken) {
-      res.status(400).json({
-        success: false,
-        error: '刷新令牌不能为空',
+      sendError(res, {
+        statusCode: 400,
+        code: 'AUTH.MISSING_REFRESH_TOKEN',
+        message: 'Refresh token is required'
       });
       return;
     }
@@ -193,9 +226,20 @@ export const refreshTokenController = async (req: Request, res: Response): Promi
     });
   } catch (error) {
     console.error('Refresh token error:', error);
-    res.status(401).json({
-      success: false,
-      error: error instanceof Error ? error.message : '刷新令牌失败',
+    if (error instanceof ApiError) {
+      sendError(res, {
+        statusCode: error.statusCode,
+        code: error.code,
+        message: error.message,
+        params: error.params,
+        details: error.details
+      });
+      return;
+    }
+    sendError(res, {
+      statusCode: 401,
+      code: 'AUTH.REFRESH_FAILED',
+      message: error instanceof Error ? error.message : 'Refresh token failed'
     });
   }
 };
@@ -243,9 +287,10 @@ export const getMeController = async (req: Request, res: Response): Promise<void
     const user = (req as any).user;
 
     if (!user || !user.userId) {
-      res.status(401).json({
-        success: false,
-        error: '未授权',
+      sendError(res, {
+        statusCode: 401,
+        code: 'AUTH.UNAUTHORIZED',
+        message: 'Unauthorized'
       });
       return;
     }
@@ -253,9 +298,11 @@ export const getMeController = async (req: Request, res: Response): Promise<void
     const userData = await getMe(user.userId);
 
     if (!userData) {
-      res.status(404).json({
-        success: false,
-        error: '用户不存在',
+      sendError(res, {
+        statusCode: 404,
+        code: 'AUTH.USER_NOT_FOUND',
+        message: 'User not found',
+        params: { userId: user.userId }
       });
       return;
     }
@@ -266,9 +313,11 @@ export const getMeController = async (req: Request, res: Response): Promise<void
     });
   } catch (error) {
     console.error('Get me error:', error);
-    res.status(500).json({
-      success: false,
-      error: '获取用户信息失败',
+    sendError(res, {
+      statusCode: 500,
+      code: 'INTERNAL_ERROR',
+      message: 'Failed to fetch user information',
+      details: error instanceof Error ? error.message : 'Unknown error'
     });
   }
 };

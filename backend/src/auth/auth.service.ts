@@ -12,6 +12,7 @@ import {
   getRefreshTokenExpiration,
   type TokenPayload,
 } from '../utils/jwt.js';
+import { ApiError } from '../middleware/error-handler.js';
 
 export interface LoginCredentials {
   username: string;
@@ -46,13 +47,17 @@ export async function register(data: RegisterData): Promise<AuthResponse> {
   // Check if username already exists
   const existingByUsername = db.getUserByUsername(data.username);
   if (existingByUsername) {
-    throw new Error('用户名已存在');
+    throw new ApiError(409, 'AUTH.USERNAME_EXISTS', 'Username already exists', undefined, {
+      username: data.username
+    });
   }
 
   // Check if email already exists
   const existingByEmail = db.getUserByEmail(data.email);
   if (existingByEmail) {
-    throw new Error('邮箱已被使用');
+    throw new ApiError(409, 'AUTH.EMAIL_EXISTS', 'Email already exists', undefined, {
+      email: data.email
+    });
   }
 
   // Hash password
@@ -114,7 +119,7 @@ export async function login(credentials: LoginCredentials): Promise<AuthResponse
   // Find user by username
   const user = db.getUserByUsername(credentials.username);
   if (!user) {
-    throw new Error('用户名或密码错误');
+    throw new ApiError(401, 'AUTH.INVALID_CREDENTIALS', 'Invalid username or password');
   }
 
   // Verify password
@@ -124,7 +129,7 @@ export async function login(credentials: LoginCredentials): Promise<AuthResponse
   );
 
   if (!isPasswordValid) {
-    throw new Error('用户名或密码错误');
+    throw new ApiError(401, 'AUTH.INVALID_CREDENTIALS', 'Invalid username or password');
   }
 
   // Update last login time
@@ -181,19 +186,19 @@ export async function refreshToken(refreshTokenValue: string): Promise<AuthRespo
   // Verify refresh token
   const tokenPayload = verifyToken(refreshTokenValue);
   if (!tokenPayload) {
-    throw new Error('无效的刷新令牌');
+    throw new ApiError(401, 'AUTH.INVALID_REFRESH_TOKEN', 'Invalid refresh token');
   }
 
   // Check if refresh token exists in database
   const storedToken = db.getRefreshToken(refreshTokenValue);
   if (!storedToken) {
-    throw new Error('刷新令牌不存在');
+    throw new ApiError(401, 'AUTH.MISSING_REFRESH_TOKEN', 'Refresh token not found');
   }
 
   // Check if refresh token is expired
   if (storedToken.expiresAt < new Date()) {
     db.deleteRefreshToken(refreshTokenValue);
-    throw new Error('刷新令牌已过期');
+    throw new ApiError(401, 'AUTH.REFRESH_TOKEN_EXPIRED', 'Refresh token expired');
   }
 
   // Get user

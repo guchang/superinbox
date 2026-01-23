@@ -11,6 +11,7 @@ import { getDatabase } from '../../storage/database.js';
 import { getAIService } from '../../ai/service.js';
 import { getRouterService } from '../../router/router.service.js';
 import { formatDateInTimeZone } from '../../utils/timezone.js';
+import { sendError } from '../../utils/error-response.js';
 import type {
   CreateItemRequest,
   CreateItemResponse,
@@ -105,13 +106,11 @@ export class InboxController {
       });
     } catch (error) {
       if (error instanceof z.ZodError) {
-        res.status(400).json({
-          success: false,
-          error: {
-            code: 'VALIDATION_ERROR',
-            message: 'Invalid request body',
-            details: error.errors
-          }
+        sendError(res, {
+          statusCode: 400,
+          code: 'INBOX.INVALID_INPUT',
+          message: 'Invalid request body',
+          details: error.errors
         });
         return;
       }
@@ -132,24 +131,21 @@ export class InboxController {
       const item = this.db.getItemById(id);
 
       if (!item) {
-        res.status(404).json({
-          success: false,
-          error: {
-            code: 'NOT_FOUND',
-            message: 'Item not found'
-          }
+        sendError(res, {
+          statusCode: 404,
+          code: 'INBOX.NOT_FOUND',
+          message: 'Item not found',
+          params: { id }
         });
         return;
       }
 
       // Check ownership
       if (item.userId !== userId) {
-        res.status(403).json({
-          success: false,
-          error: {
-            code: 'FORBIDDEN',
-            message: 'Access denied'
-          }
+        sendError(res, {
+          statusCode: 403,
+          code: 'AUTH.FORBIDDEN',
+          message: 'Access denied'
         });
         return;
       }
@@ -303,24 +299,21 @@ export class InboxController {
       const existing = this.db.getItemById(id);
 
       if (!existing) {
-        res.status(404).json({
-          success: false,
-          error: {
-            code: 'NOT_FOUND',
-            message: 'Item not found'
-          }
+        sendError(res, {
+          statusCode: 404,
+          code: 'INBOX.NOT_FOUND',
+          message: 'Item not found',
+          params: { id }
         });
         return;
       }
 
       // Check ownership
       if (existing.userId !== userId) {
-        res.status(403).json({
-          success: false,
-          error: {
-            code: 'FORBIDDEN',
-            message: 'Access denied'
-          }
+        sendError(res, {
+          statusCode: 403,
+          code: 'AUTH.FORBIDDEN',
+          message: 'Access denied'
         });
         return;
       }
@@ -345,13 +338,11 @@ export class InboxController {
       });
     } catch (error) {
       if (error instanceof z.ZodError) {
-        res.status(400).json({
-          success: false,
-          error: {
-            code: 'VALIDATION_ERROR',
-            message: 'Invalid request body',
-            details: error.errors
-          }
+        sendError(res, {
+          statusCode: 400,
+          code: 'INBOX.INVALID_INPUT',
+          message: 'Invalid request body',
+          details: error.errors
         });
         return;
       }
@@ -371,24 +362,21 @@ export class InboxController {
       const existing = this.db.getItemById(id);
 
       if (!existing) {
-        res.status(404).json({
-          success: false,
-          error: {
-            code: 'NOT_FOUND',
-            message: 'Item not found'
-          }
+        sendError(res, {
+          statusCode: 404,
+          code: 'INBOX.NOT_FOUND',
+          message: 'Item not found',
+          params: { id }
         });
         return;
       }
 
       // Check ownership
       if (existing.userId !== userId) {
-        res.status(403).json({
-          success: false,
-          error: {
-            code: 'FORBIDDEN',
-            message: 'Access denied'
-          }
+        sendError(res, {
+          statusCode: 403,
+          code: 'AUTH.FORBIDDEN',
+          message: 'Access denied'
         });
         return;
       }
@@ -418,24 +406,21 @@ export class InboxController {
       const item = this.db.getItemById(id);
 
       if (!item) {
-        res.status(404).json({
-          success: false,
-          error: {
-            code: 'NOT_FOUND',
-            message: 'Item not found'
-          }
+        sendError(res, {
+          statusCode: 404,
+          code: 'INBOX.NOT_FOUND',
+          message: 'Item not found',
+          params: { id }
         });
         return;
       }
 
       // Check ownership
       if (item.userId !== userId) {
-        res.status(403).json({
-          success: false,
-          error: {
-            code: 'FORBIDDEN',
-            message: 'Access denied'
-          }
+        sendError(res, {
+          statusCode: 403,
+          code: 'AUTH.FORBIDDEN',
+          message: 'Access denied'
         });
         return;
       }
@@ -468,24 +453,21 @@ export class InboxController {
       const existing = this.db.getItemById(id);
 
       if (!existing) {
-        res.status(404).json({
-          success: false,
-          error: {
-            code: 'NOT_FOUND',
-            message: 'Item not found'
-          }
+        sendError(res, {
+          statusCode: 404,
+          code: 'INBOX.NOT_FOUND',
+          message: 'Item not found',
+          params: { id }
         });
         return;
       }
 
       // Check ownership
       if (existing.userId !== userId) {
-        res.status(403).json({
-          success: false,
-          error: {
-            code: 'FORBIDDEN',
-            message: 'Access denied'
-          }
+        sendError(res, {
+          statusCode: 403,
+          code: 'AUTH.FORBIDDEN',
+          message: 'Access denied'
         });
         return;
       }
@@ -494,7 +476,7 @@ export class InboxController {
 
       res.json({
         success: true,
-        message: '记录已删除'
+        message: 'Item deleted'
       });
     } catch (error) {
       next(error);
@@ -511,12 +493,10 @@ export class InboxController {
 
       // Basic validation: entries must be an array
       if (!Array.isArray(entries) || entries.length === 0) {
-        res.status(400).json({
-          success: false,
-          error: {
-            code: 'VALIDATION_ERROR',
-            message: 'entries must be a non-empty array'
-          }
+        sendError(res, {
+          statusCode: 400,
+          code: 'INBOX.INVALID_INPUT',
+          message: 'entries must be a non-empty array'
         });
         return;
       }
@@ -633,13 +613,11 @@ export class InboxController {
       });
     } catch (error) {
       if (error instanceof z.ZodError) {
-        res.status(400).json({
-          success: false,
-          error: {
-            code: 'VALIDATION_ERROR',
-            message: 'Invalid query parameters',
-            details: error.errors
-          }
+        sendError(res, {
+          statusCode: 400,
+          code: 'INBOX.INVALID_INPUT',
+          message: 'Invalid query parameters',
+          details: error.errors
         });
         return;
       }
@@ -767,9 +745,10 @@ export class InboxController {
     try {
       // Check if file was uploaded
       if (!req.file) {
-        res.status(400).json({
-          success: false,
-          error: 'No file uploaded'
+        sendError(res, {
+          statusCode: 400,
+          code: 'INBOX.NO_FILES',
+          message: 'No file uploaded'
         });
         return;
       }
@@ -844,13 +823,21 @@ export class InboxController {
     try {
       const userId = req.user?.id;
       if (!userId) {
-        res.status(401).json({ success: false, error: 'User not authenticated' });
+        sendError(res, {
+          statusCode: 401,
+          code: 'AUTH.UNAUTHORIZED',
+          message: 'User not authenticated'
+        });
         return;
       }
 
       const files = req.files as Express.Multer.File[];
       if (!files || files.length === 0) {
-        res.status(400).json({ success: false, error: 'No files uploaded' });
+        sendError(res, {
+          statusCode: 400,
+          code: 'INBOX.NO_FILES',
+          message: 'No files uploaded'
+        });
         return;
       }
 
@@ -933,7 +920,12 @@ export class InboxController {
 
       const item = this.db.getItemById(id);
       if (!item || item.userId !== userId) {
-        res.status(404).json({ success: false, error: 'Item not found' });
+        sendError(res, {
+          statusCode: 404,
+          code: 'INBOX.NOT_FOUND',
+          message: 'Item not found',
+          params: { id }
+        });
         return;
       }
 
@@ -957,7 +949,12 @@ export class InboxController {
           fileName = targetFile.fileName;
           mimeType = targetFile.mimeType;
         } else {
-          res.status(404).json({ success: false, error: 'File index out of range' });
+          sendError(res, {
+            statusCode: 404,
+            code: 'INBOX.FILE_INDEX_OUT_OF_RANGE',
+            message: 'File index out of range',
+            params: { index: fileIndex }
+          });
           return;
         }
       } else {
@@ -968,11 +965,16 @@ export class InboxController {
       }
 
       if (!filePath || !fs.existsSync(filePath)) {
-        res.status(404).json({ success: false, error: 'File not found' });
+        sendError(res, {
+          statusCode: 404,
+          code: 'INBOX.FILE_NOT_FOUND',
+          message: 'File not found',
+          params: { id }
+        });
         return;
       }
 
-      // 使用 RFC 5987 标准处理中文文件名
+      // Use RFC 5987 for non-ASCII filenames.
       const encodedFileName = encodeURIComponent(fileName);
       res.setHeader('Content-Disposition', `inline; filename*=UTF-8''${encodedFileName}`);
       res.setHeader('Content-Type', mimeType);
@@ -996,7 +998,12 @@ export class InboxController {
 
       const item = this.db.getItemById(id);
       if (!item || item.userId !== userId) {
-        res.status(404).json({ success: false, error: 'Item not found' });
+        sendError(res, {
+          statusCode: 404,
+          code: 'INBOX.NOT_FOUND',
+          message: 'Item not found',
+          params: { id }
+        });
         return;
       }
 
@@ -1019,7 +1026,12 @@ export class InboxController {
           fileName = targetFile.fileName;
           mimeType = targetFile.mimeType;
         } else {
-          res.status(404).json({ success: false, error: 'File index out of range' });
+          sendError(res, {
+            statusCode: 404,
+            code: 'INBOX.FILE_INDEX_OUT_OF_RANGE',
+            message: 'File index out of range',
+            params: { index: fileIndex }
+          });
           return;
         }
       } else {
@@ -1029,7 +1041,12 @@ export class InboxController {
       }
 
       if (!filePath || !fs.existsSync(filePath)) {
-        res.status(404).json({ success: false, error: 'File not found' });
+        sendError(res, {
+          statusCode: 404,
+          code: 'INBOX.FILE_NOT_FOUND',
+          message: 'File not found',
+          params: { id }
+        });
         return;
       }
 
@@ -1056,36 +1073,32 @@ export class InboxController {
       const item = this.db.getItemById(id);
 
       if (!item) {
-        res.status(404).json({
-          success: false,
-          error: {
-            code: 'NOT_FOUND',
-            message: 'Item not found'
-          }
+        sendError(res, {
+          statusCode: 404,
+          code: 'INBOX.NOT_FOUND',
+          message: 'Item not found',
+          params: { id }
         });
         return;
       }
 
       // Check ownership
       if (item.userId !== userId) {
-        res.status(403).json({
-          success: false,
-          error: {
-            code: 'FORBIDDEN',
-            message: 'Access denied'
-          }
+        sendError(res, {
+          statusCode: 403,
+          code: 'AUTH.FORBIDDEN',
+          message: 'Access denied'
         });
         return;
       }
 
       // Only allow retry for failed items
       if (item.status !== 'failed') {
-        res.status(400).json({
-          success: false,
-          error: {
-            code: 'INVALID_STATUS',
-            message: 'Only failed items can be retried'
-          }
+        sendError(res, {
+          statusCode: 400,
+          code: 'INBOX.INVALID_STATUS',
+          message: 'Only failed items can be retried',
+          params: { status: item.status }
         });
         return;
       }
@@ -1127,35 +1140,31 @@ export class InboxController {
       const item = this.db.getItemById(id);
 
       if (!item) {
-        res.status(404).json({
-          success: false,
-          error: {
-            code: 'NOT_FOUND',
-            message: 'Item not found'
-          }
+        sendError(res, {
+          statusCode: 404,
+          code: 'INBOX.NOT_FOUND',
+          message: 'Item not found',
+          params: { id }
         });
         return;
       }
 
       // Check ownership
       if (item.userId !== userId) {
-        res.status(403).json({
-          success: false,
-          error: {
-            code: 'FORBIDDEN',
-            message: 'Access denied'
-          }
+        sendError(res, {
+          statusCode: 403,
+          code: 'AUTH.FORBIDDEN',
+          message: 'Access denied'
         });
         return;
       }
 
       if (item.status === 'processing') {
-        res.status(400).json({
-          success: false,
-          error: {
-            code: 'INVALID_STATUS',
-            message: 'Item is already processing'
-          }
+        sendError(res, {
+          statusCode: 400,
+          code: 'INBOX.INVALID_STATUS',
+          message: 'Item is already processing',
+          params: { status: item.status }
         });
         return;
       }

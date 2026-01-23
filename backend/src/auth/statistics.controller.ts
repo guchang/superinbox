@@ -6,6 +6,7 @@
 import type { Request, Response } from 'express';
 import { getDatabase } from '../storage/database.js';
 import { logger } from '../middleware/logger.js';
+import { sendError } from '../utils/error-response.js';
 import type {
   StatisticsResponse,
   StatisticsQuery,
@@ -20,11 +21,10 @@ export async function getStatistics(req: Request, res: Response): Promise<void> 
     // Check admin permission using scopes
     const authReq = req as any;
     if (!authReq.user?.scopes?.includes('admin:full')) {
-      res.status(403).json({
-        error: {
-          code: 'AUTH_INSUFFICIENT_PERMISSION',
-          message: 'Admin permission required',
-        },
+      sendError(res, {
+        statusCode: 403,
+        code: 'AUTH.FORBIDDEN',
+        message: 'Admin permission required'
       });
       return;
     }
@@ -46,12 +46,11 @@ export async function getStatistics(req: Request, res: Response): Promise<void> 
     res.json(stats);
   } catch (error) {
     logger.error({ error }, 'Failed to fetch statistics');
-    res.status(500).json({
-      error: {
-        code: 'INTERNAL_ERROR',
-        message: 'Failed to fetch statistics',
-        details: error instanceof Error ? error.message : String(error),
-      },
+    sendError(res, {
+      statusCode: 500,
+      code: 'INTERNAL_ERROR',
+      message: 'Failed to fetch statistics',
+      details: error instanceof Error ? error.message : String(error)
     });
   }
 }

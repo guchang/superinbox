@@ -1,5 +1,9 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import createMiddleware from 'next-intl/middleware'
+import { routing } from './src/i18n/routing'
+
+const intlMiddleware = createMiddleware(routing)
 
 // 公开路由（不需要认证）
 const publicRoutes = ['/login', '/register']
@@ -10,32 +14,42 @@ const protectedRoutes = ['/']
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
+  const localeSegment = new RegExp(`^/(${routing.locales.join('|')})(?=/|$)`)
+  const localeMatch = pathname.match(localeSegment)
+
+  if (!localeMatch) {
+    return intlMiddleware(request)
+  }
+
+  const locale = localeMatch[1]
+  const pathnameWithoutLocale = pathname.replace(localeSegment, '') || '/'
+
   // 从 cookie 获取 token
   const token = request.cookies.get('superinbox_auth_token')?.value
 
   // 检查是否是公开路由
   const isPublicRoute = publicRoutes.some(route =>
-    pathname.startsWith(route)
+    pathnameWithoutLocale.startsWith(route)
   )
 
   // 检查是否是受保护路由
   const isProtectedRoute = protectedRoutes.some(route =>
-    pathname.startsWith(route)
+    pathnameWithoutLocale.startsWith(route)
   )
 
   // 如果访问受保护路由但没有 token，重定向到登录页
   if (isProtectedRoute && !token) {
-    const loginUrl = new URL('/login', request.url)
+    const loginUrl = new URL(`/${locale}/login`, request.url)
     return NextResponse.redirect(loginUrl)
   }
 
   // 如果已登录用户访问登录/注册页，重定向到首页
   if (isPublicRoute && token) {
-    const homeUrl = new URL('/', request.url)
+    const homeUrl = new URL(`/${locale}/`, request.url)
     return NextResponse.redirect(homeUrl)
   }
 
-  return NextResponse.next()
+  return intlMiddleware(request)
 }
 
 // 配置匹配路径

@@ -4,6 +4,7 @@
 
 import type { Request, Response, NextFunction } from 'express';
 import pino from 'pino';
+import { buildErrorResponse } from '../utils/error-response.js';
 
 const logger = pino({
   level: process.env.LOG_LEVEL ?? 'info'
@@ -13,6 +14,7 @@ export interface AppError extends Error {
   statusCode?: number;
   code?: string;
   details?: unknown;
+  params?: Record<string, unknown>;
 }
 
 /**
@@ -34,18 +36,24 @@ export const errorHandler = (
     details: err.details
   });
 
-  // Determine status code
   const statusCode = err.statusCode ?? 500;
+  const code = err.code ?? 'INTERNAL_ERROR';
+  const message = err.message ?? 'An unexpected error occurred';
+  const params =
+    err.params ??
+    (err.details &&
+    typeof err.details === 'object' &&
+    'params' in err.details
+      ? (err.details as { params?: Record<string, unknown> }).params
+      : undefined);
 
-  // Build error response
-  const errorResponse = {
-    success: false,
-    error: {
-      code: err.code ?? 'INTERNAL_ERROR',
-      message: err.message ?? 'An unexpected error occurred',
-      details: err.details
-    }
-  };
+  const errorResponse = buildErrorResponse({
+    statusCode,
+    code,
+    message,
+    params,
+    details: err.details
+  });
 
   // Include stack trace in development
   if (process.env.NODE_ENV === 'development') {
@@ -63,17 +71,17 @@ export const notFoundHandler = (
   res: Response,
   next: NextFunction
 ): void => {
-  res.status(404).json({
-    success: false,
-    error: {
+  res.status(404).json(
+    buildErrorResponse({
+      statusCode: 404,
       code: 'NOT_FOUND',
       message: `Route ${req.method} ${req.path} not found`,
       details: {
         method: req.method,
         path: req.path
       }
-    }
-  });
+    })
+  );
 };
 
 /**
@@ -95,7 +103,8 @@ export class ApiError extends Error implements AppError {
     public statusCode: number,
     public code: string,
     message: string,
-    public details?: unknown
+    public details?: unknown,
+    public params?: Record<string, unknown>
   ) {
     super(message);
     this.name = 'ApiError';
@@ -105,26 +114,46 @@ export class ApiError extends Error implements AppError {
 /**
  * Common error factories
  */
-export const badRequest = (message: string, details?: unknown): ApiError => {
-  return new ApiError(400, 'BAD_REQUEST', message, details);
+export const badRequest = (
+  message: string,
+  details?: unknown,
+  params?: Record<string, unknown>
+): ApiError => {
+  return new ApiError(400, 'BAD_REQUEST', message, details, params);
 };
 
-export const unauthorized = (message: string = 'Unauthorized'): ApiError => {
-  return new ApiError(401, 'UNAUTHORIZED', message);
+export const unauthorized = (
+  message: string = 'Unauthorized',
+  params?: Record<string, unknown>
+): ApiError => {
+  return new ApiError(401, 'UNAUTHORIZED', message, undefined, params);
 };
 
-export const forbidden = (message: string = 'Forbidden'): ApiError => {
-  return new ApiError(403, 'FORBIDDEN', message);
+export const forbidden = (
+  message: string = 'Forbidden',
+  params?: Record<string, unknown>
+): ApiError => {
+  return new ApiError(403, 'FORBIDDEN', message, undefined, params);
 };
 
-export const notFound = (resource: string = 'Resource'): ApiError => {
-  return new ApiError(404, 'NOT_FOUND', `${resource} not found`);
+export const notFound = (
+  resource: string = 'Resource',
+  params?: Record<string, unknown>
+): ApiError => {
+  return new ApiError(404, 'NOT_FOUND', `${resource} not found`, undefined, params);
 };
 
-export const conflict = (message: string, details?: unknown): ApiError => {
-  return new ApiError(409, 'CONFLICT', message, details);
+export const conflict = (
+  message: string,
+  details?: unknown,
+  params?: Record<string, unknown>
+): ApiError => {
+  return new ApiError(409, 'CONFLICT', message, details, params);
 };
 
-export const internalError = (message: string = 'Internal server error'): ApiError => {
-  return new ApiError(500, 'INTERNAL_ERROR', message);
+export const internalError = (
+  message: string = 'Internal server error',
+  params?: Record<string, unknown>
+): ApiError => {
+  return new ApiError(500, 'INTERNAL_ERROR', message, undefined, params);
 };

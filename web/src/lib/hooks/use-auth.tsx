@@ -1,8 +1,10 @@
 "use client"
 
 import * as React from "react"
+import { useTranslations } from 'next-intl'
 import { authApi } from "@/lib/api/auth"
 import type { AuthState, User, LoginRequest, RegisterRequest } from "@/types"
+import { useRouter } from '@/i18n/navigation'
 
 interface AuthContextValue {
   authState: AuthState
@@ -19,6 +21,8 @@ const REFRESH_TOKEN_KEY = "superinbox_refresh_token"
 const USER_KEY = "superinbox_user"
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const t = useTranslations('auth')
+  const router = useRouter()
   const [authState, setAuthState] = React.useState<AuthState>({
     user: null,
     token: null,
@@ -81,7 +85,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isLoading: false,
       })
     } else {
-      throw new Error(response.error || "登录失败")
+      throw new Error(response.error || t('errors.loginFailed'))
     }
   }
 
@@ -100,7 +104,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isLoading: false,
       })
     } else {
-      throw new Error(response.error || "注册失败")
+      throw new Error(response.error || t('errors.registerFailed'))
     }
   }
 
@@ -110,7 +114,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await authApi.logout()
     } catch (error) {
       // 即使接口调用失败，也要清除本地数据
-      console.error("登出接口调用失败:", error)
+      console.error("Logout request failed:", error)
     } finally {
       clearAuthData()
       setAuthState({
@@ -121,7 +125,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       })
       // 跳转到登录页面
       if (typeof window !== 'undefined') {
-        window.location.href = '/login'
+        router.push('/login')
+        router.refresh()
       }
     }
   }
@@ -131,7 +136,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const refreshTokenValue = localStorage.getItem(REFRESH_TOKEN_KEY)
 
     if (!refreshTokenValue) {
-      throw new Error("没有刷新令牌")
+      throw new Error(t('errors.missingRefreshToken'))
     }
 
     const response = await authApi.refreshToken(refreshTokenValue)
@@ -154,7 +159,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isAuthenticated: false,
         isLoading: false,
       })
-      throw new Error(response.error || "刷新令牌失败")
+      throw new Error(response.error || t('errors.refreshTokenFailed'))
     }
   }
 

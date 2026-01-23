@@ -6,6 +6,7 @@
 
 import type { Request, Response } from 'express';
 import { getDatabase } from '../../storage/database.js';
+import { sendError } from '../../utils/error-response.js';
 
 /**
  * GET /v1/intelligence/parse/:id
@@ -21,12 +22,11 @@ export async function getParseResult(req: Request, res: Response): Promise<void>
     const item = db.getItemById(id);
 
     if (!item || item.userId !== userId) {
-      res.status(404).json({
-        success: false,
-        error: {
-          code: 'STORAGE_NOT_FOUND',
-          message: 'Item not found'
-        }
+      sendError(res, {
+        statusCode: 404,
+        code: 'INBOX.NOT_FOUND',
+        message: 'Item not found',
+        params: { id }
       });
       return;
     }
@@ -42,13 +42,11 @@ export async function getParseResult(req: Request, res: Response): Promise<void>
       parsedAt: item.processedAt || item.updatedAt
     });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: {
-        code: 'INTELLIGENCE_PARSE_ERROR',
-        message: 'Failed to get parse result',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      }
+    sendError(res, {
+      statusCode: 500,
+      code: 'INTELLIGENCE.PARSE_FAILED',
+      message: 'Failed to get parse result',
+      details: error instanceof Error ? error.message : 'Unknown error'
     });
   }
 }
@@ -68,12 +66,11 @@ export async function updateParseResult(req: Request, res: Response): Promise<vo
     const item = db.getItemById(id);
 
     if (!item || item.userId !== userId) {
-      res.status(404).json({
-        success: false,
-        error: {
-          code: 'STORAGE_NOT_FOUND',
-          message: 'Item not found'
-        }
+      sendError(res, {
+        statusCode: 404,
+        code: 'INBOX.NOT_FOUND',
+        message: 'Item not found',
+        params: { id }
       });
       return;
     }
@@ -94,17 +91,15 @@ export async function updateParseResult(req: Request, res: Response): Promise<vo
 
     res.json({
       success: true,
-      message: '已更新解析结果并记录反馈',
+      message: 'Parse result updated and feedback recorded',
       updatedAt: updatedItem.updatedAt
     });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: {
-        code: 'INTELLIGENCE_UPDATE_FAILED',
-        message: 'Failed to update parse result',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      }
+    sendError(res, {
+      statusCode: 500,
+      code: 'INTELLIGENCE.UPDATE_FAILED',
+      message: 'Failed to update parse result',
+      details: error instanceof Error ? error.message : 'Unknown error'
     });
   }
 }

@@ -10,6 +10,7 @@ import {
   updateCategory,
   type CategoryRecord,
 } from '../store.js';
+import { sendError } from '../../utils/error-response.js';
 
 const router = Router();
 
@@ -27,9 +28,11 @@ router.post('/', authenticate, (req, res) => {
 
   for (const field of requiredFields) {
     if (!payload[field as keyof CategoryRecord]) {
-      res.status(400).json({
-        success: false,
-        error: `Missing required field: ${field}`,
+      sendError(res, {
+        statusCode: 400,
+        code: 'AI.INVALID_INPUT',
+        message: `Missing required field: ${field}`,
+        params: { field }
       });
       return;
     }
@@ -39,9 +42,11 @@ router.post('/', authenticate, (req, res) => {
     (category) => category.key === payload.key
   );
   if (existing) {
-    res.status(400).json({
-      success: false,
-      error: 'Category key already exists',
+    sendError(res, {
+      statusCode: 400,
+      code: 'AI.CATEGORY_KEY_EXISTS',
+      message: 'Category key already exists',
+      params: { key: payload.key }
     });
     return;
   }
@@ -67,9 +72,11 @@ router.put('/:id', authenticate, (req, res) => {
       (category) => category.key === payload.key && category.id !== id
     );
     if (existing) {
-      res.status(400).json({
-        success: false,
-        error: 'Category key already exists',
+      sendError(res, {
+        statusCode: 400,
+        code: 'AI.CATEGORY_KEY_EXISTS',
+        message: 'Category key already exists',
+        params: { key: payload.key }
       });
       return;
     }
@@ -84,9 +91,11 @@ router.put('/:id', authenticate, (req, res) => {
   });
 
   if (!record) {
-    res.status(404).json({
-      success: false,
-      error: 'Category not found',
+    sendError(res, {
+      statusCode: 404,
+      code: 'AI.CATEGORY_NOT_FOUND',
+      message: 'Category not found',
+      params: { id }
     });
     return;
   }

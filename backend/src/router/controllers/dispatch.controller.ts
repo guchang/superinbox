@@ -5,6 +5,7 @@
 import type { Request, Response } from 'express';
 import { getDatabase } from '../../storage/database.js';
 import { getRouterService } from '../router.service.js';
+import { sendError } from '../../utils/error-response.js';
 
 /**
  * Dispatch an item to configured adapters
@@ -20,12 +21,11 @@ export async function dispatchItem(req: Request, res: Response): Promise<void> {
     const item = db.getItemById(id);
 
     if (!item || item.userId !== userId) {
-      res.status(404).json({
-        success: false,
-        error: {
-          code: 'STORAGE_NOT_FOUND',
-          message: 'Item not found'
-        }
+      sendError(res, {
+        statusCode: 404,
+        code: 'INBOX.NOT_FOUND',
+        message: 'Item not found',
+        params: { id }
       });
       return;
     }
@@ -50,14 +50,11 @@ export async function dispatchItem(req: Request, res: Response): Promise<void> {
     });
   } catch (error) {
     console.error('Dispatch error:', error);
-    res.status(500).json({
-      success: false,
-      error: {
-        code: 'ROUTING_DISPATCH_FAILED',
-        message: 'Failed to dispatch item',
-        details: error instanceof Error ? error.message : 'Unknown error',
-        stack: error instanceof Error ? error.stack : undefined
-      }
+    sendError(res, {
+      statusCode: 500,
+      code: 'ROUTING.DISPATCH_FAILED',
+      message: 'Failed to dispatch item',
+      details: error instanceof Error ? error.message : 'Unknown error'
     });
   }
 }

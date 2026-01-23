@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react"
 import { Loader2, Plus, Upload, X, File } from "lucide-react"
 import { useQueryClient } from "@tanstack/react-query"
+import { useTranslations } from 'next-intl'
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -17,6 +18,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { inboxApi } from "@/lib/api/inbox"
 import { ContentType } from "@/types"
 import { useToast } from "@/hooks/use-toast"
+import { getApiErrorMessage, type ApiError } from '@/lib/i18n/api-errors'
 
 interface QuickAddDialogProps {
   trigger?: React.ReactNode
@@ -39,6 +41,9 @@ function formatFileSize(bytes: number): string {
 }
 
 export function QuickAddDialog({ trigger }: QuickAddDialogProps) {
+  const t = useTranslations('quickAdd')
+  const common = useTranslations('common')
+  const errors = useTranslations('errors')
   const [open, setOpen] = useState(false)
   const [content, setContent] = useState("")
   const [files, setFiles] = useState<FilePreview[]>([])
@@ -51,8 +56,12 @@ export function QuickAddDialog({ trigger }: QuickAddDialogProps) {
   const validateFileSize = useCallback((file: File): boolean => {
     if (file.size > MAX_FILE_SIZE) {
       toast({
-        title: "文件过大",
-        description: `${file.name} (${formatFileSize(file.size)}) 超过最大限制 ${formatFileSize(MAX_FILE_SIZE)}`,
+        title: t('toast.fileTooLarge.title'),
+        description: t('toast.fileTooLarge.description', {
+          name: file.name,
+          size: formatFileSize(file.size),
+          max: formatFileSize(MAX_FILE_SIZE),
+        }),
         variant: "destructive",
       })
       return false
@@ -124,8 +133,8 @@ export function QuickAddDialog({ trigger }: QuickAddDialogProps) {
       if (newPreviews.length > 0) {
         setFiles((prev) => [...prev, ...newPreviews])
         toast({
-          title: "文件已添加",
-          description: `已从剪贴板添加 ${newPreviews.length} 个文件`,
+          title: t('toast.filesAdded.title'),
+          description: t('toast.filesAdded.description', { count: newPreviews.length }),
         })
       }
     }
@@ -161,8 +170,11 @@ export function QuickAddDialog({ trigger }: QuickAddDialogProps) {
       // Show warning if some files were rejected
       if (newPreviews.length < selectedFiles.length) {
         toast({
-          title: "部分文件已添加",
-          description: `已添加 ${newPreviews.length}/${selectedFiles.length} 个文件（超限文件已跳过）`,
+          title: t('toast.partialFiles.title'),
+          description: t('toast.partialFiles.description', {
+            added: newPreviews.length,
+            total: selectedFiles.length,
+          }),
           variant: "destructive",
         })
       }
@@ -206,8 +218,11 @@ export function QuickAddDialog({ trigger }: QuickAddDialogProps) {
       // Show warning if some files were rejected
       if (newPreviews.length < droppedFiles.length) {
         toast({
-          title: "部分文件已添加",
-          description: `已添加 ${newPreviews.length}/${droppedFiles.length} 个文件（超限文件已跳过）`,
+          title: t('toast.partialFiles.title'),
+          description: t('toast.partialFiles.description', {
+            added: newPreviews.length,
+            total: droppedFiles.length,
+          }),
           variant: "destructive",
         })
       }
@@ -221,8 +236,8 @@ export function QuickAddDialog({ trigger }: QuickAddDialogProps) {
   const handleSubmit = async () => {
     if (!content.trim() && files.length === 0) {
       toast({
-        title: "内容不能为空",
-        description: "请输入内容或选择文件",
+        title: t('toast.empty.title'),
+        description: t('toast.empty.description'),
         variant: "destructive",
       })
       return
@@ -232,8 +247,11 @@ export function QuickAddDialog({ trigger }: QuickAddDialogProps) {
     const oversizedFiles = files.filter(fp => fp.file.size > MAX_FILE_SIZE)
     if (oversizedFiles.length > 0) {
       toast({
-        title: "文件过大",
-        description: `${oversizedFiles[0].file.name} 超过最大限制 ${formatFileSize(MAX_FILE_SIZE)}`,
+        title: t('toast.fileTooLarge.title'),
+        description: t('toast.fileTooLarge.simpleDescription', {
+          name: oversizedFiles[0].file.name,
+          max: formatFileSize(MAX_FILE_SIZE),
+        }),
         variant: "destructive",
       })
       return
@@ -260,7 +278,12 @@ export function QuickAddDialog({ trigger }: QuickAddDialogProps) {
         const response = await inboxApi.uploadMultipleFiles(formData)
 
         if (!response.success) {
-          throw new Error(response.error || "上传失败")
+          const apiError = new Error(
+            response.error || response.message || t('errors.uploadFailed')
+          ) as ApiError
+          apiError.code = response.code
+          apiError.params = response.params
+          throw apiError
         }
       } else if (content.trim()) {
         // 只有文本内容，没有文件
@@ -271,24 +294,29 @@ export function QuickAddDialog({ trigger }: QuickAddDialogProps) {
         })
 
         if (!response.success) {
-          throw new Error(response.error || "创建失败")
+          const apiError = new Error(
+            response.error || response.message || t('errors.createFailed')
+          ) as ApiError
+          apiError.code = response.code
+          apiError.params = response.params
+          throw apiError
         }
       }
 
       queryClient.invalidateQueries({ queryKey: ["inbox"] })
       toast({
-        title: "添加成功",
-        description: files.length > 0 ? 
-          `已添加包含 ${files.length} 个文件的记录` : 
-          "记录已创建并正在处理中",
+        title: t('toast.success.title'),
+        description: files.length > 0
+          ? t('toast.success.withFiles', { count: files.length })
+          : t('toast.success.processing'),
       })
       setOpen(false)
       setContent("")
       setFiles([])
     } catch (error: any) {
       toast({
-        title: "添加失败",
-        description: error.message || "请稍后重试",
+        title: t('toast.failure.title'),
+        description: getApiErrorMessage(error, errors, t('toast.failure.description')),
         variant: "destructive",
       })
     } finally {
@@ -302,8 +330,8 @@ export function QuickAddDialog({ trigger }: QuickAddDialogProps) {
       className="relative h-9 justify-start rounded-md bg-muted/50 text-sm font-normal text-muted-foreground shadow-none w-32 sm:w-40 md:w-48 lg:w-64 sm:pr-12"
     >
       <Plus className="mr-2 h-4 w-4 shrink-0" />
-      <span className="hidden sm:inline-flex">快速记录...</span>
-      <span className="inline-flex sm:hidden">记录</span>
+      <span className="hidden sm:inline-flex">{t('trigger.full')}</span>
+      <span className="inline-flex sm:hidden">{t('trigger.short')}</span>
       <kbd className="pointer-events-none absolute right-[0.3rem] top-[0.3rem] hidden h-5 select-none items-center gap-1 rounded border bg-background px-1.5 font-mono text-[10px] font-medium opacity-100 shadow-sm sm:flex">
         Q
       </kbd>
@@ -315,16 +343,16 @@ export function QuickAddDialog({ trigger }: QuickAddDialogProps) {
       <DialogTrigger asChild>{trigger || defaultTrigger}</DialogTrigger>
       <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
-          <DialogTitle>快速记录</DialogTitle>
+          <DialogTitle>{t('title')}</DialogTitle>
           <DialogDescription>
-            记录想法、待办事项、上传文件，AI 将自动分析并分类
+            {t('description')}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           {/* Content Input */}
           <Textarea
-            placeholder="记点什么？（想法、账单、待办、URL...）"
+            placeholder={t('placeholder')}
             value={content}
             onChange={(e) => setContent(e.target.value)}
             className="min-h-[120px]"
@@ -352,10 +380,10 @@ export function QuickAddDialog({ trigger }: QuickAddDialogProps) {
             >
               <Upload className="h-8 w-8 text-muted-foreground" />
               <span className="text-sm text-muted-foreground">
-                点击、拖拽或粘贴文件到此处上传
+                {t('upload.instructions')}
               </span>
               <span className="text-xs text-muted-foreground">
-                支持图片、PDF、音频、视频等 (最大 20MB)
+                {t('upload.supported')}
               </span>
             </label>
           </div>
@@ -366,7 +394,7 @@ export function QuickAddDialog({ trigger }: QuickAddDialogProps) {
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <h4 className="text-sm font-medium text-muted-foreground">
-                已选择 {files.length} 个文件
+                {t('selectedFiles', { count: files.length })}
               </h4>
               <Button
                 variant="ghost"
@@ -374,7 +402,7 @@ export function QuickAddDialog({ trigger }: QuickAddDialogProps) {
                 onClick={() => setFiles([])}
                 className="text-xs text-muted-foreground hover:text-foreground"
               >
-                清空全部
+                {t('actions.clearAll')}
               </Button>
             </div>
             <div className="grid grid-cols-3 gap-3">
@@ -424,7 +452,7 @@ export function QuickAddDialog({ trigger }: QuickAddDialogProps) {
               <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-background px-1.5 font-mono text-[10px] font-medium shadow-sm">
                 Esc
               </kbd>
-              <span>关闭</span>
+              <span>{t('hints.close')}</span>
             </div>
             <div className="flex items-center gap-1">
               <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-background px-1.5 font-mono text-[10px] font-medium shadow-sm">
@@ -433,21 +461,21 @@ export function QuickAddDialog({ trigger }: QuickAddDialogProps) {
               <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-background px-1.5 font-mono text-[10px] font-medium shadow-sm">
                 ↵
               </kbd>
-              <span>提交</span>
+              <span>{t('hints.submit')}</span>
             </div>
           </div>
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => setOpen(false)}>
-              取消
+              {common('cancel')}
             </Button>
             <Button onClick={handleSubmit} disabled={isUploading}>
               {isUploading ? (
                 <>
                   <Loader2 className="h-3 w-3 animate-spin mr-1" />
-                  处理中
+                  {common('processing')}
                 </>
               ) : (
-                "记录"
+                t('actions.submit')
               )}
             </Button>
           </div>

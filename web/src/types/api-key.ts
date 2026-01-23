@@ -91,43 +91,43 @@ export type ScopeValue = typeof AVAILABLE_SCOPES[keyof typeof AVAILABLE_SCOPES]
 // Scope groups for UI display
 export const SCOPE_GROUPS = [
   {
-    label: '基础权限',
+    labelKey: 'groups.basic',
     scopes: [
-      { value: AVAILABLE_SCOPES.INBOX_READ, label: '读取收件箱', description: '查看所有记录' },
-      { value: AVAILABLE_SCOPES.INBOX_WRITE, label: '写入收件箱', description: '创建新记录' },
-      { value: AVAILABLE_SCOPES.INBOX_DELETE, label: '删除记录', description: '删除现有记录' },
+      { value: AVAILABLE_SCOPES.INBOX_READ, labelKey: 'scopes.inboxRead.label', descriptionKey: 'scopes.inboxRead.description' },
+      { value: AVAILABLE_SCOPES.INBOX_WRITE, labelKey: 'scopes.inboxWrite.label', descriptionKey: 'scopes.inboxWrite.description' },
+      { value: AVAILABLE_SCOPES.INBOX_DELETE, labelKey: 'scopes.inboxDelete.label', descriptionKey: 'scopes.inboxDelete.description' },
     ],
   },
   {
-    label: 'AI 处理权限',
+    labelKey: 'groups.ai',
     scopes: [
-      { value: AVAILABLE_SCOPES.INTELLIGENCE_READ, label: '读取 AI 解析', description: '查看 AI 分析结果' },
-      { value: AVAILABLE_SCOPES.INTELLIGENCE_WRITE, label: '修正 AI 解析', description: '修正 AI 分析结果' },
+      { value: AVAILABLE_SCOPES.INTELLIGENCE_READ, labelKey: 'scopes.aiRead.label', descriptionKey: 'scopes.aiRead.description' },
+      { value: AVAILABLE_SCOPES.INTELLIGENCE_WRITE, labelKey: 'scopes.aiWrite.label', descriptionKey: 'scopes.aiWrite.description' },
     ],
   },
   {
-    label: '路由管理权限',
+    labelKey: 'groups.routing',
     scopes: [
-      { value: AVAILABLE_SCOPES.ROUTING_READ, label: '读取路由规则', description: '查看路由配置' },
-      { value: AVAILABLE_SCOPES.ROUTING_WRITE, label: '管理路由规则', description: '创建和修改路由规则' },
+      { value: AVAILABLE_SCOPES.ROUTING_READ, labelKey: 'scopes.routingRead.label', descriptionKey: 'scopes.routingRead.description' },
+      { value: AVAILABLE_SCOPES.ROUTING_WRITE, labelKey: 'scopes.routingWrite.label', descriptionKey: 'scopes.routingWrite.description' },
     ],
   },
   {
-    label: '内容分类权限',
+    labelKey: 'groups.content',
     scopes: [
-      { value: AVAILABLE_SCOPES.CONTENT_ALL, label: '所有类型', description: '访问所有内容类型' },
-      { value: AVAILABLE_SCOPES.CONTENT_TODO, label: '待办事项', description: '仅访问待办类型' },
-      { value: AVAILABLE_SCOPES.CONTENT_IDEA, label: '想法灵感', description: '仅访问想法类型' },
-      { value: AVAILABLE_SCOPES.CONTENT_EXPENSE, label: '消费记录', description: '仅访问消费类型' },
-      { value: AVAILABLE_SCOPES.CONTENT_NOTE, label: '笔记', description: '仅访问笔记类型' },
-      { value: AVAILABLE_SCOPES.CONTENT_BOOKMARK, label: '书签收藏', description: '仅访问收藏类型' },
-      { value: AVAILABLE_SCOPES.CONTENT_SCHEDULE, label: '日程安排', description: '仅访问日程类型' },
+      { value: AVAILABLE_SCOPES.CONTENT_ALL, labelKey: 'scopes.contentAll.label', descriptionKey: 'scopes.contentAll.description' },
+      { value: AVAILABLE_SCOPES.CONTENT_TODO, labelKey: 'scopes.contentTodo.label', descriptionKey: 'scopes.contentTodo.description' },
+      { value: AVAILABLE_SCOPES.CONTENT_IDEA, labelKey: 'scopes.contentIdea.label', descriptionKey: 'scopes.contentIdea.description' },
+      { value: AVAILABLE_SCOPES.CONTENT_EXPENSE, labelKey: 'scopes.contentExpense.label', descriptionKey: 'scopes.contentExpense.description' },
+      { value: AVAILABLE_SCOPES.CONTENT_NOTE, labelKey: 'scopes.contentNote.label', descriptionKey: 'scopes.contentNote.description' },
+      { value: AVAILABLE_SCOPES.CONTENT_BOOKMARK, labelKey: 'scopes.contentBookmark.label', descriptionKey: 'scopes.contentBookmark.description' },
+      { value: AVAILABLE_SCOPES.CONTENT_SCHEDULE, labelKey: 'scopes.contentSchedule.label', descriptionKey: 'scopes.contentSchedule.description' },
     ],
   },
   {
-    label: '管理员权限',
+    labelKey: 'groups.admin',
     scopes: [
-      { value: AVAILABLE_SCOPES.ADMIN_FULL, label: '完整管理权限', description: '拥有所有权限（包括 API Key 管理）' },
+      { value: AVAILABLE_SCOPES.ADMIN_FULL, labelKey: 'scopes.adminFull.label', descriptionKey: 'scopes.adminFull.description' },
     ],
   },
 ] as const

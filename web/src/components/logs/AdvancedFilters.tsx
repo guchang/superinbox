@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslations } from 'next-intl'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -28,6 +29,7 @@ export function AdvancedFilters({
   onReset,
   onApply,
 }: AdvancedFiltersProps) {
+  const t = useTranslations('logs')
   const toggleMethod = (method: HttpMethod) => {
     const current = filters.methods || []
     const updated = current.includes(method)
@@ -41,7 +43,7 @@ export function AdvancedFilters({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* HTTP methods */}
         <div className="space-y-2">
-          <Label>HTTP 方法</Label>
+          <Label>{t('advanced.httpMethods')}</Label>
           <div className="flex gap-4">
             {(['GET', 'POST', 'PUT', 'DELETE'] as HttpMethod[]).map((method) => (
               <label key={method} className="flex items-center gap-2 cursor-pointer">
@@ -57,9 +59,9 @@ export function AdvancedFilters({
 
         {/* IP address */}
         <div className="space-y-2">
-          <Label>IP 地址</Label>
+          <Label>{t('advanced.ip')}</Label>
           <Input
-            placeholder="输入 IP 地址..."
+            placeholder={t('advanced.ipPlaceholder')}
             value={filters.ipAddress || ''}
             onChange={(e) => onUpdate('ipAddress', e.target.value)}
           />
@@ -70,16 +72,16 @@ export function AdvancedFilters({
       {apiKeys && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-2">
-            <Label>API Key</Label>
+            <Label>{t('advanced.apiKey')}</Label>
             <Select
               value={filters.apiKeyId || ''}
               onValueChange={(value) => onUpdate('apiKeyId', value)}
             >
               <SelectTrigger>
-                <SelectValue placeholder="选择 API Key" />
+                <SelectValue placeholder={t('advanced.apiKeyPlaceholder')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">全部 API Keys</SelectItem>
+                <SelectItem value="">{t('advanced.apiKeyAll')}</SelectItem>
                 {apiKeys.map((key) => (
                   <SelectItem key={key.id} value={key.id}>
                     {key.name || key.keyPreview}
@@ -95,10 +97,10 @@ export function AdvancedFilters({
       {/* Action buttons */}
       <div className="flex justify-end gap-2">
         <Button variant="outline" onClick={onReset}>
-          重置筛选
+          {t('advanced.reset')}
         </Button>
         <Button onClick={onApply}>
-          应用筛选
+          {t('advanced.apply')}
         </Button>
       </div>
     </div>

@@ -4,6 +4,7 @@
 
 import type { Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
+import { sendError } from '../utils/error-response.js';
 
 /**
  * Generic validation middleware factory
@@ -19,16 +20,14 @@ export const validateRequest =
       next();
     } catch (error) {
       if (error instanceof z.ZodError) {
-        res.status(400).json({
-          success: false,
-          error: {
-            code: 'VALIDATION_ERROR',
-            message: 'Request validation failed',
-            details: error.errors.map(e => ({
-              path: e.path.join('.'),
-              message: e.message
-            }))
-          }
+        sendError(res, {
+          statusCode: 400,
+          code: 'REQUEST.INVALID',
+          message: 'Request validation failed',
+          details: error.errors.map(e => ({
+            path: e.path.join('.'),
+            message: e.message
+          }))
         });
       } else {
         next(error);
@@ -46,13 +45,11 @@ export const validateBody = <T extends z.ZodSchema>(schema: T) => {
       next();
     } catch (error) {
       if (error instanceof z.ZodError) {
-        res.status(400).json({
-          success: false,
-          error: {
-            code: 'VALIDATION_ERROR',
-            message: 'Request body validation failed',
-            details: error.errors
-          }
+        sendError(res, {
+          statusCode: 400,
+          code: 'REQUEST.INVALID',
+          message: 'Request body validation failed',
+          details: error.errors
         });
       } else {
         next(error);
@@ -71,13 +68,11 @@ export const validateQuery = <T extends z.ZodSchema>(schema: T) => {
       next();
     } catch (error) {
       if (error instanceof z.ZodError) {
-        res.status(400).json({
-          success: false,
-          error: {
-            code: 'VALIDATION_ERROR',
-            message: 'Query parameters validation failed',
-            details: error.errors
-          }
+        sendError(res, {
+          statusCode: 400,
+          code: 'REQUEST.INVALID',
+          message: 'Query parameters validation failed',
+          details: error.errors
         });
       } else {
         next(error);
@@ -96,13 +91,11 @@ export const validateParams = <T extends z.ZodSchema>(schema: T) => {
       next();
     } catch (error) {
       if (error instanceof z.ZodError) {
-        res.status(400).json({
-          success: false,
-          error: {
-            code: 'VALIDATION_ERROR',
-            message: 'URL parameters validation failed',
-            details: error.errors
-          }
+        sendError(res, {
+          statusCode: 400,
+          code: 'REQUEST.INVALID',
+          message: 'URL parameters validation failed',
+          details: error.errors
         });
       } else {
         next(error);

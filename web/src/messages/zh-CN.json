@@ -1,0 +1,1543 @@
+{
+  "metadata": {
+    "title": "SuperInbox - 智能收件箱管理后台",
+    "description": "统一管理你的数字信息收件箱"
+  },
+  "common": {
+    "loading": "加载中...",
+    "noData": "暂无数据",
+    "empty": "—",
+    "unknownError": "未知错误",
+    "operationFailed": "操作失败",
+    "tryLater": "请稍后重试",
+    "cancel": "取消",
+    "processing": "处理中",
+    "reload": "重新加载",
+    "permissionDenied": {
+      "title": "权限不足",
+      "description": "您需要管理员权限才能访问此页面"
+    },
+    "loadFailure": {
+      "title": "加载失败"
+    }
+  },
+  "header": {
+    "logout": {
+      "success": "已退出登录",
+      "failure": "退出登录失败",
+      "action": "退出登录"
+    },
+    "language": {
+      "label": "语言",
+      "zh": "中文",
+      "en": "English"
+    },
+    "userFallback": "用户"
+  },
+  "sidebar": {
+    "sections": {
+      "main": "主导航",
+      "ai": "AI 引擎",
+      "settings": "系统设置"
+    },
+    "items": {
+      "dashboard": "仪表板",
+      "inbox": "收件箱",
+      "categories": "分类管理",
+      "routing": "分发规则",
+      "settings": "通用设置",
+      "apiKeys": "API 密钥",
+      "logs": "访问日志",
+      "statistics": "使用统计"
+    },
+    "footer": {
+      "version": "SuperInbox v0.1.0",
+      "copyright": "© 2024 SuperInbox"
+    }
+  },
+  "auth": {
+    "errors": {
+      "loginFailed": "登录失败",
+      "registerFailed": "注册失败",
+      "missingRefreshToken": "没有刷新令牌",
+      "refreshTokenFailed": "刷新令牌失败"
+    },
+    "login": {
+      "brand": "SuperInbox",
+      "tagline": "智能收件箱管理后台",
+      "fields": {
+        "username": {
+          "label": "用户名",
+          "placeholder": "请输入用户名"
+        },
+        "password": {
+          "label": "密码",
+          "placeholder": "请输入密码"
+        }
+      },
+      "actions": {
+        "showPassword": "显示密码",
+        "hidePassword": "隐藏密码",
+        "submit": "登录",
+        "register": "立即注册"
+      },
+      "noAccount": "还没有账号？",
+      "errors": {
+        "usernameRequired": "请输入用户名",
+        "passwordMin": "密码至少6位"
+      },
+      "toast": {
+        "success": "登录成功",
+        "failure": "登录失败"
+      }
+    },
+    "register": {
+      "title": "注册账号",
+      "subtitle": "创建您的 SuperInbox 账号",
+      "fields": {
+        "username": {
+          "label": "用户名",
+          "placeholder": "请输入用户名"
+        },
+        "email": {
+          "label": "邮箱",
+          "placeholder": "请输入邮箱"
+        },
+        "password": {
+          "label": "密码",
+          "placeholder": "请输入密码（至少6位）"
+        },
+        "confirmPassword": {
+          "label": "确认密码",
+          "placeholder": "请再次输入密码"
+        }
+      },
+      "actions": {
+        "submit": "注册",
+        "login": "立即登录"
+      },
+      "hasAccount": "已有账号？",
+      "errors": {
+        "usernameMin": "用户名至少3位",
+        "usernameMax": "用户名最多20位",
+        "emailInvalid": "请输入有效的邮箱地址",
+        "passwordMin": "密码至少6位",
+        "passwordMismatch": "两次输入的密码不一致"
+      },
+      "toast": {
+        "success": "注册成功",
+        "failure": "注册失败"
+      }
+    }
+  },
+  "dashboard": {
+    "title": "仪表板",
+    "categories": {
+      "todo": "待办",
+      "idea": "想法",
+      "expense": "支出",
+      "schedule": "日程",
+      "note": "笔记",
+      "bookmark": "书签",
+      "unknown": "未知"
+    },
+    "stats": {
+      "totalItems": {
+        "title": "总条目",
+        "description": "本月 +{count}"
+      },
+      "aiSuccessRate": {
+        "title": "AI 处理率",
+        "description": "分析成功率"
+      },
+      "todayItems": {
+        "title": "今日新增",
+        "description": "今天创建的条目"
+      },
+      "pending": {
+        "title": "待处理",
+        "description": "需要处理的条目"
+      }
+    },
+    "categoryDistribution": {
+      "title": "分类分布",
+      "description": "按内容类型分类的条目分布"
+    },
+    "statusDistribution": {
+      "title": "状态分布",
+      "description": "按处理状态分类的条目"
+    },
+    "status": {
+      "completed": "已完成",
+      "processing": "处理中",
+      "failed": "失败",
+      "pending": "待处理"
+    },
+    "recent": {
+      "title": "最近条目",
+      "description": "最新的收件箱条目",
+      "viewAll": "查看全部 →",
+      "emptyPrefix": "暂无条目，",
+      "emptyAction": "创建第一个条目"
+    }
+  },
+  "time": {
+    "justNow": "刚刚",
+    "minutesAgo": "{count} 分钟前",
+    "hoursAgo": "{count} 小时前",
+    "daysAgo": "{count} 天前",
+    "weeksAgo": "{count} 周前",
+    "monthsAgo": "{count} 月前",
+    "yearsAgo": "{count} 年前"
+  },
+  "inbox": {
+    "title": "收件箱",
+    "resultsCount": "找到 {count} 条结果",
+    "emptyFiltered": "没有找到匹配的条目",
+    "processingHint": "等待 AI 解析分类以匹配路由规则...",
+    "routePending": "路由: 待配置",
+    "actions": {
+      "viewDetails": "查看详情"
+    },
+    "badge": {
+      "analyzing": "解析中...",
+      "failed": "失败",
+      "todo": "待办",
+      "idea": "想法",
+      "expense": "支出",
+      "note": "笔记",
+      "bookmark": "书签",
+      "schedule": "日程",
+      "unknown": "未知"
+    },
+    "confirmDelete": "确定要删除这条记录吗？",
+    "toast": {
+      "deleteSuccess": {
+        "title": "删除成功",
+        "description": "条目已成功删除"
+      },
+      "deleteFailure": {
+        "title": "删除失败"
+      },
+      "retrySuccess": {
+        "title": "重试成功",
+        "description": "AI 处理已重新开始"
+      },
+      "retryFailure": {
+        "title": "重试失败"
+      }
+    }
+  },
+  "inboxDetail": {
+    "title": "条目详情",
+    "subtitle": "ID: {id}",
+    "notFound": "条目不存在",
+    "confirmDelete": "确定要删除这条记录吗？",
+    "actions": {
+      "reclassify": "重新分类"
+    },
+    "categories": {
+      "todo": "待办",
+      "idea": "想法",
+      "expense": "支出",
+      "schedule": "日程",
+      "note": "笔记",
+      "bookmark": "书签",
+      "unknown": "未知"
+    },
+    "status": {
+      "pending": "待处理",
+      "processing": "处理中",
+      "completed": "已完成",
+      "failed": "失败"
+    },
+    "priority": {
+      "low": "低",
+      "medium": "中",
+      "high": "高"
+    },
+    "contentType": {
+      "text": "文本",
+      "image": "图片",
+      "url": "链接",
+      "audio": "音频"
+    },
+    "sections": {
+      "content": "原始内容",
+      "attachments": "附件",
+      "analysis": "AI 分析结果",
+      "metadata": "元数据",
+      "distribution": "分发结果"
+    },
+    "analysis": {
+      "intent": "意图分类",
+      "confidence": "置信度",
+      "summary": "摘要",
+      "entities": "提取的实体"
+    },
+    "metadata": {
+      "status": "状态",
+      "priority": "优先级",
+      "source": "来源",
+      "contentType": "内容类型",
+      "createdAt": "创建时间",
+      "updatedAt": "更新时间",
+      "processedAt": "处理时间"
+    },
+    "distribution": {
+      "success": "成功",
+      "failure": "失败"
+    },
+    "toast": {
+      "deleteSuccess": {
+        "title": "删除成功",
+        "description": "条目已成功删除"
+      },
+      "deleteFailure": {
+        "title": "删除失败"
+      },
+      "reclassifySuccess": {
+        "title": "重新分类已开始",
+        "description": "正在重新分析条目"
+      },
+      "reclassifyFailure": {
+        "title": "重新分类失败"
+      }
+    }
+  },
+  "commandSearch": {
+    "options": {
+      "category": { "label": "分类" },
+      "status": { "label": "状态" },
+      "source": { "label": "来源" }
+    },
+    "categories": {
+      "todo": "待办事项",
+      "idea": "想法",
+      "expense": "支出",
+      "note": "笔记",
+      "bookmark": "书签",
+      "schedule": "日程"
+    },
+    "status": {
+      "pending": "待处理",
+      "processing": "处理中",
+      "completed": "已完成",
+      "failed": "失败"
+    },
+    "history": {
+      "meeting": "开会"
+    },
+    "placeholder": "搜索... (⌘K)",
+    "sections": {
+      "options": "搜索选项",
+      "history": "最近搜索",
+      "suggestions": "建议"
+    },
+    "hint": "Tab 确认 · ESC 关闭"
+  },
+  "filePreview": {
+    "sections": {
+      "images": "图片 ({count})",
+      "files": "文件 ({count})"
+    },
+    "dialog": {
+      "imageTitle": "图片预览 - {name}"
+    },
+    "imageAltFallback": "上传的图片",
+    "loading": "加载中...",
+    "uploadedImage": "上传的图片",
+    "fileFallback": "文件",
+    "download": "下载"
+  },
+  "quickAdd": {
+    "trigger": {
+      "full": "快速记录...",
+      "short": "记录"
+    },
+    "title": "快速记录",
+    "description": "记录想法、待办事项、上传文件，AI 将自动分析并分类",
+    "placeholder": "记点什么？（想法、账单、待办、URL...）",
+    "upload": {
+      "instructions": "点击、拖拽或粘贴文件到此处上传",
+      "supported": "支持图片、PDF、音频、视频等 (最大 20MB)"
+    },
+    "selectedFiles": "已选择 {count} 个文件",
+    "actions": {
+      "clearAll": "清空全部",
+      "submit": "记录"
+    },
+    "hints": {
+      "close": "关闭",
+      "submit": "提交"
+    },
+    "errors": {
+      "uploadFailed": "上传失败",
+      "createFailed": "创建失败"
+    },
+    "toast": {
+      "fileTooLarge": {
+        "title": "文件过大",
+        "description": "{name} ({size}) 超过最大限制 {max}",
+        "simpleDescription": "{name} 超过最大限制 {max}"
+      },
+      "filesAdded": {
+        "title": "文件已添加",
+        "description": "已从剪贴板添加 {count} 个文件"
+      },
+      "partialFiles": {
+        "title": "部分文件已添加",
+        "description": "已添加 {added}/{total} 个文件（超限文件已跳过）"
+      },
+      "empty": {
+        "title": "内容不能为空",
+        "description": "请输入内容或选择文件"
+      },
+      "success": {
+        "title": "添加成功",
+        "withFiles": "已添加包含 {count} 个文件的记录",
+        "processing": "记录已创建并正在处理中"
+      },
+      "failure": {
+        "title": "添加失败",
+        "description": "请稍后重试"
+      }
+    }
+  },
+  "apiKeys": {
+    "title": "API 密钥管理",
+    "actions": {
+      "create": "创建",
+      "edit": "编辑",
+      "delete": "删除"
+    },
+    "empty": {
+      "title": "还没有 API 密钥",
+      "description": "点击上方“创建”按钮开始"
+    },
+    "table": {
+      "name": "名称",
+      "key": "Key",
+      "createdAt": "创建日期",
+      "lastUsedAt": "最新使用日期",
+      "actions": "操作"
+    },
+    "unnamed": "未命名",
+    "toast": {
+      "loadFailure": {
+        "title": "加载失败",
+        "description": "无法加载 API 密钥列表"
+      },
+      "deleteSuccess": {
+        "title": "API 密钥已删除",
+        "description": "密钥 {name} 已成功删除"
+      },
+      "deleteFailure": {
+        "title": "删除失败",
+        "description": "无法删除 API 密钥"
+      }
+    },
+    "confirmDelete": "确定要删除 API 密钥 {name} 吗？此操作无法撤销。",
+    "dialog": {
+      "validation": {
+        "emptyScopes": {
+          "title": "权限不能为空",
+          "description": "请至少选择一个权限范围"
+        }
+      },
+      "toast": {
+        "updateSuccess": {
+          "title": "API 密钥已更新",
+          "description": "权限和名称已成功更新"
+        },
+        "createFailure": {
+          "title": "创建失败"
+        },
+        "updateFailure": {
+          "title": "更新失败"
+        },
+        "failureDescription": "操作失败"
+      },
+      "title": {
+        "edit": "编辑 API 密钥",
+        "create": "创建新的 API 密钥"
+      },
+      "description": {
+        "edit": "修改 API 密钥的名称和权限",
+        "create": "创建新的 API 密钥以程序化访问 SuperInbox"
+      },
+      "fields": {
+        "name": {
+          "label": "名称（可选）",
+          "placeholder": "例如：Third Party App",
+          "helper": "为 API 密钥设置一个便于识别的名称"
+        },
+        "scopes": {
+          "label": "权限范围"
+        }
+      },
+      "groups": {
+        "basic": "基础权限",
+        "ai": "AI 处理权限",
+        "routing": "路由管理权限",
+        "content": "内容分类权限",
+        "admin": "管理员权限"
+      },
+      "scopes": {
+        "inboxRead": {
+          "label": "读取收件箱",
+          "description": "查看所有记录"
+        },
+        "inboxWrite": {
+          "label": "写入收件箱",
+          "description": "创建新记录"
+        },
+        "inboxDelete": {
+          "label": "删除记录",
+          "description": "删除现有记录"
+        },
+        "aiRead": {
+          "label": "读取 AI 解析",
+          "description": "查看 AI 分析结果"
+        },
+        "aiWrite": {
+          "label": "修正 AI 解析",
+          "description": "修正 AI 分析结果"
+        },
+        "routingRead": {
+          "label": "读取路由规则",
+          "description": "查看路由配置"
+        },
+        "routingWrite": {
+          "label": "管理路由规则",
+          "description": "创建和修改路由规则"
+        },
+        "contentAll": {
+          "label": "所有类型",
+          "description": "访问所有内容类型"
+        },
+        "contentTodo": {
+          "label": "待办事项",
+          "description": "仅访问待办类型"
+        },
+        "contentIdea": {
+          "label": "想法灵感",
+          "description": "仅访问想法类型"
+        },
+        "contentExpense": {
+          "label": "消费记录",
+          "description": "仅访问消费类型"
+        },
+        "contentNote": {
+          "label": "笔记",
+          "description": "仅访问笔记类型"
+        },
+        "contentBookmark": {
+          "label": "书签收藏",
+          "description": "仅访问收藏类型"
+        },
+        "contentSchedule": {
+          "label": "日程安排",
+          "description": "仅访问日程类型"
+        },
+        "adminFull": {
+          "label": "完整管理权限",
+          "description": "拥有所有权限（包括 API Key 管理）"
+        }
+      },
+      "actions": {
+        "cancel": "取消",
+        "loading": "处理中...",
+        "save": "保存更改",
+        "create": "创建密钥"
+      }
+    },
+    "showDialog": {
+      "toast": {
+        "copySuccess": {
+          "title": "已复制",
+          "description": "API 密钥已复制到剪贴板"
+        },
+        "copyFailure": {
+          "title": "复制失败",
+          "description": "无法复制到剪贴板"
+        }
+      },
+      "title": "创建 API key",
+      "description": "请将此 API key 保存在安全且易于访问的地方。出于安全原因，你将无法通过 API keys 管理界面再次查看它。如果你丢失了这个 key，将需要重新创建。",
+      "actions": {
+        "close": "关闭",
+        "copy": "复制",
+        "copied": "已复制"
+      }
+    }
+  },
+  "settings": {
+    "title": "系统设置",
+    "apiConfig": {
+      "title": "API 认证配置",
+      "description": "配置访问 SuperInbox 后端所需的 API Key",
+      "apiUrl": "API 地址",
+      "currentKey": {
+        "label": "当前 API Key 状态",
+        "configured": "已配置",
+        "storage": "本地存储",
+        "notConfigured": "未配置",
+        "defaultHint": "将使用默认开发密钥"
+      },
+      "newKey": {
+        "label": "设置新的 API Key",
+        "placeholder": "输入你的 API Key",
+        "helper": "生产环境建议使用后端生成的 API Key"
+      }
+    },
+    "quickLinks": {
+      "title": "快速导航",
+      "description": "访问其他设置页面",
+      "apiKeys": {
+        "title": "API 密钥管理",
+        "description": "创建和管理 API 密钥"
+      },
+      "logs": {
+        "title": "访问日志",
+        "description": "查看系统访问记录"
+      },
+      "statistics": {
+        "title": "使用统计",
+        "description": "查看系统使用情况"
+      }
+    },
+    "timezone": {
+      "title": "时区设置",
+      "description": "设置用户所在地区，用于返回当地时间",
+      "current": {
+        "label": "当前时区",
+        "set": "已设置",
+        "unset": "未设置",
+        "utcHint": "将使用 UTC 时间"
+      },
+      "new": {
+        "label": "设置时区",
+        "helper": "使用 IANA 时区格式，如 Asia/Shanghai、America/Los_Angeles"
+      }
+    },
+    "actions": {
+      "clear": "清除",
+      "save": "保存",
+      "useDefaultKey": "使用默认开发密钥",
+      "useBrowserTimezone": "使用当前浏览器时区"
+    },
+    "toast": {
+      "apiKeyEmpty": {
+        "title": "API Key 不能为空",
+        "description": "请输入有效的 API Key"
+      },
+      "apiKeySaved": {
+        "title": "API Key 已保存",
+        "description": "API Key 已成功保存到本地存储"
+      },
+      "defaultKeyUsed": {
+        "title": "已使用默认开发密钥",
+        "description": "默认密钥仅用于开发环境，生产环境请更换"
+      },
+      "apiKeyCleared": {
+        "title": "API Key 已清除",
+        "description": "系统将自动使用默认开发密钥"
+      },
+      "timezoneEmpty": {
+        "title": "时区不能为空",
+        "description": "请输入有效的 IANA 时区，如 Asia/Shanghai"
+      },
+      "timezoneSaved": {
+        "title": "时区已保存",
+        "description": "已更新为 {timezone}"
+      },
+      "timezoneSaveFailure": {
+        "title": "时区保存失败"
+      }
+    }
+  },
+  "logs": {
+    "title": "访问日志审计",
+    "actions": {
+      "export": "导出日志"
+    },
+    "loading": "加载中...",
+    "empty": "暂无日志记录",
+    "status": {
+      "success": "成功",
+      "error": "失败",
+      "denied": "拒绝"
+    },
+    "timeRange": {
+      "today": "今天",
+      "week": "本周",
+      "month": "本月",
+      "custom": "自定义"
+    },
+    "quickFilters": {
+      "timeRange": "时间范围",
+      "status": "状态",
+      "statusAll": "全部状态",
+      "search": "搜索",
+      "searchPlaceholder": "搜索接口路径...",
+      "advanced": "高级筛选",
+      "enabled": "已启用"
+    },
+    "tags": {
+      "time": "时间: {value}",
+      "status": "状态: {value}",
+      "search": "搜索: {value}",
+      "methods": "方法: {value}",
+      "ip": "IP: {value}"
+    },
+    "advanced": {
+      "httpMethods": "HTTP 方法",
+      "ip": "IP 地址",
+      "ipPlaceholder": "输入 IP 地址...",
+      "apiKey": "API Key",
+      "apiKeyPlaceholder": "选择 API Key",
+      "apiKeyAll": "全部 API Keys",
+      "reset": "重置筛选",
+      "apply": "应用筛选"
+    },
+    "table": {
+      "time": "时间",
+      "path": "接口路径",
+      "method": "方法",
+      "status": "状态",
+      "duration": "耗时",
+      "ip": "IP 地址",
+      "apiKey": "API Key"
+    },
+    "pagination": {
+      "summary": "显示 {start}-{end} 条，共 {total} 条",
+      "prev": "上一页",
+      "page": "第 {page} / {totalPages} 页",
+      "next": "下一页",
+      "pageSize": "{size}/页"
+    },
+    "export": {
+      "title": "导出访问日志",
+      "description": "选择导出格式和要包含的字段",
+      "format": "导出格式",
+      "formats": {
+        "csv": "CSV - 适合 Excel",
+        "json": "JSON - 适合程序处理",
+        "xlsx": "XLSX - Excel 原生格式"
+      },
+      "fieldsLabel": "包含字段",
+      "fields": {
+        "timestamp": "时间戳",
+        "method": "HTTP 方法",
+        "endpoint": "接口路径",
+        "statusCode": "状态码",
+        "duration": "耗时",
+        "ip": "IP 地址",
+        "userAgent": "User-Agent",
+        "requestBody": "请求体"
+      },
+      "hint": {
+        "title": "时间范围：",
+        "description": "将导出当前筛选器设定的时间范围（约 {count} 条记录）"
+      },
+      "asyncWarning": "由于数据量较大（超过 1000 条），将使用异步导出。完成后会通过通知提示，您可以继续其他操作。",
+      "actions": {
+        "cancel": "取消",
+        "preparing": "准备中...",
+        "submit": "开始导出"
+      },
+      "validation": "请至少选择一个字段",
+      "asyncSuccess": {
+        "title": "导出任务已创建",
+        "description": "完成后将自动下载"
+      },
+      "success": "导出成功",
+      "failure": "导出失败"
+    },
+    "detail": {
+      "request": {
+        "title": "📤 请求详情",
+        "fullUrl": "完整 URL",
+        "body": "请求体",
+        "headers": "查看请求头"
+      },
+      "response": {
+        "title": "📥 响应详情",
+        "statusCode": "状态码",
+        "size": "响应大小",
+        "duration": "响应时间"
+      },
+      "error": {
+        "title": "❌ 错误信息",
+        "code": "错误码",
+        "message": "错误消息",
+        "details": "查看详细信息"
+      },
+      "meta": {
+        "userAgent": "User-Agent",
+        "ip": "IP"
+      }
+    }
+  },
+  "apiKeyLogs": {
+    "back": "返回 API Keys",
+    "unnamed": "未命名 Key",
+    "keyLabel": "Key: {key}",
+    "createdAt": "创建于: {date}",
+    "totalCalls": "共 {count} 次调用",
+    "actions": {
+      "viewStats": "查看统计",
+      "editKey": "编辑 Key"
+    }
+  },
+  "statistics": {
+    "title": "API 使用统计",
+    "timeRange": {
+      "today": "今天",
+      "week": "本周",
+      "month": "本月",
+      "all": "全部"
+    },
+    "summary": {
+      "totalRequests": "总请求数",
+      "compared": "较上个周期",
+      "successRate": "成功率",
+      "successCount": "成功请求",
+      "errorCount": "失败请求",
+      "share": "占比 {value}%"
+    },
+    "quality": {
+      "excellent": "优秀",
+      "good": "良好",
+      "needsWork": "需改进"
+    },
+    "trend": {
+      "title": "请求趋势",
+      "description": "按日期统计的 API 请求量变化",
+      "placeholderTitle": "趋势图表",
+      "placeholderSubtitle": "功能待开发",
+      "collected": "已收录 {count} 天的数据"
+    },
+    "keys": {
+      "title": "API Key 详情",
+      "description": "查看所有活跃 API Key 的请求量数据",
+      "activeCount": "共 {count} 个活跃 Key",
+      "table": {
+        "name": "Key 名称",
+        "requests": "请求量",
+        "share": "占比",
+        "successRate": "成功率",
+        "lastUsed": "最后使用",
+        "status": "状态"
+      },
+      "status": {
+        "active": "活跃",
+        "inactive": "未激活"
+      }
+    }
+  },
+  "mcpAdapters": {
+    "title": "MCP 连接器",
+    "subtitle": "管理 Model Context Protocol 连接器配置",
+    "actions": {
+      "add": "添加连接器",
+      "test": "测试连接",
+      "testing": "测试中",
+      "edit": "编辑",
+      "delete": "删除",
+      "create": "创建",
+      "creating": "创建中...",
+      "save": "保存",
+      "updating": "更新中..."
+    },
+    "list": {
+      "title": "连接器列表"
+    },
+    "empty": "尚未配置 MCP 连接器",
+    "status": {
+      "enabled": "已启用",
+      "disabled": "已停用",
+      "healthy": "健康",
+      "unhealthy": "异常"
+    },
+    "transport": {
+      "stdio": "📡 Stdio",
+      "http": "🌐 HTTP"
+    },
+    "labels": {
+      "command": "命令: {command}",
+      "server": "服务器: {url}",
+      "lastCheck": "上次检查: {time}"
+    },
+    "health": {
+      "healthy": "健康",
+      "unhealthy": "异常"
+    },
+    "toast": {
+      "deleteSuccess": {
+        "title": "连接器已删除",
+        "description": "MCP 连接器已成功删除"
+      },
+      "deleteFailure": {
+        "title": "删除失败"
+      },
+      "testSuccess": {
+        "title": "连接测试成功",
+        "description": "MCP 服务器连接正常"
+      },
+      "testFailure": {
+        "title": "连接测试失败",
+        "description": "连接状态: {status}"
+      },
+      "createSuccess": {
+        "title": "连接器已创建",
+        "description": "已创建 \"{name}\""
+      },
+      "createFailure": {
+        "title": "创建失败"
+      },
+      "updateSuccess": {
+        "title": "连接器已更新",
+        "description": "已更新 \"{name}\""
+      },
+      "updateFailure": {
+        "title": "更新失败"
+      }
+    },
+    "confirmDelete": "确定删除此连接器吗？",
+    "serverTypes": {
+      "notion": "Notion",
+      "github": "GitHub",
+      "todoist": "Todoist",
+      "custom": "自定义"
+    },
+    "authTypes": {
+      "apiKey": "API Key",
+      "oauth": "OAuth"
+    },
+    "dialog": {
+      "create": {
+        "title": "添加 MCP 连接器",
+        "description": "配置新的 Model Context Protocol 连接器"
+      },
+      "edit": {
+        "title": "编辑 MCP 连接器",
+        "description": "修改连接器配置"
+      }
+    },
+    "fields": {
+      "name": {
+        "label": "连接器名称",
+        "placeholder": "例如：Notion Workspace"
+      },
+      "serverType": {
+        "label": "服务器类型",
+        "placeholder": "选择类型"
+      },
+      "transportType": {
+        "label": "传输类型",
+        "stdio": "📡 Stdio (本地进程)",
+        "http": "🌐 HTTP (网络请求)",
+        "auto": "自动检测",
+        "stdioHint": "通过本地进程通信（适合 Notion）",
+        "httpHint": "通过 HTTP 请求通信（适合自定义服务器）"
+      },
+      "serverUrl": {
+        "label": "服务器 URL",
+        "helper": "MCP 服务器的 HTTP 地址"
+      },
+      "command": {
+        "label": "执行命令",
+        "placeholder": "npx [您的 MCP 服务器]",
+        "helper": "命令由后端自动生成并执行"
+      },
+      "authType": {
+        "label": "认证类型",
+        "placeholder": "选择认证类型"
+      },
+      "apiKey": {
+        "label": "API Key{env, select, true { (环境变量)} other {}}",
+        "placeholderStdio": "Notion Integration Token (ntn_xxx)",
+        "placeholder": "输入 API Key",
+        "placeholderEdit": "输入新的 API Key（留空保持不变）",
+        "hintStdio": "Notion Integration Token，将作为环境变量 NOTION_TOKEN 传递给 MCP 服务器",
+        "hint": "用于身份验证的密钥",
+        "hintEdit": "留空则保持现有值不变"
+      },
+      "defaultToolName": {
+        "label": "默认工具名称（可选）",
+        "placeholder": "例如：API-patch-block-children",
+        "helper": "为空时使用系统默认推断工具名称"
+      },
+      "enabled": {
+        "label": "启用此连接器"
+      }
+    },
+    "tools": {
+      "title": "可用工具 ({count})",
+      "noTools": "暂无工具信息"
+    },
+    "config": {
+      "title": "配置信息",
+      "type": "类型",
+      "transport": "传输方式",
+      "command": "执行命令"
+    },
+    "status": {
+      "enabled": "已启用",
+      "disabled": "已停用",
+      "healthy": "健康",
+      "unhealthy": "异常",
+      "pending": "未测试"
+    },
+    "validation": {
+      "name": {
+        "title": "请输入连接器名称",
+        "description": "连接器名称不能为空"
+      },
+      "serverUrl": {
+        "title": "请输入服务器 URL",
+        "description": "HTTP 类型需要服务器 URL"
+      },
+      "apiKey": {
+        "title": "请输入 API Key",
+        "description": "API Key 不能为空（将作为环境变量传递给 MCP 服务器）"
+      }
+    }
+  },
+  "errors": {
+    "unknown": "未知错误",
+    "internalError": "系统错误",
+    "request": {
+      "invalid": "请求校验失败"
+    },
+    "auth": {
+      "invalidInput": "请检查输入内容",
+      "invalidCredentials": "用户名或密码不正确",
+      "unauthorized": "请重新登录后再试",
+      "forbidden": "没有权限执行此操作",
+      "usernameExists": "用户名已存在",
+      "emailExists": "邮箱已存在",
+      "loginFailed": "登录失败",
+      "registerFailed": "注册失败",
+      "invalidRefreshToken": "刷新令牌无效",
+      "missingRefreshToken": "缺少刷新令牌",
+      "refreshTokenExpired": "刷新令牌已过期",
+      "refreshFailed": "刷新登录状态失败",
+      "userNotFound": "用户不存在"
+    },
+    "routing": {
+      "connectorNotFound": "找不到连接器 \"{name}\"",
+      "invalidInput": "路由输入无效",
+      "invalidConfig": "路由配置无效",
+      "dispatchFailed": "分发失败"
+    },
+    "mcp": {
+      "connectorNotFound": "找不到连接器 \"{name}\"",
+      "invalidConfig": "连接器配置无效"
+    },
+    "inbox": {
+      "notFound": "条目不存在",
+      "fileTooLarge": "文件过大，最大允许 {max}",
+      "fileNotFound": "文件不存在",
+      "fileIndexOutOfRange": "文件索引超出范围",
+      "noFiles": "未上传文件",
+      "invalidInput": "收件箱请求无效",
+      "invalidStatus": "当前状态不允许此操作"
+    },
+    "apiKeys": {
+      "notFound": "API 密钥不存在",
+      "invalidInput": "API 密钥输入无效"
+    },
+    "ai": {
+      "invalidInput": "AI 请求无效",
+      "templateNotFound": "提示词版本不存在",
+      "categoryNotFound": "分类不存在",
+      "categoryKeyExists": "分类 key 已存在",
+      "previewFailed": "预览失败"
+    },
+    "settings": {
+      "invalidTimezone": "时区无效",
+      "invalidInput": "设置输入无效"
+    },
+    "logs": {
+      "invalidQuery": "日志查询条件无效",
+      "invalidFormat": "导出格式无效",
+      "invalidFields": "请至少选择一个导出字段",
+      "exportNotFound": "导出任务不存在",
+      "exportNotReady": "导出尚未完成",
+      "exportExpired": "导出已过期"
+    },
+    "intelligence": {
+      "parseFailed": "解析结果加载失败",
+      "updateFailed": "解析结果更新失败"
+    }
+  },
+  "aiPage": {
+    "listSeparator": "、",
+    "title": "分类管理",
+    "actions": {
+      "addCategory": "新增分类",
+      "newTemplate": "新建提示词版本",
+      "edit": "编辑",
+      "enable": "启用",
+      "save": "保存",
+      "editCategory": "编辑分类",
+      "enableCategory": "启用分类",
+      "disableCategory": "停用分类",
+      "coverageRequired": "模板未覆盖，无法操作"
+    },
+    "stats": {
+      "totalCategories": {
+        "title": "分类总数",
+        "description": "已配置的分类数"
+      },
+      "activeCategories": {
+        "title": "启用分类",
+        "description": "参与分类的意图数量"
+      },
+      "templateVersions": {
+        "title": "提示词版本",
+        "description": "历史版本数量"
+      },
+      "missingCoverage": {
+        "title": "覆盖缺失",
+        "description": "未覆盖的启用分类"
+      }
+    },
+    "categoryList": {
+      "title": "分类列表",
+      "description": "启用分类将参与 AI 分类与分发规则",
+      "headers": {
+        "category": "分类",
+        "overview": "概览",
+        "status": "状态",
+        "actions": "操作"
+      },
+      "empty": "暂无分类"
+    },
+    "status": {
+      "uncovered": "未覆盖",
+      "active": "启用",
+      "inactive": "停用"
+    },
+    "labels": {
+      "unnamed": "未命名"
+    },
+    "templates": {
+      "copyName": "{name} - 副本",
+      "newVersion": "新提示词版本"
+    },
+    "templateSection": {
+      "title": "分类提示词管理",
+      "description": "启用前需覆盖所有启用分类。",
+      "empty": "暂无提示词版本",
+      "notParsed": "尚未解析覆盖",
+      "createdAt": "创建时间：{date}",
+      "status": {
+        "active": "启用中",
+        "inactive": "未启用"
+      },
+      "tooltip": {
+        "active": "当前已启用",
+        "enable": "启用该版本",
+        "missingCoverage": "需覆盖以下分类后才能启用：{categories}"
+      }
+    },
+    "categoryDialog": {
+      "titleEdit": "编辑分类",
+      "titleCreate": "新增分类",
+      "description": "分类用于 AI 意图识别和分发规则条件，停用分类不会删除历史数据。",
+      "fields": {
+        "name": {
+          "label": "分类名称",
+          "placeholder": "例如：待办"
+        },
+        "key": {
+          "label": "分类标识",
+          "placeholder": "例如：todo",
+          "hint": "建议使用英文小写，作为规则条件和 API 字段。",
+          "conflict": "该标识已存在。"
+        },
+        "description": {
+          "label": "描述",
+          "placeholder": "一句话描述该分类用于哪些内容"
+        },
+        "examples": {
+          "label": "示例",
+          "placeholder": "每行一个示例"
+        },
+        "active": {
+          "label": "启用该分类"
+        }
+      }
+    },
+    "templateDialog": {
+      "titleEdit": "编辑提示词版本",
+      "titleCreate": "新建提示词版本",
+      "description": "AI 解析后生成覆盖结果，需覆盖所有启用分类才能启用。修改提示词后请重新解析。",
+      "fields": {
+        "name": {
+          "label": "版本名称",
+          "placeholder": "例如：默认分类提示词 v2"
+        },
+        "description": {
+          "label": "版本描述",
+          "placeholder": "描述此次版本变更"
+        },
+        "prompt": {
+          "label": "提示词内容",
+          "placeholder": "输入分类提示词或结构化指令"
+        }
+      },
+      "coverage": {
+        "title": "覆盖解析",
+        "hint": "解析结果即覆盖结果，修改提示词后请重新解析。",
+        "staleHint": "覆盖已过期，需要重新解析。",
+        "badges": {
+          "parsing": "解析中",
+          "stale": "已过期",
+          "complete": "覆盖完整",
+          "missing": "缺失 {count}",
+          "notParsed": "未解析"
+        },
+        "actions": {
+          "parsing": "解析覆盖中…",
+          "parse": "AI 解析覆盖",
+          "createCategory": "新建分类",
+          "ignore": "忽略"
+        },
+        "summary": {
+          "covered": "已覆盖 {covered}/{total}",
+          "missing": "缺失 {count}",
+          "lowRisk": "风险低"
+        },
+        "sections": {
+          "parsed": "已解析",
+          "empty": "无",
+          "unparsed": "未解析",
+          "allParsed": "已全部解析",
+          "unknown": "未知"
+        },
+        "emptyState": {
+          "titleParsing": "解析覆盖中…",
+          "titleIdle": "先解析",
+          "descriptionParsing": "正在生成覆盖建议，请稍候。",
+          "descriptionIdle": "未解析时仅展示空态；解析后会展示覆盖差异与风险提示。"
+        },
+        "alertMissing": "启用前需覆盖：{categories}",
+        "alertComplete": "已覆盖所有启用分类，可以启用。"
+      },
+      "sample": {
+        "title": "试运行",
+        "description": "输入一句示例内容，调用 AI 进行一次分类预览。",
+        "warning": "注意：试运行会调用 AI，结果可能受模型与配置影响。保存模板后，建议使用真实数据验证分类准确性。",
+        "label": "示例内容",
+        "placeholder": "例如：明天 10 点和张三开会",
+        "running": "试运行中…",
+        "run": "试运行",
+        "runningInline": "AI 试运行中…",
+        "hit": "命中",
+        "confidence": "置信 {percent}%",
+        "reason": "理由：{reason}",
+        "failed": "失败"
+      },
+      "actions": {
+        "save": "保存提示词版本"
+      }
+    },
+    "toasts": {
+      "categoryKeyUpdated": {
+        "title": "分类标识已更新",
+        "description": "请重新解析模板覆盖以保持一致。"
+      },
+      "categorySaveFailed": {
+        "title": "保存分类失败"
+      },
+      "categoryUpdateFailed": {
+        "title": "更新分类失败"
+      },
+      "frontendParsed": {
+        "title": "前端预解析完成",
+        "description": "新建提示词使用关键词匹配预解析，保存后可使用 AI 解析获得更准确结果。"
+      },
+      "coverageParseFailed": {
+        "title": "解析覆盖失败"
+      },
+      "promptRequired": {
+        "title": "请填写提示词内容"
+      },
+      "coverageStale": {
+        "title": "覆盖已过期",
+        "description": "请先重新解析覆盖后再试运行。"
+      },
+      "coverageMissing": {
+        "title": "尚未解析覆盖",
+        "description": "请先解析覆盖后再试运行。"
+      },
+      "noAvailableCategories": {
+        "title": "没有可用分类",
+        "description": "请先完善分类或重新解析覆盖。"
+      },
+      "sampleRunFailed": {
+        "title": "试运行失败"
+      },
+      "openCategoryEditor": {
+        "title": "打开分类编辑",
+        "description": "请完善分类信息后保存，保存后可在模板中重新解析覆盖。"
+      },
+      "templateNameRequired": {
+        "title": "请填写版本名称"
+      },
+      "coverageIncomplete": {
+        "title": "覆盖不完整",
+        "description": "解析结果未覆盖以下分类：{categories}。保存后请调整提示词并重新解析，否则无法启用。"
+      },
+      "templateSaved": {
+        "title": "提示词保存成功",
+        "descriptionComplete": "解析结果已覆盖所有启用分类，可以启用。",
+        "descriptionIncomplete": "请调整提示词并重新解析后再启用。"
+      },
+      "templateSaveFailed": {
+        "title": "保存提示词失败"
+      },
+      "templateActivateFailed": {
+        "title": "启用失败"
+      }
+    },
+    "errors": {
+      "sampleRunFailed": "AI 试运行失败"
+    }
+  },
+  "routingPage": {
+    "title": "分发规则",
+    "actions": {
+      "createRule": "新建规则",
+      "notion": "Notion",
+      "obsidian": "Obsidian",
+      "webhook": "Webhook"
+    },
+    "fields": {
+      "category": "分类",
+      "source": "来源",
+      "priority": "优先级",
+      "content": "内容"
+    },
+    "operators": {
+      "equals": "等于",
+      "contains": "包含",
+      "matches": "匹配",
+      "in": "属于"
+    },
+    "ruleName": {
+      "empty": "未命名规则",
+      "pattern": "{categories} → {connector}"
+    },
+    "confirmDelete": "确定删除规则\"{name}\"吗？",
+    "ruleList": {
+      "title": "规则管理",
+      "summary": {
+        "total": "总计 {count}",
+        "active": "活跃 {count}",
+        "inactive": "停用 {count}"
+      },
+      "searchPlaceholder": "搜索规则名称或描述",
+      "statusFilter": {
+        "placeholder": "状态筛选",
+        "all": "全部状态",
+        "active": "仅活跃",
+        "inactive": "仅停用"
+      },
+      "empty": "暂无分发规则",
+      "conditions": {
+        "all": "全部"
+      },
+      "status": {
+        "active": "活跃",
+        "inactive": "停用"
+      },
+      "priority": "优先级: {value}",
+      "descriptionEmpty": "未填写规则说明",
+      "actionsEmpty": "未配置动作",
+      "updatedAt": "更新于 {date}"
+    },
+    "connectors": {
+      "title": "MCP 连接器",
+      "description": "管理后端 MCP 连接器配置",
+      "manage": "管理连接器",
+      "empty": "尚未配置 MCP 连接器。",
+      "notionLink": "前往 Notion 创建 Integration",
+      "status": {
+        "enabled": "已启用",
+        "disabled": "已停用"
+      },
+      "health": {
+        "healthy": "健康",
+        "unhealthy": "异常"
+      }
+    },
+    "toasts": {
+      "ruleDeleted": {
+        "title": "规则已删除",
+        "description": "已删除\"{name}\""
+      },
+      "deleteFailed": {
+        "title": "删除失败"
+      },
+      "categoryRequired": {
+        "title": "请选择分类",
+        "description": "规则必须选择至少一个分类"
+      },
+      "connectorRequired": {
+        "title": "请选择连接器",
+        "description": "规则必须选择一个连接器"
+      },
+      "ruleUpdated": {
+        "title": "规则已更新",
+        "description": "已保存\"{name}\""
+      },
+      "updateFailed": {
+        "title": "更新失败"
+      },
+      "previewContentRequired": {
+        "title": "请输入样例内容",
+        "description": "用于测试规则是否匹配"
+      },
+      "testConnectorRequired": {
+        "title": "请先选择连接器",
+        "description": "需要选择一个 MCP 连接器来运行测试"
+      },
+      "pageIdRequired": {
+        "title": "请输入页面 ID",
+        "description": "需要提供 Notion 页面 ID 才能追加内容"
+      },
+      "testContentRequired": {
+        "title": "请输入测试内容",
+        "description": "输入要追加到 Notion 页面里的内容"
+      },
+      "descriptionRequired": {
+        "title": "请输入规则描述",
+        "description": "规则描述将作为 LLM 处理指令"
+      },
+      "connectorNotFound": {
+        "title": "找不到连接器",
+        "description": "无法找到 \"{name}\" 的 MCP 连接器配置"
+      },
+      "dispatchFailed": {
+        "title": "追加失败"
+      },
+      "dispatchSuccess": {
+        "title": "追加成功",
+        "description": "内容已追加到 Notion 页面"
+      },
+      "ruleCreated": {
+        "title": "规则已创建",
+        "description": "已新增\"{name}\""
+      },
+      "createFailed": {
+        "title": "创建失败"
+      }
+    },
+    "preview": {
+      "title": "规则预览",
+      "description": "输入样例内容测试规则匹配",
+      "placeholder": "请输入样例内容或结构化文本",
+      "actions": {
+        "loading": "测试中...",
+        "run": "测试规则"
+      },
+      "hint": "调用 /routing/rules/:id/test",
+      "empty": "预览结果将在这里显示",
+      "failed": "测试失败"
+    },
+    "testDispatch": {
+      "title": "运行测试",
+      "description": "输入内容并追加到 Notion 页面",
+      "contentPlaceholder": "输入要追加到 Notion 页面里的内容...",
+      "pageId": {
+        "label": "Notion 页面 ID",
+        "placeholder": "2efdca6525fe8110bd7de53062d860f7"
+      },
+      "actions": {
+        "loading": "追加中...",
+        "run": "运行测试"
+      },
+      "result": {
+        "success": "✓ 追加成功",
+        "failed": "✗ 追加失败",
+        "status": "状态：{status}",
+        "tool": "工具：{tool}",
+        "toolSchema": "工具 Schema",
+        "stepTitle": "步骤 {step}: {tool}"
+      },
+      "failed": "追加失败",
+      "sendFailed": "测试发送失败"
+    },
+    "editDialog": {
+      "title": "编辑规则",
+      "description": "调整规则配置并预览匹配结果",
+      "noRule": "未选择规则",
+      "fields": {
+        "name": {
+          "label": "名称",
+          "hint": "名称自动生成"
+        },
+        "priority": {
+          "label": "优先级"
+        },
+        "categories": {
+          "label": "分类条件（必选，可多选）",
+          "empty": "暂无分类可选",
+          "hint": "当前仅支持按分类匹配"
+        },
+        "connector": {
+          "label": "连接器（必选）",
+          "empty": "请先在右侧创建连接器",
+          "placeholder": "选择连接器"
+        },
+        "description": {
+          "label": "描述",
+          "placeholder": "一句话描述这条规则"
+        },
+        "active": "启用该规则"
+      },
+      "actions": {
+        "saving": "保存中...",
+        "save": "保存规则"
+      }
+    },
+    "createDialog": {
+      "title": "新建规则",
+      "description": "创建新的分发规则",
+      "fields": {
+        "name": {
+          "label": "名称",
+          "hint": "名称自动生成"
+        },
+        "priority": {
+          "label": "优先级"
+        },
+        "categories": {
+          "label": "分类条件（必选，可多选）",
+          "empty": "暂无分类可选",
+          "hint": "当前仅支持按分类匹配"
+        },
+        "connector": {
+          "label": "连接器（必选）",
+          "empty": "请先在右侧创建连接器",
+          "placeholder": "选择连接器"
+        },
+        "description": {
+          "label": "描述",
+          "placeholder": "一句话描述这条规则"
+        },
+        "active": "启用该规则"
+      },
+      "actions": {
+        "saving": "创建中...",
+        "create": "创建规则"
+      }
+    }
+  }
+}

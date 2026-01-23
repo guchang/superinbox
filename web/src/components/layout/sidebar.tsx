@@ -1,7 +1,7 @@
 "use client"
 
-import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { useTranslations } from 'next-intl'
+import { Link, usePathname } from '@/i18n/navigation'
 import {
   Inbox,
   BrainCircuit,
@@ -25,34 +25,35 @@ import {
   SidebarMenuItem,
 } from '@/components/ui/sidebar'
 
-const navigationData = [
-  {
-    title: '主导航',
-    items: [
-      { name: '仪表板', href: '/', icon: Home },
-      { name: '收件箱', href: '/inbox', icon: Inbox },
-    ]
-  },
-  {
-    title: 'AI 引擎',
-    items: [
-      { name: '分类管理', href: '/ai', icon: BrainCircuit },
-      { name: '分发规则', href: '/routing', icon: GitBranch },
-    ]
-  },
-  {
-    title: '系统设置',
-    items: [
-      { name: '通用设置', href: '/settings', icon: Settings },
-      { name: 'API 密钥', href: '/settings/api-keys', icon: Key },
-      { name: '访问日志', href: '/settings/logs', icon: Activity },
-      { name: '使用统计', href: '/settings/statistics', icon: BarChart3 },
-    ]
-  }
-]
-
 export function AppSidebar() {
+  const t = useTranslations('sidebar')
   const pathname = usePathname()
+
+  const navigationData = [
+    {
+      title: t('sections.main'),
+      items: [
+        { name: t('items.dashboard'), href: '/', icon: Home },
+        { name: t('items.inbox'), href: '/inbox', icon: Inbox },
+      ]
+    },
+    {
+      title: t('sections.ai'),
+      items: [
+        { name: t('items.categories'), href: '/ai', icon: BrainCircuit },
+        { name: t('items.routing'), href: '/routing', icon: GitBranch },
+      ]
+    },
+    {
+      title: t('sections.settings'),
+      items: [
+        { name: t('items.settings'), href: '/settings', icon: Settings },
+        { name: t('items.apiKeys'), href: '/settings/api-keys', icon: Key },
+        { name: t('items.logs'), href: '/settings/logs', icon: Activity },
+        { name: t('items.statistics'), href: '/settings/statistics', icon: BarChart3 },
+      ]
+    }
+  ]
 
   const isActive = (href: string) => {
     if (href === '/') return pathname === '/'
@@ -94,8 +95,8 @@ export function AppSidebar() {
 
       <SidebarFooter>
         <div className="px-2 py-2 text-xs text-muted-foreground">
-          <p>SuperInbox v0.1.0</p>
-          <p className="mt-1">© 2024 SuperInbox</p>
+          <p>{t('footer.version')}</p>
+          <p className="mt-1">{t('footer.copyright')}</p>
         </div>
       </SidebarFooter>
     </Sidebar>

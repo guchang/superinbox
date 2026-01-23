@@ -5,6 +5,7 @@
 import type { Request, Response } from 'express';
 import { getDatabase } from '../storage/database.js';
 import { generateApiKey, generateApiKeyId, hashApiKey } from '../utils/api-key.js';
+import { sendError } from '../utils/error-response.js';
 
 /**
  * Create a new API key
@@ -14,9 +15,10 @@ export const createApiKeyController = async (req: Request, res: Response): Promi
   try {
     const userId = req.user?.userId;
     if (!userId) {
-      res.status(401).json({
-        success: false,
-        error: 'Unauthorized',
+      sendError(res, {
+        statusCode: 401,
+        code: 'AUTH.UNAUTHORIZED',
+        message: 'Unauthorized'
       });
       return;
     }
@@ -25,9 +27,10 @@ export const createApiKeyController = async (req: Request, res: Response): Promi
 
     // Validate scopes
     if (!scopes || !Array.isArray(scopes) || scopes.length === 0) {
-      res.status(400).json({
-        success: false,
-        error: 'Scopes are required and must be a non-empty array',
+      sendError(res, {
+        statusCode: 400,
+        code: 'API_KEYS.INVALID_INPUT',
+        message: 'Scopes are required and must be a non-empty array'
       });
       return;
     }
@@ -66,9 +69,10 @@ export const createApiKeyController = async (req: Request, res: Response): Promi
     });
   } catch (error) {
     console.error('Create API key error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to create API key',
+    sendError(res, {
+      statusCode: 500,
+      code: 'INTERNAL_ERROR',
+      message: 'Failed to create API key'
     });
   }
 };
@@ -81,9 +85,10 @@ export const listApiKeysController = async (req: Request, res: Response): Promis
   try {
     const userId = req.user?.userId;
     if (!userId) {
-      res.status(401).json({
-        success: false,
-        error: 'Unauthorized',
+      sendError(res, {
+        statusCode: 401,
+        code: 'AUTH.UNAUTHORIZED',
+        message: 'Unauthorized'
       });
       return;
     }
@@ -109,9 +114,10 @@ export const listApiKeysController = async (req: Request, res: Response): Promis
     });
   } catch (error) {
     console.error('List API keys error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to list API keys',
+    sendError(res, {
+      statusCode: 500,
+      code: 'INTERNAL_ERROR',
+      message: 'Failed to list API keys'
     });
   }
 };
@@ -124,9 +130,10 @@ export const getApiKeyController = async (req: Request, res: Response): Promise<
   try {
     const userId = req.user?.userId;
     if (!userId) {
-      res.status(401).json({
-        success: false,
-        error: 'Unauthorized',
+      sendError(res, {
+        statusCode: 401,
+        code: 'AUTH.UNAUTHORIZED',
+        message: 'Unauthorized'
       });
       return;
     }
@@ -136,18 +143,21 @@ export const getApiKeyController = async (req: Request, res: Response): Promise<
     const apiKey = db.getApiKeyById(id);
 
     if (!apiKey) {
-      res.status(404).json({
-        success: false,
-        error: 'API key not found',
+      sendError(res, {
+        statusCode: 404,
+        code: 'API_KEYS.NOT_FOUND',
+        message: 'API key not found',
+        params: { id }
       });
       return;
     }
 
     // Verify ownership
     if (apiKey.userId !== userId) {
-      res.status(403).json({
-        success: false,
-        error: 'Access denied',
+      sendError(res, {
+        statusCode: 403,
+        code: 'AUTH.FORBIDDEN',
+        message: 'Access denied'
       });
       return;
     }
@@ -167,9 +177,10 @@ export const getApiKeyController = async (req: Request, res: Response): Promise<
     });
   } catch (error) {
     console.error('Get API key error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to get API key',
+    sendError(res, {
+      statusCode: 500,
+      code: 'INTERNAL_ERROR',
+      message: 'Failed to get API key'
     });
   }
 };
@@ -182,9 +193,10 @@ export const updateApiKeyController = async (req: Request, res: Response): Promi
   try {
     const userId = req.user?.userId;
     if (!userId) {
-      res.status(401).json({
-        success: false,
-        error: 'Unauthorized',
+      sendError(res, {
+        statusCode: 401,
+        code: 'AUTH.UNAUTHORIZED',
+        message: 'Unauthorized'
       });
       return;
     }
@@ -196,27 +208,31 @@ export const updateApiKeyController = async (req: Request, res: Response): Promi
     const existing = db.getApiKeyById(id);
 
     if (!existing) {
-      res.status(404).json({
-        success: false,
-        error: 'API key not found',
+      sendError(res, {
+        statusCode: 404,
+        code: 'API_KEYS.NOT_FOUND',
+        message: 'API key not found',
+        params: { id }
       });
       return;
     }
 
     // Verify ownership
     if (existing.userId !== userId) {
-      res.status(403).json({
-        success: false,
-        error: 'Access denied',
+      sendError(res, {
+        statusCode: 403,
+        code: 'AUTH.FORBIDDEN',
+        message: 'Access denied'
       });
       return;
     }
 
     // Validate scopes if provided
     if (scopes !== undefined && (!Array.isArray(scopes) || scopes.length === 0)) {
-      res.status(400).json({
-        success: false,
-        error: 'Scopes must be a non-empty array',
+      sendError(res, {
+        statusCode: 400,
+        code: 'API_KEYS.INVALID_INPUT',
+        message: 'Scopes must be a non-empty array'
       });
       return;
     }
@@ -240,9 +256,10 @@ export const updateApiKeyController = async (req: Request, res: Response): Promi
     });
   } catch (error) {
     console.error('Update API key error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to update API key',
+    sendError(res, {
+      statusCode: 500,
+      code: 'INTERNAL_ERROR',
+      message: 'Failed to update API key'
     });
   }
 };
@@ -257,9 +274,10 @@ export const toggleApiKeyController = async (req: Request, res: Response): Promi
   try {
     const userId = req.user?.userId;
     if (!userId) {
-      res.status(401).json({
-        success: false,
-        error: 'Unauthorized',
+      sendError(res, {
+        statusCode: 401,
+        code: 'AUTH.UNAUTHORIZED',
+        message: 'Unauthorized'
       });
       return;
     }
@@ -268,9 +286,10 @@ export const toggleApiKeyController = async (req: Request, res: Response): Promi
     const { isActive } = req.body;
 
     if (typeof isActive !== 'boolean') {
-      res.status(400).json({
-        success: false,
-        error: 'isActive must be a boolean',
+      sendError(res, {
+        statusCode: 400,
+        code: 'API_KEYS.INVALID_INPUT',
+        message: 'isActive must be a boolean'
       });
       return;
     }
@@ -279,18 +298,21 @@ export const toggleApiKeyController = async (req: Request, res: Response): Promi
     const existing = db.getApiKeyById(id);
 
     if (!existing) {
-      res.status(404).json({
-        success: false,
-        error: 'API key not found',
+      sendError(res, {
+        statusCode: 404,
+        code: 'API_KEYS.NOT_FOUND',
+        message: 'API key not found',
+        params: { id }
       });
       return;
     }
 
     // Verify ownership
     if (existing.userId !== userId) {
-      res.status(403).json({
-        success: false,
-        error: 'Access denied',
+      sendError(res, {
+        statusCode: 403,
+        code: 'AUTH.FORBIDDEN',
+        message: 'Access denied'
       });
       return;
     }
@@ -310,9 +332,10 @@ export const toggleApiKeyController = async (req: Request, res: Response): Promi
     });
   } catch (error) {
     console.error('Toggle API key error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to toggle API key',
+    sendError(res, {
+      statusCode: 500,
+      code: 'INTERNAL_ERROR',
+      message: 'Failed to toggle API key'
     });
   }
 };
@@ -330,24 +353,21 @@ export const disableApiKeyController = async (req: Request, res: Response): Prom
     const apiKey = db.getApiKeyById(id);
 
     if (!apiKey) {
-      res.status(404).json({
-        success: false,
-        error: {
-          code: 'API_KEY_NOT_FOUND',
-          message: 'API key not found'
-        }
+      sendError(res, {
+        statusCode: 404,
+        code: 'API_KEYS.NOT_FOUND',
+        message: 'API key not found',
+        params: { id }
       });
       return;
     }
 
     // Verify ownership
     if (apiKey.userId !== userId) {
-      res.status(403).json({
-        success: false,
-        error: {
-          code: 'API_KEY_FORBIDDEN',
-          message: 'Access denied'
-        }
+      sendError(res, {
+        statusCode: 403,
+        code: 'AUTH.FORBIDDEN',
+        message: 'Access denied'
       });
       return;
     }
@@ -356,7 +376,7 @@ export const disableApiKeyController = async (req: Request, res: Response): Prom
 
     res.json({
       success: true,
-      message: 'API Key 已禁用',
+      message: 'API key disabled',
       data: {
         id: updated.id,
         name: updated.name,
@@ -365,13 +385,11 @@ export const disableApiKeyController = async (req: Request, res: Response): Prom
       }
     });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: {
-        code: 'API_KEY_DISABLE_FAILED',
-        message: 'Failed to disable API key',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      }
+    sendError(res, {
+      statusCode: 500,
+      code: 'INTERNAL_ERROR',
+      message: 'Failed to disable API key',
+      details: error instanceof Error ? error.message : 'Unknown error'
     });
   }
 };
@@ -389,24 +407,21 @@ export const enableApiKeyController = async (req: Request, res: Response): Promi
     const apiKey = db.getApiKeyById(id);
 
     if (!apiKey) {
-      res.status(404).json({
-        success: false,
-        error: {
-          code: 'API_KEY_NOT_FOUND',
-          message: 'API key not found'
-        }
+      sendError(res, {
+        statusCode: 404,
+        code: 'API_KEYS.NOT_FOUND',
+        message: 'API key not found',
+        params: { id }
       });
       return;
     }
 
     // Verify ownership
     if (apiKey.userId !== userId) {
-      res.status(403).json({
-        success: false,
-        error: {
-          code: 'API_KEY_FORBIDDEN',
-          message: 'Access denied'
-        }
+      sendError(res, {
+        statusCode: 403,
+        code: 'AUTH.FORBIDDEN',
+        message: 'Access denied'
       });
       return;
     }
@@ -415,7 +430,7 @@ export const enableApiKeyController = async (req: Request, res: Response): Promi
 
     res.json({
       success: true,
-      message: 'API Key 已启用',
+      message: 'API key enabled',
       data: {
         id: updated.id,
         name: updated.name,
@@ -424,13 +439,11 @@ export const enableApiKeyController = async (req: Request, res: Response): Promi
       }
     });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: {
-        code: 'API_KEY_ENABLE_FAILED',
-        message: 'Failed to enable API key',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      }
+    sendError(res, {
+      statusCode: 500,
+      code: 'INTERNAL_ERROR',
+      message: 'Failed to enable API key',
+      details: error instanceof Error ? error.message : 'Unknown error'
     });
   }
 };
@@ -443,9 +456,10 @@ export const regenerateApiKeyController = async (req: Request, res: Response): P
   try {
     const userId = req.user?.userId;
     if (!userId) {
-      res.status(401).json({
-        success: false,
-        error: 'Unauthorized',
+      sendError(res, {
+        statusCode: 401,
+        code: 'AUTH.UNAUTHORIZED',
+        message: 'Unauthorized'
       });
       return;
     }
@@ -455,18 +469,21 @@ export const regenerateApiKeyController = async (req: Request, res: Response): P
     const existing = db.getApiKeyById(id);
 
     if (!existing) {
-      res.status(404).json({
-        success: false,
-        error: 'API key not found',
+      sendError(res, {
+        statusCode: 404,
+        code: 'API_KEYS.NOT_FOUND',
+        message: 'API key not found',
+        params: { id }
       });
       return;
     }
 
     // Verify ownership
     if (existing.userId !== userId) {
-      res.status(403).json({
-        success: false,
-        error: 'Access denied',
+      sendError(res, {
+        statusCode: 403,
+        code: 'AUTH.FORBIDDEN',
+        message: 'Access denied'
       });
       return;
     }
@@ -500,9 +517,10 @@ export const regenerateApiKeyController = async (req: Request, res: Response): P
     });
   } catch (error) {
     console.error('Regenerate API key error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to regenerate API key',
+    sendError(res, {
+      statusCode: 500,
+      code: 'INTERNAL_ERROR',
+      message: 'Failed to regenerate API key'
     });
   }
 };
@@ -515,9 +533,10 @@ export const deleteApiKeyController = async (req: Request, res: Response): Promi
   try {
     const userId = req.user?.userId;
     if (!userId) {
-      res.status(401).json({
-        success: false,
-        error: 'Unauthorized',
+      sendError(res, {
+        statusCode: 401,
+        code: 'AUTH.UNAUTHORIZED',
+        message: 'Unauthorized'
       });
       return;
     }
@@ -527,18 +546,21 @@ export const deleteApiKeyController = async (req: Request, res: Response): Promi
     const existing = db.getApiKeyById(id);
 
     if (!existing) {
-      res.status(404).json({
-        success: false,
-        error: 'API key not found',
+      sendError(res, {
+        statusCode: 404,
+        code: 'API_KEYS.NOT_FOUND',
+        message: 'API key not found',
+        params: { id }
       });
       return;
     }
 
     // Verify ownership
     if (existing.userId !== userId) {
-      res.status(403).json({
-        success: false,
-        error: 'Access denied',
+      sendError(res, {
+        statusCode: 403,
+        code: 'AUTH.FORBIDDEN',
+        message: 'Access denied'
       });
       return;
     }
@@ -546,9 +568,10 @@ export const deleteApiKeyController = async (req: Request, res: Response): Promi
     const deleted = db.deleteApiKey(id);
 
     if (!deleted) {
-      res.status(500).json({
-        success: false,
-        error: 'Failed to delete API key',
+      sendError(res, {
+        statusCode: 500,
+        code: 'INTERNAL_ERROR',
+        message: 'Failed to delete API key'
       });
       return;
     }
@@ -559,9 +582,10 @@ export const deleteApiKeyController = async (req: Request, res: Response): Promi
     });
   } catch (error) {
     console.error('Delete API key error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to delete API key',
+    sendError(res, {
+      statusCode: 500,
+      code: 'INTERNAL_ERROR',
+      message: 'Failed to delete API key'
     });
   }
 };
@@ -574,9 +598,10 @@ export const getApiKeyLogsController = async (req: Request, res: Response): Prom
   try {
     const userId = req.user?.userId;
     if (!userId) {
-      res.status(401).json({
-        success: false,
-        error: 'Unauthorized',
+      sendError(res, {
+        statusCode: 401,
+        code: 'AUTH.UNAUTHORIZED',
+        message: 'Unauthorized'
       });
       return;
     }
@@ -588,18 +613,21 @@ export const getApiKeyLogsController = async (req: Request, res: Response): Prom
     const apiKey = db.getApiKeyById(id);
 
     if (!apiKey) {
-      res.status(404).json({
-        success: false,
-        error: 'API key not found',
+      sendError(res, {
+        statusCode: 404,
+        code: 'API_KEYS.NOT_FOUND',
+        message: 'API key not found',
+        params: { id }
       });
       return;
     }
 
     // Verify ownership
     if (apiKey.userId !== userId) {
-      res.status(403).json({
-        success: false,
-        error: 'Access denied',
+      sendError(res, {
+        statusCode: 403,
+        code: 'AUTH.FORBIDDEN',
+        message: 'Access denied'
       });
       return;
     }
@@ -616,9 +644,10 @@ export const getApiKeyLogsController = async (req: Request, res: Response): Prom
     });
   } catch (error) {
     console.error('Get API key logs error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to get API key logs',
+    sendError(res, {
+      statusCode: 500,
+      code: 'INTERNAL_ERROR',
+      message: 'Failed to get API key logs'
     });
   }
 };

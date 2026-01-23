@@ -3,6 +3,14 @@ import type { ApiResponse } from '@/types'
 import { getApiBaseUrl } from './base-url'
 
 const TOKEN_KEY = "superinbox_auth_token"
+const DEFAULT_ERROR_EN = 'Request failed'
+const DEFAULT_ERROR_ZH = '请求失败'
+
+const getDefaultErrorMessage = () => {
+  if (typeof document === 'undefined') return DEFAULT_ERROR_EN
+  const lang = document.documentElement.lang || 'zh-CN'
+  return lang.startsWith('zh') ? DEFAULT_ERROR_ZH : DEFAULT_ERROR_EN
+}
 
 class ApiClient {
   private client: AxiosInstance
@@ -44,10 +52,28 @@ class ApiClient {
       (response) => response,
       (error: AxiosError<ApiResponse<unknown>>) => {
         // 提取后端返回的错误信息
-        const errorMessage = error.response?.data?.error
-          || error.response?.data?.message
-          || error.message
-          || '请求失败'
+        const responseData = error.response?.data as
+          | {
+              error?: string | { message?: string; code?: string; params?: Record<string, unknown> }
+              message?: string
+              code?: string
+              params?: Record<string, unknown>
+            }
+          | undefined
+        const errorFromPayload = responseData?.error
+        const errorMessage =
+          (typeof errorFromPayload === 'string'
+            ? errorFromPayload
+            : errorFromPayload?.message) ||
+          responseData?.message ||
+          error.message ||
+          getDefaultErrorMessage()
+        const errorCode = responseData?.code || (
+          typeof errorFromPayload === 'string' ? undefined : errorFromPayload?.code
+        )
+        const errorParams = responseData?.params || (
+          typeof errorFromPayload === 'string' ? undefined : errorFromPayload?.params
+        )
 
         if (error.response?.status === 401) {
           // 未授权，清除认证数据并重定向到登录页
@@ -57,7 +83,8 @@ class ApiClient {
             localStorage.removeItem('superinbox_user')
             // 只有当前不在登录页时才重定向
             if (!window.location.pathname.includes('/login')) {
-              window.location.href = '/login'
+              const locale = document.documentElement.lang || 'zh-CN'
+              window.location.href = `/${locale}/login`
             }
           }
         }
@@ -66,9 +93,13 @@ class ApiClient {
         const enhancedError = new Error(errorMessage) as Error & {
           status?: number
           originalError?: AxiosError
+          code?: string
+          params?: Record<string, unknown>
         }
         enhancedError.status = error.response?.status
         enhancedError.originalError = error
+        enhancedError.code = errorCode
+        enhancedError.params = errorParams
 
         return Promise.reject(enhancedError)
       }

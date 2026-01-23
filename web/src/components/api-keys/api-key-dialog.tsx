@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from 'react'
+import { useTranslations } from 'next-intl'
 import {
   Dialog,
   DialogContent,
@@ -17,6 +18,7 @@ import { useToast } from '@/hooks/use-toast'
 import type { ApiKey } from '@/types/api-key'
 import { SCOPE_GROUPS } from '@/types/api-key'
 import { createApiKey, updateApiKey } from '@/lib/api/api-keys'
+import { getApiErrorMessage } from '@/lib/i18n/api-errors'
 
 interface ApiKeyDialogProps {
   open: boolean
@@ -25,6 +27,8 @@ interface ApiKeyDialogProps {
 }
 
 export function ApiKeyDialog({ open, onClose, apiKey }: ApiKeyDialogProps) {
+  const t = useTranslations('apiKeys.dialog')
+  const errors = useTranslations('errors')
   const [name, setName] = useState('')
   const [selectedScopes, setSelectedScopes] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
@@ -56,8 +60,8 @@ export function ApiKeyDialog({ open, onClose, apiKey }: ApiKeyDialogProps) {
   const handleSubmit = async () => {
     if (selectedScopes.length === 0) {
       toast({
-        title: '权限不能为空',
-        description: '请至少选择一个权限范围',
+        title: t('validation.emptyScopes.title'),
+        description: t('validation.emptyScopes.description'),
         variant: 'destructive',
       })
       return
@@ -73,8 +77,8 @@ export function ApiKeyDialog({ open, onClose, apiKey }: ApiKeyDialogProps) {
           scopes: selectedScopes,
         })
         toast({
-          title: 'API 密钥已更新',
-          description: '权限和名称已成功更新',
+          title: t('toast.updateSuccess.title'),
+          description: t('toast.updateSuccess.description'),
         })
         onClose()
       } else {
@@ -94,8 +98,8 @@ export function ApiKeyDialog({ open, onClose, apiKey }: ApiKeyDialogProps) {
       }
     } catch (error) {
       toast({
-        title: isEdit ? '更新失败' : '创建失败',
-        description: error instanceof Error ? error.message : '操作失败',
+        title: isEdit ? t('toast.updateFailure.title') : t('toast.createFailure.title'),
+        description: getApiErrorMessage(error, errors, t('toast.failureDescription')),
         variant: 'destructive',
       })
     } finally {
@@ -113,35 +117,33 @@ export function ApiKeyDialog({ open, onClose, apiKey }: ApiKeyDialogProps) {
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            {isEdit ? '编辑 API 密钥' : '创建新的 API 密钥'}
+            {isEdit ? t('title.edit') : t('title.create')}
           </DialogTitle>
           <DialogDescription>
-            {isEdit
-              ? '修改 API 密钥的名称和权限'
-              : '创建新的 API 密钥以程序化访问 SuperInbox'}
+            {isEdit ? t('description.edit') : t('description.create')}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6">
           <div className="space-y-2">
-            <Label htmlFor="name">名称（可选）</Label>
+            <Label htmlFor="name">{t('fields.name.label')}</Label>
             <Input
               id="name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="例如：Third Party App"
+              placeholder={t('fields.name.placeholder')}
             />
             <p className="text-xs text-muted-foreground">
-              为 API 密钥设置一个便于识别的名称
+              {t('fields.name.helper')}
             </p>
           </div>
 
           <div className="space-y-4">
-            <Label>权限范围</Label>
+            <Label>{t('fields.scopes.label')}</Label>
             {SCOPE_GROUPS.map((group) => (
-              <div key={group.label} className="space-y-3">
+              <div key={group.labelKey} className="space-y-3">
                 <h4 className="text-sm font-medium text-muted-foreground">
-                  {group.label}
+                  {t(group.labelKey)}
                 </h4>
                 <div className="space-y-2 pl-2">
                   {group.scopes.map((scope) => (
@@ -159,10 +161,10 @@ export function ApiKeyDialog({ open, onClose, apiKey }: ApiKeyDialogProps) {
                           htmlFor={scope.value}
                           className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
                         >
-                          {scope.label}
+                          {t(scope.labelKey)}
                         </label>
                         <p className="text-xs text-muted-foreground">
-                          {scope.description}
+                          {t(scope.descriptionKey)}
                         </p>
                         </div>
                       </div>
@@ -175,10 +177,10 @@ export function ApiKeyDialog({ open, onClose, apiKey }: ApiKeyDialogProps) {
 
         <DialogFooter>
           <Button variant="outline" onClick={handleClose} disabled={loading}>
-            取消
+            {t('actions.cancel')}
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? '处理中...' : isEdit ? '保存更改' : '创建密钥'}
+            {loading ? t('actions.loading') : isEdit ? t('actions.save') : t('actions.create')}
           </Button>
         </DialogFooter>
       </DialogContent>

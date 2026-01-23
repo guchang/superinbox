@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { Search, Clock, X } from "lucide-react"
+import { useTranslations } from 'next-intl'
 import { cn } from "@/lib/utils"
 
 import { Badge } from "@/components/ui/badge"
@@ -48,42 +49,6 @@ export interface SearchFilters {
   source?: string
 }
 
-const SEARCH_OPTIONS: SearchOption[] = [
-  {
-    id: 'category',
-    label: '分类',
-    keywords: ['category', '分类'],
-    prefix: 'category:',
-    values: [
-      { value: CategoryType.TODO, label: '待办事项' },
-      { value: CategoryType.IDEA, label: '想法' },
-      { value: CategoryType.EXPENSE, label: '支出' },
-      { value: CategoryType.NOTE, label: '笔记' },
-      { value: CategoryType.BOOKMARK, label: '书签' },
-      { value: CategoryType.SCHEDULE, label: '日程' },
-    ]
-  },
-  {
-    id: 'status',
-    label: '状态',
-    keywords: ['status', '状态'],
-    prefix: 'status:',
-    values: [
-      { value: ItemStatus.PENDING, label: '待处理' },
-      { value: ItemStatus.PROCESSING, label: '处理中' },
-      { value: ItemStatus.COMPLETED, label: '已完成' },
-      { value: ItemStatus.FAILED, label: '失败' },
-    ]
-  },
-  {
-    id: 'source',
-    label: '来源',
-    keywords: ['source', '来源'],
-    prefix: 'source:',
-    values: [] // 动态填充
-  }
-]
-
 // 解析搜索字符串
 function parseSearchString(input: string): ParsedSearch {
   const result: ParsedSearch = {
@@ -128,24 +93,60 @@ function parseSearchString(input: string): ParsedSearch {
   return result
 }
 
-// 模拟搜索历史
-const mockSearchHistory = [
-  'category:todo status:completed',
-  '开会',
-  'status:failed',
-]
-
 export function CommandSearch({
   filters,
   onFiltersChange,
   availableSources = [],
   availableCategories = []
 }: CommandSearchProps) {
+  const t = useTranslations('commandSearch')
   const [open, setOpen] = React.useState(false)
   const [inputValue, setInputValue] = React.useState("")
   const [selectedIndex, setSelectedIndex] = React.useState(-1)
   const inputRef = React.useRef<HTMLInputElement>(null)
   const isJustOpened = React.useRef(false)
+
+  const baseSearchOptions = React.useMemo<SearchOption[]>(() => ([
+    {
+      id: 'category',
+      label: t('options.category.label'),
+      keywords: ['category', '分类'],
+      prefix: 'category:',
+      values: [
+        { value: CategoryType.TODO, label: t('categories.todo') },
+        { value: CategoryType.IDEA, label: t('categories.idea') },
+        { value: CategoryType.EXPENSE, label: t('categories.expense') },
+        { value: CategoryType.NOTE, label: t('categories.note') },
+        { value: CategoryType.BOOKMARK, label: t('categories.bookmark') },
+        { value: CategoryType.SCHEDULE, label: t('categories.schedule') },
+      ]
+    },
+    {
+      id: 'status',
+      label: t('options.status.label'),
+      keywords: ['status', '状态'],
+      prefix: 'status:',
+      values: [
+        { value: ItemStatus.PENDING, label: t('status.pending') },
+        { value: ItemStatus.PROCESSING, label: t('status.processing') },
+        { value: ItemStatus.COMPLETED, label: t('status.completed') },
+        { value: ItemStatus.FAILED, label: t('status.failed') },
+      ]
+    },
+    {
+      id: 'source',
+      label: t('options.source.label'),
+      keywords: ['source', '来源'],
+      prefix: 'source:',
+      values: [] // 动态填充
+    }
+  ]), [t])
+
+  const mockSearchHistory = React.useMemo(() => ([
+    'category:todo status:completed',
+    t('history.meeting'),
+    'status:failed',
+  ]), [t])
 
   // 初始化输入值和选中索引
   React.useEffect(() => {
@@ -161,7 +162,7 @@ export function CommandSearch({
 
   // 更新 source 选项
   const searchOptionsWithSources = React.useMemo(() => {
-    return SEARCH_OPTIONS.map(option => {
+    return baseSearchOptions.map(option => {
       if (option.id === 'source') {
         return {
           ...option,
@@ -178,7 +179,7 @@ export function CommandSearch({
       }
       return option
     })
-  }, [availableSources, availableCategories])
+  }, [availableSources, availableCategories, baseSearchOptions])
 
   React.useEffect(() => {
     const down = (e: KeyboardEvent) => {
@@ -482,7 +483,7 @@ export function CommandSearch({
             value={inputValue}
             onChange={handleInputChange}
             onKeyDown={handleKeyDown}
-            placeholder="搜索... (⌘K)"
+            placeholder={t('placeholder')}
             className="flex-1 bg-transparent border-0 outline-none text-sm placeholder:text-muted-foreground"
           />
           {inputValue && (
@@ -511,7 +512,7 @@ export function CommandSearch({
             <CommandList>
               {/* 搜索选项 */}
               {!inputValue && (
-                <CommandGroup heading="搜索选项">
+                <CommandGroup heading={t('sections.options')}>
                   {searchOptionsWithSources.map((option, index) => (
                     <CommandItem
                       key={option.id}
@@ -534,7 +535,7 @@ export function CommandSearch({
                           <Badge variant="outline" className="text-xs">{option.prefix}</Badge>
                         </div>
                         {selectedIndex === index && (
-                          <span className="text-xs text-muted-foreground">Tab 确认 · ESC 关闭</span>
+                          <span className="text-xs text-muted-foreground">{t('hint')}</span>
                         )}
                       </div>
                     </CommandItem>
@@ -544,7 +545,7 @@ export function CommandSearch({
 
               {/* 搜索历史 */}
               {!inputValue && (
-                <CommandGroup heading="最近搜索">
+                <CommandGroup heading={t('sections.history')}>
                   {mockSearchHistory.map((item, index) => (
                     <CommandItem
                       key={index}
@@ -564,7 +565,7 @@ export function CommandSearch({
                           <span className="text-sm">{item}</span>
                         </div>
                         {selectedIndex === searchOptionsWithSources.length + index && (
-                          <span className="text-xs text-muted-foreground">Tab 确认 · ESC 关闭</span>
+                          <span className="text-xs text-muted-foreground">{t('hint')}</span>
                         )}
                       </div>
                     </CommandItem>
@@ -574,7 +575,7 @@ export function CommandSearch({
 
               {/* 值建议 */}
               {inputValue && getSuggestions.length > 0 && (
-                <CommandGroup heading="建议">
+                <CommandGroup heading={t('sections.suggestions')}>
                   {getSuggestions.map((suggestion, index) => (
                     <CommandItem
                       key={index}
@@ -608,7 +609,7 @@ export function CommandSearch({
                           )}
                         </div>
                         {selectedIndex === index && (
-                          <span className="text-xs text-muted-foreground">Tab 确认 · ESC 关闭</span>
+                          <span className="text-xs text-muted-foreground">{t('hint')}</span>
                         )}
                       </div>
                     </CommandItem>

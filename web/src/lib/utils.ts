@@ -5,7 +5,10 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-export function formatRelativeTime(dateString: string): string {
+export function formatRelativeTime(
+  dateString: string,
+  t: (key: string, values?: Record<string, number>) => string
+): string {
   // Only calculate relative time on client side
   if (typeof window === 'undefined') {
     return formatDate(dateString)
@@ -23,13 +26,13 @@ export function formatRelativeTime(dateString: string): string {
   const months = Math.floor(days / 30)
   const years = Math.floor(days / 365)
 
-  if (seconds < 60) return '刚刚'
-  if (minutes < 60) return `${minutes} 分钟前`
-  if (hours < 24) return `${hours} 小时前`
-  if (days < 7) return `${days} 天前`
-  if (weeks < 4) return `${weeks} 周前`
-  if (months < 12) return `${months} 月前`
-  return `${years} 年前`
+  if (seconds < 60) return t('justNow')
+  if (minutes < 60) return t('minutesAgo', { count: minutes })
+  if (hours < 24) return t('hoursAgo', { count: hours })
+  if (days < 7) return t('daysAgo', { count: days })
+  if (weeks < 4) return t('weeksAgo', { count: weeks })
+  if (months < 12) return t('monthsAgo', { count: months })
+  return t('yearsAgo', { count: years })
 }
 
 /**
@@ -63,4 +66,3 @@ export function formatDate(dateString: string): string {
 
   return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
 }
-

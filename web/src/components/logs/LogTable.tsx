@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, Fragment } from 'react'
+import { useTranslations } from 'next-intl'
 import { format } from 'date-fns'
 import { ChevronDown, ChevronUp } from 'lucide-react'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
@@ -32,6 +33,7 @@ export function LogTable({
   onPageSizeChange,
   isGlobalView = false,
 }: LogTableProps) {
+  const t = useTranslations('logs')
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
 
@@ -60,7 +62,7 @@ export function LogTable({
   if (loading) {
     return (
       <div className="bg-card rounded-lg border p-8 text-center text-muted-foreground">
-        加载中...
+        {t('loading')}
       </div>
     )
   }
@@ -68,7 +70,7 @@ export function LogTable({
   if (logs.length === 0) {
     return (
       <div className="bg-card rounded-lg border p-8 text-center text-muted-foreground">
-        暂无日志记录
+        {t('empty')}
       </div>
     )
   }
@@ -88,14 +90,14 @@ export function LogTable({
                 onCheckedChange={toggleSelectAll}
               />
             </TableHead>
-            <TableHead className="w-[180px]">时间</TableHead>
-            <TableHead>接口路径</TableHead>
-            <TableHead className="w-[100px]">方法</TableHead>
-            <TableHead className="w-[120px]">状态</TableHead>
-            <TableHead className="w-[100px]">耗时</TableHead>
-            <TableHead className="w-[150px]">IP 地址</TableHead>
+            <TableHead className="w-[180px]">{t('table.time')}</TableHead>
+            <TableHead>{t('table.path')}</TableHead>
+            <TableHead className="w-[100px]">{t('table.method')}</TableHead>
+            <TableHead className="w-[120px]">{t('table.status')}</TableHead>
+            <TableHead className="w-[100px]">{t('table.duration')}</TableHead>
+            <TableHead className="w-[150px]">{t('table.ip')}</TableHead>
             {isGlobalView && (
-              <TableHead className="w-[180px]">API Key</TableHead>
+              <TableHead className="w-[180px]">{t('table.apiKey')}</TableHead>
             )}
             <TableHead className="w-[80px]"></TableHead>
           </TableRow>
@@ -168,7 +170,7 @@ export function LogTable({
       {/* Pagination */}
       <div className="flex items-center justify-between px-4 py-3 border-t bg-muted/50">
         <div className="text-sm text-muted-foreground">
-          显示 {start}-{end} 条，共 {total.toLocaleString()} 条
+          {t('pagination.summary', { start, end, total: total.toLocaleString() })}
         </div>
 
         <div className="flex items-center gap-2">
@@ -178,11 +180,11 @@ export function LogTable({
             onClick={() => onPageChange(page - 1)}
             disabled={page === 1}
           >
-            上一页
+            {t('pagination.prev')}
           </Button>
 
           <span className="text-sm">
-            第 {page} / {totalPages} 页
+            {t('pagination.page', { page, totalPages })}
           </span>
 
           <Button
@@ -191,7 +193,7 @@ export function LogTable({
             onClick={() => onPageChange(page + 1)}
             disabled={page === totalPages}
           >
-            下一页
+            {t('pagination.next')}
           </Button>
 
           {onPageSizeChange && (
@@ -200,9 +202,9 @@ export function LogTable({
               onChange={(e) => onPageSizeChange(Number(e.target.value))}
               className="ml-4 border rounded px-2 py-1 text-sm"
             >
-              <option value="20">20/页</option>
-              <option value="50">50/页</option>
-              <option value="100">100/页</option>
+              <option value="20">{t('pagination.pageSize', { size: 20 })}</option>
+              <option value="50">{t('pagination.pageSize', { size: 50 })}</option>
+              <option value="100">{t('pagination.pageSize', { size: 100 })}</option>
             </select>
           )}
         </div>

@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useState } from "react"
+import { useTranslations } from 'next-intl'
 import { Button } from "@/components/ui/button"
 import { Download, Expand, File } from "lucide-react"
 import {
@@ -40,6 +41,7 @@ interface FilePreviewProps {
 }
 
 export function FilePreview({ itemId, fileName, mimeType, allFiles }: FilePreviewProps) {
+  const t = useTranslations('filePreview')
   const [imageDataUrl, setImageDataUrl] = useState<string | null>(null)
   const [isLoadingImage, setIsLoadingImage] = useState(false)
 
@@ -65,7 +67,7 @@ export function FilePreview({ itemId, fileName, mimeType, allFiles }: FilePrevie
         {imageFiles.length > 0 && (
           <div className="space-y-2">
             <div className="text-xs font-medium text-muted-foreground">
-              图片 ({imageFiles.length})
+              {t('sections.images', { count: imageFiles.length })}
             </div>
             <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin">
               {allFiles.map((file, originalIndex) => {
@@ -109,7 +111,7 @@ export function FilePreview({ itemId, fileName, mimeType, allFiles }: FilePrevie
                         </DialogTrigger>
                         <DialogContent className="max-w-[90vw] max-h-[90vh] p-0">
                           <VisuallyHidden>
-                            <DialogTitle>图片预览 - {file.fileName}</DialogTitle>
+                            <DialogTitle>{t('dialog.imageTitle', { name: file.fileName })}</DialogTitle>
                           </VisuallyHidden>
                           <div className="relative">
                             <img 
@@ -186,7 +188,7 @@ export function FilePreview({ itemId, fileName, mimeType, allFiles }: FilePrevie
         {otherFiles.length > 0 && (
           <div className="space-y-2">
             <div className="text-xs font-medium text-muted-foreground">
-              文件 ({otherFiles.length})
+              {t('sections.files', { count: otherFiles.length })}
             </div>
             <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin">
               {allFiles.map((file, originalIndex) => {
@@ -259,7 +261,7 @@ export function FilePreview({ itemId, fileName, mimeType, allFiles }: FilePrevie
       <div className="relative group w-32 h-24">
         <img
           src={fileUrl}
-          alt={fileName || "Uploaded image"}
+          alt={fileName || t('imageAltFallback')}
           className="w-full h-full object-cover rounded-lg border"
           onError={(e) => {
             // If direct load fails, try fetching with auth
@@ -295,7 +297,7 @@ export function FilePreview({ itemId, fileName, mimeType, allFiles }: FilePrevie
         />
         {isLoadingImage && (
           <div className="absolute inset-0 bg-black/20 flex items-center justify-center rounded-lg">
-            <div className="text-white text-sm">加载中...</div>
+            <div className="text-white text-sm">{t('loading')}</div>
           </div>
         )}
         <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 rounded-lg">
@@ -307,7 +309,9 @@ export function FilePreview({ itemId, fileName, mimeType, allFiles }: FilePrevie
             </DialogTrigger>
             <DialogContent className="max-w-[90vw] max-h-[90vh] p-0">
               <VisuallyHidden>
-                <DialogTitle>图片预览 - {fileName || '上传的图片'}</DialogTitle>
+                <DialogTitle>
+                  {t('dialog.imageTitle', { name: fileName || t('uploadedImage') })}
+                </DialogTitle>
               </VisuallyHidden>
               <img 
                 src={imageDataUrl || fileUrl} 
@@ -336,11 +340,11 @@ export function FilePreview({ itemId, fileName, mimeType, allFiles }: FilePrevie
         <File className="h-5 w-5 text-muted-foreground" />
       </div>
       <div className="flex-1 min-w-0">
-        <div className="text-sm font-medium text-foreground truncate">{fileName || "文件"}</div>
+        <div className="text-sm font-medium text-foreground truncate">{fileName || t('fileFallback')}</div>
       </div>
       <Button variant="outline" size="sm" onClick={handleDownload} className="gap-2">
         <Download className="h-4 w-4" />
-        下载
+        {t('download')}
       </Button>
     </div>
   )

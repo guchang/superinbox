@@ -5,6 +5,7 @@
 import type { Request, Response, NextFunction } from 'express';
 import { getDatabase } from '../storage/database.js';
 import { verifyToken } from '../utils/jwt.js';
+import { sendError } from '../utils/error-response.js';
 
 declare global {
   namespace Express {
@@ -43,9 +44,10 @@ export const authenticateJwt = (
       : cookieToken;
 
     if (!token) {
-      res.status(401).json({
-        success: false,
-        error: 'Missing Authorization token'
+      sendError(res, {
+        statusCode: 401,
+        code: 'AUTH.UNAUTHORIZED',
+        message: 'Missing Authorization token'
       });
       return;
     }
@@ -54,9 +56,10 @@ export const authenticateJwt = (
     const payload = verifyToken(token);
 
     if (!payload) {
-      res.status(401).json({
-        success: false,
-        error: 'Invalid or expired token'
+      sendError(res, {
+        statusCode: 401,
+        code: 'AUTH.UNAUTHORIZED',
+        message: 'Invalid or expired token'
       });
       return;
     }
@@ -74,9 +77,10 @@ export const authenticateJwt = (
     next();
   } catch (error) {
     console.error('JWT Authentication error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Authentication failed'
+    sendError(res, {
+      statusCode: 500,
+      code: 'INTERNAL_ERROR',
+      message: 'Authentication failed'
     });
   }
 };
@@ -94,24 +98,20 @@ export const authenticateApiKey = (
     const authHeader = req.headers.authorization;
 
     if (!authHeader) {
-      res.status(401).json({
-        success: false,
-        error: {
-          code: 'UNAUTHORIZED',
-          message: 'Missing Authorization header'
-        }
+      sendError(res, {
+        statusCode: 401,
+        code: 'AUTH.UNAUTHORIZED',
+        message: 'Missing Authorization header'
       });
       return;
     }
 
     // Check Bearer token format
     if (!authHeader.startsWith('Bearer ')) {
-      res.status(401).json({
-        success: false,
-        error: {
-          code: 'INVALID_TOKEN_FORMAT',
-          message: 'Authorization header must use Bearer token format'
-        }
+      sendError(res, {
+        statusCode: 401,
+        code: 'AUTH.UNAUTHORIZED',
+        message: 'Authorization header must use Bearer token format'
       });
       return;
     }
@@ -123,12 +123,10 @@ export const authenticateApiKey = (
     const validation = db.validateApiKey(apiKey);
 
     if (!validation.valid) {
-      res.status(401).json({
-        success: false,
-        error: {
-          code: 'INVALID_API_KEY',
-          message: 'Invalid or inactive API key'
-        }
+      sendError(res, {
+        statusCode: 401,
+        code: 'AUTH.UNAUTHORIZED',
+        message: 'Invalid or inactive API key'
       });
       return;
     }
@@ -150,12 +148,10 @@ export const authenticateApiKey = (
     next();
   } catch (error) {
     console.error('Authentication error:', error);
-    res.status(500).json({
-      success: false,
-      error: {
-        code: 'AUTH_ERROR',
-        message: 'Authentication failed'
-      }
+    sendError(res, {
+      statusCode: 500,
+      code: 'INTERNAL_ERROR',
+      message: 'Authentication failed'
     });
   }
 };
@@ -166,12 +162,10 @@ export const authenticateApiKey = (
 export const requireScope = (scope: string) => {
   return (req: Request, res: Response, next: NextFunction): void => {
     if (!req.user) {
-      res.status(401).json({
-        success: false,
-        error: {
-          code: 'UNAUTHORIZED',
-          message: 'Authentication required'
-        }
+      sendError(res, {
+        statusCode: 401,
+        code: 'AUTH.UNAUTHORIZED',
+        message: 'Authentication required'
       });
       return;
     }
@@ -183,12 +177,11 @@ export const requireScope = (scope: string) => {
         requiredScope: scope,
       });
 
-      res.status(403).json({
-        success: false,
-        error: {
-          code: 'INSUFFICIENT_SCOPE',
-          message: `Required scope: ${scope}`
-        }
+      sendError(res, {
+        statusCode: 403,
+        code: 'AUTH.FORBIDDEN',
+        message: `Required scope: ${scope}`,
+        params: { scope }
       });
       return;
     }
@@ -203,12 +196,10 @@ export const requireScope = (scope: string) => {
 export const requireScopes = (...scopes: string[]) => {
   return (req: Request, res: Response, next: NextFunction): void => {
     if (!req.user) {
-      res.status(401).json({
-        success: false,
-        error: {
-          code: 'UNAUTHORIZED',
-          message: 'Authentication required'
-        }
+      sendError(res, {
+        statusCode: 401,
+        code: 'AUTH.UNAUTHORIZED',
+        message: 'Authentication required'
       });
       return;
     }
@@ -223,12 +214,11 @@ export const requireScopes = (...scopes: string[]) => {
         missingScopes,
       });
 
-      res.status(403).json({
-        success: false,
-        error: {
-          code: 'INSUFFICIENT_SCOPE',
-          message: `Required scopes: ${scopes.join(', ')}`
-        }
+      sendError(res, {
+        statusCode: 403,
+        code: 'AUTH.FORBIDDEN',
+        message: `Required scopes: ${scopes.join(', ')}`,
+        params: { scopes: scopes.join(', ') }
       });
       return;
     }
@@ -243,12 +233,10 @@ export const requireScopes = (...scopes: string[]) => {
 export const requireAnyScope = (...scopes: string[]) => {
   return (req: Request, res: Response, next: NextFunction): void => {
     if (!req.user) {
-      res.status(401).json({
-        success: false,
-        error: {
-          code: 'UNAUTHORIZED',
-          message: 'Authentication required'
-        }
+      sendError(res, {
+        statusCode: 401,
+        code: 'AUTH.UNAUTHORIZED',
+        message: 'Authentication required'
       });
       return;
     }
@@ -262,12 +250,11 @@ export const requireAnyScope = (...scopes: string[]) => {
         requiredScopes: scopes,
       });
 
-      res.status(403).json({
-        success: false,
-        error: {
-          code: 'INSUFFICIENT_SCOPE',
-          message: `Required one of scopes: ${scopes.join(', ')}`
-        }
+      sendError(res, {
+        statusCode: 403,
+        code: 'AUTH.FORBIDDEN',
+        message: `Required one of scopes: ${scopes.join(', ')}`,
+        params: { scopes: scopes.join(', ') }
       });
       return;
     }
@@ -318,9 +305,10 @@ export const authenticate = (
       : cookieToken;
 
     if (!token) {
-      res.status(401).json({
-        success: false,
-        error: 'Missing Authorization token or API key'
+      sendError(res, {
+        statusCode: 401,
+        code: 'AUTH.UNAUTHORIZED',
+        message: 'Missing Authorization token or API key'
       });
       return;
     }
@@ -361,15 +349,17 @@ export const authenticate = (
     }
 
     // Neither JWT nor API key is valid
-    res.status(401).json({
-      success: false,
-      error: 'Invalid token or API key'
+    sendError(res, {
+      statusCode: 401,
+      code: 'AUTH.UNAUTHORIZED',
+      message: 'Invalid token or API key'
     });
   } catch (error) {
     console.error('Authentication error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Authentication failed'
+    sendError(res, {
+      statusCode: 500,
+      code: 'INTERNAL_ERROR',
+      message: 'Authentication failed'
     });
   }
 };

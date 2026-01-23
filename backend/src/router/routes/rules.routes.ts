@@ -8,6 +8,7 @@ import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/
 import { authenticate } from '../../middleware/auth.js';
 import { dispatchItem } from '../controllers/dispatch.controller.js';
 import { v4 as uuidv4 } from 'uuid';
+import { sendError } from '../../utils/error-response.js';
 
 const router = Router();
 
@@ -122,25 +123,28 @@ function extractMcpErrorMessage(error: unknown): string {
 router.post('/connectors/test', authenticate, async (req, res) => {
   const config = req.body?.config;
   if (!config || typeof config !== 'object' || Array.isArray(config)) {
-    return res.status(400).json({
-      success: false,
-      error: 'Invalid config: expected object',
+    return sendError(res, {
+      statusCode: 400,
+      code: 'ROUTING.INVALID_CONFIG',
+      message: 'Invalid config: expected object'
     });
   }
 
   const fetchFn: any = (globalThis as any).fetch;
   if (typeof fetchFn !== 'function') {
-    return res.status(500).json({
-      success: false,
-      error: 'Fetch API not available in server runtime',
+    return sendError(res, {
+      statusCode: 500,
+      code: 'INTERNAL_ERROR',
+      message: 'Fetch API not available in server runtime'
     });
   }
 
   const mcpServers = (config as any).mcpServers;
   if (!mcpServers || typeof mcpServers !== 'object' || Array.isArray(mcpServers)) {
-    return res.status(400).json({
-      success: false,
-      error: 'Invalid config: mcpServers is required',
+    return sendError(res, {
+      statusCode: 400,
+      code: 'ROUTING.INVALID_CONFIG',
+      message: 'Invalid config: mcpServers is required'
     });
   }
 
@@ -251,30 +255,34 @@ router.post('/rules/test-dispatch', authenticate, async (req, res) => {
 
     // Validate required fields
     if (!content || typeof content !== 'string') {
-      return res.status(400).json({
-        success: false,
-        error: 'Content is required and must be a string'
+      return sendError(res, {
+        statusCode: 400,
+        code: 'ROUTING.INVALID_INPUT',
+        message: 'Content is required and must be a string'
       });
     }
 
     if (!mcpAdapterId) {
-      return res.status(400).json({
-        success: false,
-        error: 'MCP adapter ID is required'
+      return sendError(res, {
+        statusCode: 400,
+        code: 'ROUTING.INVALID_INPUT',
+        message: 'MCP adapter ID is required'
       });
     }
 
     if (!pageId || typeof pageId !== 'string') {
-      return res.status(400).json({
-        success: false,
-        error: 'Page ID is required'
+      return sendError(res, {
+        statusCode: 400,
+        code: 'ROUTING.INVALID_INPUT',
+        message: 'Page ID is required'
       });
     }
 
     if (!instructions || typeof instructions !== 'string' || !instructions.trim()) {
-      return res.status(400).json({
-        success: false,
-        error: 'Instructions are required'
+      return sendError(res, {
+        statusCode: 400,
+        code: 'ROUTING.INVALID_INPUT',
+        message: 'Instructions are required'
       });
     }
 
@@ -292,9 +300,11 @@ router.post('/rules/test-dispatch', authenticate, async (req, res) => {
     `).get(mcpAdapterId, userId) as any;
 
     if (!adapterRow) {
-      return res.status(404).json({
-        success: false,
-        error: 'MCP adapter not found'
+      return sendError(res, {
+        statusCode: 404,
+        code: 'ROUTING.CONNECTOR_NOT_FOUND',
+        message: 'MCP adapter not found',
+        params: { id: mcpAdapterId }
       });
     }
 
@@ -509,9 +519,10 @@ router.post('/rules/test-dispatch', authenticate, async (req, res) => {
       mcpAdapter.cleanup();
     } catch {}
 
-    res.status(500).json({
-      success: false,
-      error: error?.message || 'Test dispatch failed',
+    sendError(res, {
+      statusCode: 500,
+      code: 'INTERNAL_ERROR',
+      message: error?.message || 'Test dispatch failed',
       details: error?.stack
     });
   }

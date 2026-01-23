@@ -1,6 +1,7 @@
 "use client"
 
-import { Bell, User, LogOut } from 'lucide-react'
+import { Bell, User, LogOut, Languages } from 'lucide-react'
+import { useLocale, useTranslations } from 'next-intl'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -12,8 +13,11 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { useAuth } from '@/lib/hooks/use-auth'
 import { useToast } from '@/hooks/use-toast'
+import { routing } from '@/i18n/routing'
 
 export function Header() {
+  const t = useTranslations('header')
+  const locale = useLocale()
   const { authState, logout } = useAuth()
   const { toast } = useToast()
 
@@ -21,14 +25,23 @@ export function Header() {
     try {
       await logout()
       toast({
-        title: "已退出登录",
+        title: t('logout.success'),
       })
     } catch (error) {
       toast({
-        title: "退出登录失败",
+        title: t('logout.failure'),
         variant: "destructive",
       })
     }
+  }
+
+  const handleLocaleChange = (nextLocale: string) => {
+    if (nextLocale === locale) return
+    const localePattern = new RegExp(`^/(${routing.locales.join('|')})(?=/|$)`)
+    const currentPath = window.location.pathname.replace(localePattern, '') || '/'
+    const search = window.location.search
+    const nextPath = currentPath === '/' ? '' : currentPath
+    window.location.href = `/${nextLocale}${nextPath}${search}`
   }
 
   return (
@@ -40,6 +53,32 @@ export function Header() {
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" size="icon">
+            <Languages className="h-5 w-5" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-44">
+          <DropdownMenuLabel>{t('language.label')}</DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            onClick={() => handleLocaleChange('zh-CN')}
+            className="cursor-pointer"
+            disabled={locale === 'zh-CN'}
+          >
+            {t('language.zh')}
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onClick={() => handleLocaleChange('en')}
+            className="cursor-pointer"
+            disabled={locale === 'en'}
+          >
+            {t('language.en')}
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="icon">
             <User className="h-5 w-5" />
           </Button>
         </DropdownMenuTrigger>
@@ -47,7 +86,7 @@ export function Header() {
           <DropdownMenuLabel>
             <div className="flex flex-col space-y-1">
               <p className="text-sm font-medium leading-none">
-                {authState.user?.username || "用户"}
+                {authState.user?.username || t('userFallback')}
               </p>
               <p className="text-xs leading-none text-muted-foreground">
                 {authState.user?.email || ""}
@@ -57,7 +96,7 @@ export function Header() {
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
             <LogOut className="mr-2 h-4 w-4" />
-            <span>退出登录</span>
+            <span>{t('logout.action')}</span>
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

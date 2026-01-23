@@ -1,0 +1,1526 @@
+{
+  "metadata": {
+    "title": "SuperInbox - Intelligent Inbox Admin",
+    "description": "Unified management for your digital inbox"
+  },
+  "common": {
+    "loading": "Loading...",
+    "noData": "No data",
+    "empty": "—",
+    "unknownError": "Unknown error",
+    "operationFailed": "Operation failed",
+    "tryLater": "Please try again later",
+    "cancel": "Cancel",
+    "processing": "Processing",
+    "reload": "Reload",
+    "permissionDenied": {
+      "title": "Access denied",
+      "description": "Admin permission is required to view this page"
+    },
+    "loadFailure": {
+      "title": "Load failed"
+    }
+  },
+  "header": {
+    "logout": {
+      "success": "Signed out",
+      "failure": "Sign out failed",
+      "action": "Sign out"
+    },
+    "language": {
+      "label": "Language",
+      "zh": "中文",
+      "en": "English"
+    },
+    "userFallback": "User"
+  },
+  "sidebar": {
+    "sections": {
+      "main": "Main",
+      "ai": "AI Engine",
+      "settings": "Settings"
+    },
+    "items": {
+      "dashboard": "Dashboard",
+      "inbox": "Inbox",
+      "categories": "Categories",
+      "routing": "Routing",
+      "settings": "General",
+      "apiKeys": "API Keys",
+      "logs": "Access Logs",
+      "statistics": "Usage Stats"
+    },
+    "footer": {
+      "version": "SuperInbox v0.1.0",
+      "copyright": "© 2024 SuperInbox"
+    }
+  },
+  "auth": {
+    "errors": {
+      "loginFailed": "Login failed",
+      "registerFailed": "Registration failed",
+      "missingRefreshToken": "Missing refresh token",
+      "refreshTokenFailed": "Refresh token failed"
+    },
+    "login": {
+      "brand": "SuperInbox",
+      "tagline": "Intelligent Inbox Admin",
+      "fields": {
+        "username": {
+          "label": "Username",
+          "placeholder": "Enter username"
+        },
+        "password": {
+          "label": "Password",
+          "placeholder": "Enter password"
+        }
+      },
+      "actions": {
+        "showPassword": "Show password",
+        "hidePassword": "Hide password",
+        "submit": "Log in",
+        "register": "Register now"
+      },
+      "noAccount": "No account yet?",
+      "errors": {
+        "usernameRequired": "Please enter a username",
+        "passwordMin": "Password must be at least 6 characters"
+      },
+      "toast": {
+        "success": "Logged in",
+        "failure": "Login failed"
+      }
+    },
+    "register": {
+      "title": "Create account",
+      "subtitle": "Create your SuperInbox account",
+      "fields": {
+        "username": {
+          "label": "Username",
+          "placeholder": "Enter username"
+        },
+        "email": {
+          "label": "Email",
+          "placeholder": "Enter email"
+        },
+        "password": {
+          "label": "Password",
+          "placeholder": "Enter password (min 6)"
+        },
+        "confirmPassword": {
+          "label": "Confirm password",
+          "placeholder": "Re-enter password"
+        }
+      },
+      "actions": {
+        "submit": "Register",
+        "login": "Log in"
+      },
+      "hasAccount": "Already have an account?",
+      "errors": {
+        "usernameMin": "Username must be at least 3 characters",
+        "usernameMax": "Username must be at most 20 characters",
+        "emailInvalid": "Please enter a valid email",
+        "passwordMin": "Password must be at least 6 characters",
+        "passwordMismatch": "Passwords do not match"
+      },
+      "toast": {
+        "success": "Registered successfully",
+        "failure": "Registration failed"
+      }
+    }
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "categories": {
+      "todo": "Todo",
+      "idea": "Idea",
+      "expense": "Expense",
+      "schedule": "Schedule",
+      "note": "Note",
+      "bookmark": "Bookmark",
+      "unknown": "Unknown"
+    },
+    "stats": {
+      "totalItems": {
+        "title": "Total items",
+        "description": "This month +{count}"
+      },
+      "aiSuccessRate": {
+        "title": "AI success rate",
+        "description": "Analysis success rate"
+      },
+      "todayItems": {
+        "title": "New today",
+        "description": "Items created today"
+      },
+      "pending": {
+        "title": "Pending",
+        "description": "Items requiring attention"
+      }
+    },
+    "categoryDistribution": {
+      "title": "Category distribution",
+      "description": "Items by content type"
+    },
+    "statusDistribution": {
+      "title": "Status distribution",
+      "description": "Items by processing status"
+    },
+    "status": {
+      "completed": "Completed",
+      "processing": "Processing",
+      "failed": "Failed",
+      "pending": "Pending"
+    },
+    "recent": {
+      "title": "Recent items",
+      "description": "Latest inbox entries",
+      "viewAll": "View all →",
+      "emptyPrefix": "No items yet, ",
+      "emptyAction": "create the first one"
+    }
+  },
+  "time": {
+    "justNow": "just now",
+    "minutesAgo": "{count} minutes ago",
+    "hoursAgo": "{count} hours ago",
+    "daysAgo": "{count} days ago",
+    "weeksAgo": "{count} weeks ago",
+    "monthsAgo": "{count} months ago",
+    "yearsAgo": "{count} years ago"
+  },
+  "inbox": {
+    "title": "Inbox",
+    "resultsCount": "Found {count} results",
+    "emptyFiltered": "No matching items",
+    "processingHint": "Waiting for AI classification to match routing rules...",
+    "routePending": "Routing: Not configured",
+    "actions": {
+      "viewDetails": "View details"
+    },
+    "badge": {
+      "analyzing": "ANALYZING...",
+      "failed": "FAILED",
+      "todo": "TODO",
+      "idea": "IDEA",
+      "expense": "EXPENSE",
+      "note": "NOTE",
+      "bookmark": "BOOKMARK",
+      "schedule": "SCHEDULE",
+      "unknown": "UNKNOWN"
+    },
+    "confirmDelete": "Delete this item?",
+    "toast": {
+      "deleteSuccess": {
+        "title": "Deleted",
+        "description": "Item deleted successfully"
+      },
+      "deleteFailure": {
+        "title": "Delete failed"
+      },
+      "retrySuccess": {
+        "title": "Retry started",
+        "description": "AI processing restarted"
+      },
+      "retryFailure": {
+        "title": "Retry failed"
+      }
+    }
+  },
+  "inboxDetail": {
+    "title": "Item details",
+    "subtitle": "ID: {id}",
+    "notFound": "Item not found",
+    "confirmDelete": "Delete this item?",
+    "actions": {
+      "reclassify": "Reclassify"
+    },
+    "categories": {
+      "todo": "Todo",
+      "idea": "Idea",
+      "expense": "Expense",
+      "schedule": "Schedule",
+      "note": "Note",
+      "bookmark": "Bookmark",
+      "unknown": "Unknown"
+    },
+    "status": {
+      "pending": "Pending",
+      "processing": "Processing",
+      "completed": "Completed",
+      "failed": "Failed"
+    },
+    "priority": {
+      "low": "Low",
+      "medium": "Medium",
+      "high": "High"
+    },
+    "contentType": {
+      "text": "Text",
+      "image": "Image",
+      "url": "URL",
+      "audio": "Audio"
+    },
+    "sections": {
+      "content": "Original content",
+      "attachments": "Attachments",
+      "analysis": "AI analysis",
+      "metadata": "Metadata",
+      "distribution": "Distribution results"
+    },
+    "analysis": {
+      "intent": "Intent",
+      "confidence": "Confidence",
+      "summary": "Summary",
+      "entities": "Extracted entities"
+    },
+    "metadata": {
+      "status": "Status",
+      "priority": "Priority",
+      "source": "Source",
+      "contentType": "Content type",
+      "createdAt": "Created",
+      "updatedAt": "Updated",
+      "processedAt": "Processed"
+    },
+    "distribution": {
+      "success": "Success",
+      "failure": "Failed"
+    },
+    "toast": {
+      "deleteSuccess": {
+        "title": "Deleted",
+        "description": "Item deleted successfully"
+      },
+      "deleteFailure": {
+        "title": "Delete failed"
+      },
+      "reclassifySuccess": {
+        "title": "Reclassification started",
+        "description": "Re-analyzing item"
+      },
+      "reclassifyFailure": {
+        "title": "Reclassification failed"
+      }
+    }
+  },
+  "commandSearch": {
+    "options": {
+      "category": { "label": "Category" },
+      "status": { "label": "Status" },
+      "source": { "label": "Source" }
+    },
+    "categories": {
+      "todo": "To-do",
+      "idea": "Idea",
+      "expense": "Expense",
+      "note": "Note",
+      "bookmark": "Bookmark",
+      "schedule": "Schedule"
+    },
+    "status": {
+      "pending": "Pending",
+      "processing": "Processing",
+      "completed": "Completed",
+      "failed": "Failed"
+    },
+    "history": {
+      "meeting": "Meeting"
+    },
+    "placeholder": "Search... (⌘K)",
+    "sections": {
+      "options": "Search options",
+      "history": "Recent searches",
+      "suggestions": "Suggestions"
+    },
+    "hint": "Tab to select · Esc to close"
+  },
+  "filePreview": {
+    "sections": {
+      "images": "Images ({count})",
+      "files": "Files ({count})"
+    },
+    "dialog": {
+      "imageTitle": "Image preview - {name}"
+    },
+    "imageAltFallback": "Uploaded image",
+    "loading": "Loading...",
+    "uploadedImage": "Uploaded image",
+    "fileFallback": "File",
+    "download": "Download"
+  },
+  "quickAdd": {
+    "trigger": {
+      "full": "Quick add...",
+      "short": "Add"
+    },
+    "title": "Quick add",
+    "description": "Capture ideas, to-dos, and files. AI will analyze and categorize automatically.",
+    "placeholder": "Write something... (idea, bill, todo, URL...)",
+    "upload": {
+      "instructions": "Click, drag, or paste files here",
+      "supported": "Supports images, PDF, audio, video, etc. (max 20MB)"
+    },
+    "selectedFiles": "Selected {count} files",
+    "actions": {
+      "clearAll": "Clear all",
+      "submit": "Add"
+    },
+    "hints": {
+      "close": "Close",
+      "submit": "Submit"
+    },
+    "errors": {
+      "uploadFailed": "Upload failed",
+      "createFailed": "Create failed"
+    },
+    "toast": {
+      "fileTooLarge": {
+        "title": "File too large",
+        "description": "{name} ({size}) exceeds the {max} limit",
+        "simpleDescription": "{name} exceeds the {max} limit"
+      },
+      "filesAdded": {
+        "title": "Files added",
+        "description": "Added {count} file(s) from clipboard"
+      },
+      "partialFiles": {
+        "title": "Some files added",
+        "description": "Added {added}/{total} files (oversize files skipped)"
+      },
+      "empty": {
+        "title": "Content required",
+        "description": "Enter content or select files"
+      },
+      "success": {
+        "title": "Added",
+        "withFiles": "Added a record with {count} file(s)",
+        "processing": "Record created and processing"
+      },
+      "failure": {
+        "title": "Add failed",
+        "description": "Please try again later"
+      }
+    }
+  },
+  "apiKeys": {
+    "title": "API Keys",
+    "actions": {
+      "create": "Create",
+      "edit": "Edit",
+      "delete": "Delete"
+    },
+    "empty": {
+      "title": "No API keys yet",
+      "description": "Click “Create” above to get started"
+    },
+    "table": {
+      "name": "Name",
+      "key": "Key",
+      "createdAt": "Created",
+      "lastUsedAt": "Last used",
+      "actions": "Actions"
+    },
+    "unnamed": "Unnamed",
+    "toast": {
+      "loadFailure": {
+        "title": "Load failed",
+        "description": "Unable to load API key list"
+      },
+      "deleteSuccess": {
+        "title": "API key deleted",
+        "description": "Key {name} deleted successfully"
+      },
+      "deleteFailure": {
+        "title": "Delete failed",
+        "description": "Unable to delete API key"
+      }
+    },
+    "confirmDelete": "Delete API key {name}? This action cannot be undone.",
+    "dialog": {
+      "validation": {
+        "emptyScopes": {
+          "title": "Scopes required",
+          "description": "Select at least one scope"
+        }
+      },
+      "toast": {
+        "updateSuccess": {
+          "title": "API key updated",
+          "description": "Permissions and name updated"
+        },
+        "createFailure": {
+          "title": "Create failed"
+        },
+        "updateFailure": {
+          "title": "Update failed"
+        },
+        "failureDescription": "Operation failed"
+      },
+      "title": {
+        "edit": "Edit API key",
+        "create": "Create API key"
+      },
+      "description": {
+        "edit": "Update the API key name and permissions",
+        "create": "Create a new API key for programmatic access"
+      },
+      "fields": {
+        "name": {
+          "label": "Name (optional)",
+          "placeholder": "e.g. Third Party App",
+          "helper": "Give this key a recognizable name"
+        },
+        "scopes": {
+          "label": "Scopes"
+        }
+      },
+      "groups": {
+        "basic": "Basic",
+        "ai": "AI",
+        "routing": "Routing",
+        "content": "Content",
+        "admin": "Admin"
+      },
+      "scopes": {
+        "inboxRead": {
+          "label": "Read inbox",
+          "description": "View all records"
+        },
+        "inboxWrite": {
+          "label": "Write inbox",
+          "description": "Create new records"
+        },
+        "inboxDelete": {
+          "label": "Delete records",
+          "description": "Delete existing records"
+        },
+        "aiRead": {
+          "label": "Read AI analysis",
+          "description": "View AI analysis results"
+        },
+        "aiWrite": {
+          "label": "Adjust AI analysis",
+          "description": "Correct AI analysis results"
+        },
+        "routingRead": {
+          "label": "Read routing rules",
+          "description": "View routing configuration"
+        },
+        "routingWrite": {
+          "label": "Manage routing rules",
+          "description": "Create and update routing rules"
+        },
+        "contentAll": {
+          "label": "All content",
+          "description": "Access all content types"
+        },
+        "contentTodo": {
+          "label": "Todo items",
+          "description": "Access todo items only"
+        },
+        "contentIdea": {
+          "label": "Ideas",
+          "description": "Access idea items only"
+        },
+        "contentExpense": {
+          "label": "Expenses",
+          "description": "Access expense items only"
+        },
+        "contentNote": {
+          "label": "Notes",
+          "description": "Access note items only"
+        },
+        "contentBookmark": {
+          "label": "Bookmarks",
+          "description": "Access bookmark items only"
+        },
+        "contentSchedule": {
+          "label": "Schedules",
+          "description": "Access schedule items only"
+        },
+        "adminFull": {
+          "label": "Full admin",
+          "description": "All permissions (including API key management)"
+        }
+      },
+      "actions": {
+        "cancel": "Cancel",
+        "loading": "Processing...",
+        "save": "Save changes",
+        "create": "Create key"
+      }
+    },
+    "showDialog": {
+      "toast": {
+        "copySuccess": {
+          "title": "Copied",
+          "description": "API key copied to clipboard"
+        },
+        "copyFailure": {
+          "title": "Copy failed",
+          "description": "Unable to copy to clipboard"
+        }
+      },
+      "title": "API key created",
+      "description": "Store this API key in a safe, accessible place. For security reasons, you will not be able to view it again from the API keys page. If you lose it, you will need to create a new one.",
+      "actions": {
+        "close": "Close",
+        "copy": "Copy",
+        "copied": "Copied"
+      }
+    }
+  },
+  "settings": {
+    "title": "Settings",
+    "apiConfig": {
+      "title": "API authentication",
+      "description": "Configure the API key used to access the SuperInbox backend",
+      "apiUrl": "API URL",
+      "currentKey": {
+        "label": "Current API key status",
+        "configured": "Configured",
+        "storage": "Local storage",
+        "notConfigured": "Not configured",
+        "defaultHint": "Default dev key will be used"
+      },
+      "newKey": {
+        "label": "Set new API key",
+        "placeholder": "Enter your API key",
+        "helper": "For production, use an API key generated by the backend"
+      }
+    },
+    "quickLinks": {
+      "title": "Quick links",
+      "description": "Go to other settings pages",
+      "apiKeys": {
+        "title": "API key management",
+        "description": "Create and manage API keys"
+      },
+      "logs": {
+        "title": "Access logs",
+        "description": "View access records"
+      },
+      "statistics": {
+        "title": "Usage statistics",
+        "description": "View usage metrics"
+      }
+    },
+    "timezone": {
+      "title": "Timezone",
+      "description": "Set your region to return local times",
+      "current": {
+        "label": "Current timezone",
+        "set": "Set",
+        "unset": "Not set",
+        "utcHint": "UTC will be used"
+      },
+      "new": {
+        "label": "Set timezone",
+        "helper": "Use IANA timezone format, e.g. Asia/Shanghai, America/Los_Angeles"
+      }
+    },
+    "actions": {
+      "clear": "Clear",
+      "save": "Save",
+      "useDefaultKey": "Use default dev key",
+      "useBrowserTimezone": "Use browser timezone"
+    },
+    "toast": {
+      "apiKeyEmpty": {
+        "title": "API key required",
+        "description": "Enter a valid API key"
+      },
+      "apiKeySaved": {
+        "title": "API key saved",
+        "description": "API key saved to local storage"
+      },
+      "defaultKeyUsed": {
+        "title": "Default dev key applied",
+        "description": "Default key is for development only; replace in production"
+      },
+      "apiKeyCleared": {
+        "title": "API key cleared",
+        "description": "Default dev key will be used automatically"
+      },
+      "timezoneEmpty": {
+        "title": "Timezone required",
+        "description": "Enter a valid IANA timezone, e.g. Asia/Shanghai"
+      },
+      "timezoneSaved": {
+        "title": "Timezone saved",
+        "description": "Updated to {timezone}"
+      },
+      "timezoneSaveFailure": {
+        "title": "Timezone save failed"
+      }
+    }
+  },
+  "logs": {
+    "title": "Access Logs",
+    "actions": {
+      "export": "Export logs"
+    },
+    "loading": "Loading...",
+    "empty": "No log entries",
+    "status": {
+      "success": "Success",
+      "error": "Failed",
+      "denied": "Denied"
+    },
+    "timeRange": {
+      "today": "Today",
+      "week": "This week",
+      "month": "This month",
+      "custom": "Custom"
+    },
+    "quickFilters": {
+      "timeRange": "Time range",
+      "status": "Status",
+      "statusAll": "All statuses",
+      "search": "Search",
+      "searchPlaceholder": "Search endpoint...",
+      "advanced": "Advanced filters",
+      "enabled": "Enabled"
+    },
+    "tags": {
+      "time": "Time: {value}",
+      "status": "Status: {value}",
+      "search": "Search: {value}",
+      "methods": "Methods: {value}",
+      "ip": "IP: {value}"
+    },
+    "advanced": {
+      "httpMethods": "HTTP methods",
+      "ip": "IP address",
+      "ipPlaceholder": "Enter IP address...",
+      "apiKey": "API key",
+      "apiKeyPlaceholder": "Select API key",
+      "apiKeyAll": "All API keys",
+      "reset": "Reset filters",
+      "apply": "Apply filters"
+    },
+    "table": {
+      "time": "Time",
+      "path": "Endpoint",
+      "method": "Method",
+      "status": "Status",
+      "duration": "Latency",
+      "ip": "IP address",
+      "apiKey": "API key"
+    },
+    "pagination": {
+      "summary": "Showing {start}-{end} of {total}",
+      "prev": "Previous",
+      "page": "Page {page} / {totalPages}",
+      "next": "Next",
+      "pageSize": "{size}/page"
+    },
+    "export": {
+      "title": "Export access logs",
+      "description": "Choose export format and fields",
+      "format": "Export format",
+      "formats": {
+        "csv": "CSV - Excel friendly",
+        "json": "JSON - For programmatic use",
+        "xlsx": "XLSX - Native Excel format"
+      },
+      "fieldsLabel": "Included fields",
+      "fields": {
+        "timestamp": "Timestamp",
+        "method": "HTTP method",
+        "endpoint": "Endpoint",
+        "statusCode": "Status code",
+        "duration": "Duration",
+        "ip": "IP address",
+        "userAgent": "User-Agent",
+        "requestBody": "Request body"
+      },
+      "hint": {
+        "title": "Time range:",
+        "description": "Exports the current filter's time range (about {count} records)"
+      },
+      "asyncWarning": "Large dataset (over 1000 records) will be exported asynchronously. You'll be notified when it's ready.",
+      "actions": {
+        "cancel": "Cancel",
+        "preparing": "Preparing...",
+        "submit": "Start export"
+      },
+      "validation": "Select at least one field",
+      "asyncSuccess": {
+        "title": "Export task created",
+        "description": "Download will start when ready"
+      },
+      "success": "Export completed",
+      "failure": "Export failed"
+    },
+    "detail": {
+      "request": {
+        "title": "📤 Request details",
+        "fullUrl": "Full URL",
+        "body": "Request body",
+        "headers": "View request headers"
+      },
+      "response": {
+        "title": "📥 Response details",
+        "statusCode": "Status code",
+        "size": "Response size",
+        "duration": "Response time"
+      },
+      "error": {
+        "title": "❌ Error details",
+        "code": "Error code",
+        "message": "Error message",
+        "details": "View details"
+      },
+      "meta": {
+        "userAgent": "User-Agent",
+        "ip": "IP"
+      }
+    }
+  },
+  "apiKeyLogs": {
+    "back": "Back to API Keys",
+    "unnamed": "Unnamed key",
+    "keyLabel": "Key: {key}",
+    "createdAt": "Created: {date}",
+    "totalCalls": "{count} calls",
+    "actions": {
+      "viewStats": "View stats",
+      "editKey": "Edit key"
+    }
+  },
+  "statistics": {
+    "title": "API Usage Statistics",
+    "timeRange": {
+      "today": "Today",
+      "week": "This week",
+      "month": "This month",
+      "all": "All time"
+    },
+    "summary": {
+      "totalRequests": "Total requests",
+      "compared": "vs previous period",
+      "successRate": "Success rate",
+      "successCount": "Successful requests",
+      "errorCount": "Failed requests",
+      "share": "Share {value}%"
+    },
+    "quality": {
+      "excellent": "Excellent",
+      "good": "Good",
+      "needsWork": "Needs improvement"
+    },
+    "trend": {
+      "title": "Request trend",
+      "description": "Request volume by date",
+      "placeholderTitle": "Trend chart",
+      "placeholderSubtitle": "Coming soon",
+      "collected": "Collected {count} days of data"
+    },
+    "keys": {
+      "title": "API key details",
+      "description": "Request volume for all active API keys",
+      "activeCount": "{count} active keys",
+      "table": {
+        "name": "Key name",
+        "requests": "Requests",
+        "share": "Share",
+        "successRate": "Success rate",
+        "lastUsed": "Last used",
+        "status": "Status"
+      },
+      "status": {
+        "active": "Active",
+        "inactive": "Inactive"
+      }
+    }
+  },
+  "mcpAdapters": {
+    "title": "MCP Connectors",
+    "subtitle": "Manage Model Context Protocol connector configurations",
+    "actions": {
+      "add": "Add connector",
+      "test": "Test connection",
+      "testing": "Testing",
+      "edit": "Edit",
+      "delete": "Delete",
+      "create": "Create",
+      "creating": "Creating...",
+      "save": "Save",
+      "updating": "Updating..."
+    },
+    "list": {
+      "title": "Connector list"
+    },
+    "empty": "No MCP connectors configured",
+    "status": {
+      "enabled": "Enabled",
+      "disabled": "Disabled",
+      "healthy": "Healthy",
+      "unhealthy": "Unhealthy"
+    },
+    "transport": {
+      "stdio": "📡 Stdio",
+      "http": "🌐 HTTP"
+    },
+    "labels": {
+      "command": "Command: {command}",
+      "server": "Server: {url}",
+      "lastCheck": "Last check: {time}"
+    },
+    "health": {
+      "healthy": "Healthy",
+      "unhealthy": "Unhealthy"
+    },
+    "toast": {
+      "deleteSuccess": {
+        "title": "Connector deleted",
+        "description": "MCP connector deleted successfully"
+      },
+      "deleteFailure": {
+        "title": "Delete failed"
+      },
+      "testSuccess": {
+        "title": "Connection test succeeded",
+        "description": "MCP server is healthy"
+      },
+      "testFailure": {
+        "title": "Connection test failed",
+        "description": "Connection status: {status}"
+      },
+      "createSuccess": {
+        "title": "Connector created",
+        "description": "Created \"{name}\""
+      },
+      "createFailure": {
+        "title": "Create failed"
+      },
+      "updateSuccess": {
+        "title": "Connector updated",
+        "description": "Updated \"{name}\""
+      },
+      "updateFailure": {
+        "title": "Update failed"
+      }
+    },
+    "confirmDelete": "Delete this connector?",
+    "serverTypes": {
+      "notion": "Notion",
+      "github": "GitHub",
+      "todoist": "Todoist",
+      "custom": "Custom"
+    },
+    "authTypes": {
+      "apiKey": "API Key",
+      "oauth": "OAuth"
+    },
+    "dialog": {
+      "create": {
+        "title": "Add MCP connector",
+        "description": "Configure a new Model Context Protocol connector"
+      },
+      "edit": {
+        "title": "Edit MCP connector",
+        "description": "Update connector settings"
+      }
+    },
+    "fields": {
+      "name": {
+        "label": "Connector name",
+        "placeholder": "e.g. Notion Workspace"
+      },
+      "serverType": {
+        "label": "Server type",
+        "placeholder": "Select type"
+      },
+      "transportType": {
+        "label": "Transport type",
+        "stdio": "📡 Stdio (local process)",
+        "http": "🌐 HTTP (network)",
+        "auto": "Auto-detected",
+        "stdioHint": "Communicate via local process (best for Notion)",
+        "httpHint": "Communicate via HTTP (best for custom servers)"
+      },
+      "serverUrl": {
+        "label": "Server URL",
+        "helper": "HTTP endpoint of the MCP server"
+      },
+      "command": {
+        "label": "Command",
+        "placeholder": "npx [your MCP server]",
+        "helper": "Command is generated and run by the backend"
+      },
+      "authType": {
+        "label": "Auth type",
+        "placeholder": "Select auth type"
+      },
+      "apiKey": {
+        "label": "API Key{env, select, true { (env)} other {}}",
+        "placeholderStdio": "Notion Integration Token (ntn_xxx)",
+        "placeholder": "Enter API key",
+        "placeholderEdit": "Enter new API key (leave blank to keep)",
+        "hintStdio": "Notion integration token will be passed as NOTION_TOKEN",
+        "hint": "Key used for authentication",
+        "hintEdit": "Leave blank to keep current value"
+      },
+      "defaultToolName": {
+        "label": "Default tool name (optional)",
+        "placeholder": "e.g. API-patch-block-children",
+        "helper": "Leave empty to use the inferred default tool name"
+      },
+      "enabled": {
+        "label": "Enable this connector"
+      }
+    },
+    "validation": {
+      "name": {
+        "title": "Enter connector name",
+        "description": "Connector name is required"
+      },
+      "serverUrl": {
+        "title": "Enter server URL",
+        "description": "HTTP transport requires a server URL"
+      },
+      "apiKey": {
+        "title": "Enter API key",
+        "description": "API key is required (passed as env var to MCP server)"
+      }
+    }
+  },
+  "errors": {
+    "unknown": "Unknown error",
+    "internalError": "Something went wrong",
+    "request": {
+      "invalid": "Request validation failed"
+    },
+    "auth": {
+      "invalidInput": "Please check your input",
+      "invalidCredentials": "Invalid username or password",
+      "unauthorized": "Please sign in again",
+      "forbidden": "You don't have permission to perform this action",
+      "usernameExists": "Username already exists",
+      "emailExists": "Email already exists",
+      "loginFailed": "Login failed",
+      "registerFailed": "Registration failed",
+      "invalidRefreshToken": "Refresh token is invalid",
+      "missingRefreshToken": "Refresh token is required",
+      "refreshTokenExpired": "Refresh token has expired",
+      "refreshFailed": "Failed to refresh session",
+      "userNotFound": "User not found"
+    },
+    "routing": {
+      "connectorNotFound": "Connector \"{name}\" not found",
+      "invalidInput": "Routing input is invalid",
+      "invalidConfig": "Routing configuration is invalid",
+      "dispatchFailed": "Failed to dispatch item"
+    },
+    "mcp": {
+      "connectorNotFound": "Connector \"{name}\" not found",
+      "invalidConfig": "Connector configuration is invalid"
+    },
+    "inbox": {
+      "notFound": "Item not found",
+      "fileTooLarge": "File too large. Max {max}",
+      "fileNotFound": "File not found",
+      "fileIndexOutOfRange": "File index is out of range",
+      "noFiles": "No files uploaded",
+      "invalidInput": "Inbox request is invalid",
+      "invalidStatus": "Item status does not allow this action"
+    },
+    "apiKeys": {
+      "notFound": "API key not found",
+      "invalidInput": "API key input is invalid"
+    },
+    "ai": {
+      "invalidInput": "AI request is invalid",
+      "templateNotFound": "Prompt version not found",
+      "categoryNotFound": "Category not found",
+      "categoryKeyExists": "Category key already exists",
+      "previewFailed": "Preview failed"
+    },
+    "settings": {
+      "invalidTimezone": "Timezone is invalid",
+      "invalidInput": "Settings input is invalid"
+    },
+    "logs": {
+      "invalidQuery": "Log query is invalid",
+      "invalidFormat": "Export format is invalid",
+      "invalidFields": "Select at least one field to export",
+      "exportNotFound": "Export task not found",
+      "exportNotReady": "Export is not ready yet",
+      "exportExpired": "Export has expired"
+    },
+    "intelligence": {
+      "parseFailed": "Failed to load parse result",
+      "updateFailed": "Failed to update parse result"
+    }
+  },
+  "aiPage": {
+    "listSeparator": ", ",
+    "title": "Category Management",
+    "actions": {
+      "addCategory": "Add category",
+      "newTemplate": "New prompt version",
+      "edit": "Edit",
+      "enable": "Enable",
+      "save": "Save",
+      "editCategory": "Edit category",
+      "enableCategory": "Enable category",
+      "disableCategory": "Disable category",
+      "coverageRequired": "Template not covered; action disabled"
+    },
+    "stats": {
+      "totalCategories": {
+        "title": "Total categories",
+        "description": "Configured categories"
+      },
+      "activeCategories": {
+        "title": "Active categories",
+        "description": "Categories participating in classification"
+      },
+      "templateVersions": {
+        "title": "Prompt versions",
+        "description": "Number of versions"
+      },
+      "missingCoverage": {
+        "title": "Missing coverage",
+        "description": "Active categories not covered"
+      }
+    },
+    "categoryList": {
+      "title": "Category list",
+      "description": "Enabled categories participate in AI classification and routing rules",
+      "headers": {
+        "category": "Category",
+        "overview": "Overview",
+        "status": "Status",
+        "actions": "Actions"
+      },
+      "empty": "No categories yet"
+    },
+    "status": {
+      "uncovered": "Uncovered",
+      "active": "Active",
+      "inactive": "Inactive"
+    },
+    "labels": {
+      "unnamed": "Untitled"
+    },
+    "templates": {
+      "copyName": "{name} - Copy",
+      "newVersion": "New prompt version"
+    },
+    "templateSection": {
+      "title": "Prompt management",
+      "description": "Coverage must include all active categories before enabling.",
+      "empty": "No prompt versions",
+      "notParsed": "Coverage not parsed",
+      "createdAt": "Created at: {date}",
+      "status": {
+        "active": "Active",
+        "inactive": "Inactive"
+      },
+      "tooltip": {
+        "active": "Already active",
+        "enable": "Enable this version",
+        "missingCoverage": "Cover these categories before enabling: {categories}"
+      }
+    },
+    "categoryDialog": {
+      "titleEdit": "Edit category",
+      "titleCreate": "Add category",
+      "description": "Categories power AI intent recognition and routing conditions; disabling won't remove historical data.",
+      "fields": {
+        "name": {
+          "label": "Category name",
+          "placeholder": "e.g. To-do"
+        },
+        "key": {
+          "label": "Category key",
+          "placeholder": "e.g. todo",
+          "hint": "Use lowercase English for rule conditions and API fields.",
+          "conflict": "This key already exists."
+        },
+        "description": {
+          "label": "Description",
+          "placeholder": "One-line description of this category"
+        },
+        "examples": {
+          "label": "Examples",
+          "placeholder": "One example per line"
+        },
+        "active": {
+          "label": "Enable this category"
+        }
+      }
+    },
+    "templateDialog": {
+      "titleEdit": "Edit prompt version",
+      "titleCreate": "New prompt version",
+      "description": "AI parsing generates coverage; all active categories must be covered to enable. Re-parse after editing.",
+      "fields": {
+        "name": {
+          "label": "Version name",
+          "placeholder": "e.g. Default prompt v2"
+        },
+        "description": {
+          "label": "Version description",
+          "placeholder": "Describe changes in this version"
+        },
+        "prompt": {
+          "label": "Prompt content",
+          "placeholder": "Enter prompt text or structured instructions"
+        }
+      },
+      "coverage": {
+        "title": "Coverage parsing",
+        "hint": "Parsed coverage equals effective coverage; re-parse after edits.",
+        "staleHint": "Coverage is stale; please re-parse.",
+        "badges": {
+          "parsing": "Parsing",
+          "stale": "Stale",
+          "complete": "Complete",
+          "missing": "Missing {count}",
+          "notParsed": "Not parsed"
+        },
+        "actions": {
+          "parsing": "Parsing coverage...",
+          "parse": "Parse with AI",
+          "createCategory": "Create category",
+          "ignore": "Ignore"
+        },
+        "summary": {
+          "covered": "Covered {covered}/{total}",
+          "missing": "Missing {count}",
+          "lowRisk": "Low risk"
+        },
+        "sections": {
+          "parsed": "Parsed",
+          "empty": "None",
+          "unparsed": "Unparsed",
+          "allParsed": "All parsed",
+          "unknown": "Unknown"
+        },
+        "emptyState": {
+          "titleParsing": "Parsing coverage...",
+          "titleIdle": "Parse first",
+          "descriptionParsing": "Generating coverage suggestions, please wait.",
+          "descriptionIdle": "Unparsed shows empty state; parsed shows coverage gaps and risk cues."
+        },
+        "alertMissing": "Enable only after covering: {categories}",
+        "alertComplete": "All active categories covered; ready to enable."
+      },
+      "sample": {
+        "title": "Dry run",
+        "description": "Enter a sample content line to preview classification.",
+        "warning": "Note: dry runs call AI; results depend on model/config. After saving, validate with real data.",
+        "label": "Sample content",
+        "placeholder": "e.g. Meet Alex tomorrow at 10am",
+        "running": "Running...",
+        "run": "Run",
+        "runningInline": "AI dry run in progress...",
+        "hit": "Hit",
+        "confidence": "Confidence {percent}%",
+        "reason": "Reason: {reason}",
+        "failed": "Failed"
+      },
+      "actions": {
+        "save": "Save prompt version"
+      }
+    },
+    "toasts": {
+      "categoryKeyUpdated": {
+        "title": "Category key updated",
+        "description": "Please re-parse coverage to keep templates consistent."
+      },
+      "categorySaveFailed": {
+        "title": "Failed to save category"
+      },
+      "categoryUpdateFailed": {
+        "title": "Failed to update category"
+      },
+      "frontendParsed": {
+        "title": "Pre-parse complete",
+        "description": "New prompts use keyword pre-parse; save and re-parse with AI for better results."
+      },
+      "coverageParseFailed": {
+        "title": "Failed to parse coverage"
+      },
+      "promptRequired": {
+        "title": "Prompt content required"
+      },
+      "coverageStale": {
+        "title": "Coverage is stale",
+        "description": "Re-parse coverage before running."
+      },
+      "coverageMissing": {
+        "title": "Coverage not parsed",
+        "description": "Parse coverage before running."
+      },
+      "noAvailableCategories": {
+        "title": "No available categories",
+        "description": "Complete categories or re-parse coverage."
+      },
+      "sampleRunFailed": {
+        "title": "Dry run failed"
+      },
+      "openCategoryEditor": {
+        "title": "Open category editor",
+        "description": "Complete category info and save; then re-parse coverage."
+      },
+      "templateNameRequired": {
+        "title": "Version name required"
+      },
+      "coverageIncomplete": {
+        "title": "Coverage incomplete",
+        "description": "Parsed coverage missed: {categories}. Save and re-parse after adjusting the prompt."
+      },
+      "templateSaved": {
+        "title": "Prompt saved",
+        "descriptionComplete": "Coverage includes all active categories; ready to enable.",
+        "descriptionIncomplete": "Adjust prompt and re-parse before enabling."
+      },
+      "templateSaveFailed": {
+        "title": "Failed to save prompt"
+      },
+      "templateActivateFailed": {
+        "title": "Enable failed"
+      }
+    },
+    "errors": {
+      "sampleRunFailed": "AI dry run failed"
+    }
+  },
+  "routingPage": {
+    "title": "Routing Rules",
+    "actions": {
+      "createRule": "New rule",
+      "notion": "Notion",
+      "obsidian": "Obsidian",
+      "webhook": "Webhook"
+    },
+    "fields": {
+      "category": "Category",
+      "source": "Source",
+      "priority": "Priority",
+      "content": "Content"
+    },
+    "operators": {
+      "equals": "Equals",
+      "contains": "Contains",
+      "matches": "Matches",
+      "in": "In"
+    },
+    "ruleName": {
+      "empty": "Untitled rule",
+      "pattern": "{categories} → {connector}"
+    },
+    "confirmDelete": "Delete rule \"{name}\"?",
+    "ruleList": {
+      "title": "Rule management",
+      "summary": {
+        "total": "Total {count}",
+        "active": "Active {count}",
+        "inactive": "Inactive {count}"
+      },
+      "searchPlaceholder": "Search rule name or description",
+      "statusFilter": {
+        "placeholder": "Filter status",
+        "all": "All statuses",
+        "active": "Active only",
+        "inactive": "Inactive only"
+      },
+      "empty": "No routing rules",
+      "conditions": {
+        "all": "All"
+      },
+      "status": {
+        "active": "Active",
+        "inactive": "Inactive"
+      },
+      "priority": "Priority: {value}",
+      "descriptionEmpty": "No description",
+      "actionsEmpty": "No actions configured",
+      "updatedAt": "Updated {date}"
+    },
+    "connectors": {
+      "title": "MCP connectors",
+      "description": "Manage backend MCP connector settings",
+      "manage": "Manage connectors",
+      "empty": "No MCP connectors configured.",
+      "notionLink": "Create a Notion integration",
+      "status": {
+        "enabled": "Enabled",
+        "disabled": "Disabled"
+      },
+      "health": {
+        "healthy": "Healthy",
+        "unhealthy": "Unhealthy"
+      }
+    },
+    "toasts": {
+      "ruleDeleted": {
+        "title": "Rule deleted",
+        "description": "Deleted \"{name}\""
+      },
+      "deleteFailed": {
+        "title": "Delete failed"
+      },
+      "categoryRequired": {
+        "title": "Select categories",
+        "description": "Select at least one category"
+      },
+      "connectorRequired": {
+        "title": "Select connector",
+        "description": "Select one connector"
+      },
+      "ruleUpdated": {
+        "title": "Rule updated",
+        "description": "Saved \"{name}\""
+      },
+      "updateFailed": {
+        "title": "Update failed"
+      },
+      "previewContentRequired": {
+        "title": "Sample content required",
+        "description": "Used to test rule matching"
+      },
+      "testConnectorRequired": {
+        "title": "Select a connector first",
+        "description": "Select an MCP connector to run the test"
+      },
+      "pageIdRequired": {
+        "title": "Page ID required",
+        "description": "Provide a Notion page ID to append content"
+      },
+      "testContentRequired": {
+        "title": "Test content required",
+        "description": "Content to append to the Notion page"
+      },
+      "descriptionRequired": {
+        "title": "Rule description required",
+        "description": "Rule description is used as LLM instructions"
+      },
+      "connectorNotFound": {
+        "title": "Connector not found",
+        "description": "Unable to find MCP connector for \"{name}\""
+      },
+      "dispatchFailed": {
+        "title": "Append failed"
+      },
+      "dispatchSuccess": {
+        "title": "Append succeeded",
+        "description": "Content appended to the Notion page"
+      },
+      "ruleCreated": {
+        "title": "Rule created",
+        "description": "Created \"{name}\""
+      },
+      "createFailed": {
+        "title": "Create failed"
+      }
+    },
+    "preview": {
+      "title": "Rule preview",
+      "description": "Test rule matching with sample content",
+      "placeholder": "Enter sample content or structured text",
+      "actions": {
+        "loading": "Testing...",
+        "run": "Test rule"
+      },
+      "hint": "Calls /routing/rules/:id/test",
+      "empty": "Preview results appear here",
+      "failed": "Test failed"
+    },
+    "testDispatch": {
+      "title": "Run test",
+      "description": "Append content to a Notion page",
+      "contentPlaceholder": "Content to append to the Notion page...",
+      "pageId": {
+        "label": "Notion page ID",
+        "placeholder": "2efdca6525fe8110bd7de53062d860f7"
+      },
+      "actions": {
+        "loading": "Appending...",
+        "run": "Run test"
+      },
+      "result": {
+        "success": "✓ Append succeeded",
+        "failed": "✗ Append failed",
+        "status": "Status: {status}",
+        "tool": "Tool: {tool}",
+        "toolSchema": "Tool schema",
+        "stepTitle": "Step {step}: {tool}"
+      },
+      "failed": "Append failed",
+      "sendFailed": "Test dispatch failed"
+    },
+    "editDialog": {
+      "title": "Edit rule",
+      "description": "Adjust rule configuration and preview matches",
+      "noRule": "No rule selected",
+      "fields": {
+        "name": {
+          "label": "Name",
+          "hint": "Auto-generated name"
+        },
+        "priority": {
+          "label": "Priority"
+        },
+        "categories": {
+          "label": "Category conditions (required, multi-select)",
+          "empty": "No categories available",
+          "hint": "Only category matching is supported"
+        },
+        "connector": {
+          "label": "Connector (required)",
+          "empty": "Create a connector on the right first",
+          "placeholder": "Select connector"
+        },
+        "description": {
+          "label": "Description",
+          "placeholder": "One-line description of this rule"
+        },
+        "active": "Enable this rule"
+      },
+      "actions": {
+        "saving": "Saving...",
+        "save": "Save rule"
+      }
+    },
+    "createDialog": {
+      "title": "Create rule",
+      "description": "Create a new routing rule",
+      "fields": {
+        "name": {
+          "label": "Name",
+          "hint": "Auto-generated name"
+        },
+        "priority": {
+          "label": "Priority"
+        },
+        "categories": {
+          "label": "Category conditions (required, multi-select)",
+          "empty": "No categories available",
+          "hint": "Only category matching is supported"
+        },
+        "connector": {
+          "label": "Connector (required)",
+          "empty": "Create a connector on the right first",
+          "placeholder": "Select connector"
+        },
+        "description": {
+          "label": "Description",
+          "placeholder": "One-line description of this rule"
+        },
+        "active": "Enable this rule"
+      },
+      "actions": {
+        "saving": "Creating...",
+        "create": "Create rule"
+      }
+    }
+  }
+}

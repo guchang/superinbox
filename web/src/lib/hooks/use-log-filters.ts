@@ -5,7 +5,8 @@
 
 'use client'
 
-import { useSearchParams, useRouter } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
+import { useRouter } from '@/i18n/navigation'
 import { useMemo, useCallback } from 'react'
 import type { LogFilters } from '@/types/logs'
 

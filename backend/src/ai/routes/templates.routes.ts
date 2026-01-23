@@ -7,6 +7,7 @@ import { authenticate } from '../../middleware/auth.js';
 import { logger } from '../../middleware/logger.js';
 import { getLLMClient } from '../llm-client.js';
 import { extractFirstUrl, fetchUrlContent } from '../url-extractor.js';
+import { sendError } from '../../utils/error-response.js';
 import {
   activateTemplate,
   createTemplate,
@@ -48,9 +49,10 @@ router.post('/templates', authenticate, (req, res) => {
   const payload = req.body as Partial<TemplateRecord>;
 
   if (!payload.name || !payload.prompt) {
-    res.status(400).json({
-      success: false,
-      error: 'Missing required fields: name, prompt',
+    sendError(res, {
+      statusCode: 400,
+      code: 'AI.INVALID_INPUT',
+      message: 'Missing required fields: name, prompt'
     });
     return;
   }
@@ -83,9 +85,11 @@ router.put('/templates/:id', authenticate, (req, res) => {
   });
 
   if (!record) {
-    res.status(404).json({
-      success: false,
-      error: 'Template not found',
+    sendError(res, {
+      statusCode: 404,
+      code: 'AI.TEMPLATE_NOT_FOUND',
+      message: 'Template not found',
+      params: { id: req.params.id }
     });
     return;
   }
@@ -98,9 +102,11 @@ router.post('/templates/:id/activate', authenticate, (req, res) => {
   const record = activateTemplate(userId, req.params.id);
 
   if (!record) {
-    res.status(404).json({
-      success: false,
-      error: 'Template not found',
+    sendError(res, {
+      statusCode: 404,
+      code: 'AI.TEMPLATE_NOT_FOUND',
+      message: 'Template not found',
+      params: { id: req.params.id }
     });
     return;
   }
@@ -129,9 +135,10 @@ router.post('/templates/preview', authenticate, async (req, res) => {
     .map((item) => ({ key: item.key.trim(), name: item.name.trim() }));
 
   if (!prompt || !content || normalizedCategories.length === 0) {
-    res.status(400).json({
-      success: false,
-      error: 'Missing required fields: prompt, content, categories',
+    sendError(res, {
+      statusCode: 400,
+      code: 'AI.INVALID_INPUT',
+      message: 'Missing required fields: prompt, content, categories'
     });
     return;
   }
@@ -182,9 +189,10 @@ router.post('/templates/preview', authenticate, async (req, res) => {
       },
     });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: 'AI preview failed',
+    sendError(res, {
+      statusCode: 500,
+      code: 'AI.PREVIEW_FAILED',
+      message: 'AI preview failed'
     });
   }
 });
@@ -195,9 +203,11 @@ router.post('/templates/:id/parse-coverage', authenticate, async (req, res) => {
   const template = getTemplateById(userId, templateId);
 
   if (!template) {
-    res.status(404).json({
-      success: false,
-      error: 'Template not found',
+    sendError(res, {
+      statusCode: 404,
+      code: 'AI.TEMPLATE_NOT_FOUND',
+      message: 'Template not found',
+      params: { id: templateId }
     });
     return;
   }
@@ -207,9 +217,10 @@ router.post('/templates/:id/parse-coverage', authenticate, async (req, res) => {
   const categories = payload.categories ?? [];
 
   if (!prompt || categories.length === 0) {
-    res.status(400).json({
-      success: false,
-      error: 'Missing required fields: prompt, categories',
+    sendError(res, {
+      statusCode: 400,
+      code: 'AI.INVALID_INPUT',
+      message: 'Missing required fields: prompt, categories'
     });
     return;
   }

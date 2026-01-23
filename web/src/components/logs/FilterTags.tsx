@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslations } from 'next-intl'
 import type { LogFilters } from '@/types/logs'
 
 interface FilterTagsProps {
@@ -8,41 +9,52 @@ interface FilterTagsProps {
 }
 
 export function FilterTags({ filters, onRemove }: FilterTagsProps) {
+  const t = useTranslations('logs')
   const tags = []
 
   if (filters.timeRange !== 'today') {
-    const labels = { week: '本周', month: '本月', custom: '自定义' }
+    const labels = {
+      week: t('timeRange.week'),
+      month: t('timeRange.month'),
+      custom: t('timeRange.custom'),
+    }
     tags.push({
-      label: `时间: ${labels[filters.timeRange as keyof typeof labels] || filters.timeRange}`,
+      label: t('tags.time', {
+        value: labels[filters.timeRange as keyof typeof labels] || filters.timeRange,
+      }),
       key: 'timeRange' as const,
     })
   }
 
   if (filters.status && filters.status !== 'all') {
-    const labels = { success: '成功', error: '失败', denied: '拒绝' }
+    const labels = {
+      success: t('status.success'),
+      error: t('status.error'),
+      denied: t('status.denied'),
+    }
     tags.push({
-      label: `状态: ${labels[filters.status] || filters.status}`,
+      label: t('tags.status', { value: labels[filters.status] || filters.status }),
       key: 'status' as const,
     })
   }
 
   if (filters.searchQuery) {
     tags.push({
-      label: `搜索: ${filters.searchQuery}`,
+      label: t('tags.search', { value: filters.searchQuery }),
       key: 'searchQuery' as const,
     })
   }
 
   if (filters.methods && filters.methods.length > 0) {
     tags.push({
-      label: `方法: ${filters.methods.join(', ')}`,
+      label: t('tags.methods', { value: filters.methods.join(', ') }),
       key: 'methods' as const,
     })
   }
 
   if (filters.ipAddress) {
     tags.push({
-      label: `IP: ${filters.ipAddress}`,
+      label: t('tags.ip', { value: filters.ipAddress }),
       key: 'ipAddress' as const,
     })
   }

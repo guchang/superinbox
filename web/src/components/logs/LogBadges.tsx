@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslations } from 'next-intl'
 import { Badge } from '@/components/ui/badge'
 import type { LogStatus, HttpMethod } from '@/types/logs'
 
@@ -22,6 +23,7 @@ export function MethodBadge({ method }: { method: HttpMethod }) {
 
 // Status badge
 export function StatusBadge({ status, statusCode }: { status: LogStatus; statusCode: number }) {
+  const t = useTranslations('logs')
   const variants = {
     success: 'bg-green-100 text-green-800',
     error: 'bg-red-100 text-red-800',
@@ -29,9 +31,9 @@ export function StatusBadge({ status, statusCode }: { status: LogStatus; statusC
   }
 
   const labels = {
-    success: '成功',
-    error: '失败',
-    denied: '拒绝',
+    success: t('status.success'),
+    error: t('status.error'),
+    denied: t('status.denied'),
   }
 
   return (
