@@ -295,7 +295,8 @@ export class MCPAdapter extends BaseAdapter {
     const commandMapping: Record<string, string> = {
       notion: 'npx -y @notionhq/notion-mcp-server',
       github: 'npx -y @modelcontextprotocol/server-github',
-      obsidian: 'npx -y @modelcontextprotocol/server-obsidian'
+      obsidian: 'npx -y @modelcontextprotocol/server-obsidian',
+      todoist: 'npx -y mcp-remote https://ai.todoist.net/mcp'
     };
 
     return commandMapping[serverType] || `npx @modelcontextprotocol/server-${serverType}`;
@@ -308,7 +309,8 @@ export class MCPAdapter extends BaseAdapter {
     const toolMapping: Record<string, string> = {
       notion: 'API-post-page',
       github: 'github-create-issue',
-      obsidian: 'obsidian-create-note'
+      obsidian: 'obsidian-create-note',
+      todoist: 'addTasks'
     };
 
     return toolMapping[serverType] || 'create-resource';
@@ -331,7 +333,14 @@ export class MCPAdapter extends BaseAdapter {
       obsidian: `Convert to Obsidian note format:
 - Use suggestedTitle as note filename
 - Use originalContent as note content
-- Add metadata YAML frontmatter`
+- Add metadata YAML frontmatter`,
+      todoist: `Convert to Todoist task format:
+- Use suggestedTitle (or first 50 chars of originalContent) as task content
+- Use originalContent as task description if it's longer
+- Map dueDate to Todoist due string (e.g., "tomorrow at 10:00")
+- Map priority: LOW->1, MEDIUM->2, HIGH->3, URGENT->4
+- Map tags/labels from entities.tags
+- Map project ID from config.projectId if provided`
     };
 
     return instructions[serverType] || `Convert the item to the target format for ${serverType}`;
@@ -399,6 +408,52 @@ export class MCPAdapter extends BaseAdapter {
             }]
           }
         }
+      };
+    }
+
+    // Todoist addTasks tool mapping
+    if (toolName === 'addTasks' || toolName.startsWith('todoist')) {
+      // Map priority to Todoist format (1=low, 2=medium, 3=high, 4=urgent)
+      const priorityMap: Record<string, number> = {
+        low: 1,
+        medium: 2,
+        high: 3,
+        urgent: 4
+      };
+
+      // Build task object
+      const task: Record<string, unknown> = {
+        content: item.suggestedTitle || item.originalContent.substring(0, 50)
+      };
+
+      // Add description if content is longer than title
+      if (item.originalContent.length > 50) {
+        task.description = item.originalContent;
+      }
+
+      // Add priority
+      if (item.priority) {
+        task.priority = priorityMap[item.priority] || 2;
+      }
+
+      // Add due date if available
+      if (item.entities.dueDate) {
+        task.dueString = item.entities.dueDate.toISOString().split('T')[0];
+      }
+
+      // Add tags/labels
+      if (item.entities.tags && item.entities.tags.length > 0) {
+        task.labels = item.entities.tags;
+      }
+
+      // Add project ID from config
+      const projectId = this.distributionConfig?.config?.projectId as string | undefined;
+      if (projectId) {
+        task.projectId = projectId;
+      }
+
+      return {
+        tasks: [task]
       };
     }
 

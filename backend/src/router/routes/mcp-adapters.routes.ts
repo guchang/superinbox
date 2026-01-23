@@ -10,8 +10,23 @@ import { getDatabase } from '../../storage/database.js';
 import { authenticate } from '../../middleware/auth.js';
 import { logger } from '../../middleware/logger.js';
 import { mcpAdapter } from '../adapters/mcp-adapter.js';
+import { sendError } from '../../utils/error-response.js';
 
 const router = Router();
+
+// Color palette for auto-generated logos
+const LOGO_COLORS = [
+  '#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8',
+  '#F7DC6F', '#BB8FCE', '#85C1E2', '#F8B500', '#00B894',
+  '#6C5CE7', '#FD79A8', '#00CEC9', '#E17055', '#74B9FF'
+] as const;
+
+/**
+ * Get a random logo color from the palette
+ */
+function getRandomLogoColor(): string {
+  return LOGO_COLORS[Math.floor(Math.random() * LOGO_COLORS.length)];
+}
 
 function extractToolErrorFromContent(content: unknown): string | null {
   if (typeof content === 'string') {
@@ -94,6 +109,7 @@ router.get('/', authenticate, (req, res) => {
       enabled: Boolean(row.enabled),
       lastHealthCheck: row.last_health_check,
       lastHealthCheckStatus: row.last_health_check_status,
+      logoColor: row.logo_color,
       createdAt: row.created_at,
       updatedAt: row.updated_at
     }));
@@ -101,7 +117,11 @@ router.get('/', authenticate, (req, res) => {
     res.json({ success: true, data: configs });
   } catch (error) {
     logger.error('Failed to list MCP adapters:', error);
-    res.status(500).json({ success: false, error: 'Failed to list MCP adapters' });
+    sendError(res, {
+      statusCode: 500,
+      code: 'INTERNAL_ERROR',
+      message: 'Failed to list MCP adapters'
+    });
   }
 });
 
@@ -123,7 +143,12 @@ router.get('/:id', authenticate, (req, res): any => {
     const row = stmt.get(id, userId) as any;
 
     if (!row) {
-      return res.status(404).json({ success: false, error: 'MCP adapter not found' });
+      return sendError(res, {
+        statusCode: 404,
+        code: 'MCP.CONNECTOR_NOT_FOUND',
+        message: 'MCP adapter not found',
+        params: { id }
+      });
     }
 
     // Parse env if stored as JSON string
@@ -161,6 +186,7 @@ router.get('/:id', authenticate, (req, res): any => {
       timeout: row.timeout,
       maxRetries: row.max_retries,
       cacheTtl: row.cache_ttl,
+      logoColor: row.logo_color,
       enabled: row.enabled,
       lastHealthCheck: row.last_health_check,
       lastHealthCheckStatus: row.last_health_check_status,
@@ -171,7 +197,11 @@ router.get('/:id', authenticate, (req, res): any => {
     res.json({ success: true, data: config });
   } catch (error) {
     logger.error('Failed to get MCP adapter:', error);
-    res.status(500).json({ success: false, error: 'Failed to get MCP adapter' });
+    sendError(res, {
+      statusCode: 500,
+      code: 'INTERNAL_ERROR',
+      message: 'Failed to get MCP adapter'
+    });
   }
 });
 
@@ -184,9 +214,26 @@ router.post('/', authenticate, (req, res): any => {
     const userId = (req as any).user.id;
     const db = getDatabase();
 
+    // Command mapping for stdio-based MCP servers
+    // Servers in this mapping automatically use stdio transport
+    const commandMapping: Record<string, string> = {
+      notion: 'npx -y @notionhq/notion-mcp-server',
+      github: 'npx -y @modelcontextprotocol/server-github',
+      obsidian: 'npx -y @modelcontextprotocol/server-obsidian',
+      todoist: 'npx -y mcp-remote https://ai.todoist.net/mcp'
+    };
+
     // Determine transport type based on server type
+    // Servers with predefined commands use stdio, others use http
+    const serverType = req.body.serverType || 'custom';
+    const hasStdioCommand = Object.keys(commandMapping).includes(serverType);
     const transportType: 'http' | 'stdio' = req.body.transportType ||
-      (req.body.serverType === 'notion' ? 'stdio' : 'http');
+      (hasStdioCommand ? 'stdio' : 'http');
+
+    // Get default command for stdio types
+    const getDefaultCommand = (serverType: string): string => {
+      return commandMapping[serverType] || `npx @modelcontextprotocol/server-${serverType}`;
+    };
 
     // Build env object from various sources
     let env: Record<string, string> = {};
@@ -200,18 +247,6 @@ router.post('/', authenticate, (req, res): any => {
     if (transportType === 'stdio' && req.body.apiKey) {
       env.NOTION_TOKEN = req.body.apiKey;
     }
-
-    // Get default command for stdio types
-    const getDefaultCommand = (serverType: string): string => {
-      const commandMapping: Record<string, string> = {
-        notion: 'npx -y @notionhq/notion-mcp-server',
-        github: 'npx -y @modelcontextprotocol/server-github',
-        obsidian: 'npx -y @modelcontextprotocol/server-obsidian'
-      };
-      return commandMapping[serverType] || `npx @modelcontextprotocol/server-${serverType}`;
-    };
-
-    const serverType = req.body.serverType || 'custom';
 
     const config: MCPAdapterConfig = {
       id: uuidv4(),
@@ -238,6 +273,7 @@ router.post('/', authenticate, (req, res): any => {
       timeout: req.body.timeout || 30000,
       maxRetries: req.body.maxRetries || 3,
       cacheTtl: req.body.cacheTtl || 300,
+      logoColor: req.body.logoColor || getRandomLogoColor(),
       enabled: req.body.enabled !== undefined ? (req.body.enabled ? 1 : 0) : 1,
       lastHealthCheck: undefined,
       lastHealthCheckStatus: undefined,
@@ -247,7 +283,11 @@ router.post('/', authenticate, (req, res): any => {
 
     // Validate configuration
     if (!mcpAdapter.validate(config as unknown as Record<string, unknown>)) {
-      return res.status(400).json({ success: false, error: 'Invalid MCP adapter configuration' });
+      return sendError(res, {
+        statusCode: 400,
+        code: 'MCP.INVALID_CONFIG',
+        message: 'Invalid MCP adapter configuration'
+      });
     }
 
     // Insert into database
@@ -257,10 +297,10 @@ router.post('/', authenticate, (req, res): any => {
         api_key, oauth_provider, oauth_access_token, oauth_refresh_token,
         oauth_token_expires_at, oauth_scopes, default_tool_name, tool_config_cache,
         llm_provider, llm_api_key, llm_model, llm_base_url,
-        timeout, max_retries, cache_ttl, enabled,
+        timeout, max_retries, cache_ttl, logo_color, enabled,
         last_health_check, last_health_check_status,
         created_at, updated_at, transport_type, command, env
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     stmt.run(
@@ -270,6 +310,7 @@ router.post('/', authenticate, (req, res): any => {
       config.defaultToolName, config.toolConfigCache,
       config.llmProvider, config.llmApiKey, config.llmModel, config.llmBaseUrl,
       config.timeout, config.maxRetries, config.cacheTtl,
+      config.logoColor,
       config.enabled,
       config.lastHealthCheck, config.lastHealthCheckStatus,
       config.createdAt, config.updatedAt,
@@ -282,7 +323,12 @@ router.post('/', authenticate, (req, res): any => {
   } catch (error) {
     console.error('Failed to create MCP adapter:', error);
     logger.error('Failed to create MCP adapter:', error);
-    res.status(500).json({ success: false, error: 'Failed to create MCP adapter', details: error instanceof Error ? error.message : String(error) });
+    sendError(res, {
+      statusCode: 500,
+      code: 'INTERNAL_ERROR',
+      message: 'Failed to create MCP adapter',
+      details: error instanceof Error ? error.message : String(error)
+    });
   }
 });
 
@@ -303,7 +349,12 @@ router.put('/:id', authenticate, (req, res): any => {
     const exists = checkStmt.get(id, userId);
 
     if (!exists) {
-      return res.status(404).json({ success: false, error: 'MCP adapter not found' });
+      return sendError(res, {
+        statusCode: 404,
+        code: 'MCP.CONNECTOR_NOT_FOUND',
+        message: 'MCP adapter not found',
+        params: { id }
+      });
     }
 
     // Build update data
@@ -315,7 +366,8 @@ router.put('/:id', authenticate, (req, res): any => {
       'oauthProvider', 'oauthAccessToken', 'oauthRefreshToken',
       'oauthTokenExpiresAt', 'oauthScopes', 'defaultToolName',
       'llmProvider', 'llmApiKey', 'llmModel', 'llmBaseUrl',
-      'timeout', 'maxRetries', 'cacheTtl', 'enabled'
+      'timeout', 'maxRetries', 'cacheTtl', 'logoColor', 'enabled',
+      'command', 'env', 'transportType'
     ];
 
     for (const field of allowedFields) {
@@ -328,14 +380,18 @@ router.put('/:id', authenticate, (req, res): any => {
         updates.push(`${dbField} = ?`);
         if (field === 'enabled') {
           values.push(value ? 1 : 0);
+        } else if (field === 'env') {
+          // Serialize env object to JSON string for database storage
+          values.push(typeof value === 'object' ? JSON.stringify(value) : value);
         } else {
           values.push(value);
         }
       }
     }
 
-    values.push(new Date().toISOString()); // updated_at
+    // Add updated_at first (so its value comes before WHERE clause values)
     updates.push('updated_at = ?');
+    values.push(new Date().toISOString());
     values.push(id, userId);
 
     const stmt = db.database.prepare(`
@@ -361,9 +417,10 @@ router.put('/:id', authenticate, (req, res): any => {
       error: errorMessage,
       stack: error instanceof Error ? error.stack : undefined
     }, 'Failed to update MCP adapter');
-    res.status(500).json({
-      success: false,
-      error: 'Failed to update MCP adapter',
+    sendError(res, {
+      statusCode: 500,
+      code: 'INTERNAL_ERROR',
+      message: 'Failed to update MCP adapter',
       details: errorMessage
     });
   }
@@ -387,7 +444,12 @@ router.delete('/:id', authenticate, (req, res): any => {
     const result = stmt.run(id, userId);
 
     if (result.changes === 0) {
-      return res.status(404).json({ success: false, error: 'MCP adapter not found' });
+      return sendError(res, {
+        statusCode: 404,
+        code: 'MCP.CONNECTOR_NOT_FOUND',
+        message: 'MCP adapter not found',
+        params: { id }
+      });
     }
 
     logger.info(`Deleted MCP adapter config: ${id}`);
@@ -395,7 +457,11 @@ router.delete('/:id', authenticate, (req, res): any => {
     res.json({ success: true, message: 'MCP adapter deleted' });
   } catch (error) {
     logger.error('Failed to delete MCP adapter:', error);
-    res.status(500).json({ success: false, error: 'Failed to delete MCP adapter' });
+    sendError(res, {
+      statusCode: 500,
+      code: 'INTERNAL_ERROR',
+      message: 'Failed to delete MCP adapter'
+    });
   }
 });
 
@@ -418,7 +484,12 @@ router.post('/:id/test', authenticate, async (req, res) => {
     const row = stmt.get(id, userId) as any;
 
     if (!row) {
-      return res.status(404).json({ success: false, error: 'MCP adapter not found' });
+      return sendError(res, {
+        statusCode: 404,
+        code: 'MCP.CONNECTOR_NOT_FOUND',
+        message: 'MCP adapter not found',
+        params: { id }
+      });
     }
 
     // Parse env if stored as JSON string
@@ -557,9 +628,104 @@ router.post('/:id/test', authenticate, async (req, res) => {
       );
     } catch {}
 
-    res.status(500).json({
-      success: false,
-      error: error instanceof Error ? error.message : 'Connection test failed'
+    sendError(res, {
+      statusCode: 500,
+      code: 'INTERNAL_ERROR',
+      message: error instanceof Error ? error.message : 'Connection test failed'
+    });
+  }
+});
+
+/**
+ * GET /v1/mcp-adapters/:id/tools
+ * Get tools list from an MCP adapter
+ */
+router.get('/:id/tools', authenticate, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = (req as any).user.id;
+    const db = getDatabase();
+
+    // Get config
+    const stmt = db.database.prepare(`
+      SELECT * FROM mcp_adapter_configs
+      WHERE id = ? AND user_id = ?
+    `);
+
+    const row = stmt.get(id, userId) as any;
+
+    if (!row) {
+      return sendError(res, {
+        statusCode: 404,
+        code: 'MCP.CONNECTOR_NOT_FOUND',
+        message: 'MCP adapter not found',
+        params: { id }
+      });
+    }
+
+    // Parse env if stored as JSON string
+    let env: Record<string, string> | undefined = undefined;
+    if (row.env) {
+      try {
+        env = JSON.parse(row.env);
+      } catch {
+        env = undefined;
+      }
+    }
+
+    // Build config for adapter
+    const adapterConfig: Record<string, unknown> = {
+      name: row.name,
+      serverUrl: row.server_url,
+      serverType: row.server_type,
+      transportType: row.transport_type || 'http',
+      command: row.command,
+      env,
+      authType: row.auth_type,
+      apiKey: row.api_key,
+      oauthAccessToken: row.oauth_access_token,
+      timeout: row.timeout || 30000,
+      maxRetries: row.max_retries || 3
+    };
+
+    // Initialize adapter
+    await mcpAdapter.initialize(adapterConfig);
+
+    // Get tools list
+    const tools = await mcpAdapter.listTools(true);
+
+    logger.info({
+      adapterId: id,
+      adapterName: row.name,
+      toolsCount: tools.length
+    }, 'Fetched MCP adapter tools');
+
+    // Cleanup adapter resources (especially important for stdio)
+    mcpAdapter.cleanup();
+
+    res.json({
+      success: true,
+      data: {
+        id,
+        name: row.name,
+        tools: tools.map((tool: any) => ({
+          name: tool.name,
+          description: tool.description
+        }))
+      }
+    });
+  } catch (error) {
+    logger.error('Failed to fetch MCP adapter tools:', error);
+
+    // Cleanup adapter resources
+    try {
+      mcpAdapter.cleanup();
+    } catch {}
+
+    sendError(res, {
+      statusCode: 500,
+      code: 'INTERNAL_ERROR',
+      message: error instanceof Error ? error.message : 'Failed to fetch tools'
     });
   }
 });
