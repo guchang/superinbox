@@ -98,6 +98,8 @@ export interface ApiResponse<T> {
   data?: T
   error?: string
   message?: string
+  code?: string
+  params?: Record<string, unknown>
 }
 
 // 分页参数
@@ -315,6 +317,7 @@ export interface MCPConnectorListItem {
   lastHealthCheckStatus: string | null
   createdAt: string
   updatedAt: string
+  logoColor?: string  // Logo color for initial letter fallback
 }
 
 // 创建/更新 MCP 连接器请求

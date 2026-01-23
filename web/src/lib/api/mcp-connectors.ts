@@ -63,4 +63,12 @@ export const mcpConnectorsApi = {
   test: async (id: string): Promise<ApiResponse<MCPConnectorTestResponse>> => {
     return apiClient.post<MCPConnectorTestResponse>(`/mcp-adapters/${id}/test`, {})
   },
+
+  /**
+   * 获取连接器工具列表
+   * GET /v1/mcp-adapters/:id/tools
+   */
+  getTools: async (id: string): Promise<ApiResponse<{ id: string; name: string; tools: Array<{ name: string; description?: string }> }>> => {
+    return apiClient.get<{ id: string; name: string; tools: Array<{ name: string; description?: string }> }>(`/mcp-adapters/${id}/tools`)
+  },
 }
