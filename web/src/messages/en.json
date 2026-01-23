@@ -47,6 +47,7 @@
       "routing": "Routing",
       "settings": "General",
       "apiKeys": "API Keys",
+      "connections": "Connections",
       "logs": "Access Logs",
       "statistics": "Usage Stats"
     },
@@ -1138,6 +1139,12 @@
     },
     "labels": {
       "unnamed": "Untitled"
+    },
+    "coverage": {
+      "badge": {
+        "notParsed": "Not parsed",
+        "missing": "Missing {count}"
+      }
     },
     "templates": {
       "copyName": "{name} - Copy",

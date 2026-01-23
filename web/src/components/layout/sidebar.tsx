@@ -11,6 +11,7 @@ import {
   Key,
   Activity,
   BarChart3,
+  Plug,
 } from 'lucide-react'
 import {
   Sidebar,
@@ -42,6 +43,7 @@ export function AppSidebar() {
       items: [
         { name: t('items.categories'), href: '/ai', icon: BrainCircuit },
         { name: t('items.routing'), href: '/routing', icon: GitBranch },
+        { name: t('items.connections'), href: '/mcp-adapters', icon: Plug },
       ]
     },
     {

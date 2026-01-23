@@ -30,7 +30,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { useToast } from '@/hooks/use-toast'
-import { Plus, Edit, Trash2, RefreshCw } from 'lucide-react'
+import { Plus, Edit, Trash2 } from 'lucide-react'
 import { getApiErrorMessage, type ApiError } from '@/lib/i18n/api-errors'
 
 // Helper functions - defined before components that use them
@@ -199,7 +199,7 @@ export default function RoutingPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="w-full max-w-4xl mx-auto space-y-6 px-4">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold">{t('title')}</h1>
@@ -207,9 +207,8 @@ export default function RoutingPage() {
         <div />
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,320px)]">
-        <Card>
-          <CardHeader>
+      <Card>
+        <CardHeader>
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
                 <CardTitle>{t('ruleList.title')}</CardTitle>
@@ -355,88 +354,6 @@ export default function RoutingPage() {
             )}
           </CardContent>
         </Card>
-
-        <div className="space-y-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <div>
-                <CardTitle>{t('connectors.title')}</CardTitle>
-                <CardDescription>{t('connectors.description')}</CardDescription>
-              </div>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => refetchConnectors()}
-                  disabled={connectorsLoading}
-                >
-                  <RefreshCw className={`h-4 w-4 ${connectorsLoading ? 'animate-spin' : ''}`} />
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => window.open(`/${locale}/mcp-adapters`, '_blank')}
-                >
-                  {t('connectors.manage')}
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {connectorsLoading ? (
-                <div className="text-sm text-muted-foreground">{common('loading')}</div>
-              ) : mcpConnectors.length === 0 ? (
-                <div className="text-sm text-muted-foreground">
-                  {t('connectors.empty')}
-                  <a
-                    href="https://www.notion.so/my-integrations"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-500 hover:underline ml-1"
-                  >
-                    {t('connectors.notionLink')}
-                  </a>
-                </div>
-              ) : (
-                mcpConnectors.map((connector) => (
-                  <div
-                    key={connector.id}
-                    className="flex items-center justify-between rounded-lg border px-3 py-2"
-                  >
-                    <div className="flex flex-col">
-                      <div className="text-sm font-medium">{connector.name}</div>
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <span>{connector.serverType}</span>
-                        <span>·</span>
-                        <span>
-                          {connector.enabled
-                            ? t('connectors.status.enabled')
-                            : t('connectors.status.disabled')}
-                        </span>
-                        {connector.lastHealthCheckStatus && (
-                          <>
-                            <span>·</span>
-                            <span
-                              className={
-                                connector.lastHealthCheckStatus === 'healthy'
-                                  ? 'text-green-600'
-                                  : 'text-red-600'
-                              }
-                            >
-                              {connector.lastHealthCheckStatus === 'healthy'
-                                ? t('connectors.health.healthy')
-                                : t('connectors.health.unhealthy')}
-                            </span>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      </div>
 
       <RuleEditDialog
         open={editOpen}

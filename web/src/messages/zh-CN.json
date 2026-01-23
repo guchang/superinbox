@@ -47,6 +47,7 @@
       "routing": "分发规则",
       "settings": "通用设置",
       "apiKeys": "API 密钥",
+      "connections": "连接管理",
       "logs": "访问日志",
       "statistics": "使用统计"
     },
@@ -1148,6 +1149,12 @@
     },
     "labels": {
       "unnamed": "未命名"
+    },
+    "coverage": {
+      "badge": {
+        "notParsed": "未解析",
+        "missing": "缺失 {count}"
+      }
     },
     "templates": {
       "copyName": "{name} - 副本",
