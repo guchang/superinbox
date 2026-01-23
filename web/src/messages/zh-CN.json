@@ -1338,9 +1338,8 @@
     "title": "分发规则",
     "actions": {
       "createRule": "新建规则",
-      "notion": "Notion",
-      "obsidian": "Obsidian",
-      "webhook": "Webhook"
+      "mcp": "MCP",
+      "mcpHttp": "MCP HTTP"
     },
     "fields": {
       "category": "分类",

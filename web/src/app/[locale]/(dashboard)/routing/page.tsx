@@ -98,9 +98,8 @@ export default function RoutingPage() {
   const locale = useLocale()
   const actionLabels = useMemo(
     () => ({
-      notion: t('actions.notion'),
-      obsidian: t('actions.obsidian'),
-      webhook: t('actions.webhook'),
+      mcp: t('actions.mcp'),
+      mcp_http: t('actions.mcpHttp'),
     }),
     [t]
   )

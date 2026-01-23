@@ -1328,9 +1328,8 @@
     "title": "Routing Rules",
     "actions": {
       "createRule": "New rule",
-      "notion": "Notion",
-      "obsidian": "Obsidian",
-      "webhook": "Webhook"
+      "mcp": "MCP",
+      "mcpHttp": "MCP HTTP"
     },
     "fields": {
       "category": "Category",

@@ -23,7 +23,7 @@ describe('POST /v1/routing/dispatch/:id', () => {
         .post(`/v1/routing/dispatch/${item.id}`)
         .set('Authorization', `Bearer ${testContext.testApiKey}`)
         .send({
-          adapters: ['notion', 'obsidian'],
+          adapters: ['mcp'],
           force: false
         });
 
@@ -41,7 +41,7 @@ describe('POST /v1/routing/dispatch/:id', () => {
         .post('/v1/routing/dispatch/non-existent-id')
         .set('Authorization', `Bearer ${testContext.testApiKey}`)
         .send({
-          adapters: ['notion'],
+          adapters: ['mcp'],
           force: false
         });
 
@@ -59,7 +59,7 @@ describe('POST /v1/routing/dispatch/:id', () => {
       const response = await request(app)
         .post(`/v1/routing/dispatch/${item.id}`)
         .send({
-          adapters: ['notion'],
+          adapters: ['mcp'],
           force: false
         });
 
@@ -79,7 +79,7 @@ describe('POST /v1/routing/dispatch/:id', () => {
         .post(`/v1/routing/dispatch/${item.id}`)
         .set('Authorization', `Bearer ${testContext.testApiKey}`)
         .send({
-          adapters: ['notion'],
+          adapters: ['mcp'],
           force: true
         });
 
@@ -122,7 +122,7 @@ describe('POST /v1/routing/dispatch/:id', () => {
         .post(`/v1/routing/dispatch/${item.id}`)
         .set('Authorization', `Bearer ${testContext.testApiKey}`)
         .send({
-          adapters: ['notion', 'obsidian'],
+          adapters: ['mcp'],
           force: false
         });
 
@@ -193,7 +193,7 @@ describe('Routing Rules API', () => {
             { field: 'intent', operator: 'equals', value: 'todo' }
           ],
           actions: [
-            { type: 'notion', config: { databaseId: 'test-db' } }
+            { type: 'mcp', config: { mcpAdapterId: 'test-adapter-id' } }
           ],
           isActive: true
         });

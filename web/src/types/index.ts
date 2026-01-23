@@ -201,7 +201,7 @@ export interface RuleCondition {
 }
 
 export interface RuleAction {
-  type: 'notion' | 'obsidian' | 'webhook' | 'mcp_http'
+  type: 'mcp' | 'mcp_http'
   config: Record<string, any>
 }
 

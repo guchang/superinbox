@@ -19,14 +19,14 @@ router.get('/rules', authenticate, (req, res) => {
     data: [
       {
         id: '1',
-        name: 'Todo to Notion',
-        description: 'Route todo items to Notion',
+        name: 'Todo to MCP Notion',
+        description: 'Route todo items to Notion via MCP',
         priority: 1,
         conditions: [
           { field: 'category', operator: 'equals', value: 'todo' }
         ],
         actions: [
-          { type: 'notion', config: { databaseId: 'xxx' } }
+          { type: 'mcp', config: { mcpAdapterId: 'notion-mcp-adapter-id' } }
         ],
         isActive: true,
         createdAt: new Date().toISOString(),
@@ -41,14 +41,14 @@ router.get('/rules/:id', authenticate, (req, res) => {
     success: true,
     data: {
       id: req.params.id,
-      name: 'Todo to Notion',
-      description: 'Route todo items to Notion',
+      name: 'Todo to MCP Notion',
+      description: 'Route todo items to Notion via MCP',
       priority: 1,
       conditions: [
         { field: 'intent', operator: 'equals', value: 'todo' }
       ],
       actions: [
-        { type: 'notion', config: { databaseId: 'xxx' } }
+        { type: 'mcp', config: { mcpAdapterId: 'notion-mcp-adapter-id' } }
       ],
       isActive: true,
       createdAt: new Date().toISOString(),

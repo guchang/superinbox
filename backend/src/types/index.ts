@@ -162,16 +162,9 @@ export interface Item {
 // ============================================
 
 /**
- * 分发目标类型
+ * 分发目标类型 - Only MCP adapters
  */
 export enum AdapterType {
-  NOTION = 'notion',
-  OBSIDIAN = 'obsidian',
-  TODOIST = 'todoist',
-  WEBHOOK = 'webhook',
-  TELEGRAM = 'telegram',
-  EMAIL = 'email',
-  CUSTOM = 'custom',
   MCP = 'mcp',        // Generic MCP adapter
   MCP_HTTP = 'mcp_http'  // HTTP-based MCP adapter
 }
