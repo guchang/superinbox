@@ -195,6 +195,10 @@ export class StdioMcpClient {
   async callTool(request: MCPToolCallRequest): Promise<MCPToolCallResponse> {
     await this.initialize();
 
+    logger.info(`[StdioMcpClient] Calling tool: ${request.name}`, {
+      args: request.arguments
+    });
+
     const response = await this.sendRequest({
       jsonrpc: '2.0',
       method: 'tools/call',
@@ -203,6 +207,14 @@ export class StdioMcpClient {
         arguments: request.arguments
       }
     });
+
+    logger.info(`[StdioMcpClient] Tool response:`, JSON.stringify({
+      hasError: !!response.error,
+      errorMessage: response.error?.message,
+      hasResult: !!response.result,
+      resultKeys: response.result ? Object.keys(response.result) : [],
+      fullResponse: response
+    }, null, 2));
 
     if (response.error) {
       throw new Error(`Tool call failed: ${response.error.message}`);

@@ -190,6 +190,7 @@ export interface RoutingRule {
   conditions: RuleCondition[]
   actions: RuleAction[]
   isActive: boolean
+  isSystem?: boolean  // System rules are hardcoded for testing
   createdAt: string
   updatedAt: string
 }

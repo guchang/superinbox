@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { Category, RoutingRule, RuleAction, RuleCondition, MCPConnectorListItem } from '@/types'
 import { categoriesApi } from '@/lib/api/categories'
 import { routingApi } from '@/lib/api/routing'
@@ -96,6 +96,7 @@ export default function RoutingPage() {
   const common = useTranslations('common')
   const errors = useTranslations('errors')
   const locale = useLocale()
+  const queryClient = useQueryClient()
   const actionLabels = useMemo(
     () => ({
       mcp: t('actions.mcp'),
@@ -284,15 +285,23 @@ export default function RoutingPage() {
                           },
                         ]
                   const actions = rule.actions ?? []
+                  const isSystemRule = rule.isSystem === true
 
                   return (
                     <div
                       key={rule.id}
-                      className="flex flex-col gap-4 border-b pb-4 last:border-0 sm:flex-row sm:items-start sm:justify-between"
+                      className={`flex flex-col gap-4 border-b pb-4 last:border-0 sm:flex-row sm:items-start sm:justify-between ${
+                        isSystemRule ? 'bg-amber-50/50 dark:bg-amber-950/20 -mx-4 px-4 sm:mx-0 sm:px-0' : ''
+                      }`}
                     >
                       <div className="flex-1">
                         <div className="flex flex-wrap items-center gap-2 mb-2">
                           <h3 className="font-medium">{rule.name}</h3>
+                          {isSystemRule && (
+                            <Badge variant="outline" className="text-amber-600 dark:text-amber-400 border-amber-300 dark:border-amber-700">
+                              {t('ruleList.systemBadge')}
+                            </Badge>
+                          )}
                           <Badge variant={rule.isActive ? 'default' : 'secondary'}>
                             {rule.isActive
                               ? t('ruleList.status.active')
@@ -336,6 +345,8 @@ export default function RoutingPage() {
                           variant="ghost"
                           size="icon"
                           onClick={() => handleEditRule(rule)}
+                          disabled={isSystemRule}
+                          title={isSystemRule ? t('ruleList.systemRuleLocked') : undefined}
                         >
                           <Edit className="h-4 w-4" />
                         </Button>
@@ -343,6 +354,8 @@ export default function RoutingPage() {
                           variant="ghost"
                           size="icon"
                           onClick={() => handleDeleteRule(rule)}
+                          disabled={isSystemRule}
+                          title={isSystemRule ? t('ruleList.systemRuleLocked') : undefined}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -373,7 +386,7 @@ export default function RoutingPage() {
         categories={categories}
         connectorOptions={connectorOptions}
         onClose={() => setCreateOpen(false)}
-        onCreated={() => refetch()}
+        onCreated={() => queryClient.invalidateQueries({ queryKey: ['routing-rules'] })}
       />
     </div>
   )
@@ -429,10 +442,22 @@ function RuleEditDialog({
       toolArgs: Record<string, unknown>
       toolResponse?: unknown
       error?: string
+      status?: 'planning' | 'executing' | 'success' | 'error' | 'done'
+      llmDecision?: {
+        lastResultStatus: 'success' | 'error' | 'none'
+        tool: string | null
+        arguments: Record<string, unknown> | null
+        done: boolean
+      }
+      llmRaw?: {
+        input: string
+        output: unknown
+      }
     }>
     error?: string
   } | null>(null)
   const [testLoading, setTestLoading] = useState(false)
+  const [streamingStep, setStreamingStep] = useState<number | null>(null)
 
   useEffect(() => {
     if (!rule || !open) {
@@ -563,8 +588,11 @@ function RuleEditDialog({
     return mcpConnectors.find((connector) => connector.name === name)?.id
   }
 
+  const selectedConnector = mcpConnectors.find((c) => c.name === connectorSelection)
+  const isNotionConnector = selectedConnector?.serverType === 'notion'
+
   const handleTestDispatch = async () => {
-    if (!connectorName) {
+    if (!connectorSelection) {
       toast({
         title: t('toasts.testConnectorRequired.title'),
         description: t('toasts.testConnectorRequired.description'),
@@ -573,14 +601,19 @@ function RuleEditDialog({
       return
     }
 
-    const pageId = testPageId.trim()
-    if (!pageId) {
-      toast({
-        title: t('toasts.pageIdRequired.title'),
-        description: t('toasts.pageIdRequired.description'),
-        variant: 'destructive',
-      })
-      return
+    const params: Record<string, any> = {}
+
+    if (isNotionConnector) {
+      const pageId = testPageId.trim()
+      if (!pageId) {
+        toast({
+          title: t('toasts.pageIdRequired.title'),
+          description: t('toasts.pageIdRequired.description'),
+          variant: 'destructive',
+        })
+        return
+      }
+      params.pageId = pageId
     }
 
     if (!testContent.trim()) {
@@ -601,72 +634,208 @@ function RuleEditDialog({
       return
     }
 
-    const mcpAdapterId = getMcpConnectorIdByName(connectorName)
+    const mcpAdapterId = getMcpConnectorIdByName(connectorSelection)
     if (!mcpAdapterId) {
       toast({
         title: t('toasts.connectorNotFound.title'),
         description: t('toasts.connectorNotFound.description', {
-          name: connectorName,
+          name: connectorSelection,
         }),
         variant: 'destructive',
       })
       return
     }
 
-    try {
-      setTestLoading(true)
-      setTestResult(null)
+    setTestLoading(true)
+    setTestResult(null)
+    setStreamingStep(null)
 
-      const response = await routingApi.testDispatch({
-        content: testContent.trim(),
-        mcpAdapterId,
-        pageId,
-        instructions: description.trim()
+    try {
+      // Use fetch with SSE streaming
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/v1'
+      const response = await fetch(`${apiUrl}/routing/rules/test-dispatch`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('superinbox_auth_token') || ''}`,
+        },
+        body: JSON.stringify({
+          content: testContent.trim(),
+          mcpAdapterId,
+          params,
+          pageId: isNotionConnector ? testPageId.trim() : undefined,
+          instructions: description.trim()
+        }),
       })
 
-      const data = response.data
-      if (!response.success) {
-        const apiError = new Error(
-          response.error || response.message || t('testDispatch.failed')
-        ) as ApiError
-        apiError.code = response.code
-        apiError.params = response.params
-        const errorMessage = getApiErrorMessage(apiError, errors, t('testDispatch.failed'))
-        setTestResult({
-          success: false,
-          status: data?.status,
-          toolName: data?.toolName,
-          toolSchema: data?.toolSchema,
-          steps: data?.steps,
-          error: errorMessage,
-        })
-        toast({
-          title: t('toasts.dispatchFailed.title'),
-          description: errorMessage,
-          variant: 'destructive',
-        })
-        return
+      if (!response.ok) {
+        throw new Error(`HTTP error: ${response.status}`)
       }
 
+      const reader = response.body?.getReader()
+      if (!reader) {
+        throw new Error('No response body')
+      }
+
+      const decoder = new TextDecoder()
+      let buffer = ''
+
+      // Initialize result with empty steps
       setTestResult({
         success: true,
-        status: data?.status,
-        toolName: data?.toolName,
-        toolSchema: data?.toolSchema,
-        steps: data?.steps,
-        error: response.error,
+        steps: [],
       })
 
-      toast({
-        title: t('toasts.dispatchSuccess.title'),
-        description: t('toasts.dispatchSuccess.description'),
-      })
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        buffer += decoder.decode(value, { stream: true })
+
+        // Parse SSE events from buffer
+        const lines = buffer.split('\n')
+        buffer = lines.pop() || '' // Keep incomplete line in buffer
+
+        let currentEvent = ''
+        for (const line of lines) {
+          if (line.startsWith('event: ')) {
+            currentEvent = line.slice(7)
+          } else if (line.startsWith('data: ')) {
+            const dataStr = line.slice(6)
+            try {
+              const data = JSON.parse(dataStr)
+
+              switch (currentEvent) {
+                case 'init':
+                  // Initialization event
+                  break
+
+                case 'tools':
+                  // Tools loaded event
+                  setTestResult(prev => ({
+                    ...prev!,
+                    toolName: data.defaultToolName,
+                  }))
+                  break
+
+                case 'step:start':
+                  setStreamingStep(data.step)
+                  setTestResult(prev => ({
+                    ...prev!,
+                    steps: [
+                      ...(prev?.steps || []),
+                      {
+                        step: data.step,
+                        toolName: '...',
+                        toolArgs: {},
+                        status: 'planning' as const,
+                      }
+                    ],
+                  }))
+                  break
+
+                case 'step:planned':
+                  // Update step with LLM decision
+                  setTestResult(prev => ({
+                    ...prev!,
+                    steps: prev?.steps?.map(s =>
+                      s.step === data.step
+                        ? { ...s, llmDecision: data.llmDecision, llmRaw: data.llmRaw }
+                        : s
+                    ) || [],
+                  }))
+                  break
+
+                case 'step:executing':
+                  setTestResult(prev => ({
+                    ...prev!,
+                    steps: prev?.steps?.map(s =>
+                      s.step === data.step
+                        ? { ...s, toolName: data.toolName, toolArgs: data.toolArgs, status: 'executing' as const }
+                        : s
+                    ) || [],
+                  }))
+                  break
+
+                case 'step:complete':
+                  setTestResult(prev => ({
+                    ...prev!,
+                    steps: prev?.steps?.map(s =>
+                      s.step === data.step
+                        ? {
+                            ...s,
+                            toolName: data.toolName,
+                            toolArgs: data.toolArgs,
+                            toolResponse: data.toolResponse,
+                            llmRaw: data.llmRaw || s.llmRaw,
+                            llmDecision: data.llmDecision || s.llmDecision,
+                            status: data.status === 'done' ? 'done' as const : 'success' as const,
+                          }
+                        : s
+                    ) || [],
+                  }))
+                  setStreamingStep(null)
+                  break
+
+                case 'step:error':
+                  setTestResult(prev => ({
+                    ...prev!,
+                    success: false,
+                    steps: prev?.steps?.map(s =>
+                      s.step === data.step
+                        ? {
+                            ...s,
+                            toolName: data.toolName,
+                            toolArgs: data.toolArgs,
+                            error: data.error,
+                            llmRaw: data.llmRaw || s.llmRaw,
+                            llmDecision: data.llmDecision || s.llmDecision,
+                            status: 'error' as const
+                          }
+                        : s
+                    ) || [],
+                  }))
+                  setStreamingStep(null)
+                  break
+
+                case 'complete':
+                  setTestResult({
+                    success: data.success,
+                    status: data.status,
+                    toolName: data.toolName,
+                    toolSchema: data.toolSchema,
+                    steps: data.steps?.map((s: any) => ({ ...s, status: s.error ? 'error' : 'success' })),
+                  })
+                  setStreamingStep(null)
+                  if (data.success) {
+                    toast({
+                      title: t('toasts.dispatchSuccess.title'),
+                      description: t('toasts.dispatchSuccess.description'),
+                    })
+                  }
+                  break
+
+                case 'error':
+                  setTestResult(prev => ({
+                    ...prev!,
+                    success: false,
+                    error: data.message,
+                  }))
+                  toast({
+                    title: t('toasts.dispatchFailed.title'),
+                    description: data.message,
+                    variant: 'destructive',
+                  })
+                  break
+              }
+            } catch (e) {
+              console.error('Failed to parse SSE data:', e)
+            }
+          }
+        }
+      }
     } catch (error) {
-      const errorMessage = getApiErrorMessage(
-        error,
-        errors,
-        t('testDispatch.sendFailed')
-      )
+      const errorMessage = error instanceof Error ? error.message : t('testDispatch.sendFailed')
       setTestResult({
         success: false,
         error: errorMessage,
@@ -678,6 +847,7 @@ function RuleEditDialog({
       })
     } finally {
       setTestLoading(false)
+      setStreamingStep(null)
     }
   }
 
@@ -841,17 +1011,19 @@ function RuleEditDialog({
                   rows={3}
                 />
                 <div className="grid gap-2 md:grid-cols-2">
-                  <div className="space-y-1">
-                    <Label htmlFor="test-page-id">{t('testDispatch.pageId.label')}</Label>
-                    <Input
-                      id="test-page-id"
-                      value={testPageId}
-                      onChange={(e) => setTestPageId(e.target.value)}
-                      placeholder={t('testDispatch.pageId.placeholder')}
-                    />
-                  </div>
-                  <div className="flex items-end">
-                    <Button onClick={handleTestDispatch} disabled={testLoading || !connectorName}>
+                  {isNotionConnector && (
+                    <div className="space-y-1">
+                      <Label htmlFor="test-page-id">{t('testDispatch.pageId.label')}</Label>
+                      <Input
+                        id="test-page-id"
+                        value={testPageId}
+                        onChange={(e) => setTestPageId(e.target.value)}
+                        placeholder={t('testDispatch.pageId.placeholder')}
+                      />
+                    </div>
+                  )}
+                  <div className={`flex items-end ${!isNotionConnector ? 'md:col-span-2' : ''}`}>
+                    <Button onClick={handleTestDispatch} disabled={testLoading || !connectorSelection}>
                       {testLoading
                         ? t('testDispatch.actions.loading')
                         : t('testDispatch.actions.run')}
@@ -893,30 +1065,81 @@ function RuleEditDialog({
                     )}
                     {testResult.steps && testResult.steps.length > 0 && (
                       <div className="mt-3 space-y-3">
-                        {testResult.steps.map((step) => (
-                          <div
-                            key={step.step}
-                            className="rounded-md border bg-muted/50 p-2 text-xs text-muted-foreground"
-                          >
-                            <div className="font-medium mb-1">
-                              {t('testDispatch.result.stepTitle', {
-                                step: step.step,
-                                tool: step.toolName,
-                              })}
+                        {testResult.steps.map((step) => {
+                          const isStreaming = step.status === 'planning' || step.status === 'executing'
+                          const statusColor = step.status === 'error' ? 'border-red-300 bg-red-50'
+                            : step.status === 'success' ? 'border-green-300 bg-green-50'
+                            : step.status === 'done' ? 'border-blue-300 bg-blue-50'
+                            : 'border-yellow-300 bg-yellow-50'
+
+                          return (
+                            <div
+                              key={step.step}
+                              className={`rounded-md border p-2 text-xs text-muted-foreground ${statusColor}`}
+                            >
+                              <div className="font-medium mb-1 flex items-center gap-2">
+                                {isStreaming && (
+                                  <span className="inline-block w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                                )}
+                                <span>
+                                  {t('testDispatch.result.stepTitle', {
+                                    step: step.step,
+                                    tool: step.toolName,
+                                  })}
+                                </span>
+                                {step.status === 'planning' && (
+                                  <span className="text-yellow-600">{t('testDispatch.status.planning')}</span>
+                                )}
+                                {step.status === 'executing' && (
+                                  <span className="text-blue-600">{t('testDispatch.status.executing')}</span>
+                                )}
+                                {step.status === 'success' && (
+                                  <span className="text-green-600">✓</span>
+                                )}
+                                {step.status === 'done' && (
+                                  <span className="text-blue-600">✓ {t('testDispatch.status.done')}</span>
+                                )}
+                                {step.status === 'error' && (
+                                  <span className="text-red-600">✗</span>
+                                )}
+                              </div>
+                              {/* LLM Raw Input/Output Display */}
+                              {step.llmRaw && (
+                                <div className="mt-1 mb-2 space-y-2">
+                                  <details className="rounded border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950">
+                                    <summary className="p-2 text-xs font-medium text-blue-700 dark:text-blue-300 cursor-pointer">
+                                      📥 LLM Input (Prompt)
+                                    </summary>
+                                    <pre className="p-2 text-xs overflow-x-auto max-h-60 overflow-y-auto whitespace-pre-wrap break-words border-t border-blue-200 dark:border-blue-800 bg-white dark:bg-slate-900">
+                                      {step.llmRaw.input}
+                                    </pre>
+                                  </details>
+                                  <details className="rounded border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-950">
+                                    <summary className="p-2 text-xs font-medium text-green-700 dark:text-green-300 cursor-pointer">
+                                      📤 LLM Output (Response)
+                                    </summary>
+                                    <pre className="p-2 text-xs overflow-x-auto max-h-60 overflow-y-auto whitespace-pre-wrap break-words border-t border-green-200 dark:border-green-800 bg-white dark:bg-slate-900">
+                                      {JSON.stringify(step.llmRaw.output, null, 2)}
+                                    </pre>
+                                  </details>
+                                </div>
+                              )}
+                              {Object.keys(step.toolArgs).length > 0 && (
+                                <pre className="overflow-x-auto max-w-full whitespace-pre-wrap break-all max-h-32 overflow-y-auto">
+                                  {JSON.stringify(step.toolArgs, null, 2)}
+                                </pre>
+                              )}
+                              {step.toolResponse !== undefined && (
+                                <pre className="mt-2 overflow-x-auto max-w-full whitespace-pre-wrap break-all max-h-40 overflow-y-auto">
+                                  {JSON.stringify(step.toolResponse, null, 2)}
+                                </pre>
+                              )}
+                              {step.error && (
+                                <div className="text-destructive mt-1 break-all">{step.error}</div>
+                              )}
                             </div>
-                            <pre className="overflow-x-auto">
-                              {JSON.stringify(step.toolArgs, null, 2)}
-                            </pre>
-                            {step.toolResponse !== undefined && (
-                              <pre className="mt-2 overflow-x-auto">
-                                {JSON.stringify(step.toolResponse, null, 2)}
-                              </pre>
-                            )}
-                            {step.error && (
-                              <div className="text-destructive mt-1">{step.error}</div>
-                            )}
-                          </div>
-                        ))}
+                          )
+                        })}
                       </div>
                     )}
                     {testResult.error && (

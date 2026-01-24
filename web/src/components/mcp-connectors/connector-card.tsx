@@ -23,6 +23,7 @@ interface MCPConnectorCardProps {
   onEdit: (connector: MCPConnectorListItem) => void
   onDelete: (id: string) => void
   onTest: (id: string) => void
+  onAuthorize?: (connector: MCPConnectorListItem) => void
   isTesting: boolean
 }
 
@@ -31,7 +32,7 @@ interface ToolInfo {
   description?: string
 }
 
-export function MCPConnectorCard({ connector, onEdit, onDelete, onTest, isTesting }: MCPConnectorCardProps) {
+export function MCPConnectorCard({ connector, onEdit, onDelete, onTest, onAuthorize, isTesting }: MCPConnectorCardProps) {
   const t = useTranslations('mcpAdapters')
   const common = useTranslations('common')
 
@@ -133,6 +134,19 @@ export function MCPConnectorCard({ connector, onEdit, onDelete, onTest, isTestin
 
         {/* Actions */}
         <div className="flex items-center gap-1">
+          {onAuthorize && connector.authType === 'oauth' && ['todoist', 'notion'].includes(connector.serverType.toLowerCase()) && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation()
+                onAuthorize(connector)
+              }}
+              className="h-8 border-blue-200 text-blue-600 hover:bg-blue-50 hover:text-blue-700 mr-1"
+            >
+              Authorize
+            </Button>
+          )}
           <Button
             variant="ghost"
             size="sm"

@@ -18,6 +18,7 @@ import aiTemplatesRoutes from './ai/routes/templates.routes.js';
 import rulesRoutes from './router/routes/rules.routes.js';
 import settingsRoutes from './settings/routes/settings.routes.js';
 import authRoutes from './auth/auth.routes.js';
+import oauthRoutes from './auth/routes/oauth.routes.js';
 import logsRoutes from './auth/logs.routes.js';
 import apiKeysRoutes from './api-keys/api-keys.routes.js';
 import mcpAdaptersRoutes from './router/routes/mcp-adapters.routes.js';
@@ -100,6 +101,7 @@ app.get('/ping', (_req, res) => {
 // ============================================
 
 // API v1 routes
+app.use('/v1/auth/oauth', oauthRoutes);
 app.use('/v1/auth', authRoutes);
 app.use('/v1/auth', logsRoutes); // Log routes under auth
 app.use('/v1/auth/api-keys', apiKeysRoutes); // Documented path (Task 11)

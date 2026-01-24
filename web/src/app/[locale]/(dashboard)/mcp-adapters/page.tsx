@@ -26,28 +26,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Checkbox } from '@/components/ui/checkbox'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useToast } from '@/hooks/use-toast'
 import { Plus, Edit, Trash2, RefreshCw, CheckCircle, XCircle, Loader2 } from 'lucide-react'
 import { getApiErrorMessage } from '@/lib/i18n/api-errors'
 import { MCPConnectorCard } from '@/components/mcp-connectors/connector-card'
 
-const getAuthTypeOptions = (t: (key: string) => string) => ([
-  { value: 'api_key', label: t('authTypes.apiKey') },
-  { value: 'oauth', label: t('authTypes.oauth') },
-])
-
 const getServerTypeOptions = (t: (key: string) => string) => ([
-  { value: 'notion', label: t('serverTypes.notion') },
-  { value: 'github', label: t('serverTypes.github') },
-  { value: 'todoist', label: t('serverTypes.todoist') },
-  { value: 'custom', label: t('serverTypes.custom') },
+  { value: 'custom', label: 'Custom / API Key' },
+  { value: 'todoist', label: 'Todoist (OAuth)' },
+  { value: 'notion', label: 'Notion (OAuth)' },
+  { value: 'github', label: 'GitHub (API Key)' },
 ])
 
 /**
  * Parse MCP JSON configuration
- * Supports both { mcpServers: {...} } and direct {...} format
  */
 function parseMcpJson(
   jsonString: string,
@@ -55,15 +47,12 @@ function parseMcpJson(
 ): { name: string; command: string; env?: Record<string, string> } | null {
   try {
     const config = JSON.parse(jsonString)
-
-    // Support both { mcpServers: {...} } and direct {...} format
     const servers = config.mcpServers || config
 
     if (!servers || typeof servers !== 'object') {
       throw new Error(t('jsonConfig.errors.invalidFormat'))
     }
 
-    // Get the first server key
     const serverKey = Object.keys(servers)[0]
     if (!serverKey) {
       throw new Error(t('jsonConfig.errors.noServer'))
@@ -75,7 +64,6 @@ function parseMcpJson(
       throw new Error(t('jsonConfig.errors.noCommand'))
     }
 
-    // Build command from command + args
     const fullCommand = server.args && server.args.length > 0
       ? `${server.command} ${server.args.map(arg => arg.includes(' ') ? `"${arg}"` : arg).join(' ')}`
       : server.command
@@ -100,18 +88,12 @@ export default function MCPAdaptersPage() {
   const errors = useTranslations('errors')
   const { toast } = useToast()
   const queryClient = useQueryClient()
-  const serverTypeLabels: Record<string, string> = {
-    notion: t('serverTypes.notion'),
-    github: t('serverTypes.github'),
-    todoist: t('serverTypes.todoist'),
-    custom: t('serverTypes.custom'),
-  }
+
   const { data: connectorsData, isLoading, refetch } = useQuery({
     queryKey: ['mcp-connectors'],
     queryFn: () => mcpConnectorsApi.list(),
   })
 
-  // Delete connector
   const deleteMutation = useMutation({
     mutationFn: (id: string) => mcpConnectorsApi.delete(id),
     onSuccess: () => {
@@ -130,7 +112,6 @@ export default function MCPAdaptersPage() {
     },
   })
 
-  // Test connector
   const testMutation = useMutation({
     mutationFn: (id: string) => mcpConnectorsApi.test(id),
     onSuccess: (data) => {
@@ -161,6 +142,8 @@ export default function MCPAdaptersPage() {
   const [editingConnector, setEditingConnector] = useState<MCPConnectorConfig | null>(null)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [testingId, setTestingId] = useState<string | null>(null)
+  const [manualTokenDialogOpen, setManualTokenDialogOpen] = useState(false)
+  const [authConnector, setAuthConnector] = useState<MCPConnectorListItem | null>(null)
 
   const connectors = connectorsData?.data || []
 
@@ -184,6 +167,60 @@ export default function MCPAdaptersPage() {
   const handleTest = (id: string) => {
     setTestingId(id)
     testMutation.mutate(id)
+  }
+
+  const handleAuthorize = (connector: MCPConnectorListItem) => {
+    setAuthConnector(connector)
+    // Show manual dialog after a short delay or immediately to allow manual entry if popup fails/blocks
+    // But primarily we open the popup
+    const width = 600
+    const height = 700
+    const left = window.screen.width / 2 - width / 2
+    const top = window.screen.height / 2 - height / 2
+
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/v1'
+    const authUrl = `${apiUrl}/auth/oauth/${connector.serverType}/authorize`
+
+    const popup = window.open(
+      authUrl,
+      'OAuth Login',
+      `width=${width},height=${height},left=${left},top=${top}`
+    )
+
+    // Open manual dialog immediately behind the popup as fallback
+    setManualTokenDialogOpen(true)
+
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'OAUTH_SUCCESS' && event.data?.provider === connector.serverType) {
+        // ... (existing logic) ...
+        setManualTokenDialogOpen(false) // Close manual dialog on success
+      }
+      // ...
+    }
+    // ...
+  }
+
+  const handleManualTokenSubmit = async (token: string) => {
+    if (!authConnector) return
+
+    try {
+      await mcpConnectorsApi.update(authConnector.id, {
+        oauthAccessToken: token,
+        authType: 'oauth'
+      })
+      toast({
+        title: t('toast.oauthSuccess.title'),
+        description: t('toast.oauthSuccess.description'),
+      })
+      queryClient.invalidateQueries({ queryKey: ['mcp-connectors'] })
+      setManualTokenDialogOpen(false)
+    } catch (error) {
+      toast({
+        title: t('toast.oauthFailure.title'),
+        description: getApiErrorMessage(error, errors, common('operationFailed')),
+        variant: 'destructive',
+      })
+    }
   }
 
   return (
@@ -211,7 +248,6 @@ export default function MCPAdaptersPage() {
               key={connector.id}
               connector={connector}
               onEdit={(connector) => {
-                // Get full connector details for editing
                 mcpConnectorsApi.get(connector.id).then((response) => {
                   if (response.data) {
                     handleEdit(response.data)
@@ -220,13 +256,13 @@ export default function MCPAdaptersPage() {
               }}
               onDelete={handleDelete}
               onTest={handleTest}
+              onAuthorize={handleAuthorize}
               isTesting={testingId === connector.id}
             />
           ))}
         </div>
       )}
 
-      {/* Create Dialog */}
       <CreateConnectorDialog
         open={createDialogOpen}
         onClose={() => setCreateDialogOpen(false)}
@@ -236,7 +272,6 @@ export default function MCPAdaptersPage() {
         }}
       />
 
-      {/* Edit Dialog */}
       <EditConnectorDialog
         open={editDialogOpen}
         connector={editingConnector}
@@ -246,38 +281,68 @@ export default function MCPAdaptersPage() {
           setEditDialogOpen(false)
         }}
       />
+
+      <ManualTokenDialog
+        open={manualTokenDialogOpen}
+        onClose={() => setManualTokenDialogOpen(false)}
+        onSubmit={handleManualTokenSubmit}
+        connectorName={authConnector?.name || ''}
+      />
     </div>
   )
 }
 
-// Create Connector Dialog
-interface CreateConnectorDialogProps {
-  open: boolean
-  onClose: () => void
-  onCreated: () => void
+function ManualTokenDialog({ open, onClose, onSubmit, connectorName }: { open: boolean, onClose: () => void, onSubmit: (token: string) => void, connectorName: string }) {
+  const [token, setToken] = useState('')
+
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>手动输入 Token</DialogTitle>
+          <DialogDescription>
+            如果自动授权窗口没有自动关闭，请从该窗口复制 Token 并粘贴到此处。
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 py-4">
+          <div className="space-y-2">
+            <Label htmlFor="manual-token">Access Token</Label>
+            <Input
+              id="manual-token"
+              value={token}
+              onChange={(e) => setToken(e.target.value)}
+              placeholder="粘贴 Token..."
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>取消</Button>
+          <Button onClick={() => onSubmit(token)} disabled={!token}>确认</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
 }
 
-function CreateConnectorDialog({ open, onClose, onCreated }: CreateConnectorDialogProps) {
+function CreateConnectorDialog({ open, onClose, onCreated }: { open: boolean, onClose: () => void, onCreated: () => void }) {
   const t = useTranslations('mcpAdapters')
   const common = useTranslations('common')
   const errors = useTranslations('errors')
   const { toast } = useToast()
 
+  const [serverType, setServerType] = useState('custom')
   const [jsonConfig, setJsonConfig] = useState('')
   const [jsonError, setJsonError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
-  // Reset form when dialog opens
   useEffect(() => {
     if (open) {
+      setServerType('custom')
       setJsonConfig(`{
   "mcpServers": {
-    "example-server": {
+    "my-server": {
       "command": "npx",
-      "args": [
-        "-y",
-        "mcp-server-example"
-      ]
+      "args": ["-y", "@modelcontextprotocol/server-memory"]
     }
   }
 }`)
@@ -285,9 +350,14 @@ function CreateConnectorDialog({ open, onClose, onCreated }: CreateConnectorDial
     }
   }, [open])
 
+  useEffect(() => {
+    if (!jsonConfig) return
+    if (jsonConfig.includes('todoist')) setServerType('todoist')
+    else if (jsonConfig.includes('notion')) setServerType('notion')
+  }, [jsonConfig])
+
   const handleSubmit = async () => {
     setJsonError(null)
-
     if (!jsonConfig.trim()) {
       setJsonError(t('jsonConfig.errors.required'))
       return
@@ -301,34 +371,29 @@ function CreateConnectorDialog({ open, onClose, onCreated }: CreateConnectorDial
       return
     }
 
-    if (!parsed) {
-      return
-    }
+    if (!parsed) return
 
     try {
       setSaving(true)
+      const authType = (serverType === 'todoist' || serverType === 'notion') ? 'oauth' : 'api_key'
 
-      // Extract API key from env if exists
       let apiKeyValue: string | undefined
       if (parsed.env) {
         const tokenKey = Object.keys(parsed.env).find(key =>
-          key.toLowerCase().includes('token') ||
-          key.toLowerCase().includes('api_key') ||
-          key.toLowerCase().includes('apikey')
+          key.toUpperCase().includes('TOKEN') || key.toUpperCase().includes('KEY')
         )
-        if (tokenKey) {
-          apiKeyValue = parsed.env[tokenKey]
-        }
+        if (tokenKey) apiKeyValue = parsed.env[tokenKey]
       }
 
       await mcpConnectorsApi.create({
         name: parsed.name,
-        serverType: 'custom',
+        serverType,
         transportType: 'stdio',
         command: parsed.command,
         env: parsed.env,
         apiKey: apiKeyValue,
-        authType: 'none',
+        authType,
+        enabled: true
       })
 
       toast({
@@ -352,9 +417,7 @@ function CreateConnectorDialog({ open, onClose, onCreated }: CreateConnectorDial
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>{t('dialog.create.title')}</DialogTitle>
-          <DialogDescription>
-            {t('jsonConfig.description')}
-          </DialogDescription>
+          <DialogDescription>{t('jsonConfig.description')}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
@@ -367,25 +430,15 @@ function CreateConnectorDialog({ open, onClose, onCreated }: CreateConnectorDial
                 setJsonConfig(e.target.value)
                 setJsonError(null)
               }}
-              className="font-mono text-sm min-h-[200px]"
+              className="font-mono text-sm min-h-[300px]"
               disabled={saving}
             />
-            {jsonError && (
-              <p className="text-xs text-destructive">{jsonError}</p>
-            )}
+            {jsonError && <p className="text-xs text-destructive">{jsonError}</p>}
           </div>
-
-          <div className="bg-muted/50 rounded-lg p-4 space-y-2">
-            <p className="text-sm font-medium">{t('jsonConfig.help.title')}</p>
-            <p className="text-xs text-muted-foreground">{t('jsonConfig.help.tip1')}</p>
-          </div>
-
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={saving}>
-            {common('cancel')}
-          </Button>
+          <Button variant="outline" onClick={onClose} disabled={saving}>{common('cancel')}</Button>
           <Button onClick={handleSubmit} disabled={saving}>
             {saving ? t('actions.creating') : t('actions.create')}
           </Button>
@@ -395,56 +448,35 @@ function CreateConnectorDialog({ open, onClose, onCreated }: CreateConnectorDial
   )
 }
 
-// Edit Connector Dialog
-interface EditConnectorDialogProps {
-  open: boolean
-  connector: MCPConnectorConfig | null
-  onClose: () => void
-  onUpdated: () => void
-}
-
-function EditConnectorDialog({ open, connector, onClose, onUpdated }: EditConnectorDialogProps) {
+function EditConnectorDialog({ open, connector, onClose, onUpdated }: { open: boolean, connector: MCPConnectorConfig | null, onClose: () => void, onUpdated: () => void }) {
   const t = useTranslations('mcpAdapters')
   const common = useTranslations('common')
   const errors = useTranslations('errors')
   const { toast } = useToast()
-  const queryClient = useQueryClient()
 
+  const [serverType, setServerType] = useState('custom')
   const [jsonConfig, setJsonConfig] = useState('')
   const [jsonError, setJsonError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
-  // Convert connector to MCP JSON format
   useEffect(() => {
     if (open && connector) {
-      const mcpJson: Record<string, unknown> = {
-        mcpServers: {}
+      setServerType(connector.serverType || 'custom')
+      const mcpJson: Record<string, unknown> = { mcpServers: {} }
+      const serverConfig: Record<string, unknown> = {
+        command: '',
+        args: [],
+        env: connector.env || {}
       }
-
-      const serverConfig: Record<string, unknown> = {}
-
       if (connector.transportType === 'stdio') {
-        // stdio type: command + env
         if (connector.command) {
           const parts = connector.command.split(' ')
           serverConfig.command = parts[0]
-          if (parts.length > 1) {
-            serverConfig.args = parts.slice(1)
-          }
-        }
-        if (connector.apiKey) {
-          serverConfig.env = { NOTION_TOKEN: connector.apiKey }
+          if (parts.length > 1) serverConfig.args = parts.slice(1)
         }
       } else {
-        // http type: serverUrl
-        if (connector.serverUrl) {
-          serverConfig.url = connector.serverUrl
-        }
-        if (connector.apiKey) {
-          serverConfig.headers = { Authorization: `Bearer ${connector.apiKey}` }
-        }
+        if (connector.serverUrl) (serverConfig as any).url = connector.serverUrl
       }
-
       mcpJson.mcpServers[connector.name] = serverConfig
       setJsonConfig(JSON.stringify(mcpJson, null, 2))
       setJsonError(null)
@@ -453,50 +485,36 @@ function EditConnectorDialog({ open, connector, onClose, onUpdated }: EditConnec
 
   const handleSubmit = async () => {
     if (!connector) return
-
     setJsonError(null)
-
-    // Parse MCP JSON configuration
     let parsed
     try {
       parsed = parseMcpJson(jsonConfig, t)
     } catch (err) {
-      setJsonError(err instanceof Error ? err.message : t('jsonConfig.error.invalidJson'))
+      setJsonError(err instanceof Error ? err.message : t('jsonConfig.errors.invalidJson'))
       return
     }
-
-    if (!parsed) {
-      return
-    }
-
-    if (!parsed.name) {
-      setJsonError(t('jsonConfig.error.missingName'))
-      return
-    }
+    if (!parsed || !parsed.name) return
 
     try {
       setSaving(true)
+      const authType = (serverType === 'todoist' || serverType === 'notion') ? 'oauth' : 'api_key'
 
-      // Determine transport type
-      const transportType: 'stdio' | 'http' = parsed.command ? 'stdio' : 'http'
-
-      // Extract API key from env if present
       let apiKeyValue: string | undefined
-      if (parsed.env && typeof parsed.env === 'object') {
-        const tokenKey = Object.keys(parsed.env).find(k => k.toUpperCase().includes('TOKEN'))
-        if (tokenKey) {
-          apiKeyValue = parsed.env[tokenKey]
-        }
+      if (parsed.env) {
+        const tokenKey = Object.keys(parsed.env).find(k =>
+          k.toUpperCase().includes('TOKEN') || k.toUpperCase().includes('KEY')
+        )
+        if (tokenKey) apiKeyValue = parsed.env[tokenKey]
       }
 
       await mcpConnectorsApi.update(connector.id, {
         name: parsed.name,
-        serverType: 'custom',
-        transportType,
+        serverType,
+        transportType: parsed.command ? 'stdio' : 'http',
         command: parsed.command,
         env: parsed.env,
         apiKey: apiKeyValue,
-        authType: 'none',
+        authType,
       })
 
       toast({
@@ -522,7 +540,6 @@ function EditConnectorDialog({ open, connector, onClose, onUpdated }: EditConnec
           <DialogTitle>{t('dialog.edit.title')}</DialogTitle>
           <DialogDescription>{t('dialog.edit.description')}</DialogDescription>
         </DialogHeader>
-
         <div className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="edit-json-config">{t('jsonConfig.label')}</Label>
@@ -533,25 +550,14 @@ function EditConnectorDialog({ open, connector, onClose, onUpdated }: EditConnec
                 setJsonConfig(e.target.value)
                 setJsonError(null)
               }}
-              className="font-mono text-sm min-h-[200px]"
+              className="font-mono text-sm min-h-[300px]"
               disabled={saving}
             />
-            {jsonError && (
-              <p className="text-xs text-destructive">{jsonError}</p>
-            )}
+            {jsonError && <p className="text-xs text-destructive">{jsonError}</p>}
           </div>
-
-          <div className="bg-muted/50 rounded-lg p-4 space-y-2">
-            <p className="text-sm font-medium">{t('jsonConfig.help.title')}</p>
-            <p className="text-xs text-muted-foreground">{t('jsonConfig.help.tip1')}</p>
-          </div>
-
         </div>
-
         <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={saving}>
-            {common('cancel')}
-          </Button>
+          <Button variant="outline" onClick={onClose} disabled={saving}>{common('cancel')}</Button>
           <Button onClick={handleSubmit} disabled={saving || !connector}>
             {saving ? t('actions.updating') : t('actions.save')}
           </Button>

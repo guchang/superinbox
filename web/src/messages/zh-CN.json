@@ -1390,7 +1390,9 @@
       "priority": "优先级: {value}",
       "descriptionEmpty": "未填写规则说明",
       "actionsEmpty": "未配置动作",
-      "updatedAt": "更新于 {date}"
+      "updatedAt": "更新于 {date}",
+      "systemBadge": "系统规则",
+      "systemRuleLocked": "系统内置规则不可编辑或删除"
     },
     "connectors": {
       "title": "MCP 连接器",
@@ -1500,6 +1502,11 @@
         "tool": "工具：{tool}",
         "toolSchema": "工具 Schema",
         "stepTitle": "步骤 {step}: {tool}"
+      },
+      "status": {
+        "planning": "规划中...",
+        "executing": "执行中...",
+        "done": "完成"
       },
       "failed": "追加失败",
       "sendFailed": "测试发送失败"

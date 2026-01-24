@@ -137,8 +137,58 @@ export class MCPAdapter extends BaseAdapter {
       }
     }
 
+    let command = this.mcpConfig!.command || this.getDefaultCommand(this.mcpConfig!.serverType);
+    let args: string[] = [];
+
+    if (this.mcpConfig!.serverType === 'todoist') {
+      let token = this.mcpConfig!.oauthAccessToken;
+
+      // Debug: Log OAuth token status
+      logger.info(`[Todoist MCP] oauthAccessToken exists: ${!!token}, length: ${token?.length || 0}`);
+
+      // Fallback to API Key if no OAuth token
+      if (!token && this.mcpConfig!.apiKey) {
+        token = this.mcpConfig!.apiKey;
+        logger.info(`[Todoist MCP] Using API key as fallback, length: ${token.length}`);
+      }
+
+      // Fallback to env variable if present
+      if (!token) {
+         const key = Object.keys(env as Record<string, string>).find(k =>
+           k.toUpperCase().includes('TODOIST') &&
+           (k.toUpperCase().includes('TOKEN') || k.toUpperCase().includes('KEY'))
+         );
+         if (key) {
+           token = (env as Record<string, string>)[key];
+           logger.info(`[Todoist MCP] Using env var ${key}, length: ${token.length}`);
+         }
+      }
+
+      if (token) {
+        // Set TODOIST_API_KEY environment variable (for local MCP servers)
+        (env as Record<string, string>).TODOIST_API_KEY = token;
+        logger.info(`[Todoist MCP] Set env.TODOIST_API_KEY, length: ${token.length}, prefix: ${token.substring(0, 10)}...`);
+
+        // Parse command into executable and args
+        // Default command: "npx -y mcp-remote https://ai.todoist.net/mcp"
+        const parts = command.trim().split(/\s+/);
+        const cmd = parts[0]; // "npx"
+        args = parts.slice(1); // ["-y", "mcp-remote", "https://ai.todoist.net/mcp"]
+
+        // Add --header as a separate argument (no quotes needed in args array)
+        args.push('--header', `Authorization: Bearer ${token}`);
+        logger.info(`[Todoist MCP] Added --header argument via args array, token prefix: ${token.substring(0, 10)}...`);
+
+        // Override command with just the executable
+        command = cmd;
+      } else {
+        logger.error(`[Todoist MCP] No token found! OAuth: ${!!this.mcpConfig!.oauthAccessToken}, API Key: ${!!this.mcpConfig!.apiKey}`);
+      }
+    }
+
     this.mcpClient = new StdioMcpClient({
-      command: this.mcpConfig!.command || this.getDefaultCommand(this.mcpConfig!.serverType),
+      command,
+      args,
       env,
       timeout: this.mcpConfig!.timeout || 30000
     });
@@ -202,12 +252,24 @@ export class MCPAdapter extends BaseAdapter {
       }
 
       // Step 3: Call MCP tool
+      const logTag = `[${this.mcpConfig!.serverType} MCP]`;
+      logger.info(`${logTag} Calling tool: ${toolName} with args:`, {
+        ...this.distributionConfig?.config?.toolArgs,
+        ...transformedData
+      });
+
       const result = await this.mcpClient!.callTool({
         name: toolName,
         arguments: {
           ...this.distributionConfig?.config?.toolArgs,
           ...transformedData
         }
+      });
+
+      logger.info(`${logTag} Tool result:`, {
+        isError: result?.isError,
+        hasContent: !!result?.content,
+        contentPreview: result?.content ? JSON.stringify(result.content).substring(0, 200) : 'no content'
       });
 
       if (result?.isError) {
@@ -261,9 +323,22 @@ export class MCPAdapter extends BaseAdapter {
    */
   async callTool(name: string, args: Record<string, unknown>): Promise<MCPToolCallResponse> {
     this.ensureInitialized();
+
+    const logTag = `[${this.mcpConfig!.serverType} MCP]`;
+    logger.info(`${logTag} Direct callTool: ${name}`, {
+      argsKeys: Object.keys(args),
+      args: args
+    });
+
     const result = await this.mcpClient!.callTool({
       name,
       arguments: args
+    });
+
+    logger.info(`${logTag} Direct callTool result for ${name}:`, {
+      isError: result?.isError,
+      hasContent: !!result?.content,
+      contentPreview: result?.content ? JSON.stringify(result.content).substring(0, 500) : 'no content'
     });
 
     if (result?.isError) {

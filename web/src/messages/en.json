@@ -1380,7 +1380,9 @@
       "priority": "Priority: {value}",
       "descriptionEmpty": "No description",
       "actionsEmpty": "No actions configured",
-      "updatedAt": "Updated {date}"
+      "updatedAt": "Updated {date}",
+      "systemBadge": "System Rule",
+      "systemRuleLocked": "System rules cannot be edited or deleted"
     },
     "connectors": {
       "title": "MCP connectors",
@@ -1490,6 +1492,11 @@
         "tool": "Tool: {tool}",
         "toolSchema": "Tool schema",
         "stepTitle": "Step {step}: {tool}"
+      },
+      "status": {
+        "planning": "Planning...",
+        "executing": "Executing...",
+        "done": "Done"
       },
       "failed": "Append failed",
       "sendFailed": "Test dispatch failed"

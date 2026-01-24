@@ -130,7 +130,58 @@ export class LLMMappingService {
   }
 
   /**
-   * Call the LLM API
+   * Call LLM with chat history (stateful)
+   */
+  async chat(
+    messages: Array<{ role: string; content: string }>,
+    options?: {
+      temperature?: number;
+      maxTokens?: number;
+      jsonMode?: boolean;
+    }
+  ): Promise<string> {
+    const { llm } = this.config;
+    const apiUrl = llm.baseUrl || 'https://api.openai.com/v1';
+
+    const requestBody: Record<string, any> = {
+      model: llm.model,
+      messages,
+      temperature: options?.temperature ?? 0.3,
+      max_tokens: options?.maxTokens ?? (llm.maxTokens || 2000)
+    };
+
+    // Add JSON mode if supported and requested
+    // Note: OpenAI and compatible APIs usually support response_format: { type: "json_object" }
+    if (options?.jsonMode) {
+      requestBody.response_format = { type: 'json_object' };
+    }
+
+    const response = await fetch(`${apiUrl}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${llm.apiKey}`
+      },
+      body: JSON.stringify(requestBody)
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`LLM API error: ${response.status} ${errorText}`);
+    }
+
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content;
+
+    if (!content) {
+      throw new Error('Empty response from LLM');
+    }
+
+    return content;
+  }
+
+  /**
+   * Call the LLM API (stateless wrapper)
    */
   private async callLLM(prompt: string): Promise<string> {
     const { llm } = this.config;

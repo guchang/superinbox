@@ -225,7 +225,22 @@ router.post('/', authenticate, (req, res): any => {
 
     // Determine transport type based on server type
     // Servers with predefined commands use stdio, others use http
-    const serverType = req.body.serverType || 'custom';
+    let serverType = req.body.serverType || 'custom';
+    const command = req.body.command;
+
+    // Auto-detect server type from command if not explicitly set or set to custom
+    if ((!serverType || serverType === 'custom') && command) {
+      if (command.includes('ai.todoist.net')) {
+        serverType = 'todoist';
+      } else if (command.includes('@notionhq/notion-mcp-server')) {
+        serverType = 'notion';
+      } else if (command.includes('server-github')) {
+        serverType = 'github';
+      } else if (command.includes('server-obsidian')) {
+        serverType = 'obsidian';
+      }
+    }
+
     const hasStdioCommand = Object.keys(commandMapping).includes(serverType);
     const transportType: 'http' | 'stdio' = req.body.transportType ||
       (hasStdioCommand ? 'stdio' : 'http');

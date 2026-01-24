@@ -253,6 +253,33 @@ const migrations = [
       -- Create index for logo color
       CREATE INDEX IF NOT EXISTS idx_mcp_configs_logo_color ON mcp_adapter_configs(logo_color);
     `
+  },
+  {
+    version: '008',
+    name: 'add_routing_rules_table',
+    up: `
+      -- Create routing rules table for custom user rules
+      CREATE TABLE IF NOT EXISTS routing_rules (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        description TEXT,
+        priority INTEGER NOT NULL DEFAULT 0,
+        conditions TEXT NOT NULL,
+        actions TEXT NOT NULL,
+        is_active INTEGER NOT NULL DEFAULT 1,
+        is_system INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      );
+
+      -- Create indexes for better query performance
+      CREATE INDEX IF NOT EXISTS idx_routing_rules_user_id ON routing_rules(user_id);
+      CREATE INDEX IF NOT EXISTS idx_routing_rules_is_active ON routing_rules(is_active);
+      CREATE INDEX IF NOT EXISTS idx_routing_rules_is_system ON routing_rules(is_system);
+      CREATE INDEX IF NOT EXISTS idx_routing_rules_priority ON routing_rules(priority);
+    `
   }
 ];
 
