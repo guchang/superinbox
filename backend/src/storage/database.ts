@@ -1685,12 +1685,37 @@ export class DatabaseManager {
       params.push(filters.endDate);
     }
 
-    // Get total count
-    const countQuery = query.replace('SELECT\n        session_id, session_type, COUNT(*) as calls, MAX(total_tokens) as total_tokens, MAX(prompt_tokens) as prompt_tokens, SUM(completion_tokens) as completion_tokens, MIN(created_at) as started_at, MAX(created_at) as ended_at, model, provider',
-      'SELECT COUNT(DISTINCT session_id) as count');
+    // Get total count - build independent COUNT query to avoid string replacement issues
+    let countQuery = `
+      SELECT COUNT(DISTINCT session_id) as count
+      FROM llm_usage_logs
+      WHERE session_id IS NOT NULL
+    `;
+    const countParams: any[] = [];
+
+    if (filters.userId) {
+      countQuery += ' AND user_id = ?';
+      countParams.push(filters.userId);
+    }
+
+    if (filters.sessionType) {
+      countQuery += ' AND session_type = ?';
+      countParams.push(filters.sessionType);
+    }
+
+    if (filters.startDate) {
+      countQuery += ' AND created_at >= ?';
+      countParams.push(filters.startDate);
+    }
+
+    if (filters.endDate) {
+      countQuery += ' AND created_at <= ?';
+      countParams.push(filters.endDate);
+    }
+
     const countStmt = this.db.prepare(countQuery);
-    const countResult = countStmt.get(...params) as any;
-    const total = countResult.count;
+    const countResult = countStmt.get(...countParams) as any;
+    const total = countResult?.count ?? 0;
 
     // Add grouping and ordering
     query += `
