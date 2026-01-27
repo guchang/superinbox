@@ -189,7 +189,7 @@ export interface DistributionConfig {
  */
 export interface DistributionCondition {
   field: string;
-  operator: 'equals' | 'contains' | 'startsWith' | 'endsWith' | 'regex';
+  operator: 'equals' | 'not_equals' | 'contains' | 'not_contains' | 'startsWith' | 'starts_with' | 'endsWith' | 'ends_with' | 'regex' | 'in' | 'not_in';
   value: unknown;
 }
 

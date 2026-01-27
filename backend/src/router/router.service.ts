@@ -235,11 +235,13 @@ export class RouterService {
             value.includes(condition.value);
 
         case 'startsWith':
+        case 'starts_with':  // Handle both for backwards compatibility
           return typeof value === 'string' &&
             typeof condition.value === 'string' &&
             value.startsWith(condition.value);
 
         case 'endsWith':
+        case 'ends_with':  // Handle both for backwards compatibility
           return typeof value === 'string' &&
             typeof condition.value === 'string' &&
             value.endsWith(condition.value);
@@ -332,10 +334,12 @@ export class RouterService {
               typeof condition.value === 'string' &&
               !value.includes(condition.value);
           case 'starts_with':
+          case 'startsWith':  // Handle both for backwards compatibility
             return typeof value === 'string' &&
               typeof condition.value === 'string' &&
               value.startsWith(condition.value);
           case 'ends_with':
+          case 'endsWith':  // Handle both for backwards compatibility
             return typeof value === 'string' &&
               typeof condition.value === 'string' &&
               value.endsWith(condition.value);
