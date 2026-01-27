@@ -19,6 +19,12 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import {
   Activity,
   FileInput,
   FileOutput,
@@ -32,6 +38,7 @@ import {
   MessageSquare,
   User,
   Bot,
+  MoreHorizontal,
 } from 'lucide-react'
 import { Fragment, useEffect, useMemo, useState } from 'react'
 import { useTranslations } from 'next-intl'
@@ -407,26 +414,34 @@ export default function LlmStatisticsPage() {
       id: 'actions',
       header: () => null,
       cell: ({ row }) => (
-        <div className="flex items-center justify-end gap-2 min-w-[180px]">
+        <div className="flex items-center justify-end gap-1">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => openConversationDialog(row.original)}
+          >
+            <MessageSquare className="h-4 w-4 mr-1" />
+            {t('session.viewConversation')}
+          </Button>
           {hasPermission && row.original.calls > 0 && (
-            <Button variant="outline" size="sm" onClick={() => toggleSessionExpanded(row.original.sessionId)}>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => toggleSessionExpanded(row.original.sessionId)}
+            >
               {expandedSessions.has(row.original.sessionId) ? (
                 <>
                   <ChevronUp className="h-4 w-4 mr-1" />
-                  {t('session.collapse') || '收起'}
+                  {t('session.collapse')}
                 </>
               ) : (
                 <>
                   <ChevronDown className="h-4 w-4 mr-1" />
-                  {t('session.expand') || '展开'}
+                  {t('session.expand')}
                 </>
               )}
             </Button>
           )}
-          <Button variant="default" size="sm" onClick={() => openConversationDialog(row.original)}>
-            <MessageSquare className="h-4 w-4 mr-1" />
-            {t('session.viewConversation') || '查看对话'}
-          </Button>
         </div>
       ),
     },
