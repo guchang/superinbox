@@ -27,6 +27,20 @@ export class RouterService {
   async distributeItem(item: Item): Promise<DistributionResult[]> {
     const results: DistributionResult[] = [];
 
+    // Execute routing rules first
+    const ruleResults = await this.executeRoutingRules(item);
+    results.push(...ruleResults);
+
+    // Check if any rule requested to skip distribution
+    const skipDistribution = ruleResults.some(
+      r => r.message === 'Distribution skipped by rule'
+    );
+
+    if (skipDistribution) {
+      logger.info(`Distribution skipped for item ${item.id} by routing rule`);
+      return results;
+    }
+
     // Wait for rate limiter slot
     await this.rateLimiter.waitForSlot();
 
@@ -257,6 +271,259 @@ export class RouterService {
     }
 
     return value;
+  }
+
+  /**
+   * Execute routing rules for an item
+   * Returns results from all matched rules
+   */
+  private async executeRoutingRules(item: Item): Promise<DistributionResult[]> {
+    const results: DistributionResult[] = [];
+
+    try {
+      // Get active rules for user
+      const rules = this.db.database.prepare(`
+        SELECT * FROM routing_rules
+        WHERE user_id = ? AND is_active = 1
+        ORDER BY priority DESC, created_at ASC
+      `).all(item.userId) as any[];
+
+      logger.info(`Found ${rules.length} active routing rules for user ${item.userId}`);
+
+      // Execute each matching rule
+      for (const rule of rules) {
+        if (this.checkRuleConditions(item, rule)) {
+          logger.info(`Rule "${rule.name}" matched for item ${item.id}`);
+          const ruleResults = await this.executeRuleActions(item, rule);
+          results.push(...ruleResults);
+        }
+      }
+    } catch (error) {
+      logger.error('Failed to execute routing rules:', error);
+    }
+
+    return results;
+  }
+
+  /**
+   * Check if item matches rule conditions
+   */
+  private checkRuleConditions(item: Item, rule: any): boolean {
+    if (!rule.conditions) {
+      return true; // No conditions = always match
+    }
+
+    try {
+      const conditions = JSON.parse(rule.conditions);
+      return conditions.every((condition: any) => {
+        const value = this.getItemValue(item, condition.field);
+
+        switch (condition.operator) {
+          case 'equals':
+            return value === condition.value;
+          case 'not_equals':
+            return value !== condition.value;
+          case 'contains':
+            return typeof value === 'string' &&
+              typeof condition.value === 'string' &&
+              value.includes(condition.value);
+          case 'not_contains':
+            return typeof value === 'string' &&
+              typeof condition.value === 'string' &&
+              !value.includes(condition.value);
+          case 'starts_with':
+            return typeof value === 'string' &&
+              typeof condition.value === 'string' &&
+              value.startsWith(condition.value);
+          case 'ends_with':
+            return typeof value === 'string' &&
+              typeof condition.value === 'string' &&
+              value.endsWith(condition.value);
+          case 'regex':
+            return typeof value === 'string' &&
+              typeof condition.value === 'string' &&
+              new RegExp(condition.value).test(value);
+          case 'in':
+            return Array.isArray(condition.value) &&
+              condition.value.includes(value);
+          case 'not_in':
+            return Array.isArray(condition.value) &&
+              !condition.value.includes(value);
+          default:
+            logger.warn(`Unknown condition operator: ${condition.operator}`);
+            return false;
+        }
+      });
+    } catch (error) {
+      logger.error(`Failed to parse conditions for rule ${rule.id}:`, error);
+      return false;
+    }
+  }
+
+  /**
+   * Execute actions from a matched rule
+   */
+  private async executeRuleActions(item: Item, rule: any): Promise<DistributionResult[]> {
+    const results: DistributionResult[] = [];
+
+    try {
+      const actions = JSON.parse(rule.actions);
+
+      for (const action of actions) {
+        try {
+          const result = await this.executeAction(item, action, rule.id);
+          if (result) {
+            results.push(result);
+          }
+        } catch (error) {
+          logger.error(`Action ${action.type} failed for rule ${rule.id}:`, error);
+          // Continue with next action even if one fails
+          results.push({
+            id: this.generateId(),
+            itemId: item.id,
+            targetId: rule.id,
+            adapterType: 'rule', // Routing rule result
+            status: 'failed',
+            error: error instanceof Error ? error.message : 'Unknown error',
+            timestamp: new Date(),
+            message: `Action ${action.type} failed`
+          });
+        }
+      }
+    } catch (error) {
+      logger.error(`Failed to parse actions for rule ${rule.id}:`, error);
+    }
+
+    return results;
+  }
+
+  /**
+   * Execute a single action
+   */
+  private async executeAction(
+    item: Item,
+    action: any,
+    ruleId: string
+  ): Promise<DistributionResult | null> {
+    switch (action.type) {
+      case 'distribute_mcp':
+        // Distribute to MCP adapter
+        return await this.distributeToMCPAdapter(item, action);
+
+      case 'distribute_adapter':
+        // Distribute to traditional adapter
+        return await this.distributeToTraditionalAdapter(item, action);
+
+      case 'update_item':
+        // Update item properties
+        this.db.updateItem(item.id, action.updates || {});
+        return {
+          id: this.generateId(),
+          itemId: item.id,
+          targetId: ruleId,
+          adapterType: 'rule',
+          status: 'success',
+          timestamp: new Date(),
+          message: `Updated item: ${JSON.stringify(action.updates)}`
+        };
+
+      case 'skip_distribution':
+        // Skip further distribution
+        return {
+          id: this.generateId(),
+          itemId: item.id,
+          targetId: ruleId,
+          adapterType: 'rule',
+          status: 'success',
+          timestamp: new Date(),
+          message: 'Distribution skipped by rule'
+        };
+
+      default:
+        logger.warn(`Unknown action type: ${action.type}`);
+        return null;
+    }
+  }
+
+  /**
+   * Distribute to MCP adapter (from rule action)
+   */
+  private async distributeToMCPAdapter(
+    item: Item,
+    action: any
+  ): Promise<DistributionResult> {
+    const mcpAdapterId = action.mcp_adapter_id;
+    if (!mcpAdapterId) {
+      throw new Error('mcp_adapter_id is required for distribute_mcp action');
+    }
+
+    // Get MCP adapter config
+    const mcpConfig = this.getMCPAdapterConfig(mcpAdapterId);
+
+    // Build distribution config
+    const config: DistributionConfig = {
+      id: this.generateId(),
+      adapterType: 'mcp_http',
+      enabled: true,
+      priority: 0,
+      mcpAdapterId,
+      processingInstructions: action.processing_instructions,
+      config: action.config || {}
+    };
+
+    // Distribute via MCP
+    await mcpAdapter.initialize({
+      serverUrl: mcpConfig.serverUrl,
+      serverType: mcpConfig.serverType,
+      authType: mcpConfig.authType,
+      apiKey: mcpConfig.apiKey,
+      oauthAccessToken: mcpConfig.oauthAccessToken
+    });
+
+    mcpAdapter.setDistributionConfig(config);
+
+    const result = await mcpAdapter.distribute(item);
+    result.itemId = item.id;
+    result.targetId = mcpAdapterId;
+
+    // Save result
+    this.db.addDistributionResult(result);
+
+    return result;
+  }
+
+  /**
+   * Distribute to traditional adapter (from rule action)
+   */
+  private async distributeToTraditionalAdapter(
+    item: Item,
+    action: any
+  ): Promise<DistributionResult> {
+    const adapterType = action.adapter_type;
+    if (!adapterType) {
+      throw new Error('adapter_type is required for distribute_adapter action');
+    }
+
+    const adapter = this.registry.get(adapterType);
+    if (!adapter) {
+      throw new Error(`Adapter ${adapterType} not found`);
+    }
+
+    const result = await adapter.distribute(item);
+    result.itemId = item.id;
+    result.targetId = adapterType;
+
+    // Save result
+    this.db.addDistributionResult(result);
+
+    return result;
+  }
+
+  /**
+   * Generate a unique ID
+   */
+  private generateId(): string {
+    return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   }
 
   /**

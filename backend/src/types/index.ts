@@ -166,7 +166,8 @@ export interface Item {
  */
 export enum AdapterType {
   MCP = 'mcp',        // Generic MCP adapter
-  MCP_HTTP = 'mcp_http'  // HTTP-based MCP adapter
+  MCP_HTTP = 'mcp_http',  // HTTP-based MCP adapter
+  RULE = 'rule'       // Routing rule (not a real adapter)
 }
 
 /**
@@ -205,6 +206,7 @@ export interface DistributionResult {
   externalUrl?: string;
   error?: string;
   timestamp: Date;
+  message?: string; // Optional message for rule results
 }
 
 // ============================================
