@@ -167,20 +167,6 @@ export interface PromptTemplate {
   updatedAt: string
 }
 
-// AI 分类模板版本
-export interface AiTemplateVersion {
-  id: string
-  name: string
-  description?: string
-  prompt: string
-  isActive: boolean
-  confirmedCoverage: string[]
-  aiCoverage: string[]
-  confirmedAt?: string
-  createdAt: string
-  updatedAt: string
-}
-
 // 路由规则
 export interface RoutingRule {
   id: string
@@ -222,6 +208,24 @@ export interface Statistics {
 export interface UserSettings {
   timezone: string | null
   updatedAt?: string
+}
+
+export interface LlmSettings {
+  provider: string
+  model: string
+  baseUrl: string | null
+  timeout: number
+  maxTokens: number
+  apiKeyConfigured: boolean
+}
+
+export interface LlmSettingsUpdate {
+  provider?: string
+  model?: string
+  baseUrl?: string | null
+  apiKey?: string | null
+  timeout?: number | null
+  maxTokens?: number | null
 }
 
 // ========== 认证相关类型 ==========
@@ -347,4 +351,93 @@ export interface MCPConnectorTestResponse {
   status: 'healthy' | 'unhealthy'
   testedAt: string
   message?: string
+}
+
+// ========== LLM 使用统计相关类型 ==========
+
+// LLM 使用日志
+export interface LlmUsageLog {
+  id: string
+  userId: string | null
+  model: string
+  provider: string
+  requestMessages: Array<{ role: string; content: string }>
+  responseContent: string | null
+  promptTokens: number
+  completionTokens: number
+  totalTokens: number
+  status: 'success' | 'error'
+  errorMessage: string | null
+  createdAt: string
+}
+
+// LLM 统计数据
+export interface LlmStatistics {
+  totalCalls: number
+  successCalls: number
+  errorCalls: number
+  totalTokens: number
+  promptTokens: number
+  completionTokens: number
+  byModel: Array<{
+    model: string
+    calls: number
+    tokens: number
+  }>
+  byProvider: Array<{
+    provider: string
+    calls: number
+    tokens: number
+  }>
+  trendData: Array<{
+    date: string
+    calls: number
+    tokens: number
+  }>
+}
+
+// LLM 日志查询参数
+export interface LlmLogsParams {
+  userId?: string
+  model?: string
+  provider?: string
+  status?: 'success' | 'error'
+  sessionId?: string
+  sessionType?: string
+  startDate?: string
+  endDate?: string
+  page?: number
+  pageSize?: number
+}
+
+// LLM 统计查询参数
+export interface LlmStatisticsParams {
+  userId?: string
+  startDate?: string
+  endDate?: string
+}
+
+// LLM 会话（按 session_id 分组）
+export interface LlmSession {
+  sessionId: string
+  sessionType: string
+  calls: number
+  totalTokens: number
+  promptTokens: number
+  completionTokens: number
+  startedAt: string
+  endedAt: string
+  duration: number
+  model: string
+  provider: string
+}
+
+// LLM 会话查询参数
+export interface LlmSessionsParams {
+  userId?: string
+  sessionType?: string
+  startDate?: string
+  endDate?: string
+  page?: number
+  pageSize?: number
 }
