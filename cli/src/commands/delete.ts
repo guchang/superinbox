@@ -51,7 +51,7 @@ export async function deleteItem(id?: string, returnToList: boolean = false): Pr
     console.log('');
     console.log(chalk.yellow('About to delete the following item:'));
     console.log(chalk.gray(`  Content: ${item.originalContent.substring(0, 100)}`));
-    console.log(chalk.gray(`  Intent: ${item.category}`));
+    console.log(chalk.gray(`  Category: ${item.category}`));
     console.log(chalk.gray(`  Status: ${item.status}`));
     if (item.summary) {
       console.log(chalk.gray(`  Summary: ${item.summary}`));

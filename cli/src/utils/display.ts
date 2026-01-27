@@ -66,8 +66,8 @@ export const display = {
 
     // Add header
     const head = compact
-      ? ['ID', 'Intent', 'Content', 'Status']
-      : ['ID', 'Intent', 'Content', 'Status', 'Created'];
+      ? ['ID', 'Category', 'Content', 'Status']
+      : ['ID', 'Category', 'Content', 'Status', 'Created'];
     table.push(head);
 
     // Add rows
@@ -77,7 +77,7 @@ export const display = {
 
       const row = [
         item.id.substring(0, 8),
-        colorizeIntent(item.category),
+        colorizeCategory(item.category),
         content,
         colorizeStatus(item.status)
       ];
@@ -103,7 +103,7 @@ export const display = {
     console.log('');
 
     console.log(chalk.gray('ID:            ') + chalk.white(item.id));
-    console.log(chalk.gray('Intent:        ') + colorizeIntent(item.category));
+    console.log(chalk.gray('Category:      ') + colorizeCategory(item.category));
     console.log(chalk.gray('Status:        ') + colorizeStatus(item.status));
     console.log(chalk.gray('Type:          ') + chalk.white(item.contentType));
     console.log(chalk.gray('Source:        ') + chalk.white(item.source));
@@ -171,7 +171,7 @@ export const display = {
 /**
  * Colorize category
  */
-function colorizeIntent(category: string): string {
+function colorizeCategory(category: string): string {
   const colors: Record<string, (text: string) => string> = {
     todo: chalk.green,
     idea: chalk.yellow,
