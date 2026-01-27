@@ -1,8 +1,9 @@
 'use client'
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import {
   Dialog,
   DialogContent,
@@ -28,19 +29,26 @@ import {
   ChevronDown,
   ChevronUp,
   Layers,
-  Clock,
   MessageSquare,
   User,
   Bot,
 } from 'lucide-react'
-import { useState } from 'react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { useQuery } from '@tanstack/react-query'
+import {
+  type ColumnDef,
+  flexRender,
+  getCoreRowModel,
+  getPaginationRowModel,
+  useReactTable,
+} from '@tanstack/react-table'
 import { getLlmStatistics, getLlmLogs, getLlmSessions } from '@/lib/api/llm'
 import { useAuth } from '@/lib/hooks/use-auth'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { getApiErrorMessage } from '@/lib/i18n/api-errors'
 import type { LlmUsageLog, LlmSession } from '@/types'
+import { DataTablePagination } from '@/components/data-table/data-table-pagination'
 
 type TimeRange = 'today' | 'week' | 'month' | 'all'
 
@@ -86,6 +94,8 @@ export default function LlmStatisticsPage() {
   const time = useTranslations('time')
   const { authState } = useAuth()
   const [timeRange, setTimeRange] = useState<TimeRange>('week')
+  const [sessionPage, setSessionPage] = useState(1)
+  const [sessionPageSize, setSessionPageSize] = useState(10)
 
   // 会话展开状态
   const [expandedSessions, setExpandedSessions] = useState<Set<string>>(new Set())
@@ -106,6 +116,10 @@ export default function LlmStatisticsPage() {
   const [copiedResponse, setCopiedResponse] = useState(false)
   const [expandedMessages, setExpandedMessages] = useState<Set<number>>(new Set())
   const [responseExpanded, setResponseExpanded] = useState(false)
+
+  useEffect(() => {
+    setSessionPage(1)
+  }, [timeRange])
 
   const copyToClipboard = async (text: string, type: 'request' | 'response') => {
     try {
@@ -246,34 +260,10 @@ export default function LlmStatisticsPage() {
 
   // Fetch sessions data
   const { data: sessionsData, isLoading: sessionsLoading, error: sessionsError, refetch: refetchSessions } = useQuery({
-    queryKey: ['llm-sessions', timeRange],
-    queryFn: () => getLlmSessions({ ...dateRange, page: 1, pageSize: 100 }),
+    queryKey: ['llm-sessions', timeRange, sessionPage, sessionPageSize],
+    queryFn: () => getLlmSessions({ ...dateRange, page: sessionPage, pageSize: sessionPageSize }),
     enabled: hasPermission && !authState.isLoading,
   })
-
-  // Show loading while checking auth
-  if (authState.isLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-muted-foreground">{common('loading')}</div>
-      </div>
-    )
-  }
-
-  // Permission check
-  if (!hasPermission) {
-    return (
-      <Alert variant="destructive">
-        <AlertCircle className="h-4 w-4" />
-        <AlertTitle>{common('permissionDenied.title')}</AlertTitle>
-        <AlertDescription>
-          {common('permissionDenied.description')}
-        </AlertDescription>
-      </Alert>
-    )
-  }
-
-  const sessions = sessionsData?.data || []
 
   // Toggle session expansion
   const toggleSessionExpanded = (sessionId: string) => {
@@ -341,18 +331,161 @@ export default function LlmStatisticsPage() {
     }
   }
 
-  // Get logs for a specific session
-  const getSessionLogs = (sessionId: string) => {
-    return useQuery({
-      queryKey: ['llm-logs', sessionId, timeRange],
-      queryFn: () => getLlmLogs({ ...dateRange, sessionId, page: 1, pageSize: 100 }),
-      enabled: expandedSessions.has(sessionId) && hasPermission,
-    })
-  }
-
   const openDetail = (log: LlmUsageLog) => {
     setSelectedLog(log)
     setDetailOpen(true)
+  }
+
+  const sessions = sessionsData?.data || []
+  const sessionsTotal = sessionsData?.total ?? 0
+
+  const sessionColumns = useMemo<ColumnDef<LlmSession>[]>(() => [
+    {
+      accessorKey: 'sessionId',
+      header: () => t('sessions.table.sessionId'),
+      cell: ({ row }) => (
+        <div className="flex items-center gap-2 min-w-[220px]">
+          <Layers className="h-4 w-4 text-muted-foreground" />
+          <span className="font-mono text-sm truncate">{row.original.sessionId}</span>
+        </div>
+      ),
+    },
+    {
+      accessorKey: 'sessionType',
+      header: () => t('sessions.table.type'),
+      cell: ({ row }) => (
+        <Badge variant="outline" className="capitalize">
+          {row.original.sessionType}
+        </Badge>
+      ),
+    },
+    {
+      id: 'calls',
+      header: () => (
+        <div className="text-right">{t('sessions.table.calls')}</div>
+      ),
+      cell: ({ row }) => (
+        <div className="text-right tabular-nums">
+          {row.original.calls.toLocaleString()}
+        </div>
+      ),
+    },
+    {
+      id: 'tokens',
+      header: () => (
+        <div className="text-right">{t('sessions.table.tokens')}</div>
+      ),
+      cell: ({ row }) => (
+        <div className="text-right tabular-nums">
+          {row.original.totalTokens.toLocaleString()}
+        </div>
+      ),
+    },
+    {
+      id: 'duration',
+      header: () => (
+        <div className="text-right">{t('sessions.table.duration')}</div>
+      ),
+      cell: ({ row }) => (
+        <div className="text-right tabular-nums">
+          {formatDuration(row.original.duration)}
+        </div>
+      ),
+    },
+    {
+      id: 'time',
+      header: () => (
+        <div className="text-right">{t('sessions.table.time')}</div>
+      ),
+      cell: ({ row }) => (
+        <div className="text-right text-xs text-muted-foreground min-w-[220px]">
+          {new Date(row.original.startedAt).toLocaleString()} → {new Date(row.original.endedAt).toLocaleString()}
+        </div>
+      ),
+    },
+    {
+      id: 'actions',
+      header: () => null,
+      cell: ({ row }) => (
+        <div className="flex items-center justify-end gap-2 min-w-[180px]">
+          {hasPermission && row.original.calls > 0 && (
+            <Button variant="outline" size="sm" onClick={() => toggleSessionExpanded(row.original.sessionId)}>
+              {expandedSessions.has(row.original.sessionId) ? (
+                <>
+                  <ChevronUp className="h-4 w-4 mr-1" />
+                  {t('session.collapse') || '收起'}
+                </>
+              ) : (
+                <>
+                  <ChevronDown className="h-4 w-4 mr-1" />
+                  {t('session.expand') || '展开'}
+                </>
+              )}
+            </Button>
+          )}
+          <Button variant="default" size="sm" onClick={() => openConversationDialog(row.original)}>
+            <MessageSquare className="h-4 w-4 mr-1" />
+            {t('session.viewConversation') || '查看对话'}
+          </Button>
+        </div>
+      ),
+    },
+  ], [expandedSessions, hasPermission, openConversationDialog, t, toggleSessionExpanded])
+
+  const sessionTable = useReactTable({
+    data: sessions,
+    columns: sessionColumns,
+    getCoreRowModel: getCoreRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    manualPagination: true,
+    pageCount: Math.max(Math.ceil(sessionsTotal / sessionPageSize), 1),
+    state: {
+      pagination: {
+        pageIndex: sessionPage - 1,
+        pageSize: sessionPageSize,
+      },
+    },
+    onPaginationChange: (updater) => {
+      const next = typeof updater === 'function'
+        ? updater({ pageIndex: sessionPage - 1, pageSize: sessionPageSize })
+        : updater
+      setSessionPage(next.pageIndex + 1)
+      setSessionPageSize(next.pageSize)
+    },
+  })
+
+  const sessionColumnCount = sessionTable.getVisibleLeafColumns().length
+  const sessionPaginationLabels = useMemo(() => ({
+    summary: (start: number, end: number, total: number) =>
+      t('pagination.summary', { start, end, total: total.toLocaleString() }),
+    page: (page: number, totalPages: number) =>
+      t('pagination.page', { page, totalPages }),
+    previous: t('pagination.prev'),
+    next: t('pagination.next'),
+    rowsPerPage: t('pagination.rowsPerPage'),
+    pageSize: (size: number) => t('pagination.pageSize', { size }),
+  }), [t])
+
+  // Show loading while checking auth
+  if (authState.isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-muted-foreground">{common('loading')}</div>
+      </div>
+    )
+  }
+
+  // Permission check
+  if (!hasPermission) {
+    return (
+      <Alert variant="destructive">
+        <AlertCircle className="h-4 w-4" />
+        <AlertTitle>{common('permissionDenied.title')}</AlertTitle>
+        <AlertDescription>
+          {common('permissionDenied.description')}
+        </AlertDescription>
+      </Alert>
+    )
   }
 
   return (
@@ -454,24 +587,64 @@ export default function LlmStatisticsPage() {
             </CardContent>
           </Card>
         ) : (
-          sessions.map((session) => (
-            <SessionCard
-              key={session.sessionId}
-              session={session}
-              isExpanded={expandedSessions.has(session.sessionId)}
-              onToggle={() => toggleSessionExpanded(session.sessionId)}
-              onViewConversation={() => openConversationDialog(session)}
-            >
-              {expandedSessions.has(session.sessionId) && (
-                <SessionLogsContent
-                  session={session}
-                  dateRange={dateRange}
-                  hasPermission={hasPermission}
-                  onOpenDetail={openDetail}
-                />
-              )}
-            </SessionCard>
-          ))
+          <div className="rounded-lg border overflow-hidden">
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  {sessionTable.getHeaderGroups().map((headerGroup) => (
+                    <TableRow key={headerGroup.id}>
+                      {headerGroup.headers.map((header) => (
+                        <TableHead key={header.id}>
+                          {header.isPlaceholder
+                            ? null
+                            : flexRender(header.column.columnDef.header, header.getContext())}
+                        </TableHead>
+                      ))}
+                    </TableRow>
+                  ))}
+                </TableHeader>
+                <TableBody>
+                  {sessionTable.getRowModel().rows.map((row) => (
+                    <Fragment key={row.id}>
+                      <TableRow className="hover:bg-muted/50">
+                        {row.getVisibleCells().map((cell) => (
+                          <TableCell key={cell.id}>
+                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                      {expandedSessions.has(row.original.sessionId) && (
+                        <TableRow>
+                          <TableCell colSpan={sessionColumnCount} className="bg-muted/30">
+                            <div className="p-4">
+                              <SessionLogsContent
+                                session={row.original}
+                                dateRange={dateRange}
+                                hasPermission={hasPermission}
+                                onOpenDetail={openDetail}
+                              />
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </Fragment>
+                  ))}
+                  {sessionTable.getRowModel().rows.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={sessionColumnCount} className="h-24 text-center text-muted-foreground">
+                        {common('noData')}
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+            <DataTablePagination
+              table={sessionTable}
+              labels={sessionPaginationLabels}
+              totalRows={sessionsTotal}
+            />
+          </div>
         )}
       </div>
 
@@ -897,89 +1070,6 @@ export default function LlmStatisticsPage() {
         </DialogContent>
       </Dialog>
     </div>
-  )
-}
-
-// Session Card Component
-function SessionCard({
-  session,
-  isExpanded,
-  onToggle,
-  onViewConversation,
-  children
-}: {
-  session: LlmSession
-  isExpanded: boolean
-  onToggle: () => void
-  onViewConversation: () => void
-  children: React.ReactNode
-}) {
-  const t = useTranslations('llmStatistics')
-  const common = useTranslations('common')
-  const { authState } = useAuth()
-  const hasPermission = authState.user?.scopes?.includes('admin:full') ?? false
-
-  return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <div className="flex-1">
-            <div className="flex items-center gap-2 mb-1">
-              <CardTitle className="text-base font-mono text-sm">
-                <Layers className="h-4 w-4 inline mr-2" />
-                {session.sessionId}
-              </CardTitle>
-              <Badge variant="outline" className="capitalize">
-                {session.sessionType}
-              </Badge>
-            </div>
-            <CardDescription className="flex items-center gap-3 text-sm">
-              <span className="flex items-center gap-1">
-                <Activity className="h-3 w-3" />
-                {session.calls} {t('session.calls') || '次调用'}
-              </span>
-              <span className="flex items-center gap-1">
-                <Zap className="h-3 w-3" />
-                {session.totalTokens.toLocaleString()} {t('session.tokens') || 'tokens'}
-              </span>
-              <span className="flex items-center gap-1">
-                <Clock className="h-3 w-3" />
-                {formatDuration(session.duration)}
-              </span>
-              <span className="text-xs text-muted-foreground">
-                {new Date(session.startedAt).toLocaleString()} → {new Date(session.endedAt).toLocaleString()}
-              </span>
-            </CardDescription>
-          </div>
-          <div className="flex items-center gap-2">
-            {hasPermission && session.calls > 0 && (
-              <Button variant="outline" size="sm" onClick={onToggle}>
-                {isExpanded ? (
-                  <>
-                    <ChevronUp className="h-4 w-4 mr-1" />
-                    {t('session.collapse') || '收起'}
-                  </>
-                ) : (
-                  <>
-                    <ChevronDown className="h-4 w-4 mr-1" />
-                    {t('session.expand') || '展开'}
-                  </>
-                )}
-              </Button>
-            )}
-            <Button variant="default" size="sm" onClick={onViewConversation}>
-              <MessageSquare className="h-4 w-4 mr-1" />
-              {t('session.viewConversation') || '查看对话'}
-            </Button>
-          </div>
-        </div>
-      </CardHeader>
-      {isExpanded && (
-        <CardContent className="pt-0">
-          {children}
-        </CardContent>
-      )}
-    </Card>
   )
 }
 

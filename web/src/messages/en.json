@@ -896,6 +896,14 @@
       "viewConversation": "View Conversation",
       "calls": "calls",
       "tokens": "tokens"
+    },
+    "pagination": {
+      "summary": "Showing {start}-{end} of {total}",
+      "page": "Page {page} of {totalPages}",
+      "prev": "Previous",
+      "next": "Next",
+      "rowsPerPage": "Rows per page",
+      "pageSize": "{size}/page"
     }
   },
   "apiStatistics": {
