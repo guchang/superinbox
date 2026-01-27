@@ -96,6 +96,11 @@ export const inboxApi = {
     return apiClient.post<{ message: string; status: string }>(`/inbox/${id}/reclassify`)
   },
 
+  // 重新分发
+  async distributeItem(id: string): Promise<ApiResponse<{ message: string }>> {
+    return apiClient.post<{ message: string }>(`/items/${id}/distribute`)
+  },
+
   // 上传文件
   async uploadFile(formData: FormData): Promise<ApiResponse<Item>> {
     // Don't set Content-Type header for FormData - browser will set it with boundary

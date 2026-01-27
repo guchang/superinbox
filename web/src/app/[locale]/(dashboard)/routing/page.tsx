@@ -39,6 +39,8 @@ import {
 import { useToast } from '@/hooks/use-toast'
 import { LayoutGrid, List, MoreHorizontal, Plus, Pencil, Trash2 } from 'lucide-react'
 import { getApiErrorMessage, type ApiError } from '@/lib/i18n/api-errors'
+import { RetroactiveModeSelector } from '@/components/routing/retroactive-mode-selector'
+import { RetroactiveMode } from '@/types'
 
 // Helper functions - defined before components that use them
 
@@ -76,12 +78,6 @@ function getActionDisplayName(
   const connectorName = action.config?.connectorName as string | undefined
   if (connectorName) return connectorName
   return actionLabels[action.type] || action.type
-}
-
-function getActionTypeForConnector(connectorName: string): RuleAction['type'] {
-  // Map connector name to action type
-  // For now, default to 'mcp_http' for MCP connectors
-  return 'mcp_http'
 }
 
 function buildRuleName(
@@ -547,6 +543,8 @@ function RuleEditDialog({
   const [previewError, setPreviewError] = useState<string | null>(null)
   const [previewLoading, setPreviewLoading] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [retroactiveMode, setRetroactiveMode] = useState<RetroactiveMode>(RetroactiveMode.NONE)
+  const [retroactiveConfig, setRetroactiveConfig] = useState<{ batchSize?: number; delayBetweenBatches?: number; filters?: { status?: string; startDate?: string; endDate?: string; category?: string } } | undefined>(undefined)
 
   // Test dispatch state
   const [testContent, setTestContent] = useState('')
@@ -594,6 +592,8 @@ function RuleEditDialog({
     setPreviewContent('')
     setPreviewResult(null)
     setPreviewError(null)
+    setRetroactiveMode(rule.retroactiveMode || RetroactiveMode.NONE)
+    setRetroactiveConfig(rule.retroactiveConfig)
   }, [rule, open, connectorOptions, actionLabels])
 
   const toggleCategory = (key: string, checked: boolean) => {
@@ -642,7 +642,7 @@ function RuleEditDialog({
       rule.actions && rule.actions.length > 0 ? rule.actions[0].config || {} : {}
     const nextActions: RuleAction[] = [
       {
-        type: getActionTypeForConnector(connectorName),
+        type: 'distribute_mcp',
         config: {
           ...existingConfig,
           connectorName,
@@ -652,14 +652,33 @@ function RuleEditDialog({
 
     try {
       setSaving(true)
-      await routingApi.updateRule(rule.id, {
+
+      // Prepare update data
+      const updateData: {
+        name: string
+        description: string
+        priority: number
+        isActive: boolean
+        conditions: RuleCondition[]
+        actions: RuleAction[]
+        retroactiveMode?: RetroactiveMode
+        retroactiveConfig?: { batchSize?: number; delayBetweenBatches?: number; filters?: { status?: string; startDate?: string; endDate?: string; category?: string } }
+      } = {
         name: derivedName,
         description: description.trim(),
         priority: Number.isNaN(nextPriority) ? 0 : nextPriority,
         isActive,
         conditions: nextConditions,
         actions: nextActions,
-      })
+      }
+
+      // Only add retroactive fields if mode is not NONE
+      if (retroactiveMode !== RetroactiveMode.NONE) {
+        updateData.retroactiveMode = retroactiveMode
+        updateData.retroactiveConfig = retroactiveConfig
+      }
+
+      await routingApi.updateRule(rule.id, updateData)
       toast({
         title: t('toasts.ruleUpdated.title'),
         description: t('toasts.ruleUpdated.description', { name: derivedName }),
@@ -1084,6 +1103,16 @@ function RuleEditDialog({
               <Label htmlFor="rule-active">{t('editDialog.fields.active')}</Label>
             </div>
 
+            <RetroactiveModeSelector
+              value={retroactiveMode}
+              config={retroactiveConfig}
+              onChange={(mode, config) => {
+                setRetroactiveMode(mode)
+                setRetroactiveConfig(config)
+              }}
+              disabled={saving}
+            />
+
             <Card>
               <CardHeader>
                 <CardTitle>{t('preview.title')}</CardTitle>
@@ -1311,6 +1340,8 @@ function CreateRuleDialog({
   const [categoryKeys, setCategoryKeys] = useState<string[]>([])
   const [connectorSelection, setConnectorSelection] = useState('')
   const [saving, setSaving] = useState(false)
+  const [retroactiveMode, setRetroactiveMode] = useState<RetroactiveMode>(RetroactiveMode.NONE)
+  const [retroactiveConfig, setRetroactiveConfig] = useState<{ batchSize?: number; delayBetweenBatches?: number; filters?: { status?: string; startDate?: string; endDate?: string; category?: string } } | undefined>(undefined)
 
   useEffect(() => {
     if (!open) {
@@ -1321,6 +1352,8 @@ function CreateRuleDialog({
     setIsActive(true)
     setCategoryKeys([])
     setConnectorSelection('')
+    setRetroactiveMode(RetroactiveMode.NONE)
+    setRetroactiveConfig(undefined)
   }, [open])
 
   const toggleCategory = (key: string, checked: boolean) => {
@@ -1361,7 +1394,7 @@ function CreateRuleDialog({
     ]
     const nextActions: RuleAction[] = [
       {
-        type: getActionTypeForConnector(connectorName),
+        type: 'distribute_mcp',
         config: {
           connectorName,
         },
@@ -1370,14 +1403,34 @@ function CreateRuleDialog({
 
     try {
       setSaving(true)
-      await routingApi.createRule({
+
+      // Prepare rule data with retroactive mode
+      const ruleData: {
+        name: string
+        description: string
+        priority: number
+        isActive: boolean
+        conditions: RuleCondition[]
+        actions: RuleAction[]
+        retroactiveMode?: RetroactiveMode
+        retroactiveConfig?: { batchSize?: number; delayBetweenBatches?: number; filters?: { status?: string; startDate?: string; endDate?: string; category?: string } }
+      } = {
         name: derivedName,
         description: description.trim(),
         priority: Number.isNaN(nextPriority) ? 0 : nextPriority,
         isActive,
         conditions: nextConditions,
         actions: nextActions,
-      })
+      }
+
+      // Only add retroactive fields if mode is not NONE
+      if (retroactiveMode !== RetroactiveMode.NONE) {
+        ruleData.retroactiveMode = retroactiveMode
+        ruleData.retroactiveConfig = retroactiveConfig
+      }
+
+      await routingApi.createRule(ruleData)
+
       toast({
         title: t('toasts.ruleCreated.title'),
         description: t('toasts.ruleCreated.description', { name: derivedName }),
@@ -1507,6 +1560,16 @@ function CreateRuleDialog({
             />
             <Label htmlFor="new-rule-active">{t('createDialog.fields.active')}</Label>
           </div>
+
+          <RetroactiveModeSelector
+            value={retroactiveMode}
+            config={retroactiveConfig}
+            onChange={(mode, config) => {
+              setRetroactiveMode(mode)
+              setRetroactiveConfig(config)
+            }}
+            disabled={saving}
+          />
         </div>
 
         <DialogFooter>

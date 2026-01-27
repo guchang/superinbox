@@ -685,7 +685,7 @@ export class InboxController {
         allFiles: item.entities?.allFiles
       };
 
-      this.db.updateItem(itemId, {
+      const updatedItem = this.db.updateItem(itemId, {
         category: analysis.category,
         entities: { ...analysis.entities, ...fileMetadata },
         summary: analysis.summary,
@@ -695,8 +695,8 @@ export class InboxController {
       });
 
       // Only trigger distribution for successfully processed items
-      if (!shouldMarkAsFailed) {
-        await this.distributeItemAsync(item);
+      if (!shouldMarkAsFailed && updatedItem) {
+        await this.distributeItemAsync(updatedItem);
       }
 
       logger.info(`[AI Processing] Completed for item ${itemId}`);
@@ -715,7 +715,7 @@ export class InboxController {
   private async distributeItemAsync(item: Item): Promise<void> {
     try {
       logger.info(`Starting distribution for item ${item.id}`);
-      const results = await this.router.distributeItem(item);
+      const results = await this.router.executeRoutingRules(item);
 
       // Update item with distribution results
       const successCount = results.filter(r => r.status === 'success').length;

@@ -167,6 +167,25 @@ export interface PromptTemplate {
   updatedAt: string
 }
 
+// 回溯应用模式
+export enum RetroactiveMode {
+  NONE = 'none',        // 不回溯：仅应用于新条目
+  APPLY = 'apply',      // 立即回溯：应用到所有匹配的历史条目
+  BATCH = 'batch',      // 高级回溯：批量处理（带筛选器）
+}
+
+// 回溯配置（用于 BATCH 模式）
+export interface RetroactiveConfig {
+  batchSize?: number
+  delayBetweenBatches?: number
+  filters?: {
+    status?: string
+    startDate?: string
+    endDate?: string
+    category?: string
+  }
+}
+
 // 路由规则
 export interface RoutingRule {
   id: string
@@ -177,6 +196,8 @@ export interface RoutingRule {
   actions: RuleAction[]
   isActive: boolean
   isSystem?: boolean  // System rules are hardcoded for testing
+  retroactiveMode?: RetroactiveMode
+  retroactiveConfig?: RetroactiveConfig
   createdAt: string
   updatedAt: string
 }

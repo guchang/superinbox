@@ -239,7 +239,8 @@
     "notFound": "条目不存在",
     "confirmDelete": "确定要删除这条记录吗？",
     "actions": {
-      "reclassify": "重新分类"
+      "reclassify": "重新分类",
+      "redistribute": "重新分发"
     },
     "categories": {
       "todo": "待办",
@@ -307,6 +308,13 @@
       },
       "reclassifyFailure": {
         "title": "重新分类失败"
+      },
+      "redistributeSuccess": {
+        "title": "重新分发已开始",
+        "description": "正在使用当前路由规则分发条目"
+      },
+      "redistributeFailure": {
+        "title": "重新分发失败"
       }
     }
   },
@@ -1434,6 +1442,55 @@
       "actions": {
         "saving": "创建中...",
         "create": "创建规则"
+      }
+    },
+    "retroactive": {
+      "label": "应用模式",
+      "placeholder": "选择应用模式",
+      "modes": {
+        "none": {
+          "label": "仅新条目",
+          "badge": "默认",
+          "description": "此规则仅应用于后续新建的条目，历史数据不受影响。"
+        },
+        "apply": {
+          "label": "全部应用",
+          "badge": "立即",
+          "description": "立即将此规则应用于所有匹配的历史条目。"
+        },
+        "batch": {
+          "label": "批量处理",
+          "badge": "高级",
+          "description": "使用自定义筛选器和设置，分批处理历史条目。"
+        }
+      },
+      "applyWarning": {
+        "title": "应用到历史数据？",
+        "message": "这将立即把路由规则应用到所有匹配的历史条目。",
+        "note1": "所有匹配的条目将被分发到已配置的连接器",
+        "note2": "此操作无法撤销",
+        "note3": "如需更多控制，请使用\"批量处理\"模式",
+        "cancel": "取消",
+        "confirm": "全部应用"
+      },
+      "batchConfig": {
+        "title": "批量处理配置",
+        "description": "配置如何分批处理历史条目。",
+        "batchSize": "每批条目数",
+        "batchSizeHint": "每批处理的条目数量（1-100）",
+        "delay": "批次间隔（毫秒）",
+        "delayHint": "批次之间的等待时间，单位毫秒（100-10000）",
+        "filters": "筛选条件",
+        "filterStatus": "状态筛选",
+        "statusCompleted": "已完成",
+        "statusPending": "待处理",
+        "statusFailed": "失败",
+        "filterCategory": "分类筛选（可选）",
+        "categoryPlaceholder": "输入分类键值（如：todo）",
+        "summaryLabel": "摘要",
+        "summaryText": "每批处理 {size} 条条目，间隔 {delay} 毫秒",
+        "cancel": "取消",
+        "confirm": "开始批量处理"
       }
     }
   },

@@ -239,7 +239,8 @@
     "notFound": "Item not found",
     "confirmDelete": "Delete this item?",
     "actions": {
-      "reclassify": "Reclassify"
+      "reclassify": "Reclassify",
+      "redistribute": "Redistribute"
     },
     "categories": {
       "todo": "Todo",
@@ -307,6 +308,13 @@
       },
       "reclassifyFailure": {
         "title": "Reclassification failed"
+      },
+      "redistributeSuccess": {
+        "title": "Redistribution started",
+        "description": "Distributing item with current routing rules"
+      },
+      "redistributeFailure": {
+        "title": "Redistribution failed"
       }
     }
   },
@@ -1518,6 +1526,55 @@
       "actions": {
         "saving": "Creating...",
         "create": "Create rule"
+      }
+    },
+    "retroactive": {
+      "label": "Application mode",
+      "placeholder": "Select application mode",
+      "modes": {
+        "none": {
+          "label": "New items only",
+          "badge": "Default",
+          "description": "Apply this rule only to new items going forward. Historical items will not be affected."
+        },
+        "apply": {
+          "label": "Apply to all",
+          "badge": "Immediate",
+          "description": "Immediately apply this rule to all matching historical items."
+        },
+        "batch": {
+          "label": "Batch processing",
+          "badge": "Advanced",
+          "description": "Process historical items in batches with custom filters and settings."
+        }
+      },
+      "applyWarning": {
+        "title": "Apply to historical items?",
+        "message": "This will immediately apply the routing rule to all matching historical items.",
+        "note1": "All matching items will be distributed to the configured connector",
+        "note2": "This operation cannot be undone",
+        "note3": "Consider using 'Batch processing' for more control",
+        "cancel": "Cancel",
+        "confirm": "Apply to all"
+      },
+      "batchConfig": {
+        "title": "Batch processing configuration",
+        "description": "Configure how historical items should be processed in batches.",
+        "batchSize": "Items per batch",
+        "batchSizeHint": "Number of items to process in each batch (1-100)",
+        "delay": "Delay between batches (ms)",
+        "delayHint": "Wait time between batches in milliseconds (100-10000)",
+        "filters": "Filters",
+        "filterStatus": "Status filter",
+        "statusCompleted": "Completed",
+        "statusPending": "Pending",
+        "statusFailed": "Failed",
+        "filterCategory": "Category filter (optional)",
+        "categoryPlaceholder": "Enter category key (e.g. todo)",
+        "summaryLabel": "Summary",
+        "summaryText": "Process {size} items per batch with {delay}ms delay",
+        "cancel": "Cancel",
+        "confirm": "Start batch processing"
       }
     }
   }

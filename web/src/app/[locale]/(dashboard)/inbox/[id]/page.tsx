@@ -12,7 +12,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { formatRelativeTime } from '@/lib/utils'
 import { CategoryType, ContentType, ItemStatus, Priority } from '@/types'
-import { ArrowLeft, RefreshCw, Sparkles, Trash2, Loader2 } from 'lucide-react'
+import { ArrowLeft, RefreshCw, Sparkles, Trash2, Loader2, Share2 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { FilePreview } from '@/components/file-preview'
 import { useAutoRefetch } from '@/hooks/use-auto-refetch'
@@ -87,6 +87,27 @@ export default function InboxDetailPage() {
     onError: (error) => {
       toast({
         title: t('toast.reclassifyFailure.title'),
+        description: getApiErrorMessage(error, errors, common('unknownError')),
+        variant: 'destructive',
+      })
+    },
+  })
+
+  const redistributeMutation = useMutation({
+    mutationFn: async () => {
+      await inboxApi.distributeItem(id)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['inbox'] })
+      queryClient.invalidateQueries({ queryKey: ['inbox', id] })
+      toast({
+        title: t('toast.redistributeSuccess.title'),
+        description: t('toast.redistributeSuccess.description'),
+      })
+    },
+    onError: (error) => {
+      toast({
+        title: t('toast.redistributeFailure.title'),
         description: getApiErrorMessage(error, errors, common('unknownError')),
         variant: 'destructive',
       })
@@ -219,6 +240,19 @@ export default function InboxDetailPage() {
               <Sparkles className="h-4 w-4" />
             )}
             {t('actions.reclassify')}
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => redistributeMutation.mutate()}
+            disabled={redistributeMutation.isPending || item.status === ItemStatus.PROCESSING}
+            className="h-10 gap-2 px-4"
+          >
+            {redistributeMutation.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Share2 className="h-4 w-4" />
+            )}
+            {t('actions.redistribute')}
           </Button>
           <Button
             variant="destructive"
