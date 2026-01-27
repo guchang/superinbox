@@ -4,8 +4,29 @@
  */
 
 import type { Item } from '../../types/index.js';
-import { config as appConfig } from '../../config/index.js';
+import { getUserLLMClient } from '../../ai/llm-client.js';
 import { logger } from '../../middleware/logger.js';
+
+const extractResponseContent = (content: string): string | null => {
+  if (!content) return null;
+
+  // Try to parse as JSON first
+  try {
+    const parsed = JSON.parse(content);
+    if (typeof parsed === 'object' && parsed !== null) {
+      return JSON.stringify(parsed);
+    }
+  } catch {
+    // Not JSON, return as-is
+  }
+
+  // Remove markdown code blocks if present
+  let cleaned = content.trim();
+  cleaned = cleaned.replace(/```json\s*/g, '').replace(/```\s*/g, '');
+  cleaned = cleaned.trim();
+
+  return cleaned || null;
+};
 
 interface TransformOptions {
   instructions: string;
@@ -20,8 +41,6 @@ interface TransformResult {
 }
 
 export class LLMMappingService {
-  private config = appConfig;
-
   /**
    * Transform Item data to target format using LLM
    */
@@ -36,7 +55,7 @@ export class LLMMappingService {
 
     try {
       // Call LLM API
-      const result = await this.callLLM(prompt);
+      const result = await this.callLLM(prompt, item.userId);
 
       // Parse and validate response
       const transformed = this.parseResponse(result);
@@ -70,7 +89,7 @@ export class LLMMappingService {
     const { instructions, targetSchema, toolName } = options;
 
     const prompt = this.buildPrompt(item, instructions, targetSchema, toolName);
-    const result = await this.callLLM(prompt);
+    const result = await this.callLLM(prompt, item.userId);
 
     // Try to extract reasoning from response
     const reasoning = this.extractReasoning(result);
@@ -131,6 +150,7 @@ export class LLMMappingService {
 
   /**
    * Call LLM with chat history (stateful)
+   * Returns the content string (for backward compatibility)
    */
   async chat(
     messages: Array<{ role: string; content: string }>,
@@ -138,94 +158,47 @@ export class LLMMappingService {
       temperature?: number;
       maxTokens?: number;
       jsonMode?: boolean;
+      userId?: string;
+      sessionId?: string;
+      sessionType?: string;
     }
   ): Promise<string> {
-    const { llm } = this.config;
-    const apiUrl = llm.baseUrl || 'https://api.openai.com/v1';
+    const llmClient = getUserLLMClient(options?.userId);
 
-    const requestBody: Record<string, any> = {
-      model: llm.model,
-      messages,
+    const response = await llmClient.chat(messages, {
       temperature: options?.temperature ?? 0.3,
-      max_tokens: options?.maxTokens ?? (llm.maxTokens || 2000)
-    };
-
-    // Add JSON mode if supported and requested
-    // Note: OpenAI and compatible APIs usually support response_format: { type: "json_object" }
-    if (options?.jsonMode) {
-      requestBody.response_format = { type: 'json_object' };
-    }
-
-    const response = await fetch(`${apiUrl}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${llm.apiKey}`
-      },
-      body: JSON.stringify(requestBody)
+      maxTokens: options?.maxTokens,
+      jsonMode: options?.jsonMode,
+      sessionId: options?.sessionId,
+      sessionType: options?.sessionType,
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`LLM API error: ${response.status} ${errorText}`);
-    }
-
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content;
-
-    if (!content) {
-      throw new Error('Empty response from LLM');
-    }
-
-    return content;
+    return response.content;
   }
 
   /**
    * Call the LLM API (stateless wrapper)
    */
-  private async callLLM(prompt: string): Promise<string> {
-    const { llm } = this.config;
+  private async callLLM(prompt: string, userId?: string): Promise<string> {
+    const llmClient = getUserLLMClient(userId);
 
-    // Build request based on provider
-    const apiUrl = llm.baseUrl || 'https://api.openai.com/v1';
-
-    // For DeepSeek (OpenAI-compatible)
-    const response = await fetch(`${apiUrl}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${llm.apiKey}`
+    const messages = [
+      {
+        role: 'system',
+        content: 'You are a helpful assistant that converts data according to instructions. Always respond with valid JSON only, no markdown formatting.'
       },
-      body: JSON.stringify({
-        model: llm.model,
-        messages: [
-          {
-            role: 'system',
-            content: 'You are a helpful assistant that converts data according to instructions. Always respond with valid JSON only, no markdown formatting.'
-          },
-          {
-            role: 'user',
-            content: prompt
-          }
-        ],
-        temperature: 0.3,
-        max_tokens: llm.maxTokens || 2000
-      })
+      {
+        role: 'user',
+        content: prompt
+      }
+    ];
+
+    const response = await llmClient.chat(messages, {
+      temperature: 0.3,
+      jsonMode: true,
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`LLM API error: ${response.status} ${errorText}`);
-    }
-
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content;
-
-    if (!content) {
-      throw new Error('Empty response from LLM');
-    }
-
-    return content;
+    return response.content || '';
   }
 
   /**
