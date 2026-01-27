@@ -471,6 +471,121 @@ interface IAdapter {
 - `ObsidianAdapter` - 创建 Markdown 笔记到本地 vault
 - `WebhookAdapter` - 发送 HTTP POST 请求
 
+### Distribution Flow (Updated)
+
+The distribution process now follows this order:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ 1. Item received                                            │
+│    ↓                                                         │
+│ 2. AI analyzes content (category, entities, summary)        │
+│    ↓                                                         │
+│ 3. Routing Rules evaluated (highest priority first)         │
+│    ├─ Match? → Execute actions                              │
+│    │   ├─ distribute_mcp → Send to MCP adapter              │
+│    │   ├─ distribute_adapter → Send to traditional adapter  │
+│    │   ├─ update_item → Modify item properties              │
+│    │   └─ skip_distribution → Halt further processing       │
+│    └─ No match? → Continue to next rule                     │
+│    ↓                                                         │
+│ 4. Distribution configs evaluated (fallback)                │
+│    └─ Match? → Distribute to MCP adapter                    │
+│    ↓                                                         │
+│ 5. Item marked as distributed                               │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Key points:**
+- Routing rules (`routing_rules` table) are evaluated by priority (highest first)
+- Each rule can execute multiple actions
+- Distribution configs (`distribution_configs` table) serve as fallback
+- Both systems can coexist for different use cases
+
+### Rate Limiting
+
+Global rate limiter protects LLM API from quota exhaustion:
+
+**Configuration:**
+- **60 RPM** (requests per minute)
+- **Burst capacity**: 10 tokens
+- **Applied at**: `RouterService.distributeItem()` entry point
+- **Prevents**: 429 rate limit errors from LLM providers
+
+**Implementation details:**
+- Token bucket algorithm
+- Sliding window counter
+- Automatic retry with exponential backoff
+- Configurable via environment variables
+
+### Batch Redistribution
+
+Safe batch operations for redistributing historical items:
+
+**API Endpoint:**
+```http
+POST /v1/inbox/batch-redistribute
+```
+
+**Request body:**
+```json
+{
+  "filter": {
+    "status": "completed",
+    "category": "todo"
+  },
+  "batchSize": 10,
+  "delayBetweenBatches": 5000,
+  "dryRun": false
+}
+```
+
+**Parameters:**
+- `filter`: Item filter criteria (status, category, date range, etc.)
+- `batchSize`: Items per batch (default: 10, max: 50)
+- `delayBetweenBatches`: Delay in milliseconds (default: 5000)
+- `dryRun`: Test without actually distributing (default: false)
+
+**Track progress:**
+```http
+GET /v1/inbox/batch-redistribute/status
+
+# Response
+{
+  "status": "in_progress",
+  "totalItems": 150,
+  "processedItems": 45,
+  "successCount": 42,
+  "failureCount": 3,
+  "currentBatch": 5,
+  "estimatedTimeRemaining": 300
+}
+```
+
+**Use case:**
+- Redistribute historical items with new routing rules
+- Apply new routing logic to existing items
+- Test rules on historical data before enabling
+
+**Best practices:**
+1. Start with `dryRun: true` to verify
+2. Use small batch sizes (5-10) for testing
+3. Increase delay between batches (5-10s) for rate limit safety
+4. Monitor progress via status endpoint
+5. Review distribution results after completion
+
+### Routing Rules vs Distribution Configs
+
+| Feature | Routing Rules | Distribution Configs |
+|---------|--------------|---------------------|
+| **Priority** | Yes (configurable) | No (evaluated in order) |
+| **Multiple actions** | Yes | No (single adapter) |
+| **Condition operators** | 10+ (equals, contains, regex, etc.) | Simple match only |
+| **Item updates** | Yes (update_item action) | No |
+| **Skip distribution** | Yes | No |
+| **Logical operators** | AND/OR | AND only |
+| **Use case** | Complex workflows | Simple one-to-one mapping |
+
 ---
 
 ## Web - 前端管理界面
