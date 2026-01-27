@@ -1,6 +1,6 @@
 # SuperInabox 项目架构文档
 
-> **最后更新:** 2026-01-17
+> **最后更新:** 2026-01-27
 > **版本:** 0.2.0
 > **项目类型:** 全栈 Monorepo (Backend + Web + CLI)
 
@@ -111,6 +111,9 @@
 ---
 
 ## 变更记录
+
+### 2026-01-27
+- 添加日志管理章节，记录后端和前端日志文件位置
 
 ### 2026-01-17
 - 添加 AI 协作安全策略
@@ -316,6 +319,15 @@ docker-compose logs -f
 # 停止服务
 docker-compose down
 ```
+
+### 日志管理
+
+**日志文件位置：**
+
+| 服务 | 日志路径 | 说明 |
+|------|----------|------|
+| **后端** | `/Users/wudao/SuperInbox/backend.log` | Express 服务日志 |
+| **前端** | `/Users/wudao/SuperInbox/frontend.log` | Next.js 开发服务器日志 |
 
 ---
 
