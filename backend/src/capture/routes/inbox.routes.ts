@@ -4,6 +4,7 @@
 
 import { Router } from 'express';
 import { inboxController } from '../controllers/inbox.controller.js';
+import { batchRedistributeController } from '../controllers/bredistribute.controller.js';
 import { authenticate } from '../../middleware/auth.js';
 import { validateRequest } from '../../middleware/validation.js';
 import { uploadSingle, uploadMultiple } from '../../middleware/upload';
@@ -225,6 +226,28 @@ router.post(
   '/items/:id/distribute',
   authenticate,
   inboxController.triggerDistribution
+);
+
+/**
+ * @route   POST /v1/inbox/batch-redistribute
+ * @desc    Batch redistribute items with safety controls
+ * @access  Private (API Key)
+ */
+router.post(
+  '/inbox/batch-redistribute',
+  authenticate,
+  batchRedistributeController.batchRedistribute
+);
+
+/**
+ * @route   GET /v1/inbox/batch-redistribute/status
+ * @desc    Get batch redistribution status
+ * @access  Private (API Key)
+ */
+router.get(
+  '/inbox/batch-redistribute/status',
+  authenticate,
+  batchRedistributeController.getBatchStatus
 );
 
 export default router;

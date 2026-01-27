@@ -1221,3 +1221,6 @@ const isLikelyUrl = (value: string): boolean => {
 };
 
 export const inboxController = new InboxController();
+
+// Re-export batch redistribute controller
+export { batchRedistributeController } from './bredistribute.controller.js';
