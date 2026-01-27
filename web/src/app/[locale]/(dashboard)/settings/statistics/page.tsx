@@ -4,32 +4,227 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { TrendingUp, Activity, BarChart3, CheckCircle, XCircle, AlertCircle } from 'lucide-react'
+import {
+  Activity,
+  FileInput,
+  FileOutput,
+  Zap,
+  AlertCircle,
+  Copy,
+  Check,
+  ChevronDown,
+  ChevronUp,
+  Layers,
+  Clock,
+  MessageSquare,
+  User,
+  Bot,
+} from 'lucide-react'
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { useQuery } from '@tanstack/react-query'
-import { getStatistics } from '@/lib/api/logs'
+import { getLlmStatistics, getLlmLogs, getLlmSessions } from '@/lib/api/llm'
 import { useAuth } from '@/lib/hooks/use-auth'
-import type { StatisticsTimeRange } from '@/types/logs'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { formatRelativeTime } from '@/lib/utils'
 import { getApiErrorMessage } from '@/lib/i18n/api-errors'
+import type { LlmUsageLog, LlmSession } from '@/types'
 
 type TimeRange = 'today' | 'week' | 'month' | 'all'
 
-export default function StatisticsPage() {
-  const t = useTranslations('statistics')
+function getDateRange(timeRange: TimeRange): { startDate?: string; endDate?: string } {
+  const now = new Date()
+  const endDate = now.toISOString()
+
+  let startDate: string | undefined
+  if (timeRange === 'today') {
+    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    startDate = start.toISOString()
+  } else if (timeRange === 'week') {
+    const start = new Date(now)
+    start.setDate(now.getDate() - 7)
+    startDate = start.toISOString()
+  } else if (timeRange === 'month') {
+    const start = new Date(now)
+    start.setMonth(now.getMonth() - 1)
+    startDate = start.toISOString()
+  }
+
+  return { startDate, endDate }
+}
+
+function formatDuration(ms: number): string {
+  const seconds = Math.floor(ms / 1000)
+  const minutes = Math.floor(seconds / 60)
+  const hours = Math.floor(minutes / 60)
+
+  if (hours > 0) {
+    return `${hours}小时${minutes % 60}分`
+  } else if (minutes > 0) {
+    return `${minutes}分${seconds % 60}秒`
+  } else {
+    return `${seconds}秒`
+  }
+}
+
+export default function LlmStatisticsPage() {
+  const t = useTranslations('llmStatistics')
   const common = useTranslations('common')
-  const time = useTranslations('time')
   const errors = useTranslations('errors')
+  const time = useTranslations('time')
   const { authState } = useAuth()
   const [timeRange, setTimeRange] = useState<TimeRange>('week')
+
+  // 会话展开状态
+  const [expandedSessions, setExpandedSessions] = useState<Set<string>>(new Set())
+
+  // 会话对话详情弹窗
+  const [dialogOpen, setDialogOpen] = useState(false)
+  const [selectedSession, setSelectedSession] = useState<LlmSession | null>(null)
+  const [sessionLogs, setSessionLogs] = useState<LlmUsageLog[]>([])
+  // 对话消息展开状态（key: logId-messageIndex）
+  const [conversationExpanded, setConversationExpanded] = useState<Set<string>>(new Set())
+  const [copiedConversationMessage, setCopiedConversationMessage] = useState(false)
+  const [copiedAllConversation, setCopiedAllConversation] = useState(false)
+
+  // 单条日志详情弹窗（保留用于查看单条详情）
+  const [detailOpen, setDetailOpen] = useState(false)
+  const [selectedLog, setSelectedLog] = useState<LlmUsageLog | null>(null)
+  const [copiedRequest, setCopiedRequest] = useState(false)
+  const [copiedResponse, setCopiedResponse] = useState(false)
+  const [expandedMessages, setExpandedMessages] = useState<Set<number>>(new Set())
+  const [responseExpanded, setResponseExpanded] = useState(false)
+
+  const copyToClipboard = async (text: string, type: 'request' | 'response') => {
+    try {
+      await navigator.clipboard.writeText(text)
+      if (type === 'request') {
+        setCopiedRequest(true)
+        setTimeout(() => setCopiedRequest(false), 2000)
+      } else {
+        setCopiedResponse(true)
+        setTimeout(() => setCopiedResponse(false), 2000)
+      }
+    } catch (error) {
+      console.error('Failed to copy:', error)
+    }
+  }
+
+  const toggleMessageExpanded = (index: number) => {
+    setExpandedMessages(prev => {
+      const next = new Set(prev)
+      if (next.has(index)) {
+        next.delete(index)
+      } else {
+        next.add(index)
+      }
+      return next
+    })
+  }
+
+  const copyAllJson = async () => {
+    if (!selectedLog) return
+    const allData = {
+      meta: {
+        id: selectedLog.id,
+        model: selectedLog.model,
+        provider: selectedLog.provider,
+        status: selectedLog.status,
+        createdAt: selectedLog.createdAt,
+      },
+      request: selectedLog.requestMessages,
+      response: selectedLog.responseContent,
+      tokens: {
+        prompt: selectedLog.promptTokens,
+        completion: selectedLog.completionTokens,
+        total: selectedLog.totalTokens,
+      },
+    }
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(allData, null, 2))
+      setCopiedResponse(true)
+      setTimeout(() => setCopiedResponse(false), 2000)
+    } catch (error) {
+      console.error('Failed to copy:', error)
+    }
+  }
+
+  // Toggle conversation message expand/collapse
+  const toggleConversationExpanded = (key: string) => {
+    setConversationExpanded(prev => {
+      const next = new Set(prev)
+      if (next.has(key)) {
+        next.delete(key)
+      } else {
+        next.add(key)
+      }
+      return next
+    })
+  }
+
+  // Copy conversation message
+  const copyConversationMessage = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopiedConversationMessage(true)
+      setTimeout(() => setCopiedConversationMessage(false), 2000)
+    } catch (error) {
+      console.error('Failed to copy:', error)
+    }
+  }
+
+  // Copy all conversation
+  const copyAllConversation = async () => {
+    if (sessionLogs.length === 0) return
+
+    let fullText = `会话类型: ${selectedSession?.sessionType}\n`
+    fullText += `开始时间: ${new Date(selectedSession?.startedAt || '').toLocaleString()}\n`
+    fullText += `总 Tokens: ${selectedSession?.totalTokens?.toLocaleString()}\n`
+    fullText += `\n${'='.repeat(50)}\n\n`
+
+    for (const log of sessionLogs) {
+      // User messages
+      for (const msg of log.requestMessages) {
+        if (msg.role === 'user') {
+          fullText += `[用户] ${new Date(log.createdAt).toLocaleString()}\n`
+          fullText += `${msg.content}\n\n`
+        }
+      }
+      // Assistant response
+      if (log.responseContent) {
+        fullText += `[助手] ${new Date(log.createdAt).toLocaleString()}\n`
+        fullText += `${log.responseContent}\n\n`
+      }
+      fullText += `${'-'.repeat(30)}\n\n`
+    }
+
+    try {
+      await navigator.clipboard.writeText(fullText)
+      setCopiedAllConversation(true)
+      setTimeout(() => setCopiedAllConversation(false), 2000)
+    } catch (error) {
+      console.error('Failed to copy:', error)
+    }
+  }
+
+  // Check if content should show toggle
+  const shouldShowConversationToggle = (content: string) => {
+    const lineCount = content.split('\n').length
+    const charCount = content.length
+    return lineCount > 6 || charCount > 300
+  }
 
   const timeRangeOptions: { value: TimeRange; label: string }[] = [
     { value: 'today', label: t('timeRange.today') },
@@ -40,11 +235,19 @@ export default function StatisticsPage() {
 
   // Check admin permission
   const hasPermission = authState.user?.scopes?.includes('admin:full') ?? false
+  const dateRange = getDateRange(timeRange)
 
   // Fetch statistics data
-  const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ['statistics', timeRange],
-    queryFn: () => getStatistics({ timeRange: timeRange as StatisticsTimeRange }),
+  const { data: stats, isLoading: statsLoading, error: statsError, refetch: refetchStats } = useQuery({
+    queryKey: ['llm-statistics', timeRange],
+    queryFn: () => getLlmStatistics(dateRange),
+    enabled: hasPermission && !authState.isLoading,
+  })
+
+  // Fetch sessions data
+  const { data: sessionsData, isLoading: sessionsLoading, error: sessionsError, refetch: refetchSessions } = useQuery({
+    queryKey: ['llm-sessions', timeRange],
+    queryFn: () => getLlmSessions({ ...dateRange, page: 1, pageSize: 100 }),
     enabled: hasPermission && !authState.isLoading,
   })
 
@@ -70,7 +273,87 @@ export default function StatisticsPage() {
     )
   }
 
-  const stats = data
+  const sessions = sessionsData?.data || []
+
+  // Toggle session expansion
+  const toggleSessionExpanded = (sessionId: string) => {
+    setExpandedSessions(prev => {
+      const next = new Set(prev)
+      if (next.has(sessionId)) {
+        next.delete(sessionId)
+      } else {
+        next.add(sessionId)
+      }
+      return next
+    })
+  }
+
+  // Simple hash function for content
+  const hashContent = (content: string) => {
+    return content.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
+  }
+
+  // Open conversation dialog
+  const openConversationDialog = async (session: LlmSession) => {
+    setSelectedSession(session)
+    setDialogOpen(true)
+
+    // Fetch all logs for this session
+    try {
+      const { getLlmLogs } = await import('@/lib/api/llm')
+      const logsData = await getLlmLogs({
+        ...dateRange,
+        sessionId: session.sessionId,
+        page: 1,
+        pageSize: 100,
+      })
+      // Sort by time (oldest first)
+      const sortedLogs = (logsData.data || []).sort((a, b) =>
+        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+      )
+
+      // Deduplicate messages - only show each unique message once
+      const seenMessages = new Set<number>()
+      const uniqueLogs: typeof sortedLogs = []
+
+      for (const log of sortedLogs) {
+        const filteredMessages = log.requestMessages.filter(msg => {
+          const hash = hashContent(msg.content)
+          if (seenMessages.has(hash)) {
+            return false
+          }
+          seenMessages.add(hash)
+          return true
+        })
+
+        if (filteredMessages.length > 0 || log.responseContent) {
+          uniqueLogs.push({
+            ...log,
+            requestMessages: filteredMessages
+          })
+        }
+      }
+
+      setSessionLogs(uniqueLogs)
+    } catch (error) {
+      console.error('Failed to fetch session logs:', error)
+      setSessionLogs([])
+    }
+  }
+
+  // Get logs for a specific session
+  const getSessionLogs = (sessionId: string) => {
+    return useQuery({
+      queryKey: ['llm-logs', sessionId, timeRange],
+      queryFn: () => getLlmLogs({ ...dateRange, sessionId, page: 1, pageSize: 100 }),
+      enabled: expandedSessions.has(sessionId) && hasPermission,
+    })
+  }
+
+  const openDetail = (log: LlmUsageLog) => {
+    setSelectedLog(log)
+    setDetailOpen(true)
+  }
 
   return (
     <div className="space-y-6">
@@ -94,13 +377,13 @@ export default function StatisticsPage() {
       </div>
 
       {/* Error display */}
-      {error && (
+      {(statsError || sessionsError) && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>{common('loadFailure.title')}</AlertTitle>
           <AlertDescription className="flex items-center justify-between">
-            <span>{getApiErrorMessage(error, errors, common('unknownError'))}</span>
-            <Button variant="outline" size="sm" onClick={() => refetch()}>
+            <span>{getApiErrorMessage(statsError || sessionsError, errors, common('unknownError'))}</span>
+            <Button variant="outline" size="sm" onClick={() => { refetchStats(); refetchSessions(); }}>
               {common('reload')}
             </Button>
           </AlertDescription>
@@ -110,199 +393,660 @@ export default function StatisticsPage() {
       {/* Stats overview cards */}
       {stats && (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {/* Total requests */}
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardHeader className="flex flex-row items-center justify-between pb-1 p-3 md:p-4">
               <CardTitle className="text-sm font-medium text-muted-foreground">
-                {t('summary.totalRequests')}
+                {t('summary.totalCalls')}
               </CardTitle>
               <Activity className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.summary.totalRequests.toLocaleString()}</div>
-              <p className="text-xs text-muted-foreground mt-1">
-                {stats.summary.trendPercentage !== undefined && (
-                  <span className="flex items-center">
-                    {stats.summary.trendPercentage >= 0 ? (
-                      <>
-                        <TrendingUp className="h-3 w-3 mr-1 text-green-500" />
-                        <span className="text-green-500">+{stats.summary.trendPercentage}%</span>
-                      </>
-                    ) : (
-                      <>
-                        <TrendingUp className="h-3 w-3 mr-1 text-red-500 rotate-180" />
-                        <span className="text-red-500">{stats.summary.trendPercentage}%</span>
-                      </>
-                    )}
-                    <span className="ml-1">{t('summary.compared')}</span>
-                  </span>
-                )}
-              </p>
+            <CardContent className="p-3 md:p-4 pt-0">
+              <div className="text-2xl font-bold">{stats.totalCalls.toLocaleString()}</div>
             </CardContent>
           </Card>
 
-          {/* Success rate */}
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardHeader className="flex flex-row items-center justify-between pb-1 p-3 md:p-4">
               <CardTitle className="text-sm font-medium text-muted-foreground">
-                {t('summary.successRate')}
+                {t('summary.totalTokens')}
               </CardTitle>
-              <BarChart3 className="h-4 w-4 text-muted-foreground" />
+              <Zap className="h-4 w-4 text-yellow-500" />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.summary.successRate}%</div>
-              <div className="text-xs text-muted-foreground mt-1">
-                <Badge variant="outline" className="text-xs">
-                  {stats.summary.successRate >= 99
-                    ? t('quality.excellent')
-                    : stats.summary.successRate >= 95
-                      ? t('quality.good')
-                      : t('quality.needsWork')}
-                </Badge>
-              </div>
+            <CardContent className="p-3 md:p-4 pt-0">
+              <div className="text-2xl font-bold">{stats.totalTokens.toLocaleString()}</div>
             </CardContent>
           </Card>
 
-          {/* Success requests */}
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardHeader className="flex flex-row items-center justify-between pb-1 p-3 md:p-4">
               <CardTitle className="text-sm font-medium text-muted-foreground">
-                {t('summary.successCount')}
+                {t('summary.promptTokens')}
               </CardTitle>
-              <CheckCircle className="h-4 w-4 text-green-500" />
+              <FileInput className="h-4 w-4 text-blue-500" />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.summary.successCount.toLocaleString()}</div>
-              <p className="text-xs text-muted-foreground mt-1">
-                {t('summary.share', { value: stats.statusDistribution.find(d => d.status === 'success')?.percentage || 0 })}
-              </p>
+            <CardContent className="p-3 md:p-4 pt-0">
+              <div className="text-2xl font-bold">{stats.promptTokens.toLocaleString()}</div>
             </CardContent>
           </Card>
 
-          {/* Error requests */}
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardHeader className="flex flex-row items-center justify-between pb-1 p-3 md:p-4">
               <CardTitle className="text-sm font-medium text-muted-foreground">
-                {t('summary.errorCount')}
+                {t('summary.completionTokens')}
               </CardTitle>
-              <XCircle className="h-4 w-4 text-red-500" />
+              <FileOutput className="h-4 w-4 text-purple-500" />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.summary.errorCount.toLocaleString()}</div>
-              <p className="text-xs text-muted-foreground mt-1">
-                {t('summary.share', { value: stats.statusDistribution.find(d => d.status === 'error')?.percentage || 0 })}
-              </p>
+            <CardContent className="p-3 md:p-4 pt-0">
+              <div className="text-2xl font-bold">{stats.completionTokens.toLocaleString()}</div>
             </CardContent>
           </Card>
         </div>
       )}
 
-      {/* Trend chart placeholder */}
-      <Card>
-        <CardHeader>
-          <CardTitle>{t('trend.title')}</CardTitle>
-          <CardDescription>
-            {t('trend.description')}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="h-64 flex items-center justify-center border-2 border-dashed rounded-lg">
-            <div className="text-center text-muted-foreground">
-              <BarChart3 className="h-12 w-12 mx-auto mb-3 opacity-50" />
-              <p className="text-sm font-medium">{t('trend.placeholderTitle')}</p>
-              <p className="text-xs mt-1">{t('trend.placeholderSubtitle')}</p>
-              {stats && stats.trendData.length > 0 && (
-                <p className="text-xs mt-2 text-muted-foreground/70">
-                  {t('trend.collected', { count: stats.trendData.length })}
-                </p>
+      {/* Sessions list */}
+      <div className="space-y-4">
+        {sessionsLoading ? (
+          <div className="text-center py-8 text-muted-foreground">{common('loading')}</div>
+        ) : sessions.length === 0 ? (
+          <Card>
+            <CardContent className="py-16 text-center text-muted-foreground">
+              {common('noData')}
+            </CardContent>
+          </Card>
+        ) : (
+          sessions.map((session) => (
+            <SessionCard
+              key={session.sessionId}
+              session={session}
+              isExpanded={expandedSessions.has(session.sessionId)}
+              onToggle={() => toggleSessionExpanded(session.sessionId)}
+              onViewConversation={() => openConversationDialog(session)}
+            >
+              {expandedSessions.has(session.sessionId) && (
+                <SessionLogsContent
+                  session={session}
+                  dateRange={dateRange}
+                  hasPermission={hasPermission}
+                  onOpenDetail={openDetail}
+                />
               )}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+            </SessionCard>
+          ))
+        )}
+      </div>
 
-      {/* API Keys detailed stats */}
-      {stats && (
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle>{t('keys.title')}</CardTitle>
-                <CardDescription>
-                  {t('keys.description')}
-                </CardDescription>
-              </div>
-              <Badge variant="outline">{t('keys.activeCount', { count: stats.keyStats.length })}</Badge>
+      {/* Conversation dialog */}
+      <Dialog open={dialogOpen} onOpenChange={(open) => setDialogOpen(open)}>
+        <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader className="flex flex-row items-center justify-between gap-4">
+            <div>
+              <DialogTitle className="flex items-center gap-2">
+                <MessageSquare className="h-5 w-5" />
+                {t('conversation.title') || '对话历史'}
+              </DialogTitle>
+              <DialogDescription>
+                {selectedSession && (
+                  <span className="flex items-center gap-4 text-sm">
+                    <span>{selectedSession.sessionType}</span>
+                    <span>•</span>
+                    <span>{selectedSession.calls} 次调用</span>
+                    <span>•</span>
+                    <span>{selectedSession.totalTokens.toLocaleString()} tokens</span>
+                  </span>
+                )}
+              </DialogDescription>
             </div>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b">
-                    <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">{t('keys.table.name')}</th>
-                    <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">{t('keys.table.requests')}</th>
-                    <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">{t('keys.table.share')}</th>
-                    <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">{t('keys.table.successRate')}</th>
-                    <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">{t('keys.table.lastUsed')}</th>
-                    <th className="text-center py-3 px-4 text-sm font-medium text-muted-foreground">{t('keys.table.status')}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {stats.keyStats.map((key) => (
-                    <tr key={key.id} className="border-b last:border-0 hover:bg-muted/50">
-                      <td className="py-3 px-4">
-                        <div>
-                          <div className="font-medium">{key.name}</div>
-                          <div className="text-xs text-muted-foreground">{key.id}</div>
-                        </div>
-                      </td>
-                      <td className="text-right py-3 px-4">
-                        <span className="font-medium">{key.requests.toLocaleString()}</span>
-                      </td>
-                      <td className="text-right py-3 px-4">
-                        <div className="flex items-center justify-end gap-2">
-                          <div className="w-24 bg-secondary rounded-full h-1.5 overflow-hidden">
-                            <div
-                              className="h-full bg-primary rounded-full"
-                              style={{ width: `${key.percentage}%` }}
-                            />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={copyAllConversation}
+              className="shrink-0"
+            >
+              {copiedAllConversation ? (
+                <>
+                  <Check className="h-4 w-4 mr-2" />
+                  {common('copied') || '已复制'}
+                </>
+              ) : (
+                <>
+                  <Copy className="h-4 w-4 mr-2" />
+                  复制全部
+                </>
+              )}
+            </Button>
+          </DialogHeader>
+          {selectedSession && sessionLogs.length > 0 && (
+            <div className="w-full">
+              <div className="space-y-4">
+                {sessionLogs.map((log, index) => (
+                  <div key={log.id} className="space-y-3">
+                    {/* System message */}
+                    {log.requestMessages
+                      .filter(m => m.role === 'system')
+                      .map((msg, msgIndex) => {
+                        const messageKey = `system-${log.id}-${msgIndex}`
+                        const isExpanded = conversationExpanded.has(messageKey)
+                        const showToggle = shouldShowConversationToggle(msg.content)
+
+                        return (
+                          <div key={messageKey} className="flex gap-3">
+                            <div className="flex-shrink-0 w-8 h-8 rounded-full bg-orange-500/10 flex items-center justify-center">
+                              <AlertCircle className="h-4 w-4 text-orange-500" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="text-sm text-muted-foreground mb-1 flex items-center gap-2">
+                                <span>{new Date(log.createdAt).toLocaleString()}</span>
+                                <span>•</span>
+                                <span>系统</span>
+                                <span className="flex-1"></span>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-6 px-2"
+                                  onClick={() => copyConversationMessage(msg.content)}
+                                >
+                                  {copiedConversationMessage ? (
+                                    <Check className="h-3 w-3" />
+                                  ) : (
+                                    <Copy className="h-3 w-3" />
+                                  )}
+                                </Button>
+                                {showToggle && (
+                                  <button
+                                    onClick={() => toggleConversationExpanded(messageKey)}
+                                    className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                                  >
+                                    {isExpanded ? (
+                                      <>
+                                        <ChevronUp className="h-3 w-3" />
+                                        收起
+                                      </>
+                                    ) : (
+                                      <>
+                                        <ChevronDown className="h-3 w-3" />
+                                        展开
+                                      </>
+                                    )}
+                                  </button>
+                                )}
+                              </div>
+                              <div
+                                className={`text-sm bg-orange-50/50 dark:bg-orange-950/20 rounded-lg p-3 break-words break-all ${
+                                  !isExpanded && showToggle ? 'max-h-[120px] overflow-hidden' : ''
+                                }`}
+                              >
+                                {msg.content}
+                              </div>
+                            </div>
                           </div>
-                          <span className="text-sm text-muted-foreground w-10">{key.percentage}%</span>
+                        )
+                      })}
+
+                    {/* User message */}
+                    {log.requestMessages
+                      .filter(m => m.role === 'user')
+                      .map((msg, msgIndex) => {
+                        const messageKey = `user-${log.id}-${msgIndex}`
+                        const isExpanded = conversationExpanded.has(messageKey)
+                        const showToggle = shouldShowConversationToggle(msg.content)
+
+                        return (
+                          <div key={messageKey} className="flex gap-3">
+                            <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                              <User className="h-4 w-4 text-primary" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="text-sm text-muted-foreground mb-1 flex items-center gap-2">
+                                <span>{new Date(log.createdAt).toLocaleString()}</span>
+                                <span>•</span>
+                                <span>{t('conversation.user') || '用户'}</span>
+                                <span className="flex-1"></span>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-6 px-2"
+                                  onClick={() => copyConversationMessage(msg.content)}
+                                >
+                                  {copiedConversationMessage ? (
+                                    <Check className="h-3 w-3" />
+                                  ) : (
+                                    <Copy className="h-3 w-3" />
+                                  )}
+                                </Button>
+                                {showToggle && (
+                                  <button
+                                    onClick={() => toggleConversationExpanded(messageKey)}
+                                    className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                                  >
+                                    {isExpanded ? (
+                                      <>
+                                        <ChevronUp className="h-3 w-3" />
+                                        收起
+                                      </>
+                                    ) : (
+                                      <>
+                                        <ChevronDown className="h-3 w-3" />
+                                        展开
+                                      </>
+                                    )}
+                                  </button>
+                                )}
+                              </div>
+                              <div
+                                className={`text-sm bg-muted/50 rounded-lg p-3 break-words break-all ${
+                                  !isExpanded && showToggle ? 'max-h-[120px] overflow-hidden' : ''
+                                }`}
+                              >
+                                {msg.content}
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      })}
+
+                    {/* Assistant message */}
+                    {log.responseContent && (
+                      <div key={`assistant-${log.id}`} className="flex gap-3">
+                        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-green-500/10 flex items-center justify-center">
+                          <Bot className="h-4 w-4 text-green-600" />
                         </div>
-                      </td>
-                      <td className="text-right py-3 px-4">
-                        <span className={`text-sm font-medium ${
-                          key.successRate >= 99 ? 'text-green-600' :
-                          key.successRate >= 95 ? 'text-yellow-600' : 'text-red-600'
-                        }`}>
-                          {key.successRate}%
-                        </span>
-                      </td>
-                      <td className="text-right py-3 px-4">
-                        <span className="text-sm text-muted-foreground">
-                          {formatRelativeTime(key.lastUsed, time)}
-                        </span>
-                      </td>
-                      <td className="text-center py-3 px-4">
-                        <Badge variant={key.isActive ? 'default' : 'secondary'} className="text-xs">
-                          {key.isActive ? t('keys.status.active') : t('keys.status.inactive')}
-                        </Badge>
-                      </td>
-                    </tr>
-                  ))}
-                  {stats.keyStats.length === 0 && (
-                    <tr>
-                      <td colSpan={6} className="text-center py-8 text-muted-foreground">
-                        {common('noData')}
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm text-muted-foreground mb-1 flex items-center gap-2 flex-wrap">
+                            <span>{new Date(log.createdAt).toLocaleString()}</span>
+                            <span>•</span>
+                            <span>{t('conversation.assistant') || '助手'}</span>
+                            <span>•</span>
+                            <Badge variant="outline" className="text-xs">
+                              {log.completionTokens.toLocaleString()} tokens
+                            </Badge>
+                            <span className="flex-1"></span>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 px-2"
+                              onClick={() => copyConversationMessage(log.responseContent!)}
+                            >
+                              {copiedConversationMessage ? (
+                                <Check className="h-3 w-3" />
+                              ) : (
+                                <Copy className="h-3 w-3" />
+                              )}
+                            </Button>
+                            {shouldShowConversationToggle(log.responseContent) && (
+                              <button
+                                onClick={() => toggleConversationExpanded(`assistant-${log.id}`)}
+                                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                              >
+                                {conversationExpanded.has(`assistant-${log.id}`) ? (
+                                  <>
+                                    <ChevronUp className="h-3 w-3" />
+                                    收起
+                                  </>
+                                ) : (
+                                  <>
+                                    <ChevronDown className="h-3 w-3" />
+                                    展开
+                                  </>
+                                )}
+                              </button>
+                            )}
+                          </div>
+                          <div
+                            className={`text-sm bg-muted/50 rounded-lg p-3 break-words break-all whitespace-pre-wrap overflow-x-auto ${
+                              !conversationExpanded.has(`assistant-${log.id}`) && shouldShowConversationToggle(log.responseContent)
+                                ? 'max-h-[120px] overflow-hidden'
+                                : ''
+                            }`}
+                          >
+                            {log.responseContent}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Separator between conversations */}
+                    {index < sessionLogs.length - 1 && (
+                      <div className="border-t border-muted/200 my-4" />
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
-          </CardContent>
-        </Card>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Single log detail dialog (legacy, for viewing individual log details) */}
+      <Dialog open={detailOpen} onOpenChange={(open) => setDetailOpen(open)}>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader className="flex flex-row items-center justify-between">
+            <div>
+              <DialogTitle>{t('logs.detail.title')}</DialogTitle>
+              <DialogDescription>{t('logs.detail.description')}</DialogDescription>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={copyAllJson}
+              className="shrink-0"
+            >
+              {copiedResponse ? (
+                <>
+                  <Check className="h-4 w-4 mr-2" />
+                  {common('copied') || '已复制'}
+                </>
+              ) : (
+                <>
+                  <Copy className="h-4 w-4 mr-2" />
+                  {t('logs.detail.copyAll') || '复制全部'}
+                </>
+              )}
+            </Button>
+          </DialogHeader>
+          {selectedLog && (
+            <div className="space-y-6">
+              <div className="grid gap-2 text-sm">
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">{t('logs.detail.meta.time')}</span>
+                  <span>{new Date(selectedLog.createdAt).toLocaleString()}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">{t('logs.detail.meta.model')}</span>
+                  <span className="font-medium">{selectedLog.model}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">{t('logs.detail.meta.provider')}</span>
+                  <span className="uppercase">{selectedLog.provider}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">{t('logs.detail.meta.status')}</span>
+                  <Badge variant={selectedLog.status === 'success' ? 'default' : 'destructive'}>
+                    {selectedLog.status === 'success' ? t('logs.status.success') : t('logs.status.error')}
+                  </Badge>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <h4 className="text-sm font-semibold">{t('logs.detail.requestTitle')}</h4>
+                {selectedLog.requestMessages?.length ? (
+                  <div className="space-y-2">
+                    {selectedLog.requestMessages.map((message, index) => {
+                      const isExpanded = expandedMessages.has(index)
+                      const lineCount = message.content.split('\n').length
+                      const charCount = message.content.length
+                      const shouldShowToggle = lineCount > 6 || charCount > 500
+
+                      return (
+                        <div key={`${message.role}-${index}`} className="rounded-md border bg-muted/40">
+                          <div className="flex items-center justify-between p-3 pb-2">
+                            <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                              {message.role}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {shouldShowToggle && (
+                                <button
+                                  onClick={() => toggleMessageExpanded(index)}
+                                  className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                                >
+                                  {isExpanded ? (
+                                    <>
+                                      <ChevronUp className="h-3 w-3" />
+                                      收起
+                                    </>
+                                  ) : (
+                                    <>
+                                      <ChevronDown className="h-3 w-3" />
+                                      展开
+                                    </>
+                                  )}
+                                </button>
+                              )}
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => copyToClipboard(message.content, 'request')}
+                                className="h-7 px-2"
+                              >
+                                {copiedRequest ? (
+                                  <Check className="h-3 w-3" />
+                                ) : (
+                                  <Copy className="h-3 w-3" />
+                                )}
+                              </Button>
+                            </div>
+                          </div>
+                          <pre
+                            className={`whitespace-pre-wrap text-sm break-words max-w-[600px] overflow-x-auto px-3 pb-3 ${
+                              !isExpanded && shouldShowToggle ? 'max-h-[120px] overflow-hidden' : ''
+                            }`}
+                          >
+                            {message.content}
+                          </pre>
+                        </div>
+                      )
+                    })}
+                  </div>
+                ) : (
+                  <div className="text-sm text-muted-foreground">{common('noData')}</div>
+                )}
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-sm font-semibold">{t('logs.detail.responseTitle')}</h4>
+                  <div className="flex items-center gap-2">
+                    {selectedLog.responseContent && (
+                      (selectedLog.responseContent.split('\n').length > 6 || selectedLog.responseContent.length > 500)
+                    ) && (
+                      <button
+                        onClick={() => setResponseExpanded(!responseExpanded)}
+                        className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        {responseExpanded ? (
+                          <>
+                            <ChevronUp className="h-3 w-3" />
+                            收起
+                          </>
+                        ) : (
+                          <>
+                            <ChevronDown className="h-3 w-3" />
+                            展开
+                          </>
+                        )}
+                      </button>
+                    )}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => copyToClipboard(selectedLog.responseContent || '', 'response')}
+                      className="h-7 px-2"
+                      disabled={!selectedLog.responseContent}
+                    >
+                      {copiedResponse ? (
+                        <Check className="h-3 w-3" />
+                      ) : (
+                        <Copy className="h-3 w-3" />
+                      )}
+                    </Button>
+                  </div>
+                </div>
+                {selectedLog.responseContent ? (
+                  <div className="rounded-md border bg-muted/40">
+                    <pre
+                      className={`whitespace-pre-wrap text-sm break-words max-w-[600px] overflow-x-auto p-3 ${
+                        !responseExpanded &&
+                        (selectedLog.responseContent.split('\n').length > 6 || selectedLog.responseContent.length > 500)
+                          ? 'max-h-[120px] overflow-hidden'
+                          : ''
+                      }`}
+                    >
+                      {selectedLog.responseContent}
+                    </pre>
+                  </div>
+                ) : (
+                  <div className="text-sm text-muted-foreground">{common('noData')}</div>
+                )}
+                {selectedLog.errorMessage && (
+                  <div className="text-sm text-destructive">
+                    {t('logs.detail.errorTitle')}: {selectedLog.errorMessage}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  )
+}
+
+// Session Card Component
+function SessionCard({
+  session,
+  isExpanded,
+  onToggle,
+  onViewConversation,
+  children
+}: {
+  session: LlmSession
+  isExpanded: boolean
+  onToggle: () => void
+  onViewConversation: () => void
+  children: React.ReactNode
+}) {
+  const t = useTranslations('llmStatistics')
+  const common = useTranslations('common')
+  const { authState } = useAuth()
+  const hasPermission = authState.user?.scopes?.includes('admin:full') ?? false
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div className="flex-1">
+            <div className="flex items-center gap-2 mb-1">
+              <CardTitle className="text-base font-mono text-sm">
+                <Layers className="h-4 w-4 inline mr-2" />
+                {session.sessionId}
+              </CardTitle>
+              <Badge variant="outline" className="capitalize">
+                {session.sessionType}
+              </Badge>
+            </div>
+            <CardDescription className="flex items-center gap-3 text-sm">
+              <span className="flex items-center gap-1">
+                <Activity className="h-3 w-3" />
+                {session.calls} {t('session.calls') || '次调用'}
+              </span>
+              <span className="flex items-center gap-1">
+                <Zap className="h-3 w-3" />
+                {session.totalTokens.toLocaleString()} {t('session.tokens') || 'tokens'}
+              </span>
+              <span className="flex items-center gap-1">
+                <Clock className="h-3 w-3" />
+                {formatDuration(session.duration)}
+              </span>
+              <span className="text-xs text-muted-foreground">
+                {new Date(session.startedAt).toLocaleString()} → {new Date(session.endedAt).toLocaleString()}
+              </span>
+            </CardDescription>
+          </div>
+          <div className="flex items-center gap-2">
+            {hasPermission && session.calls > 0 && (
+              <Button variant="outline" size="sm" onClick={onToggle}>
+                {isExpanded ? (
+                  <>
+                    <ChevronUp className="h-4 w-4 mr-1" />
+                    {t('session.collapse') || '收起'}
+                  </>
+                ) : (
+                  <>
+                    <ChevronDown className="h-4 w-4 mr-1" />
+                    {t('session.expand') || '展开'}
+                  </>
+                )}
+              </Button>
+            )}
+            <Button variant="default" size="sm" onClick={onViewConversation}>
+              <MessageSquare className="h-4 w-4 mr-1" />
+              {t('session.viewConversation') || '查看对话'}
+            </Button>
+          </div>
+        </div>
+      </CardHeader>
+      {isExpanded && (
+        <CardContent className="pt-0">
+          {children}
+        </CardContent>
+      )}
+    </Card>
+  )
+}
+
+// Session Logs Content Component
+function SessionLogsContent({
+  session,
+  dateRange,
+  hasPermission,
+  onOpenDetail
+}: {
+  session: LlmSession
+  dateRange: { startDate?: string; endDate?: string }
+  hasPermission: boolean
+  onOpenDetail: (log: LlmUsageLog) => void
+}) {
+  const t = useTranslations('llmStatistics')
+  const common = useTranslations('common')
+
+  const { data: logsData, isLoading } = useQuery({
+    queryKey: ['llm-logs', session.sessionId, dateRange.startDate, dateRange.endDate],
+    queryFn: () => getLlmLogs({
+      ...dateRange,
+      sessionId: session.sessionId,
+      page: 1,
+      pageSize: 100,
+    }),
+    enabled: hasPermission,
+  })
+
+  const logs = logsData?.data || []
+
+  if (isLoading) {
+    return (
+      <div className="text-center py-8 text-muted-foreground">{common('loading')}</div>
+    )
+  }
+
+  return (
+    <div className="space-y-2">
+      {logs.map((log) => (
+        <div
+          key={log.id}
+          className="flex items-center justify-between p-3 rounded-lg border hover:bg-muted/50 transition-colors"
+        >
+          <div className="flex items-center gap-4 text-sm flex-1 min-w-0">
+            <span className="text-muted-foreground tabular-nums">
+              {new Date(log.createdAt).toLocaleTimeString()}
+            </span>
+            <span className="font-medium text-muted-foreground">|</span>
+            <span className="flex items-center gap-1">
+              <FileInput className="h-3 w-3 text-blue-500" />
+              <span className="tabular-nums">{log.promptTokens.toLocaleString()}</span>
+            </span>
+            <span className="font-medium text-muted-foreground">|</span>
+            <span className="flex items-center gap-1">
+              <FileOutput className="h-3 w-3 text-purple-500" />
+              <span className="tabular-nums">{log.completionTokens.toLocaleString()}</span>
+            </span>
+            <span className="font-medium text-muted-foreground">|</span>
+            <Badge variant={log.status === 'success' ? 'default' : 'destructive'} className="text-xs">
+              {log.status === 'success' ? t('logs.status.success') : t('logs.status.error')}
+            </Badge>
+          </div>
+        </div>
+      ))}
+      {logs.length === 0 && (
+        <div className="text-center py-8 text-muted-foreground">{common('noData')}</div>
       )}
     </div>
   )

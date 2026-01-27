@@ -2,14 +2,15 @@
 
 import { useState, Suspense } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { AlertCircle, Download } from 'lucide-react'
+import { AlertCircle, Download, BarChart3 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
-import { getAccessLogs } from '@/lib/api/logs'
+import { getAccessLogs, getStatistics } from '@/lib/api/logs'
 import { useLogFilters } from '@/lib/hooks/use-log-filters'
 import { useAuth } from '@/lib/hooks/use-auth'
 import { LogTable } from '@/components/logs/LogTable'
 import { LogFilters } from '@/components/logs/LogFilters'
 import { LogExportDialog } from '@/components/logs/LogExportDialog'
+import { ApiStatisticsDialog } from '@/components/logs/ApiStatisticsDialog'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { getApiErrorMessage } from '@/lib/i18n/api-errors'
@@ -21,6 +22,7 @@ function GlobalLogsPageContent() {
   const { authState } = useAuth()
   const { filters, dateRange, updateFilter, resetFilters } = useLogFilters()
   const [exportDialogOpen, setExportDialogOpen] = useState(false)
+  const [statisticsDialogOpen, setStatisticsDialogOpen] = useState(false)
 
   // All hooks must be called before any conditional returns
   const hasPermission = authState.user?.scopes?.includes('admin:full') ?? false
@@ -86,10 +88,16 @@ function GlobalLogsPageContent() {
         <div>
           <h1 className="text-3xl font-bold">{t('title')}</h1>
         </div>
-        <Button onClick={() => setExportDialogOpen(true)} size="default">
-          <Download className="mr-2 h-4 w-4" />
-          {t('actions.export')}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button onClick={() => setStatisticsDialogOpen(true)} size="default" variant="outline">
+            <BarChart3 className="mr-2 h-4 w-4" />
+            {t('actions.statistics')}
+          </Button>
+          <Button onClick={() => setExportDialogOpen(true)} size="default">
+            <Download className="mr-2 h-4 w-4" />
+            {t('actions.export')}
+          </Button>
+        </div>
       </div>
 
       {/* Error display */}
@@ -136,6 +144,12 @@ function GlobalLogsPageContent() {
         onClose={() => setExportDialogOpen(false)}
         filters={{ ...filters, ...dateRange }}
         logCount={total}
+      />
+
+      {/* Statistics dialog */}
+      <ApiStatisticsDialog
+        open={statisticsDialogOpen}
+        onClose={() => setStatisticsDialogOpen(false)}
       />
     </div>
   )
