@@ -13,29 +13,29 @@ describe('Inbox Flow Integration Tests', () => {
   });
 
   describe('AI Processing', () => {
-    it('should classify todo intent correctly', async () => {
+    it('should classify todo category correctly', async () => {
       const ai = getAIService();
       const result = await ai.analyzeContent('明天下午3点开会');
 
-      expect(result.intent).toBe('todo');
+      expect(result.category).toBe('todo');
       expect(result.entities.dueDate).toBeDefined();
       expect(result.confidence).toBeGreaterThan(0.5);
     });
 
-    it('should classify expense intent correctly', async () => {
+    it('should classify expense category correctly', async () => {
       const ai = getAIService();
       const result = await ai.analyzeContent('买咖啡花了25元');
 
-      expect(result.intent).toBe('expense');
+      expect(result.category).toBe('expense');
       expect(result.entities.amount).toBe(25);
       expect(result.confidence).toBeGreaterThan(0.5);
     });
 
-    it('should classify idea intent correctly', async () => {
+    it('should classify idea category correctly', async () => {
       const ai = getAIService();
       const result = await ai.analyzeContent('突然想到可以做一个自动整理邮件的工具');
 
-      expect(result.intent).toBe('idea');
+      expect(result.category).toBe('idea');
       expect(result.confidence).toBeGreaterThan(0.5);
     });
 
@@ -59,7 +59,7 @@ describe('Inbox Flow Integration Tests', () => {
         originalContent: 'Test content',
         contentType: 'text' as const,
         source: 'test',
-        intent: 'unknown' as const,
+        category: 'unknown' as const,
         entities: {},
         status: 'pending' as const,
         priority: 'medium' as const,
@@ -80,12 +80,12 @@ describe('Inbox Flow Integration Tests', () => {
       const db = getDatabase();
 
       const updated = db.updateItem('test-001', {
-        intent: 'todo' as const,
+        category: 'todo' as const,
         status: 'completed' as const
       });
 
       expect(updated).toBeDefined();
-      expect(updated?.intent).toBe('todo');
+      expect(updated?.category).toBe('todo');
       expect(updated?.status).toBe('completed');
     });
 

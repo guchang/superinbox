@@ -34,7 +34,7 @@ describe('Complete Flow Integration Tests', () => {
       expect(response.body.success).toBe(true);
       expect(response.body.data).toHaveProperty('id');
       expect(response.body.data).toHaveProperty('originalContent', 'Buy milk tomorrow at 9am');
-      expect(response.body.data).toHaveProperty('intent');
+      expect(response.body.data).toHaveProperty('category');
 
       itemId = response.body.data.id;
     });
@@ -62,7 +62,7 @@ describe('Complete Flow Integration Tests', () => {
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
       expect(response.body.data).toHaveProperty('itemId', itemId);
-      expect(response.body.data).toHaveProperty('intent');
+      expect(response.body.data).toHaveProperty('category');
       expect(response.body.data).toHaveProperty('entities');
       expect(response.body.data).toHaveProperty('summary');
     });
@@ -93,10 +93,10 @@ describe('Complete Flow Integration Tests', () => {
       expect(found).toBe(true);
     });
 
-    it('should filter by intent', async () => {
+    it('should filter by category', async () => {
       const response = await request(app)
         .get('/v1/inbox/search')
-        .query({ intent: 'todo' })
+        .query({ category: 'todo' })
         .set('Authorization', `Bearer ${apiKey}`);
 
       expect(response.status).toBe(200);
@@ -200,7 +200,7 @@ describe('Complete Flow Integration Tests', () => {
         .patch(`/v1/intelligence/parse/${itemId}`)
         .set('Authorization', `Bearer ${apiKey}`)
         .send({
-          intent: 'todo',
+          category: 'todo',
           entities: {
             action: 'buy',
             item: 'milk',
@@ -347,7 +347,7 @@ describe('Complete Flow Integration Tests', () => {
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
       expect(response.body.data).toHaveProperty('totalItems');
-      expect(response.body.data).toHaveProperty('itemsByIntent');
+      expect(response.body.data).toHaveProperty('itemsByCategory');
       expect(response.body.data).toHaveProperty('itemsByStatus');
       expect(response.body.data).toHaveProperty('avgProcessingTime');
     });

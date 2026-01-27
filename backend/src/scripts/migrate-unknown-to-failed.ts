@@ -1,7 +1,7 @@
 /**
- * Migration Script: Mark unknown intent items as failed
+ * Migration Script: Mark unknown category items as failed
  *
- * This script updates all items with intent='unknown' and status='completed'
+ * This script updates all items with category='unknown' and status='completed'
  * to have status='failed' since they represent failed AI processing.
  */
 
@@ -14,10 +14,10 @@ async function migrate() {
   try {
     console.log('Starting migration: unknown -> failed status...\n');
 
-    // Get all items with intent='unknown' and status='completed'
+    // Get all items with category='unknown' and status='completed'
     const rows = db.prepare(`
       SELECT * FROM items
-      WHERE intent = 'unknown' AND status = 'completed'
+      WHERE category = 'unknown' AND status = 'completed'
     `).all();
 
     console.log(`Found ${rows.length} items to migrate\n`);

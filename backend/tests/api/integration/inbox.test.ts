@@ -27,7 +27,7 @@ describe('POST /v1/inbox', () => {
       expect(response.body).toHaveProperty('data');
       expect(response.body.data).toHaveProperty('id');
       expect(response.body.data).toHaveProperty('status', 'pending');
-      expect(response.body.data).toHaveProperty('intent');
+      expect(response.body.data).toHaveProperty('category');
     });
 
     it('should return 401 without API key', async () => {
@@ -120,7 +120,7 @@ describe('POST /v1/inbox', () => {
       //   data: {
       //     id: string,
       //     status: 'pending',
-      //     intent: string,
+      //     category: string,
       //     message: string
       //   }
       // }
@@ -144,7 +144,7 @@ describe('POST /v1/inbox', () => {
       // 1. Current: wrapped response with 'success' key
       // 2. Current: status is 'pending', docs say 'processing'
       // 3. Current: missing 'createdAt' in response
-      // 4. Current: includes 'intent' field
+      // 4. Current: includes 'category' field
     });
   });
 });
@@ -164,18 +164,18 @@ describe('GET /v1/inbox', () => {
     expect(Array.isArray(response.body.entries)).toBe(true);
   });
 
-  it('should filter by intent type', async () => {
+  it('should filter by category type', async () => {
     // Create test item first
     await createTestItem({ content: 'Buy milk', source: 'test' });
 
     const response = await request(app)
       .get('/v1/inbox')
       .set('Authorization', `Bearer ${testContext.testApiKey}`)
-      .query({ intent: 'todo', limit: 10 });
+      .query({ category: 'todo', limit: 10 });
 
     expect(response.status).toBe(200);
     response.body.entries.forEach((entry: any) => {
-      expect(entry.intent).toBe('todo');
+      expect(entry.category).toBe('todo');
     });
   });
 
@@ -233,7 +233,7 @@ describe('GET /v1/inbox/:id', () => {
     expect(response.body).toHaveProperty('content', 'Test item');
     expect(response.body).toHaveProperty('source', 'test');
     expect(response.body).toHaveProperty('parsed');
-    expect(response.body.parsed).toHaveProperty('intent');
+    expect(response.body.parsed).toHaveProperty('category');
     expect(response.body.parsed).toHaveProperty('confidence');
     expect(response.body.parsed).toHaveProperty('entities');
     expect(response.body).toHaveProperty('routingHistory');

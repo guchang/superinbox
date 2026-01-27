@@ -31,7 +31,7 @@ describe('GET /v1/intelligence/parse/:id', () => {
     expect(response.body).toHaveProperty('entryId', testItemId);
     expect(response.body).toHaveProperty('originalContent');
     expect(response.body).toHaveProperty('parsed');
-    expect(response.body.parsed).toHaveProperty('intent');
+    expect(response.body.parsed).toHaveProperty('category');
     expect(response.body.parsed).toHaveProperty('confidence');
     expect(response.body.parsed).toHaveProperty('entities');
     expect(response.body).toHaveProperty('parsedAt');
@@ -62,7 +62,7 @@ describe('PATCH /v1/intelligence/parse/:id', () => {
       .patch(`/v1/intelligence/parse/${testItemId}`)
       .set('Authorization', `Bearer ${testContext.testApiKey}`)
       .send({
-        intent: 'expense',
+        category: 'expense',
         entities: {
           amount: 30,
           currency: 'CNY',

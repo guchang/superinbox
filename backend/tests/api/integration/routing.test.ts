@@ -190,7 +190,7 @@ describe('Routing Rules API', () => {
           description: 'Test routing rule',
           priority: 1,
           conditions: [
-            { field: 'intent', operator: 'equals', value: 'todo' }
+            { field: 'category', operator: 'equals', value: 'todo' }
           ],
           actions: [
             { type: 'mcp', config: { mcpAdapterId: 'test-adapter-id' } }
@@ -212,7 +212,7 @@ describe('Routing Rules API', () => {
         .set('Authorization', `Bearer ${testContext.testApiKey}`)
         .send({
           item: {
-            intent: 'todo',
+            category: 'todo',
             content: 'Test todo item'
           }
         });

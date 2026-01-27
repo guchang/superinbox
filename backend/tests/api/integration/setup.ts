@@ -102,7 +102,7 @@ export function createTestItem(overrides: Partial<any> = {}) {
     originalContent: 'Test content for integration testing',
     contentType: 'text' as const,
     source: 'integration-test',
-    intent: 'unknown' as const,
+    category: 'unknown' as const,
     entities: {},
     status: 'pending' as const,
     priority: 'medium' as const,
