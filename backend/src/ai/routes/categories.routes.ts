@@ -8,6 +8,7 @@ import {
   createCategory,
   listCategories,
   updateCategory,
+  deleteCategory,
   type CategoryRecord,
 } from '../store.js';
 import { sendError } from '../../utils/error-response.js';
@@ -89,6 +90,25 @@ router.put('/:id', authenticate, (req, res) => {
     examples: Array.isArray(payload.examples) ? payload.examples : undefined,
     isActive: typeof payload.isActive === 'boolean' ? payload.isActive : undefined,
   });
+
+  if (!record) {
+    sendError(res, {
+      statusCode: 404,
+      code: 'AI.CATEGORY_NOT_FOUND',
+      message: 'Category not found',
+      params: { id }
+    });
+    return;
+  }
+
+  res.json({ success: true, data: record });
+});
+
+router.delete('/:id', authenticate, (req, res) => {
+  const userId = req.user?.userId ?? 'default-user';
+  const id = req.params.id;
+
+  const record = deleteCategory(userId, id);
 
   if (!record) {
     sendError(res, {

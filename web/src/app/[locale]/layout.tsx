@@ -4,6 +4,9 @@ import { getMessages, getTranslations } from 'next-intl/server'
 import { Providers } from '@/components/providers/providers'
 import { routing } from '@/i18n/routing'
 
+const resolveLocale = (locale: string | undefined) =>
+  locale && routing.locales.includes(locale) ? locale : routing.defaultLocale
+
 export function generateStaticParams() {
   return routing.locales.map((locale) => ({ locale }))
 }
@@ -13,7 +16,8 @@ export async function generateMetadata({
 }: {
   params: Promise<{ locale: string }>
 }): Promise<Metadata> {
-  const { locale } = await params
+  const { locale: rawLocale } = await params
+  const locale = resolveLocale(rawLocale)
   const t = await getTranslations({ locale, namespace: 'metadata' })
 
   return {
@@ -32,7 +36,8 @@ export default async function LocaleLayout({
   children: React.ReactNode
   params: Promise<{ locale: string }>
 }) {
-  const { locale } = await params
+  const { locale: rawLocale } = await params
+  const locale = resolveLocale(rawLocale)
   const messages = await getMessages({ locale })
 
   return (

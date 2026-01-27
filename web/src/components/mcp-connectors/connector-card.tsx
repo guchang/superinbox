@@ -9,7 +9,7 @@
 
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { ChevronRight, CheckCircle, XCircle, Clock, Loader2, Edit, Trash2, RefreshCw } from 'lucide-react'
+import { ChevronRight, CheckCircle, XCircle, Clock, Loader2, Pencil, Trash2, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { MCPConnectorLogo } from './mcp-connector-logo'
@@ -169,7 +169,7 @@ export function MCPConnectorCard({ connector, onEdit, onDelete, onTest, onAuthor
             }}
             title={t('actions.edit')}
           >
-            <Edit className="h-4 w-4" />
+            <Pencil className="h-4 w-4" />
           </Button>
 
           <Button

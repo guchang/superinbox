@@ -22,6 +22,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Checkbox } from '@/components/ui/checkbox'
+import { Switch } from '@/components/ui/switch'
 import {
   Select,
   SelectContent,
@@ -29,8 +30,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { useToast } from '@/hooks/use-toast'
-import { Plus, Edit, Trash2 } from 'lucide-react'
+import { LayoutGrid, List, MoreHorizontal, Plus, Pencil, Trash2 } from 'lucide-react'
 import { getApiErrorMessage, type ApiError } from '@/lib/i18n/api-errors'
 
 // Helper functions - defined before components that use them
@@ -139,6 +146,21 @@ export default function RoutingPage() {
 
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all')
+  const [viewMode, setViewMode] = useState<'list' | 'grid'>('list')
+
+  // Load view mode from localStorage on mount
+  useEffect(() => {
+    const saved = localStorage.getItem('routing-view-mode')
+    if (saved === 'list' || saved === 'grid') {
+      setViewMode(saved)
+    }
+  }, [])
+
+  // Save view mode to localStorage when it changes
+  useEffect(() => {
+    localStorage.setItem('routing-view-mode', viewMode)
+  }, [viewMode])
+
   const [editingRule, setEditingRule] = useState<RoutingRule | null>(null)
   const [editOpen, setEditOpen] = useState(false)
   const [createOpen, setCreateOpen] = useState(false)
@@ -199,31 +221,57 @@ export default function RoutingPage() {
     }
   }
 
+  const handleToggleRule = async (rule: RoutingRule) => {
+    try {
+      await routingApi.updateRule(rule.id, {
+        ...rule,
+        isActive: !rule.isActive,
+      })
+      toast({
+        title: rule.isActive
+          ? t('toasts.ruleDeactivated.title', { defaultValue: 'Rule deactivated' })
+          : t('toasts.ruleActivated.title', { defaultValue: 'Rule activated' }),
+        description: rule.name,
+      })
+      refetch()
+    } catch (error) {
+      toast({
+        title: t('toasts.updateFailed.title'),
+        description: getApiErrorMessage(error, errors, common('operationFailed')),
+        variant: 'destructive',
+      })
+    }
+  }
+
   return (
     <div className="w-full max-w-4xl mx-auto space-y-6 px-4">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
+      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+        <div className="space-y-1">
           <h1 className="text-3xl font-bold">{t('title')}</h1>
+          <p className="text-sm text-muted-foreground">{t('description')}</p>
         </div>
-        <div />
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => setViewMode(viewMode === 'list' ? 'grid' : 'list')}
+            title={t('view.toggle')}
+          >
+            {viewMode === 'list' ? (
+              <LayoutGrid className="h-4 w-4" />
+            ) : (
+              <List className="h-4 w-4" />
+            )}
+          </Button>
+          <Button onClick={() => setCreateOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            {t('actions.createRule')}
+          </Button>
+        </div>
       </div>
 
-      <Card>
-        <CardHeader>
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div>
-                <CardTitle>{t('ruleList.title')}</CardTitle>
-              </div>
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <span>{t('ruleList.summary.total', { count: rules.length })}</span>
-                <span>·</span>
-                <span>{t('ruleList.summary.active', { count: activeRules.length })}</span>
-                <span>·</span>
-                <span>{t('ruleList.summary.inactive', { count: inactiveRules })}</span>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
+      <Card className="border-0 shadow-none">
+        <CardContent className="px-0 space-y-4">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex-1">
                 <Input
@@ -232,34 +280,28 @@ export default function RoutingPage() {
                   placeholder={t('ruleList.searchPlaceholder')}
                 />
               </div>
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end sm:gap-2">
-                <div className="sm:w-[180px]">
-                  <Select
-                    value={statusFilter}
-                    onValueChange={(value) =>
-                      setStatusFilter(value as 'all' | 'active' | 'inactive')
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder={t('ruleList.statusFilter.placeholder')} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">
-                        {t('ruleList.statusFilter.all')}
-                      </SelectItem>
-                      <SelectItem value="active">
-                        {t('ruleList.statusFilter.active')}
-                      </SelectItem>
-                      <SelectItem value="inactive">
-                        {t('ruleList.statusFilter.inactive')}
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <Button onClick={() => setCreateOpen(true)}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  {t('actions.createRule')}
-                </Button>
+              <div className="sm:w-[180px]">
+                <Select
+                  value={statusFilter}
+                  onValueChange={(value) =>
+                    setStatusFilter(value as 'all' | 'active' | 'inactive')
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={t('ruleList.statusFilter.placeholder')} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">
+                      {t('ruleList.statusFilter.all')}
+                    </SelectItem>
+                    <SelectItem value="active">
+                      {t('ruleList.statusFilter.active')}
+                    </SelectItem>
+                    <SelectItem value="inactive">
+                      {t('ruleList.statusFilter.inactive')}
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
@@ -271,7 +313,7 @@ export default function RoutingPage() {
               <div className="text-center py-8 text-muted-foreground">
                 {t('ruleList.empty')}
               </div>
-            ) : (
+            ) : viewMode === 'list' ? (
               <div className="space-y-4">
                 {filteredRules.map((rule) => {
                   const conditions =
@@ -302,67 +344,145 @@ export default function RoutingPage() {
                               {t('ruleList.systemBadge')}
                             </Badge>
                           )}
-                          <Badge variant={rule.isActive ? 'default' : 'secondary'}>
-                            {rule.isActive
-                              ? t('ruleList.status.active')
-                              : t('ruleList.status.inactive')}
-                          </Badge>
-                          <Badge variant="outline">
-                            {t('ruleList.priority', { value: rule.priority })}
-                          </Badge>
                         </div>
                         <p className="text-sm text-muted-foreground mb-2">
                           {rule.description || t('ruleList.descriptionEmpty')}
                         </p>
-                        <div className="flex flex-wrap gap-2">
-                          {conditions.map((condition, index) => (
-                            <Badge key={`${rule.id}-condition-${index}`} variant="secondary">
-                              {fieldLabels[condition.field] || condition.field}{' '}
-                              {operatorLabels[condition.operator] || condition.operator}{' '}
-                              {formatValue(condition.value)}
-                            </Badge>
-                          ))}
-                          {actions.length ? (
-                            actions.map((action, index) => (
-                              <Badge key={`${rule.id}-action-${index}`} variant="outline">
-                                → {getActionDisplayName(action, actionLabels)}
-                              </Badge>
-                            ))
-                          ) : (
-                            <Badge variant="outline">
-                              {t('ruleList.actionsEmpty')}
-                            </Badge>
-                          )}
-                        </div>
                         <div className="text-xs text-muted-foreground mt-2">
                           {t('ruleList.updatedAt', {
                             date: formatDate(rule.updatedAt, locale),
                           })}
                         </div>
                       </div>
-                      <div className="flex gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleEditRule(rule)}
+                      <div className="flex items-center gap-2">
+                        <Switch
+                          checked={rule.isActive}
+                          onCheckedChange={() => handleToggleRule(rule)}
                           disabled={isSystemRule}
-                          title={isSystemRule ? t('ruleList.systemRuleLocked') : undefined}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleDeleteRule(rule)}
-                          disabled={isSystemRule}
-                          title={isSystemRule ? t('ruleList.systemRuleLocked') : undefined}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        />
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 p-0"
+                              disabled={isSystemRule}
+                            >
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                              onClick={() => handleEditRule(rule)}
+                              disabled={isSystemRule}
+                            >
+                              <Pencil className="mr-2 h-4 w-4" />
+                              {t('actions.edit', { defaultValue: 'Edit' })}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => handleDeleteRule(rule)}
+                              disabled={isSystemRule}
+                              className="text-destructive focus:text-destructive"
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              {common('delete')}
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
                     </div>
                   )
                 })}
+              </div>
+            ) : (
+              <div className="grid gap-4 sm:grid-cols-2">
+                {filteredRules.map((rule) => {
+                  const conditions =
+                    rule.conditions?.length
+                      ? rule.conditions
+                      : [
+                          {
+                            field: 'category',
+                            operator: 'equals',
+                            value: t('ruleList.conditions.all'),
+                          },
+                        ]
+                  const actions = rule.actions ?? []
+                  const isSystemRule = rule.isSystem === true
+
+                  return (
+                    <Card key={rule.id} className={`relative ${isSystemRule ? 'bg-amber-50/50 dark:bg-amber-950/20' : ''}`}>
+                      <CardHeader className="pb-3">
+                        <div className="flex items-start justify-between gap-2 mb-2">
+                          <div className="flex-1 min-w-0">
+                            <CardTitle className="text-lg truncate pr-2">{rule.name}</CardTitle>
+                          </div>
+                          <div className="flex flex-wrap gap-1">
+                            {isSystemRule && (
+                              <Badge variant="outline" className="text-amber-600 dark:text-amber-400 border-amber-300 dark:border-amber-700">
+                                {t('ruleList.systemBadge')}
+                              </Badge>
+                            )}
+                            <Switch
+                              checked={rule.isActive}
+                              onCheckedChange={() => handleToggleRule(rule)}
+                              disabled={isSystemRule}
+                            />
+                          </div>
+                        </div>
+                        {rule.description && (
+                          <p className="text-sm text-muted-foreground line-clamp-2">
+                            {rule.description}
+                          </p>
+                        )}
+                      </CardHeader>
+                      <CardContent className="pt-0">
+                        <div className="absolute bottom-4 right-4">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 p-0"
+                                disabled={isSystemRule}
+                              >
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem
+                                onClick={() => handleEditRule(rule)}
+                                disabled={isSystemRule}
+                              >
+                                <Pencil className="mr-2 h-4 w-4" />
+                                {t('actions.edit', { defaultValue: 'Edit' })}
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => handleDeleteRule(rule)}
+                                disabled={isSystemRule}
+                                className="text-destructive focus:text-destructive"
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                {common('delete')}
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )
+                })}
+              </div>
+            )}
+            {filteredRules.length > 0 && (
+              <div className="flex items-center justify-between py-2 text-sm text-muted-foreground">
+                <span>
+                  <span className="font-medium text-foreground">{t('ruleList.summary.total', { count: rules.length })}</span>
+                  <span>·</span>
+                  <span>{t('ruleList.summary.active', { count: activeRules.length })}</span>
+                  <span>·</span>
+                  <span>{t('ruleList.summary.inactive', { count: inactiveRules })}</span>
+                </span>
               </div>
             )}
           </CardContent>
@@ -780,7 +900,8 @@ function RuleEditDialog({
                 case 'step:error':
                   setTestResult(prev => ({
                     ...prev!,
-                    success: false,
+                    // Don't set overall success=false here - wait for 'complete' event
+                    // LLM may recover and adjust plan, so only final result matters
                     steps: prev?.steps?.map(s =>
                       s.step === data.step
                         ? {

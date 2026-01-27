@@ -13,6 +13,10 @@
     "cancel": "取消",
     "processing": "处理中",
     "reload": "重新加载",
+    "showing": "显示",
+    "of": "共",
+    "delete": "删除",
+    "copied": "已复制",
     "permissionDenied": {
       "title": "权限不足",
       "description": "您需要管理员权限才能访问此页面"
@@ -575,37 +579,32 @@
   },
   "settings": {
     "title": "系统设置",
-    "apiConfig": {
-      "title": "API 认证配置",
-      "description": "配置访问 SuperInbox 后端所需的 API Key",
-      "apiUrl": "API 地址",
-      "currentKey": {
-        "label": "当前 API Key 状态",
-        "configured": "已配置",
-        "storage": "本地存储",
-        "notConfigured": "未配置",
-        "defaultHint": "将使用默认开发密钥"
+    "llmConfig": {
+      "title": "LLM 配置",
+      "description": "配置用于内容处理的模型与访问地址",
+      "provider": {
+        "label": "模型提供商",
+        "placeholder": "openai"
       },
-      "newKey": {
-        "label": "设置新的 API Key",
-        "placeholder": "输入你的 API Key",
-        "helper": "生产环境建议使用后端生成的 API Key"
-      }
-    },
-    "quickLinks": {
-      "title": "快速导航",
-      "description": "访问其他设置页面",
-      "apiKeys": {
-        "title": "API 密钥管理",
-        "description": "创建和管理 API 密钥"
+      "model": {
+        "label": "模型名称",
+        "placeholder": "openai/gpt-oss-120b"
       },
-      "logs": {
-        "title": "访问日志",
-        "description": "查看系统访问记录"
+      "baseUrl": {
+        "label": "API Base URL",
+        "placeholder": "https://api.nvidia.com/v1"
       },
-      "statistics": {
-        "title": "使用统计",
-        "description": "查看系统使用情况"
+      "maxTokens": {
+        "label": "Max Tokens",
+        "placeholder": "例如 2000",
+        "helper": "留空将使用默认值"
+      },
+      "apiKey": {
+        "label": "LLM API Key",
+        "placeholder": "输入你的 LLM API Key",
+        "configured": "已配置（自定义）",
+        "default": "使用默认密钥",
+        "helper": "留空表示不更新，清除将回退到默认密钥"
       }
     },
     "timezone": {
@@ -625,26 +624,9 @@
     "actions": {
       "clear": "清除",
       "save": "保存",
-      "useDefaultKey": "使用默认开发密钥",
       "useBrowserTimezone": "使用当前浏览器时区"
     },
     "toast": {
-      "apiKeyEmpty": {
-        "title": "API Key 不能为空",
-        "description": "请输入有效的 API Key"
-      },
-      "apiKeySaved": {
-        "title": "API Key 已保存",
-        "description": "API Key 已成功保存到本地存储"
-      },
-      "defaultKeyUsed": {
-        "title": "已使用默认开发密钥",
-        "description": "默认密钥仅用于开发环境，生产环境请更换"
-      },
-      "apiKeyCleared": {
-        "title": "API Key 已清除",
-        "description": "系统将自动使用默认开发密钥"
-      },
       "timezoneEmpty": {
         "title": "时区不能为空",
         "description": "请输入有效的 IANA 时区，如 Asia/Shanghai"
@@ -655,13 +637,37 @@
       },
       "timezoneSaveFailure": {
         "title": "时区保存失败"
+      },
+      "llmProviderEmpty": {
+        "title": "模型提供商不能为空",
+        "description": "请输入模型提供商，如 openai"
+      },
+      "llmModelEmpty": {
+        "title": "模型名称不能为空",
+        "description": "请输入模型名称，如 openai/gpt-oss-120b"
+      },
+      "llmMaxTokensInvalid": {
+        "title": "Max Tokens 无效",
+        "description": "请输入正整数"
+      },
+      "llmConfigSaved": {
+        "title": "LLM 配置已保存",
+        "description": "新的配置将用于后续 AI 调用"
+      },
+      "llmConfigSaveFailure": {
+        "title": "LLM 配置保存失败"
+      },
+      "llmApiKeyCleared": {
+        "title": "LLM API Key 已清除",
+        "description": "将回退到默认密钥"
       }
     }
   },
   "logs": {
     "title": "访问日志审计",
     "actions": {
-      "export": "导出日志"
+      "export": "导出日志",
+      "statistics": "数据统计"
     },
     "loading": "加载中...",
     "empty": "暂无日志记录",
@@ -1077,10 +1083,8 @@
     },
     "ai": {
       "invalidInput": "AI 请求无效",
-      "templateNotFound": "提示词版本不存在",
       "categoryNotFound": "分类不存在",
-      "categoryKeyExists": "分类 key 已存在",
-      "previewFailed": "预览失败"
+      "categoryKeyExists": "分类 key 已存在"
     },
     "settings": {
       "invalidTimezone": "时区无效",
@@ -1102,34 +1106,24 @@
   "aiPage": {
     "listSeparator": "、",
     "title": "分类管理",
+    "description": "管理 AI 分类引擎的分类规则和示例数据，启用后将参与内容智能分类。",
     "actions": {
       "addCategory": "新增分类",
-      "newTemplate": "新建提示词版本",
       "edit": "编辑",
-      "enable": "启用",
       "save": "保存",
       "editCategory": "编辑分类",
       "enableCategory": "启用分类",
-      "disableCategory": "停用分类",
-      "coverageRequired": "模板未覆盖，无法操作"
+      "disableCategory": "停用分类"
     },
     "stats": {
-      "totalCategories": {
-        "title": "分类总数",
-        "description": "已配置的分类数"
-      },
-      "activeCategories": {
-        "title": "启用分类",
-        "description": "参与分类的意图数量"
-      },
-      "templateVersions": {
-        "title": "提示词版本",
-        "description": "历史版本数量"
-      },
-      "missingCoverage": {
-        "title": "覆盖缺失",
-        "description": "未覆盖的启用分类"
-      }
+      "total": "总计 {count}",
+      "active": "启用 {count}",
+      "inactive": "停用 {count}"
+    },
+    "view": {
+      "list": "列表视图",
+      "grid": "卡片视图",
+      "toggle": "切换视图"
     },
     "categoryList": {
       "title": "分类列表",
@@ -1143,38 +1137,11 @@
       "empty": "暂无分类"
     },
     "status": {
-      "uncovered": "未覆盖",
       "active": "启用",
       "inactive": "停用"
     },
     "labels": {
       "unnamed": "未命名"
-    },
-    "coverage": {
-      "badge": {
-        "notParsed": "未解析",
-        "missing": "缺失 {count}"
-      }
-    },
-    "templates": {
-      "copyName": "{name} - 副本",
-      "newVersion": "新提示词版本"
-    },
-    "templateSection": {
-      "title": "分类提示词管理",
-      "description": "启用前需覆盖所有启用分类。",
-      "empty": "暂无提示词版本",
-      "notParsed": "尚未解析覆盖",
-      "createdAt": "创建时间：{date}",
-      "status": {
-        "active": "启用中",
-        "inactive": "未启用"
-      },
-      "tooltip": {
-        "active": "当前已启用",
-        "enable": "启用该版本",
-        "missingCoverage": "需覆盖以下分类后才能启用：{categories}"
-      }
     },
     "categoryDialog": {
       "titleEdit": "编辑分类",
@@ -1192,7 +1159,7 @@
           "conflict": "该标识已存在。"
         },
         "description": {
-          "label": "描述",
+          "label": "分类规则",
           "placeholder": "一句话描述该分类用于哪些内容"
         },
         "examples": {
@@ -1204,149 +1171,36 @@
         }
       }
     },
-    "templateDialog": {
-      "titleEdit": "编辑提示词版本",
-      "titleCreate": "新建提示词版本",
-      "description": "AI 解析后生成覆盖结果，需覆盖所有启用分类才能启用。修改提示词后请重新解析。",
-      "fields": {
-        "name": {
-          "label": "版本名称",
-          "placeholder": "例如：默认分类提示词 v2"
-        },
-        "description": {
-          "label": "版本描述",
-          "placeholder": "描述此次版本变更"
-        },
-        "prompt": {
-          "label": "提示词内容",
-          "placeholder": "输入分类提示词或结构化指令"
-        }
-      },
-      "coverage": {
-        "title": "覆盖解析",
-        "hint": "解析结果即覆盖结果，修改提示词后请重新解析。",
-        "staleHint": "覆盖已过期，需要重新解析。",
-        "badges": {
-          "parsing": "解析中",
-          "stale": "已过期",
-          "complete": "覆盖完整",
-          "missing": "缺失 {count}",
-          "notParsed": "未解析"
-        },
-        "actions": {
-          "parsing": "解析覆盖中…",
-          "parse": "AI 解析覆盖",
-          "createCategory": "新建分类",
-          "ignore": "忽略"
-        },
-        "summary": {
-          "covered": "已覆盖 {covered}/{total}",
-          "missing": "缺失 {count}",
-          "lowRisk": "风险低"
-        },
-        "sections": {
-          "parsed": "已解析",
-          "empty": "无",
-          "unparsed": "未解析",
-          "allParsed": "已全部解析",
-          "unknown": "未知"
-        },
-        "emptyState": {
-          "titleParsing": "解析覆盖中…",
-          "titleIdle": "先解析",
-          "descriptionParsing": "正在生成覆盖建议，请稍候。",
-          "descriptionIdle": "未解析时仅展示空态；解析后会展示覆盖差异与风险提示。"
-        },
-        "alertMissing": "启用前需覆盖：{categories}",
-        "alertComplete": "已覆盖所有启用分类，可以启用。"
-      },
-      "sample": {
-        "title": "试运行",
-        "description": "输入一句示例内容，调用 AI 进行一次分类预览。",
-        "warning": "注意：试运行会调用 AI，结果可能受模型与配置影响。保存模板后，建议使用真实数据验证分类准确性。",
-        "label": "示例内容",
-        "placeholder": "例如：明天 10 点和张三开会",
-        "running": "试运行中…",
-        "run": "试运行",
-        "runningInline": "AI 试运行中…",
-        "hit": "命中",
-        "confidence": "置信 {percent}%",
-        "reason": "理由：{reason}",
-        "failed": "失败"
-      },
-      "actions": {
-        "save": "保存提示词版本"
-      }
-    },
     "toasts": {
-      "categoryKeyUpdated": {
-        "title": "分类标识已更新",
-        "description": "请重新解析模板覆盖以保持一致。"
-      },
       "categorySaveFailed": {
         "title": "保存分类失败"
       },
       "categoryUpdateFailed": {
         "title": "更新分类失败"
       },
-      "frontendParsed": {
-        "title": "前端预解析完成",
-        "description": "新建提示词使用关键词匹配预解析，保存后可使用 AI 解析获得更准确结果。"
+      "categoryDeleted": {
+        "title": "分类已删除",
+        "description": "已删除\"{name}\""
       },
-      "coverageParseFailed": {
-        "title": "解析覆盖失败"
-      },
-      "promptRequired": {
-        "title": "请填写提示词内容"
-      },
-      "coverageStale": {
-        "title": "覆盖已过期",
-        "description": "请先重新解析覆盖后再试运行。"
-      },
-      "coverageMissing": {
-        "title": "尚未解析覆盖",
-        "description": "请先解析覆盖后再试运行。"
-      },
-      "noAvailableCategories": {
-        "title": "没有可用分类",
-        "description": "请先完善分类或重新解析覆盖。"
-      },
-      "sampleRunFailed": {
-        "title": "试运行失败"
-      },
-      "openCategoryEditor": {
-        "title": "打开分类编辑",
-        "description": "请完善分类信息后保存，保存后可在模板中重新解析覆盖。"
-      },
-      "templateNameRequired": {
-        "title": "请填写版本名称"
-      },
-      "coverageIncomplete": {
-        "title": "覆盖不完整",
-        "description": "解析结果未覆盖以下分类：{categories}。保存后请调整提示词并重新解析，否则无法启用。"
-      },
-      "templateSaved": {
-        "title": "提示词保存成功",
-        "descriptionComplete": "解析结果已覆盖所有启用分类，可以启用。",
-        "descriptionIncomplete": "请调整提示词并重新解析后再启用。"
-      },
-      "templateSaveFailed": {
-        "title": "保存提示词失败"
-      },
-      "templateActivateFailed": {
-        "title": "启用失败"
+      "categoryDeleteFailed": {
+        "title": "删除分类失败"
       }
     },
-    "errors": {
-      "sampleRunFailed": "AI 试运行失败"
-    }
+    "confirmDelete": "确定删除分类\"{name}\"吗？"
   },
   "routingPage": {
     "title": "分发规则",
+    "description": "配置内容自动分发规则，将分类后的内容路由到不同的目标平台（如 Notion、Obsidian 等）。",
     "actions": {
       "createRule": "新建规则",
+      "edit": "编辑",
       "mcp": "MCP",
       "mcpHttp": "MCP HTTP"
+    },
+    "view": {
+      "list": "列表视图",
+      "grid": "卡片视图",
+      "toggle": "切换视图"
     },
     "fields": {
       "category": "分类",
@@ -1369,14 +1223,14 @@
       "title": "规则管理",
       "summary": {
         "total": "总计 {count}",
-        "active": "活跃 {count}",
+        "active": "启用 {count}",
         "inactive": "停用 {count}"
       },
       "searchPlaceholder": "搜索规则名称或描述",
       "statusFilter": {
         "placeholder": "状态筛选",
         "all": "全部状态",
-        "active": "仅活跃",
+        "active": "仅启用",
         "inactive": "仅停用"
       },
       "empty": "暂无分发规则",
@@ -1384,7 +1238,7 @@
         "all": "全部"
       },
       "status": {
-        "active": "活跃",
+        "active": "启用",
         "inactive": "停用"
       },
       "priority": "优先级: {value}",
@@ -1431,6 +1285,12 @@
       },
       "updateFailed": {
         "title": "更新失败"
+      },
+      "ruleActivated": {
+        "title": "规则已激活"
+      },
+      "ruleDeactivated": {
+        "title": "规则已停用"
       },
       "previewContentRequired": {
         "title": "请输入样例内容",
@@ -1574,6 +1434,138 @@
       "actions": {
         "saving": "创建中...",
         "create": "创建规则"
+      }
+    }
+  },
+  "llmStatistics": {
+    "title": "使用统计",
+    "timeRange": {
+      "today": "今天",
+      "week": "本周",
+      "month": "本月",
+      "all": "全部"
+    },
+    "summary": {
+      "totalCalls": "总请求次数",
+      "successCalls": "成功请求",
+      "errorCalls": "失败请求",
+      "totalTokens": "总Token",
+      "promptTokens": "输入Token",
+      "completionTokens": "输出Token",
+      "tokenBreakdown": "输入: {prompt} / 输出: {completion}",
+      "successRate": "成功率: {value}%",
+      "percentage": "{value}%"
+    },
+    "byModel": {
+      "title": "按模型统计",
+      "description": "各 LLM 模型的请求次数和 Token 消耗",
+      "calls": "次请求",
+      "tokens": "tokens"
+    },
+    "byProvider": {
+      "title": "按提供商统计",
+      "description": "各 LLM 提供商的请求次数和 Token 消耗",
+      "calls": "次请求",
+      "tokens": "tokens"
+    },
+    "logs": {
+      "title": "请求记录",
+      "description": "最新的 LLM API 请求记录",
+      "actions": {
+        "view": "查看详情"
+      },
+      "table": {
+        "time": "时间",
+        "model": "模型",
+        "provider": "提供商",
+        "tokens": "Token 使用",
+        "prompt": "输入",
+        "completion": "输出",
+        "total": "总计",
+        "status": "状态",
+        "actions": "操作"
+      },
+      "status": {
+        "success": "成功",
+        "error": "失败"
+      },
+      "detail": {
+        "title": "请求详情",
+        "description": "查看本次 LLM 请求的发送与接收内容",
+        "copyAll": "复制全部",
+        "requestTitle": "发送内容",
+        "responseTitle": "接收内容",
+        "errorTitle": "错误信息",
+        "meta": {
+          "time": "时间",
+          "model": "模型",
+          "provider": "提供商",
+          "status": "状态"
+        }
+      }
+    },
+    "viewMode": {
+      "logs": "详细日志",
+      "sessions": "会话视图"
+    },
+    "sessions": {
+      "title": "会话列表",
+      "description": "按会话分组的 LLM 调用记录",
+      "table": {
+        "sessionId": "会话 ID",
+        "type": "类型",
+        "model": "模型",
+        "calls": "调用次数",
+        "tokens": "总 Tokens",
+        "prompt": "输入",
+        "completion": "输出",
+        "total": "总计",
+        "duration": "时长",
+        "time": "开始时间"
+      }
+    },
+    "conversation": {
+      "title": "对话历史",
+      "user": "用户",
+      "assistant": "助手"
+    },
+    "session": {
+      "expand": "展开",
+      "collapse": "收起",
+      "viewConversation": "查看对话",
+      "calls": "次调用",
+      "tokens": "tokens"
+    }
+  },
+  "apiStatistics": {
+    "title": "API 使用统计",
+    "timeRange": {
+      "today": "今天",
+      "week": "本周",
+      "month": "本月",
+      "all": "全部"
+    },
+    "summary": {
+      "totalRequests": "总请求数",
+      "successRate": "成功率",
+      "successCount": "成功请求",
+      "errorCount": "失败请求",
+      "compared": "较上个周期",
+      "share": "占比 {value}%"
+    },
+    "quality": {
+      "excellent": "优秀",
+      "good": "良好",
+      "needsWork": "需改进"
+    },
+    "keys": {
+      "title": "API Key 统计",
+      "description": "各 API Key 的使用情况",
+      "table": {
+        "name": "Key 名称",
+        "requests": "请求量",
+        "successRate": "成功率",
+        "lastUsed": "最后使用时间"
       }
     }
   }

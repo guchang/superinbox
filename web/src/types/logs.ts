@@ -118,7 +118,6 @@ export interface KeyStatistics {
   successRate: number
   percentage: number
   lastUsed: string
-  isActive: boolean
 }
 
 // Trend data point
