@@ -171,6 +171,7 @@ Please identify the category and extract entity information.`;
     const matchedCategory =
       categories.find((category) => category.key === normalizedCategory) ||
       categories.find((category) => category.name?.trim() === normalizedCategory);
+    
     if (matchedCategory) {
       result.category = matchedCategory.key;
     } else if (allowedKeys.includes(normalizedCategory)) {

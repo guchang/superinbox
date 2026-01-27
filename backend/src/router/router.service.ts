@@ -119,11 +119,19 @@ export class RouterService {
 
     // Initialize MCP adapter with the MCP config
     await mcpAdapter.initialize({
+      name: mcpConfig.name,
       serverUrl: mcpConfig.serverUrl,
       serverType: mcpConfig.serverType,
+      transportType: mcpConfig.transportType,
+      command: mcpConfig.command,
+      env: mcpConfig.env,
       authType: mcpConfig.authType,
       apiKey: mcpConfig.apiKey,
-      oauthAccessToken: mcpConfig.oauthAccessToken
+      oauthAccessToken: mcpConfig.oauthAccessToken,
+      oauthProvider: mcpConfig.oauthProvider,
+      oauthRefreshToken: mcpConfig.oauthRefreshToken,
+      timeout: mcpConfig.timeout,
+      maxRetries: mcpConfig.maxRetries
     });
 
     // Set distribution config for context
@@ -264,7 +272,7 @@ export class RouterService {
     const parts = field.split('.');
     let value: unknown = item;
 
-    for (const part of parts) {
+    for (let part of parts) {
       if (value && typeof value === 'object' && part in value) {
         value = (value as Record<string, unknown>)[part];
       } else {
@@ -279,7 +287,7 @@ export class RouterService {
    * Execute routing rules for an item
    * Returns results from all matched rules
    */
-  private async executeRoutingRules(item: Item): Promise<DistributionResult[]> {
+  async executeRoutingRules(item: Item): Promise<DistributionResult[]> {
     const results: DistributionResult[] = [];
 
     try {
@@ -317,7 +325,7 @@ export class RouterService {
 
     try {
       const conditions = JSON.parse(rule.conditions);
-      return conditions.every((condition: any) => {
+      return conditions.some((condition: any) => {
         const value = this.getItemValue(item, condition.field);
 
         switch (condition.operator) {
@@ -375,12 +383,16 @@ export class RouterService {
 
       for (const action of actions) {
         try {
-          const result = await this.executeAction(item, action, rule.id);
+          const result = await this.executeAction(item, action, rule);
           if (result) {
             results.push(result);
           }
         } catch (error) {
-          logger.error(`Action ${action.type} failed for rule ${rule.id}:`, error);
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          logger.error(`Action ${action.type} failed for rule ${rule.id}: ${errorMessage}`);
+          if (error instanceof Error && error.stack) {
+            logger.debug(`Error stack: ${error.stack}`);
+          }
           // Continue with next action even if one fails
           results.push({
             id: this.generateId(),
@@ -407,12 +419,13 @@ export class RouterService {
   private async executeAction(
     item: Item,
     action: any,
-    ruleId: string
+    rule: any
   ): Promise<DistributionResult | null> {
+    const ruleId = rule.id;
     switch (action.type) {
       case 'distribute_mcp':
         // Distribute to MCP adapter
-        return await this.distributeToMCPAdapter(item, action);
+        return await this.distributeToMCPAdapter(item, action, rule);
 
       case 'distribute_adapter':
         // Distribute to traditional adapter
@@ -451,49 +464,89 @@ export class RouterService {
 
   /**
    * Distribute to MCP adapter (from rule action)
+   * Uses DispatcherService to enable LLM multi-round conversation for tool selection
    */
   private async distributeToMCPAdapter(
     item: Item,
-    action: any
+    action: any,
+    rule: any
   ): Promise<DistributionResult> {
-    const mcpAdapterId = action.mcp_adapter_id;
-    if (!mcpAdapterId) {
-      throw new Error('mcp_adapter_id is required for distribute_mcp action');
+    // Import DispatcherService
+    const { getDispatcherService } = await import('./dispatcher.service.js');
+    const dispatcher = getDispatcherService();
+
+    // Support both mcp_adapter_id and connectorName (from config)
+    let mcpAdapterId = action.mcp_adapter_id;
+
+    if (!mcpAdapterId && action.config?.connectorName) {
+      // Look up adapter by name
+      const connectorName = action.config.connectorName;
+      const row = this.db.database.prepare(`
+        SELECT id FROM mcp_adapter_configs
+        WHERE name = ? AND user_id = ? AND enabled = 1
+      `).get(connectorName, item.userId) as any;
+
+      if (row) {
+        mcpAdapterId = row.id;
+        logger.info(`Resolved connector name "${connectorName}" to adapter ID: ${mcpAdapterId}`);
+      } else {
+        throw new Error(`MCP adapter not found with name: ${connectorName}`);
+      }
     }
 
-    // Get MCP adapter config
+    if (!mcpAdapterId) {
+      throw new Error('mcp_adapter_id or connectorName is required for distribute_mcp action');
+    }
+
+    // Get MCP adapter config to determine serverType for default instructions
     const mcpConfig = this.getMCPAdapterConfig(mcpAdapterId);
 
-    // Build distribution config
-    const config: DistributionConfig = {
-      id: this.generateId(),
-      adapterType: 'mcp_http',
-      enabled: true,
-      priority: 0,
-      mcpAdapterId,
-      processingInstructions: action.processing_instructions,
-      config: action.config || {}
-    };
+    // Determine instructions (use rule description or default based on serverType)
+    const instructions = (rule.description && rule.description.trim()) || 
+                        this.getDefaultInstructions(mcpConfig.serverType);
 
-    // Distribute via MCP
-    await mcpAdapter.initialize({
-      serverUrl: mcpConfig.serverUrl,
-      serverType: mcpConfig.serverType,
-      authType: mcpConfig.authType,
-      apiKey: mcpConfig.apiKey,
-      oauthAccessToken: mcpConfig.oauthAccessToken
+    // Use DispatcherService for unified distribution logic
+    const dispatchResult = await dispatcher.dispatchToMCP({
+      item,
+      mcpAdapterId,
+      instructions,
+      params: action.config?.params,
+      onProgress: () => {} // No progress callback needed for actual distribution
     });
 
-    mcpAdapter.setDistributionConfig(config);
+    // Build distribution result
+    const result: DistributionResult = {
+      id: this.generateId(),
+      itemId: item.id,
+      targetId: mcpAdapterId,
+      adapterType: 'mcp_http',
+      status: dispatchResult.success ? 'success' : 'failed',
+      timestamp: new Date()
+    };
 
-    const result = await mcpAdapter.distribute(item);
-    result.itemId = item.id;
-    result.targetId = mcpAdapterId;
+    if (!dispatchResult.success) {
+      result.error = dispatchResult.error || 'Distribution failed';
+    }
 
-    // Save result
+    // Save result to database
     this.db.addDistributionResult(result);
 
     return result;
+  }
+
+  /**
+   * Get default instructions for a server type
+   */
+  private getDefaultInstructions(serverType: string): string {
+    const defaults: Record<string, string> = {
+      notion: 'Append the content as a new block in the user\'s default Notion page.',
+      todoist: 'Create a new Todoist task with the content as the task name.',
+      obsidian: 'Append the content to the user\'s daily Obsidian note.',
+      github: 'Create a new GitHub issue with the content.',
+      'default': 'Process the content using the available tools.'
+    };
+
+    return defaults[serverType] || defaults.default;
   }
 
   /**

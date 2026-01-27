@@ -124,9 +124,14 @@ export class StdioMcpClient {
             if (line.trim()) {
               try {
                 const response = JSON.parse(line) as JSONRPCResponse;
-                this.handleResponse(response);
+                // Only handle valid JSON-RPC responses (must have jsonrpc field)
+                if (response.jsonrpc === '2.0') {
+                  this.handleResponse(response);
+                } else {
+                  logger.debug('MCP server non-RPC output:', line);
+                }
               } catch (error) {
-                logger.error('Failed to parse MCP server response:', error, line);
+                logger.debug('MCP server stderr:', line);
               }
             }
           }
