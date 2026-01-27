@@ -8,13 +8,17 @@ import { adapterRegistry, type AdapterRegistry } from './adapter.interface.js';
 import { getDatabase } from '../storage/database.js';
 import { logger } from '../middleware/logger.js';
 import { mcpAdapter } from './adapters/mcp-adapter.js';
+import { RateLimiter } from '../utils/rate-limiter.js';
 
 export class RouterService {
   private registry: AdapterRegistry;
   private db = getDatabase();
+  private rateLimiter: RateLimiter;
 
   constructor(registry?: AdapterRegistry) {
     this.registry = registry ?? adapterRegistry;
+    // Initialize rate limiter: 60 RPM, burst of 10
+    this.rateLimiter = new RateLimiter(60, 10);
   }
 
   /**
@@ -22,6 +26,9 @@ export class RouterService {
    */
   async distributeItem(item: Item): Promise<DistributionResult[]> {
     const results: DistributionResult[] = [];
+
+    // Wait for rate limiter slot
+    await this.rateLimiter.waitForSlot();
 
     // Get distribution configs for user
     const configs = this.getDistributionConfigs(item.userId);
