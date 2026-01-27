@@ -2,7 +2,7 @@
  * AI Service - High-level AI processing orchestration
  */
 
-import { getLLMClient } from './llm-client.js';
+import { getUserLLMClient } from './llm-client.js';
 import { CategoryClassifier } from './category-classifier.js';
 import { listCategories } from './store.js';
 import { extractFirstUrl, fetchUrlContent } from './url-extractor.js';
@@ -11,13 +11,6 @@ import { ContentType } from '../types/index.js';
 import { logger } from '../middleware/logger.js';
 
 export class AIService {
-  private categoryClassifier: CategoryClassifier;
-
-  constructor() {
-    const llm = getLLMClient();
-    this.categoryClassifier = new CategoryClassifier(llm);
-  }
-
   /**
    * Analyze content and return AI insights
    */
@@ -28,14 +21,20 @@ export class AIService {
   ): Promise<AIAnalysisResult> {
     const preparedContent = await this.prepareContentForAnalysis(content, contentType);
     const categories = options?.userId ? listCategories(options.userId) : undefined;
-    return this.categoryClassifier.analyze(preparedContent, contentType, categories);
+    const llm = getUserLLMClient(options?.userId);
+    const categoryClassifier = new CategoryClassifier(llm);
+    return categoryClassifier.analyze(preparedContent, contentType, categories);
   }
 
   /**
    * Generate summary for content
    */
-  async generateSummary(content: string, maxLength = 100): Promise<string> {
-    const llm = getLLMClient();
+  async generateSummary(
+    content: string,
+    maxLength = 100,
+    options?: { userId?: string }
+  ): Promise<string> {
+    const llm = getUserLLMClient(options?.userId);
 
     const prompt = `Please generate a brief summary for the following content (no more than ${maxLength} characters):
 
@@ -72,8 +71,8 @@ Summary:`;
   /**
    * Health check for AI service
    */
-  async healthCheck(): Promise<boolean> {
-    const llm = getLLMClient();
+  async healthCheck(options?: { userId?: string }): Promise<boolean> {
+    const llm = getUserLLMClient(options?.userId);
     return llm.healthCheck();
   }
 

@@ -57,6 +57,12 @@ export class DatabaseManager {
       CREATE TABLE IF NOT EXISTS user_settings (
         user_id TEXT PRIMARY KEY,
         timezone TEXT,
+        llm_provider TEXT,
+        llm_model TEXT,
+        llm_base_url TEXT,
+        llm_api_key TEXT,
+        llm_timeout INTEGER,
+        llm_max_tokens INTEGER,
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL,
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
@@ -643,6 +649,113 @@ export class DatabaseManager {
     return { timezone, updatedAt: now };
   }
 
+  /**
+   * Get user LLM configuration overrides
+   */
+  getUserLlmConfig(userId: string): {
+    provider: string | null;
+    model: string | null;
+    baseUrl: string | null;
+    apiKey: string | null;
+    timeout: number | null;
+    maxTokens: number | null;
+  } {
+    const stmt = this.db.prepare(`
+      SELECT
+        llm_provider,
+        llm_model,
+        llm_base_url,
+        llm_api_key,
+        llm_timeout,
+        llm_max_tokens
+      FROM user_settings
+      WHERE user_id = ?
+    `);
+    const row = stmt.get(userId) as any;
+
+    return {
+      provider: row?.llm_provider ?? null,
+      model: row?.llm_model ?? null,
+      baseUrl: row?.llm_base_url ?? null,
+      apiKey: row?.llm_api_key ?? null,
+      timeout: row?.llm_timeout ?? null,
+      maxTokens: row?.llm_max_tokens ?? null,
+    };
+  }
+
+  /**
+   * Update or create user LLM configuration overrides
+   */
+  setUserLlmConfig(userId: string, updates: {
+    provider?: string | null;
+    model?: string | null;
+    baseUrl?: string | null;
+    apiKey?: string | null;
+    timeout?: number | null;
+    maxTokens?: number | null;
+  }): { updatedAt: string } {
+    const now = new Date().toISOString();
+    const existing = this.db.prepare('SELECT user_id FROM user_settings WHERE user_id = ?').get(userId);
+    const fields: string[] = [];
+    const params: unknown[] = [];
+
+    const pushUpdate = (column: string, value: unknown) => {
+      if (value !== undefined) {
+        fields.push(`${column} = ?`);
+        params.push(value);
+      }
+    };
+
+    pushUpdate('llm_provider', updates.provider);
+    pushUpdate('llm_model', updates.model);
+    pushUpdate('llm_base_url', updates.baseUrl);
+    pushUpdate('llm_api_key', updates.apiKey);
+    pushUpdate('llm_timeout', updates.timeout);
+    pushUpdate('llm_max_tokens', updates.maxTokens);
+
+    if (existing) {
+      if (fields.length > 0) {
+        fields.push('updated_at = ?');
+        params.push(now);
+        const stmt = this.db.prepare(`
+          UPDATE user_settings
+          SET ${fields.join(', ')}
+          WHERE user_id = ?
+        `);
+        stmt.run(...params, userId);
+      }
+    } else {
+      const insertStmt = this.db.prepare(`
+        INSERT INTO user_settings (
+          user_id,
+          timezone,
+          llm_provider,
+          llm_model,
+          llm_base_url,
+          llm_api_key,
+          llm_timeout,
+          llm_max_tokens,
+          created_at,
+          updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `);
+      insertStmt.run(
+        userId,
+        null,
+        updates.provider ?? null,
+        updates.model ?? null,
+        updates.baseUrl ?? null,
+        updates.apiKey ?? null,
+        updates.timeout ?? null,
+        updates.maxTokens ?? null,
+        now,
+        now
+      );
+    }
+
+    return { updatedAt: now };
+  }
+
   // ========== Refresh Token Methods ==========
 
   /**
@@ -1074,6 +1187,25 @@ export class DatabaseManager {
   }
 
   /**
+   * Delete AI category
+   */
+  deleteAiCategory(userId: string, id: string): any | null {
+    // First get the category to return it
+    const category = this.getAiCategoryById(userId, id);
+    if (!category) return null;
+
+    const stmt = this.db.prepare(`
+      DELETE FROM ai_categories
+      WHERE user_id = ? AND id = ?
+    `);
+
+    const result = stmt.run(userId, id);
+    if (result.changes === 0) return null;
+
+    return category;
+  }
+
+  /**
    * List AI templates for a user
    */
   listAiTemplates(userId: string): any[] {
@@ -1223,6 +1355,372 @@ export class DatabaseManager {
     if (result.changes === 0) return null;
 
     return this.getAiTemplateById(userId, id);
+  }
+
+  /**
+   * Delete AI template
+   */
+  deleteAiTemplate(userId: string, id: string): boolean {
+    const stmt = this.db.prepare(`
+      DELETE FROM ai_templates
+      WHERE user_id = ? AND id = ?
+    `);
+
+    const result = stmt.run(userId, id);
+    return result.changes > 0;
+  }
+
+  // ========== LLM Usage Log Methods ==========
+
+  /**
+   * Create an LLM usage log entry
+   */
+  createLlmUsageLog(data: {
+    id: string;
+    userId?: string;
+    model: string;
+    provider: string;
+    requestMessages: string;
+    responseContent?: string;
+    promptTokens?: number;
+    completionTokens?: number;
+    totalTokens?: number;
+    status: string;
+    errorMessage?: string;
+    sessionId?: string;
+    sessionType?: string;
+  }): void {
+    const now = new Date().toISOString();
+    const stmt = this.db.prepare(`
+      INSERT INTO llm_usage_logs (
+        id, user_id, model, provider, request_messages, response_content,
+        prompt_tokens, completion_tokens, total_tokens, status, error_message,
+        session_id, session_type, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    stmt.run(
+      data.id,
+      data.userId ?? null,
+      data.model,
+      data.provider,
+      data.requestMessages,
+      data.responseContent ?? null,
+      data.promptTokens ?? 0,
+      data.completionTokens ?? 0,
+      data.totalTokens ?? 0,
+      data.status,
+      data.errorMessage ?? null,
+      data.sessionId ?? null,
+      data.sessionType ?? null,
+      now
+    );
+  }
+
+  /**
+   * Get LLM usage logs with filters
+   */
+  getLlmUsageLogs(filters: {
+    userId?: string;
+    model?: string;
+    provider?: string;
+    status?: string;
+    startDate?: string;
+    endDate?: string;
+    sessionId?: string;
+    sessionType?: string;
+    limit?: number;
+    offset?: number;
+  }): { data: any[]; total: number } {
+    let query = 'SELECT * FROM llm_usage_logs WHERE 1=1';
+    const params: any[] = [];
+
+    if (filters.userId) {
+      query += ' AND user_id = ?';
+      params.push(filters.userId);
+    }
+
+    if (filters.model) {
+      query += ' AND model = ?';
+      params.push(filters.model);
+    }
+
+    if (filters.provider) {
+      query += ' AND provider = ?';
+      params.push(filters.provider);
+    }
+
+    if (filters.status) {
+      query += ' AND status = ?';
+      params.push(filters.status);
+    }
+
+    if (filters.sessionId) {
+      query += ' AND session_id = ?';
+      params.push(filters.sessionId);
+    }
+
+    if (filters.sessionType) {
+      query += ' AND session_type = ?';
+      params.push(filters.sessionType);
+    }
+
+    if (filters.startDate) {
+      query += ' AND created_at >= ?';
+      params.push(filters.startDate);
+    }
+
+    if (filters.endDate) {
+      query += ' AND created_at <= ?';
+      params.push(filters.endDate);
+    }
+
+    // Get total count
+    const countStmt = this.db.prepare(query.replace('SELECT *', 'SELECT COUNT(*) as count'));
+    const countResult = countStmt.get(...params) as any;
+    const total = countResult.count;
+
+    // Add sorting and pagination
+    query += ' ORDER BY created_at DESC';
+
+    if (filters.limit) {
+      query += ' LIMIT ?';
+      params.push(filters.limit);
+
+      if (filters.offset) {
+        query += ' OFFSET ?';
+        params.push(filters.offset);
+      }
+    }
+
+    const stmt = this.db.prepare(query);
+    const rows = stmt.all(...params) as any[];
+
+    const data = rows.map(row => ({
+      id: row.id,
+      userId: row.user_id,
+      model: row.model,
+      provider: row.provider,
+      requestMessages: row.request_messages && row.request_messages.trim() !== '' ? JSON.parse(row.request_messages) : [],
+      responseContent: row.response_content,
+      promptTokens: row.prompt_tokens,
+      completionTokens: row.completion_tokens,
+      totalTokens: row.total_tokens,
+      status: row.status,
+      errorMessage: row.error_message,
+      createdAt: row.created_at,
+    }));
+
+    return { data, total };
+  }
+
+  /**
+   * Get LLM usage statistics
+   */
+  getLlmUsageStatistics(filters: {
+    userId?: string;
+    startDate?: string;
+    endDate?: string;
+  }): {
+    totalCalls: number;
+    successCalls: number;
+    errorCalls: number;
+    totalTokens: number;
+    promptTokens: number;
+    completionTokens: number;
+    byModel: Array<{ model: string; calls: number; tokens: number }>;
+    byProvider: Array<{ provider: string; calls: number; tokens: number }>;
+    trendData: Array<{ date: string; calls: number; tokens: number }>;
+  } {
+    let whereClause = 'WHERE 1=1';
+    const params: any[] = [];
+
+    if (filters.userId) {
+      whereClause += ' AND user_id = ?';
+      params.push(filters.userId);
+    }
+
+    if (filters.startDate) {
+      whereClause += ' AND created_at >= ?';
+      params.push(filters.startDate);
+    }
+
+    if (filters.endDate) {
+      whereClause += ' AND created_at <= ?';
+      params.push(filters.endDate);
+    }
+
+    // Total calls
+    const totalStmt = this.db.prepare(
+      `SELECT COUNT(*) as count FROM llm_usage_logs ${whereClause}`
+    );
+    const totalResult = totalStmt.get(...params) as any;
+    const totalCalls = totalResult.count;
+
+    // Success/Error calls
+    const successStmt = this.db.prepare(
+      `SELECT COUNT(*) as count FROM llm_usage_logs ${whereClause} AND status = 'success'`
+    );
+    const successResult = successStmt.get(...params) as any;
+    const successCalls = successResult.count;
+    const errorCalls = totalCalls - successCalls;
+
+    // Token usage
+    const tokenStmt = this.db.prepare(
+      `SELECT
+        SUM(total_tokens) as total,
+        SUM(prompt_tokens) as prompt,
+        SUM(completion_tokens) as completion
+       FROM llm_usage_logs ${whereClause}`
+    );
+    const tokenResult = tokenStmt.get(...params) as any;
+    const totalTokens = tokenResult.total || 0;
+    const promptTokens = tokenResult.prompt || 0;
+    const completionTokens = tokenResult.completion || 0;
+
+    // By model
+    const byModelStmt = this.db.prepare(
+      `SELECT model, COUNT(*) as calls, SUM(total_tokens) as tokens
+       FROM llm_usage_logs ${whereClause}
+       GROUP BY model
+       ORDER BY calls DESC`
+    );
+    const byModelRows = byModelStmt.all(...params) as any[];
+    const byModel = byModelRows.map(row => ({
+      model: row.model,
+      calls: row.calls,
+      tokens: row.tokens || 0,
+    }));
+
+    // By provider
+    const byProviderStmt = this.db.prepare(
+      `SELECT provider, COUNT(*) as calls, SUM(total_tokens) as tokens
+       FROM llm_usage_logs ${whereClause}
+       GROUP BY provider
+       ORDER BY calls DESC`
+    );
+    const byProviderRows = byProviderStmt.all(...params) as any[];
+    const byProvider = byProviderRows.map(row => ({
+      provider: row.provider,
+      calls: row.calls,
+      tokens: row.tokens || 0,
+    }));
+
+    // Trend data (by date)
+    const trendStmt = this.db.prepare(
+      `SELECT
+        DATE(created_at) as date,
+        COUNT(*) as calls,
+        SUM(total_tokens) as tokens
+       FROM llm_usage_logs ${whereClause}
+       GROUP BY DATE(created_at)
+       ORDER BY date DESC
+       LIMIT 30`
+    );
+    const trendRows = trendStmt.all(...params) as any[];
+    const trendData = trendRows.map(row => ({
+      date: row.date,
+      calls: row.calls,
+      tokens: row.tokens || 0,
+    }));
+
+    return {
+      totalCalls,
+      successCalls,
+      errorCalls,
+      totalTokens,
+      promptTokens,
+      completionTokens,
+      byModel,
+      byProvider,
+      trendData,
+    };
+  }
+
+  /**
+   * Get LLM usage grouped by session
+   */
+  getLlmUsageBySession(filters: {
+    userId?: string;
+    sessionType?: string;
+    startDate?: string;
+    endDate?: string;
+    limit?: number;
+    offset?: number;
+  }): { data: any[]; total: number } {
+    let query = `
+      SELECT
+        session_id,
+        session_type,
+        COUNT(*) as calls,
+        MAX(total_tokens) as total_tokens,
+        MAX(prompt_tokens) as prompt_tokens,
+        SUM(completion_tokens) as completion_tokens,
+        MIN(created_at) as started_at,
+        MAX(created_at) as ended_at,
+        model,
+        provider
+      FROM llm_usage_logs
+      WHERE session_id IS NOT NULL
+    `;
+    const params: any[] = [];
+
+    if (filters.userId) {
+      query += ' AND user_id = ?';
+      params.push(filters.userId);
+    }
+
+    if (filters.sessionType) {
+      query += ' AND session_type = ?';
+      params.push(filters.sessionType);
+    }
+
+    if (filters.startDate) {
+      query += ' AND created_at >= ?';
+      params.push(filters.startDate);
+    }
+
+    if (filters.endDate) {
+      query += ' AND created_at <= ?';
+      params.push(filters.endDate);
+    }
+
+    // Get total count
+    const countQuery = query.replace('SELECT\n        session_id, session_type, COUNT(*) as calls, MAX(total_tokens) as total_tokens, MAX(prompt_tokens) as prompt_tokens, SUM(completion_tokens) as completion_tokens, MIN(created_at) as started_at, MAX(created_at) as ended_at, model, provider',
+      'SELECT COUNT(DISTINCT session_id) as count');
+    const countStmt = this.db.prepare(countQuery);
+    const countResult = countStmt.get(...params) as any;
+    const total = countResult.count;
+
+    // Add grouping and ordering
+    query += `
+      GROUP BY session_id, session_type, model, provider
+      ORDER BY started_at DESC
+    `;
+
+    // Add pagination
+    const limit = filters.limit || 50;
+    const offset = filters.offset || 0;
+    query += ` LIMIT ? OFFSET ?`;
+    params.push(limit, offset);
+
+    const stmt = this.db.prepare(query);
+    const rows = stmt.all(...params) as any[];
+    const data = rows.map(row => ({
+      sessionId: row.session_id,
+      sessionType: row.session_type,
+      calls: row.calls,
+      totalTokens: (row.prompt_tokens || 0) + (row.completion_tokens || 0),
+      promptTokens: row.prompt_tokens || 0,
+      completionTokens: row.completion_tokens || 0,
+      startedAt: row.started_at,
+      endedAt: row.ended_at,
+      duration: new Date(row.ended_at).getTime() - new Date(row.started_at).getTime(),
+      model: row.model,
+      provider: row.provider,
+    }));
+
+    return { data, total };
   }
 }
 

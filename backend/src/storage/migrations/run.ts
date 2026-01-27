@@ -280,6 +280,57 @@ const migrations = [
       CREATE INDEX IF NOT EXISTS idx_routing_rules_is_system ON routing_rules(is_system);
       CREATE INDEX IF NOT EXISTS idx_routing_rules_priority ON routing_rules(priority);
     `
+  },
+  {
+    version: '009',
+    name: 'add_llm_usage_logs',
+    up: `
+      -- Create LLM usage logs table for tracking AI calls
+      CREATE TABLE IF NOT EXISTS llm_usage_logs (
+        id TEXT PRIMARY KEY,
+        user_id TEXT,
+        model TEXT NOT NULL,
+        provider TEXT NOT NULL,
+        request_messages TEXT NOT NULL,
+        response_content TEXT,
+        prompt_tokens INTEGER DEFAULT 0,
+        completion_tokens INTEGER DEFAULT 0,
+        total_tokens INTEGER DEFAULT 0,
+        status TEXT NOT NULL,
+        error_message TEXT,
+        created_at TEXT NOT NULL,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      );
+
+      -- Create indexes for better query performance
+      CREATE INDEX IF NOT EXISTS idx_llm_usage_logs_user_id ON llm_usage_logs(user_id);
+      CREATE INDEX IF NOT EXISTS idx_llm_usage_logs_model ON llm_usage_logs(model);
+      CREATE INDEX IF NOT EXISTS idx_llm_usage_logs_provider ON llm_usage_logs(provider);
+      CREATE INDEX IF NOT EXISTS idx_llm_usage_logs_status ON llm_usage_logs(status);
+      CREATE INDEX IF NOT EXISTS idx_llm_usage_logs_created_at ON llm_usage_logs(created_at);
+    `
+  },
+  {
+    version: '010',
+    name: 'add_llm_config_to_user_settings',
+    up: `
+      ALTER TABLE user_settings ADD COLUMN llm_provider TEXT;
+      ALTER TABLE user_settings ADD COLUMN llm_model TEXT;
+      ALTER TABLE user_settings ADD COLUMN llm_base_url TEXT;
+      ALTER TABLE user_settings ADD COLUMN llm_api_key TEXT;
+      ALTER TABLE user_settings ADD COLUMN llm_timeout INTEGER;
+      ALTER TABLE user_settings ADD COLUMN llm_max_tokens INTEGER;
+    `
+  },
+  {
+    version: '011',
+    name: 'add_session_tracking_to_llm_logs',
+    up: `
+      ALTER TABLE llm_usage_logs ADD COLUMN session_id TEXT;
+      ALTER TABLE llm_usage_logs ADD COLUMN session_type TEXT;
+      CREATE INDEX IF NOT EXISTS idx_llm_usage_logs_session_id ON llm_usage_logs(session_id);
+      CREATE INDEX IF NOT EXISTS idx_llm_usage_logs_session_type ON llm_usage_logs(session_type);
+    `
   }
 ];
 

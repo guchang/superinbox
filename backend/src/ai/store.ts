@@ -124,30 +124,21 @@ const ensureUserCategories = (userId: string): void => {
   });
 };
 
-const ensureUserTemplates = (userId: string): void => {
-  const db = getDatabase();
-  const existing = db.listAiTemplates(userId) as TemplateRecord[];
-  if (existing.length > 0) return;
-
+// Built-in default prompt template (no database storage)
+const getBuiltInPrompt = (userId: string) => {
   ensureUserCategories(userId);
+  const db = getDatabase();
   const categories = db.listAiCategories(userId) as CategoryRecord[];
-  const coverageKeys = categories.filter((item) => item.isActive).map((item) => item.key);
-  const seed = defaultTemplateSeed(coverageKeys);
-  const now = new Date().toISOString();
+  const activeCategories = categories.filter((item) => item.isActive);
+  const coverageKeys = activeCategories.map((item) => item.key);
 
-  db.createAiTemplate({
-    id: createId('tmpl'),
-    userId,
-    name: seed.name,
-    description: seed.description,
-    prompt: seed.prompt,
-    isActive: true,
-    confirmedCoverage: seed.confirmedCoverage,
-    aiCoverage: seed.aiCoverage,
-    confirmedAt: now,
-    createdAt: now,
-    updatedAt: now,
-  });
+  return {
+    prompt: defaultTemplateSeed(coverageKeys).prompt,
+    categories: activeCategories.map((cat) => ({
+      key: cat.key,
+      name: cat.name,
+    })),
+  };
 };
 
 export const listCategories = (userId: string): CategoryRecord[] => {
@@ -182,55 +173,18 @@ export const updateCategory = (
   return db.updateAiCategory(userId, id, patch) as CategoryRecord | null;
 };
 
-export const listTemplates = (userId: string): TemplateRecord[] => {
-  ensureUserTemplates(userId);
-  const db = getDatabase();
-  return db.listAiTemplates(userId) as TemplateRecord[];
-};
-
-export const createTemplate = (
-  userId: string,
-  data: Omit<TemplateRecord, 'id' | 'userId' | 'createdAt' | 'updatedAt' | 'isActive'>
-): TemplateRecord => {
-  const db = getDatabase();
-  const now = new Date().toISOString();
-  const record: TemplateRecord = {
-    ...data,
-    id: createId('tmpl'),
-    userId,
-    isActive: false,
-    confirmedCoverage: data.confirmedCoverage ?? [],
-    aiCoverage: data.aiCoverage ?? [],
-    createdAt: now,
-    updatedAt: now,
-    confirmedAt: data.confirmedAt ?? (data.confirmedCoverage?.length ? now : undefined),
-  };
-  return db.createAiTemplate(record) as TemplateRecord;
-};
-
-export const updateTemplate = (
-  userId: string,
-  id: string,
-  data: Partial<Omit<TemplateRecord, 'id' | 'userId' | 'createdAt' | 'isActive'>>
-): TemplateRecord | null => {
-  const now = new Date().toISOString();
-  const patch = omitUndefined(data) as Partial<TemplateRecord>;
-  if (Array.isArray(data.confirmedCoverage)) {
-    patch.confirmedAt = data.confirmedCoverage.length ? now : undefined;
-  }
-  const db = getDatabase();
-  return db.updateAiTemplate(userId, id, patch) as TemplateRecord | null;
-};
-
-export const activateTemplate = (userId: string, id: string): TemplateRecord | null => {
-  const db = getDatabase();
-  return db.activateAiTemplate(userId, id) as TemplateRecord | null;
-};
-
-export const getTemplateById = (
+export const deleteCategory = (
   userId: string,
   id: string
-): TemplateRecord | null => {
+): CategoryRecord | null => {
   const db = getDatabase();
-  return db.getAiTemplateById(userId, id) as TemplateRecord | null;
+  return db.deleteAiCategory(userId, id) as CategoryRecord | null;
+};
+
+/**
+ * Get the built-in prompt template for AI classification
+ * This replaces the database-stored template system
+ */
+export const getActivePrompt = (userId: string) => {
+  return getBuiltInPrompt(userId);
 };

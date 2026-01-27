@@ -141,8 +141,7 @@ Notes:
 - Date format must be ISO 8601 (YYYY-MM-DD)
 - Amount uses number type
 - The category value must be one of the keys listed above (use the key, not the display name)
-- confidence is a number between 0-1
-- Return only JSON, no other text`;
+- confidence is a number between 0-1`;
   }
 
   /**
