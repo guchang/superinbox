@@ -7,12 +7,21 @@ import type { Request, Response } from 'express';
 import { z } from 'zod';
 import { authenticate } from '../../middleware/auth.js';
 import { getDatabase } from '../../storage/database.js';
+import { config as appConfig } from '../../config/index.js';
 import { isValidTimeZone } from '../../utils/timezone.js';
 import { sendError } from '../../utils/error-response.js';
 
 const router = Router();
 const timezoneSchema = z.object({
   timezone: z.string().min(1)
+});
+const llmConfigSchema = z.object({
+  provider: z.string().trim().min(1).optional().nullable(),
+  model: z.string().trim().min(1).optional().nullable(),
+  baseUrl: z.string().trim().optional().nullable(),
+  apiKey: z.string().trim().optional().nullable(),
+  timeout: z.number().int().positive().optional().nullable(),
+  maxTokens: z.number().int().positive().optional().nullable(),
 });
 
 // Statistics endpoint
@@ -185,6 +194,109 @@ router.put('/timezone', authenticate, (req: Request, res: Response): void => {
       statusCode: 500,
       code: 'INTERNAL_ERROR',
       message: 'Failed to update timezone'
+    });
+  }
+});
+
+const normalizeOptionalString = (value: string | null | undefined): string | null | undefined => {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+};
+
+const buildLlmResponse = (userConfig: {
+  provider: string | null;
+  model: string | null;
+  baseUrl: string | null;
+  apiKey: string | null;
+  timeout: number | null;
+  maxTokens: number | null;
+}) => {
+  const effective = {
+    provider: userConfig.provider ?? appConfig.llm.provider,
+    model: userConfig.model ?? appConfig.llm.model,
+    baseUrl: userConfig.baseUrl ?? appConfig.llm.baseUrl ?? null,
+    timeout: userConfig.timeout ?? appConfig.llm.timeout,
+    maxTokens: userConfig.maxTokens ?? appConfig.llm.maxTokens,
+  };
+
+  return {
+    provider: effective.provider,
+    model: effective.model,
+    baseUrl: effective.baseUrl,
+    timeout: effective.timeout,
+    maxTokens: effective.maxTokens,
+    apiKeyConfigured: Boolean(userConfig.apiKey),
+  };
+};
+
+// User LLM configuration settings
+router.get('/llm', authenticate, (req: Request, res: Response): void => {
+  try {
+    const userId = req.user?.id ?? 'default-user';
+    const db = getDatabase();
+    const userConfig = db.getUserLlmConfig(userId);
+
+    res.json({
+      success: true,
+      data: buildLlmResponse(userConfig)
+    });
+  } catch (error) {
+    console.error('LLM config fetch error:', error);
+    sendError(res, {
+      statusCode: 500,
+      code: 'INTERNAL_ERROR',
+      message: 'Failed to fetch LLM configuration'
+    });
+  }
+});
+
+router.put('/llm', authenticate, (req: Request, res: Response): void => {
+  try {
+    const userId = req.user?.id ?? 'default-user';
+    const body = llmConfigSchema.parse(req.body);
+    const updates = {
+      provider: normalizeOptionalString(body.provider),
+      model: normalizeOptionalString(body.model),
+      baseUrl: normalizeOptionalString(body.baseUrl),
+      apiKey: normalizeOptionalString(body.apiKey),
+      timeout: body.timeout === undefined ? undefined : body.timeout,
+      maxTokens: body.maxTokens === undefined ? undefined : body.maxTokens,
+    };
+
+    const hasUpdates = Object.values(updates).some((value) => value !== undefined);
+    if (!hasUpdates) {
+      sendError(res, {
+        statusCode: 400,
+        code: 'SETTINGS.INVALID_INPUT',
+        message: 'No valid LLM config fields provided'
+      });
+      return;
+    }
+
+    const db = getDatabase();
+    db.setUserLlmConfig(userId, updates);
+    const userConfig = db.getUserLlmConfig(userId);
+
+    res.json({
+      success: true,
+      data: buildLlmResponse(userConfig)
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      sendError(res, {
+        statusCode: 400,
+        code: 'SETTINGS.INVALID_INPUT',
+        message: 'Invalid request body'
+      });
+      return;
+    }
+    console.error('LLM config update error:', error);
+    sendError(res, {
+      statusCode: 500,
+      code: 'INTERNAL_ERROR',
+      message: 'Failed to update LLM configuration'
     });
   }
 });

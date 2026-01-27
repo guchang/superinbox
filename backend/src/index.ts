@@ -14,7 +14,7 @@ import { requestLogger, errorHandler, notFoundHandler, accessLogMiddleware } fro
 import inboxRoutes from './capture/routes/inbox.routes.js';
 import promptsRoutes from './intelligence/routes/prompts.routes.js';
 import categoriesRoutes from './ai/routes/categories.routes.js';
-import aiTemplatesRoutes from './ai/routes/templates.routes.js';
+import llmUsageRoutes from './ai/routes/llm-usage.routes.js';
 import rulesRoutes from './router/routes/rules.routes.js';
 import settingsRoutes from './settings/routes/settings.routes.js';
 import authRoutes from './auth/auth.routes.js';
@@ -38,8 +38,13 @@ app.use(helmet({
 }));
 
 // CORS
+const corsOrigins = config.cors.origin
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+const corsOrigin = corsOrigins.includes('*') ? true : corsOrigins;
 app.use(cors({
-  origin: config.cors.origin,
+  origin: corsOrigin,
   credentials: true
 }));
 
@@ -109,7 +114,7 @@ app.use('/v1/api-keys', apiKeysRoutes);      // Legacy path (backward compatibil
 app.use('/v1/mcp-adapters', mcpAdaptersRoutes);
 app.use('/v1/intelligence', promptsRoutes);
 app.use('/v1/categories', categoriesRoutes);
-app.use('/v1/ai', aiTemplatesRoutes);
+app.use('/v1/ai/usage', llmUsageRoutes);
 app.use('/v1/routing', rulesRoutes);
 app.use('/v1/settings', settingsRoutes);
 app.use('/v1', inboxRoutes);

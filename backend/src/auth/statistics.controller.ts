@@ -144,7 +144,6 @@ function fetchStatistics(
       successRate: Math.round(keySuccessRate * 10) / 10,
       percentage: Math.round((row.requests / summaryRow.totalRequests) * 100 * 10) / 10,
       lastUsed: row.lastUsed,
-      isActive: true,
     };
   });
 

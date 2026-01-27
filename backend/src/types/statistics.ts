@@ -29,7 +29,6 @@ export interface KeyStatistics {
   successRate: number
   percentage: number // Percentage of total requests
   lastUsed: string // ISO timestamp
-  isActive: boolean
 }
 
 /**
