@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/hooks/use-toast'
-import { Plus, RefreshCw, Trash2, Edit } from 'lucide-react'
+import { Plus, RefreshCw, Trash2, Pencil } from 'lucide-react'
 import type { ApiKey } from '@/types/api-key'
 import { listApiKeys, deleteApiKey } from '@/lib/api/api-keys'
 import { ApiKeyDialog } from '@/components/api-keys/api-key-dialog'
@@ -156,7 +156,7 @@ export default function ApiKeysPage() {
                         title={t('actions.edit')}
                         className="h-8 w-8"
                       >
-                        <Edit className="h-4 w-4" />
+                        <Pencil className="h-4 w-4" />
                       </Button>
                       <Button
                         variant="ghost"

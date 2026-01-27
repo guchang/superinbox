@@ -1,5 +1,5 @@
 import { apiClient } from './client'
-import type { ApiKey, Statistics, ApiResponse, UserSettings } from '@/types'
+import type { ApiKey, Statistics, ApiResponse, UserSettings, LlmSettings, LlmSettingsUpdate } from '@/types'
 
 export const settingsApi = {
   // 获取统计信息
@@ -35,5 +35,15 @@ export const settingsApi = {
   // 更新用户时区设置
   async updateTimezone(timezone: string): Promise<ApiResponse<UserSettings>> {
     return apiClient.put<UserSettings>('/settings/timezone', { timezone })
+  },
+
+  // 获取 LLM 配置
+  async getLlmConfig(): Promise<ApiResponse<LlmSettings>> {
+    return apiClient.get<LlmSettings>('/settings/llm')
+  },
+
+  // 更新 LLM 配置
+  async updateLlmConfig(payload: LlmSettingsUpdate): Promise<ApiResponse<LlmSettings>> {
+    return apiClient.put<LlmSettings>('/settings/llm', payload)
   },
 }

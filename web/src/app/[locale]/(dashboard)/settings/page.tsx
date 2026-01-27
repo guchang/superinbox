@@ -10,25 +10,25 @@ import { useTranslations } from 'next-intl'
 import { useToast } from '@/hooks/use-toast'
 import { Check, AlertCircle } from 'lucide-react'
 import { settingsApi } from '@/lib/api/settings'
-import { Link } from '@/i18n/navigation'
 import { getApiErrorMessage } from '@/lib/i18n/api-errors'
 
 export default function SettingsPage() {
   const t = useTranslations('settings')
   const common = useTranslations('common')
   const errors = useTranslations('errors')
-  const [apiKey, setApiKey] = useState('')
-  const [currentKey, setCurrentKey] = useState('')
   const [timezoneInput, setTimezoneInput] = useState('')
   const [currentTimezone, setCurrentTimezone] = useState<string | null>(null)
   const [timezoneLoading, setTimezoneLoading] = useState(false)
+  const [llmProvider, setLlmProvider] = useState('')
+  const [llmModel, setLlmModel] = useState('')
+  const [llmBaseUrl, setLlmBaseUrl] = useState('')
+  const [llmApiKey, setLlmApiKey] = useState('')
+  const [llmMaxTokens, setLlmMaxTokens] = useState('')
+  const [llmApiKeyConfigured, setLlmApiKeyConfigured] = useState(false)
+  const [llmSaving, setLlmSaving] = useState(false)
   const { toast } = useToast()
 
   useEffect(() => {
-    // 加载当前保存的 API Key
-    const savedKey = localStorage.getItem('superinbox_api_key') || ''
-    setCurrentKey(savedKey)
-
     // 加载用户时区设置
     settingsApi.getTimezone()
       .then((response) => {
@@ -39,45 +39,21 @@ export default function SettingsPage() {
       .catch(() => {
         // Ignore when unauthenticated or endpoint is unavailable
       })
-  }, [])
 
-  const handleSaveApiKey = () => {
-    if (!apiKey.trim()) {
-      toast({
-        title: t('toast.apiKeyEmpty.title'),
-        description: t('toast.apiKeyEmpty.description'),
-        variant: 'destructive',
+    settingsApi.getLlmConfig()
+      .then((response) => {
+        const config = response.data
+        if (!config) return
+        setLlmProvider(config.provider || '')
+        setLlmModel(config.model || '')
+        setLlmBaseUrl(config.baseUrl || '')
+        setLlmMaxTokens(config.maxTokens ? String(config.maxTokens) : '')
+        setLlmApiKeyConfigured(Boolean(config.apiKeyConfigured))
       })
-      return
-    }
-
-    localStorage.setItem('superinbox_api_key', apiKey.trim())
-    setCurrentKey(apiKey.trim())
-    toast({
-      title: t('toast.apiKeySaved.title'),
-      description: t('toast.apiKeySaved.description'),
-    })
-    setApiKey('')
-  }
-
-  const handleUseDefaultKey = () => {
-    const defaultKey = 'dev-key-change-this-in-production'
-    localStorage.setItem('superinbox_api_key', defaultKey)
-    setCurrentKey(defaultKey)
-    toast({
-      title: t('toast.defaultKeyUsed.title'),
-      description: t('toast.defaultKeyUsed.description'),
-    })
-  }
-
-  const handleClearApiKey = () => {
-    localStorage.removeItem('superinbox_api_key')
-    setCurrentKey('')
-    toast({
-      title: t('toast.apiKeyCleared.title'),
-      description: t('toast.apiKeyCleared.description'),
-    })
-  }
+      .catch(() => {
+        // Ignore when unauthenticated or endpoint is unavailable
+      })
+  }, [])
 
   const handleSaveTimezone = async () => {
     const trimmed = timezoneInput.trim()
@@ -110,6 +86,104 @@ export default function SettingsPage() {
     }
   }
 
+  const handleSaveLlmConfig = async () => {
+    const provider = llmProvider.trim()
+    const model = llmModel.trim()
+
+    if (!provider) {
+      toast({
+        title: t('toast.llmProviderEmpty.title'),
+        description: t('toast.llmProviderEmpty.description'),
+        variant: 'destructive',
+      })
+      return
+    }
+
+    if (!model) {
+      toast({
+        title: t('toast.llmModelEmpty.title'),
+        description: t('toast.llmModelEmpty.description'),
+        variant: 'destructive',
+      })
+      return
+    }
+
+    const maxTokensInput = llmMaxTokens.trim()
+    let maxTokensValue: number | null
+
+    if (!maxTokensInput) {
+      maxTokensValue = null
+    } else {
+      const parsed = Number(maxTokensInput)
+      if (!Number.isFinite(parsed) || !Number.isInteger(parsed) || parsed <= 0) {
+        toast({
+          title: t('toast.llmMaxTokensInvalid.title'),
+          description: t('toast.llmMaxTokensInvalid.description'),
+          variant: 'destructive',
+        })
+        return
+      }
+      maxTokensValue = parsed
+    }
+
+    setLlmSaving(true)
+    try {
+      const payload = {
+        provider,
+        model,
+        baseUrl: llmBaseUrl.trim() || null,
+        maxTokens: maxTokensValue,
+        ...(llmApiKey.trim() ? { apiKey: llmApiKey.trim() } : {}),
+      }
+      const response = await settingsApi.updateLlmConfig(payload)
+      const config = response.data
+      if (config) {
+        setLlmProvider(config.provider || '')
+        setLlmModel(config.model || '')
+        setLlmBaseUrl(config.baseUrl || '')
+        setLlmMaxTokens(config.maxTokens ? String(config.maxTokens) : '')
+        setLlmApiKeyConfigured(Boolean(config.apiKeyConfigured))
+      }
+      setLlmApiKey('')
+      toast({
+        title: t('toast.llmConfigSaved.title'),
+        description: t('toast.llmConfigSaved.description'),
+      })
+    } catch (error) {
+      toast({
+        title: t('toast.llmConfigSaveFailure.title'),
+        description: getApiErrorMessage(error, errors, common('tryLater')),
+        variant: 'destructive',
+      })
+    } finally {
+      setLlmSaving(false)
+    }
+  }
+
+  const handleClearLlmApiKey = async () => {
+    setLlmSaving(true)
+    try {
+      const response = await settingsApi.updateLlmConfig({ apiKey: null })
+      const config = response.data
+      if (config) {
+        setLlmApiKeyConfigured(Boolean(config.apiKeyConfigured))
+      }
+      setLlmApiKey('')
+      toast({
+        title: t('toast.llmApiKeyCleared.title'),
+        description: t('toast.llmApiKeyCleared.description'),
+      })
+    } catch (error) {
+      toast({
+        title: t('toast.llmConfigSaveFailure.title'),
+        description: getApiErrorMessage(error, errors, common('tryLater')),
+        variant: 'destructive',
+      })
+    } finally {
+      setLlmSaving(false)
+    }
+  }
+
   const handleUseBrowserTimezone = () => {
     const detected = Intl.DateTimeFormat().resolvedOptions().timeZone
     setTimezoneInput(detected)
@@ -121,128 +195,87 @@ export default function SettingsPage() {
         <h1 className="text-3xl font-bold">{t('title')}</h1>
       </div>
 
-      {/* API Configuration */}
+      {/* LLM Configuration */}
       <Card>
         <CardHeader>
-          <CardTitle>{t('apiConfig.title')}</CardTitle>
-          <CardDescription>
-            {t('apiConfig.description')}
-          </CardDescription>
+          <CardTitle>{t('llmConfig.title')}</CardTitle>
+          <CardDescription>{t('llmConfig.description')}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* API 地址 */}
           <div className="space-y-2">
-            <Label htmlFor="api-url">{t('apiConfig.apiUrl')}</Label>
+            <Label htmlFor="llm-provider">{t('llmConfig.provider.label')}</Label>
             <Input
-              id="api-url"
-              value={process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/v1'}
-              disabled
-              className="bg-muted"
+              id="llm-provider"
+              placeholder={t('llmConfig.provider.placeholder')}
+              value={llmProvider}
+              onChange={(e) => setLlmProvider(e.target.value)}
             />
           </div>
 
-          {/* 当前 API Key 状态 */}
           <div className="space-y-2">
-            <Label>{t('apiConfig.currentKey.label')}</Label>
-            <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
-              {currentKey ? (
-                <>
-                  <Check className="h-5 w-5 text-green-500" />
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium">{t('apiConfig.currentKey.configured')}</span>
-                      <Badge variant="outline">{t('apiConfig.currentKey.storage')}</Badge>
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Key: {currentKey.substring(0, 8)}...{currentKey.length > 12 ? currentKey.substring(currentKey.length - 4) : ''}
-                    </p>
-                  </div>
-                  <Button variant="ghost" size="sm" onClick={handleClearApiKey}>
-                    {t('actions.clear')}
-                  </Button>
-                </>
-              ) : (
-                <>
-                  <AlertCircle className="h-5 w-5 text-yellow-500" />
-                  <div className="flex-1">
-                    <span className="text-sm font-medium">{t('apiConfig.currentKey.notConfigured')}</span>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {t('apiConfig.currentKey.defaultHint')}
-                    </p>
-                  </div>
-                </>
-              )}
-            </div>
+            <Label htmlFor="llm-model">{t('llmConfig.model.label')}</Label>
+            <Input
+              id="llm-model"
+              placeholder={t('llmConfig.model.placeholder')}
+              value={llmModel}
+              onChange={(e) => setLlmModel(e.target.value)}
+            />
           </div>
 
-          {/* 设置新的 API Key */}
           <div className="space-y-2">
-            <Label htmlFor="api-key">{t('apiConfig.newKey.label')}</Label>
+            <Label htmlFor="llm-base-url">{t('llmConfig.baseUrl.label')}</Label>
+            <Input
+              id="llm-base-url"
+              placeholder={t('llmConfig.baseUrl.placeholder')}
+              value={llmBaseUrl}
+              onChange={(e) => setLlmBaseUrl(e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="llm-max-tokens">{t('llmConfig.maxTokens.label')}</Label>
+            <Input
+              id="llm-max-tokens"
+              type="number"
+              min={1}
+              step={1}
+              placeholder={t('llmConfig.maxTokens.placeholder')}
+              value={llmMaxTokens}
+              onChange={(e) => setLlmMaxTokens(e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">{t('llmConfig.maxTokens.helper')}</p>
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="llm-api-key">{t('llmConfig.apiKey.label')}</Label>
+              <Badge variant="outline">
+                {llmApiKeyConfigured ? t('llmConfig.apiKey.configured') : t('llmConfig.apiKey.default')}
+              </Badge>
+            </div>
             <div className="flex gap-2">
               <Input
-                id="api-key"
+                id="llm-api-key"
                 type="password"
-                placeholder={t('apiConfig.newKey.placeholder')}
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') handleSaveApiKey()
-                }}
+                placeholder={t('llmConfig.apiKey.placeholder')}
+                value={llmApiKey}
+                onChange={(e) => setLlmApiKey(e.target.value)}
                 className="flex-1"
               />
-              <Button onClick={handleSaveApiKey}>{t('actions.save')}</Button>
+              {llmApiKeyConfigured && (
+                <Button variant="ghost" size="sm" onClick={handleClearLlmApiKey} disabled={llmSaving}>
+                  {t('actions.clear')}
+                </Button>
+              )}
             </div>
-            <p className="text-xs text-muted-foreground">
-              {t('apiConfig.newKey.helper')}
-            </p>
+            <p className="text-xs text-muted-foreground">{t('llmConfig.apiKey.helper')}</p>
           </div>
 
-          {/* 快速操作 */}
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={handleUseDefaultKey}>
-              {t('actions.useDefaultKey')}
+            <Button onClick={handleSaveLlmConfig} disabled={llmSaving}>
+              {t('actions.save')}
             </Button>
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Quick Links */}
-      <Card>
-        <CardHeader>
-          <CardTitle>{t('quickLinks.title')}</CardTitle>
-          <CardDescription>{t('quickLinks.description')}</CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-4 md:grid-cols-3">
-          <Button variant="outline" className="h-auto p-4" asChild>
-            <Link href="/settings/api-keys">
-              <div className="text-left">
-                <div className="font-medium mb-1">{t('quickLinks.apiKeys.title')}</div>
-                <div className="text-sm text-muted-foreground">
-                  {t('quickLinks.apiKeys.description')}
-                </div>
-              </div>
-            </Link>
-          </Button>
-          <Button variant="outline" className="h-auto p-4" asChild>
-            <Link href="/settings/logs">
-              <div className="text-left">
-                <div className="font-medium mb-1">{t('quickLinks.logs.title')}</div>
-                <div className="text-sm text-muted-foreground">
-                  {t('quickLinks.logs.description')}
-                </div>
-              </div>
-            </Link>
-          </Button>
-          <Button variant="outline" className="h-auto p-4" asChild>
-            <Link href="/settings/statistics">
-              <div className="text-left">
-                <div className="font-medium mb-1">{t('quickLinks.statistics.title')}</div>
-                <div className="text-sm text-muted-foreground">
-                  {t('quickLinks.statistics.description')}
-                </div>
-              </div>
-            </Link>
-          </Button>
         </CardContent>
       </Card>
 

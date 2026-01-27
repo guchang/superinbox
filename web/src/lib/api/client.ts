@@ -21,6 +21,7 @@ class ApiClient {
       headers: {
         'Content-Type': 'application/json',
       },
+      withCredentials: true,
       timeout: 180000,
     })
 

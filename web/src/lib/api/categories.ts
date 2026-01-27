@@ -15,4 +15,8 @@ export const categoriesApi = {
   async update(id: string, data: Partial<CategoryInput>): Promise<ApiResponse<Category>> {
     return apiClient.put<Category>(`/categories/${id}`, data)
   },
+
+  async delete(id: string): Promise<ApiResponse<void>> {
+    return apiClient.delete<void>(`/categories/${id}`)
+  },
 }

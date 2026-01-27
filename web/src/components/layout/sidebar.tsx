@@ -41,7 +41,7 @@ export function AppSidebar() {
     {
       title: t('sections.ai'),
       items: [
-        { name: t('items.categories'), href: '/ai', icon: BrainCircuit },
+        { name: t('items.categories'), href: '/category', icon: BrainCircuit },
         { name: t('items.routing'), href: '/routing', icon: GitBranch },
         { name: t('items.connections'), href: '/mcp-adapters', icon: Plug },
       ]
@@ -59,7 +59,9 @@ export function AppSidebar() {
 
   const isActive = (href: string) => {
     if (href === '/') return pathname === '/'
-    return pathname?.startsWith(href)
+    if (href === '/settings') return pathname === '/settings'
+    // Exact match or match with additional path segments (href + '/')
+    return pathname === href || pathname?.startsWith(href + '/')
   }
 
   return (
