@@ -16,16 +16,26 @@ export function middleware(request: NextRequest) {
 
   const localeSegment = new RegExp(`^/(${routing.locales.join('|')})(?=/|$)`)
   const localeMatch = pathname.match(localeSegment)
+  const token = request.cookies.get('superinbox_auth_token')?.value
 
   if (!localeMatch) {
+    if (pathname === '/') {
+      const redirectUrl = request.nextUrl.clone()
+      redirectUrl.pathname = token
+        ? `/${routing.defaultLocale}/inbox`
+        : `/${routing.defaultLocale}/login`
+      return NextResponse.redirect(redirectUrl)
+    }
     return intlMiddleware(request)
   }
 
   const locale = localeMatch[1]
   const pathnameWithoutLocale = pathname.replace(localeSegment, '') || '/'
-
-  // 从 cookie 获取 token
-  const token = request.cookies.get('superinbox_auth_token')?.value
+  if (pathnameWithoutLocale === '/') {
+    const redirectUrl = request.nextUrl.clone()
+    redirectUrl.pathname = token ? `/${locale}/inbox` : `/${locale}/login`
+    return NextResponse.redirect(redirectUrl)
+  }
 
   // 检查是否是公开路由
   const isPublicRoute = publicRoutes.some(route =>
@@ -45,7 +55,7 @@ export function middleware(request: NextRequest) {
 
   // 如果已登录用户访问登录/注册页，重定向到首页
   if (isPublicRoute && token) {
-    const homeUrl = new URL(`/${locale}/`, request.url)
+    const homeUrl = new URL(`/${locale}/inbox`, request.url)
     return NextResponse.redirect(homeUrl)
   }
 
