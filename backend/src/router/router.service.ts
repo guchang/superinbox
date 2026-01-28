@@ -287,7 +287,10 @@ export class RouterService {
    * Execute routing rules for an item
    * Returns results from all matched rules
    */
-  async executeRoutingRules(item: Item): Promise<DistributionResult[]> {
+  async executeRoutingRules(
+    item: Item,
+    progressCallback?: (event: { type: string; data?: any }) => void
+  ): Promise<DistributionResult[]> {
     const results: DistributionResult[] = [];
 
     try {
@@ -300,11 +303,31 @@ export class RouterService {
 
       logger.info(`Found ${rules.length} active routing rules for user ${item.userId}`);
 
+      // Notify that rules are loaded
+      if (progressCallback) {
+        progressCallback({
+          type: 'rules_loaded',
+          data: { totalRules: rules.length }
+        });
+      }
+
       // Execute each matching rule
       for (const rule of rules) {
         if (this.checkRuleConditions(item, rule)) {
           logger.info(`Rule "${rule.name}" matched for item ${item.id}`);
-          const ruleResults = await this.executeRuleActions(item, rule);
+
+          // Notify that a rule matched
+          if (progressCallback) {
+            progressCallback({
+              type: 'rule_matched',
+              data: {
+                ruleId: rule.id,
+                ruleName: rule.name
+              }
+            });
+          }
+
+          const ruleResults = await this.executeRuleActions(item, rule, progressCallback);
           results.push(...ruleResults);
         }
       }
@@ -375,7 +398,11 @@ export class RouterService {
   /**
    * Execute actions from a matched rule
    */
-  private async executeRuleActions(item: Item, rule: any): Promise<DistributionResult[]> {
+  private async executeRuleActions(
+    item: Item,
+    rule: any,
+    progressCallback?: (event: { type: string; data?: any }) => void
+  ): Promise<DistributionResult[]> {
     const results: DistributionResult[] = [];
 
     try {
@@ -383,7 +410,7 @@ export class RouterService {
 
       for (const action of actions) {
         try {
-          const result = await this.executeAction(item, action, rule);
+          const result = await this.executeAction(item, action, rule, progressCallback);
           if (result) {
             results.push(result);
           }
@@ -419,17 +446,18 @@ export class RouterService {
   private async executeAction(
     item: Item,
     action: any,
-    rule: any
+    rule: any,
+    progressCallback?: (event: { type: string; data?: any }) => void
   ): Promise<DistributionResult | null> {
     const ruleId = rule.id;
     switch (action.type) {
       case 'distribute_mcp':
         // Distribute to MCP adapter
-        return await this.distributeToMCPAdapter(item, action, rule);
+        return await this.distributeToMCPAdapter(item, action, rule, progressCallback);
 
       case 'distribute_adapter':
         // Distribute to traditional adapter
-        return await this.distributeToTraditionalAdapter(item, action);
+        return await this.distributeToTraditionalAdapter(item, action, rule, progressCallback);
 
       case 'update_item':
         // Update item properties
@@ -469,7 +497,8 @@ export class RouterService {
   private async distributeToMCPAdapter(
     item: Item,
     action: any,
-    rule: any
+    rule: any,
+    progressCallback?: (event: { type: string; data?: any }) => void
   ): Promise<DistributionResult> {
     // Import DispatcherService
     const { getDispatcherService } = await import('./dispatcher.service.js');
@@ -501,8 +530,19 @@ export class RouterService {
     // Get MCP adapter config to determine serverType for default instructions
     const mcpConfig = this.getMCPAdapterConfig(mcpAdapterId);
 
+    // Notify that tool call is starting
+    if (progressCallback) {
+      progressCallback({
+        type: 'tool_call_start',
+        data: {
+          adapterName: mcpConfig.name,
+          toolName: 'dispatch'
+        }
+      });
+    }
+
     // Determine instructions (use rule description or default based on serverType)
-    const instructions = (rule.description && rule.description.trim()) || 
+    const instructions = (rule.description && rule.description.trim()) ||
                         this.getDefaultInstructions(mcpConfig.serverType);
 
     // Use DispatcherService for unified distribution logic
@@ -511,8 +551,83 @@ export class RouterService {
       mcpAdapterId,
       instructions,
       params: action.config?.params,
-      onProgress: () => {} // No progress callback needed for actual distribution
+      onProgress: (event, data) => {
+        // Forward progress events from Dispatcher
+        if (progressCallback && data) {
+          const stepData = data as any;
+
+          switch (event) {
+            case 'step:start':
+              // Step is starting
+              progressCallback({
+                type: 'tool_call_progress',
+                data: {
+                  adapterName: mcpConfig.name,
+                  toolName: stepData.toolName || 'unknown',
+                  message: `开始调用 ${stepData.toolName || 'unknown'}...`
+                }
+              });
+              break;
+
+            case 'step:complete':
+              // Step completed successfully
+              progressCallback({
+                type: 'tool_call_progress',
+                data: {
+                  adapterName: mcpConfig.name,
+                  toolName: stepData.toolName || 'unknown',
+                  message: `✓ ${stepData.toolName || 'unknown'} 完成`
+                }
+              });
+              break;
+
+            case 'step:error':
+              // Step failed
+              progressCallback({
+                type: 'tool_call_progress',
+                data: {
+                  adapterName: mcpConfig.name,
+                  toolName: stepData.toolName || 'unknown',
+                  message: `✗ ${stepData.toolName || 'unknown'} 失败: ${stepData.error || 'Unknown error'}`
+                }
+              });
+              break;
+
+            case 'complete':
+              // All steps completed
+              break;
+          }
+        }
+      }
     });
+
+    // Get the actual tool name from the last step
+    const lastStep = dispatchResult.steps && dispatchResult.steps.length > 0
+      ? dispatchResult.steps[dispatchResult.steps.length - 1]
+      : null;
+    const actualToolName = lastStep?.toolName || 'dispatch';
+
+    // Notify that tool call completed
+    if (progressCallback) {
+      if (dispatchResult.success) {
+        progressCallback({
+          type: 'tool_call_success',
+          data: {
+            adapterName: mcpConfig.name,
+            toolName: actualToolName
+          }
+        });
+      } else {
+        progressCallback({
+          type: 'tool_call_error',
+          data: {
+            adapterName: mcpConfig.name,
+            toolName: actualToolName,
+            error: dispatchResult.error || 'Distribution failed'
+          }
+        });
+      }
+    }
 
     // Build distribution result
     const result: DistributionResult = {
@@ -521,7 +636,8 @@ export class RouterService {
       targetId: mcpAdapterId,
       adapterType: 'mcp_http',
       status: dispatchResult.success ? 'success' : 'failed',
-      timestamp: new Date()
+      timestamp: new Date(),
+      ruleName: rule.name
     };
 
     if (!dispatchResult.success) {
@@ -554,7 +670,9 @@ export class RouterService {
    */
   private async distributeToTraditionalAdapter(
     item: Item,
-    action: any
+    action: any,
+    rule: any,
+    progressCallback?: (event: { type: string; data?: any }) => void
   ): Promise<DistributionResult> {
     const adapterType = action.adapter_type;
     if (!adapterType) {
@@ -566,9 +684,44 @@ export class RouterService {
       throw new Error(`Adapter ${adapterType} not found`);
     }
 
+    // Notify that tool call is starting
+    if (progressCallback) {
+      progressCallback({
+        type: 'tool_call_start',
+        data: {
+          adapterName: adapterType,
+          toolName: adapterType
+        }
+      });
+    }
+
     const result = await adapter.distribute(item);
     result.itemId = item.id;
     result.targetId = adapterType;
+    result.ruleName = rule.name;
+
+    // Notify that tool call completed
+    if (progressCallback) {
+      if (result.status === 'success') {
+        progressCallback({
+          type: 'tool_call_success',
+          data: {
+            adapterName: adapterType,
+            toolName: adapterType,
+            result: result
+          }
+        });
+      } else {
+        progressCallback({
+          type: 'tool_call_error',
+          data: {
+            adapterName: adapterType,
+            toolName: adapterType,
+            error: result.error || 'Distribution failed'
+          }
+        });
+      }
+    }
 
     // Save result
     this.db.addDistributionResult(result);

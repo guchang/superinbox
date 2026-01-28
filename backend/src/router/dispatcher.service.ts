@@ -119,6 +119,8 @@ export interface DispatchResult {
     };
   }>;
   error?: string;
+  result?: unknown; // Final result from the tool execution
+  message?: string; // Optional message for progress tracking
 }
 
 export interface DispatchOptions {

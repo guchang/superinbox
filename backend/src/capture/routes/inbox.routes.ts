@@ -106,6 +106,17 @@ router.delete(
 );
 
 /**
+ * @route   GET /v1/inbox/:id/routing-progress
+ * @desc    Get real-time routing progress via SSE
+ * @access  Private (JWT or API Key)
+ */
+router.get(
+  '/inbox/:id/routing-progress',
+  authenticate,
+  inboxController.getRoutingProgress
+);
+
+/**
  * @route   GET /v1/inbox/:id/file
  * @desc    Serve uploaded file for inline viewing
  * @access  Private (API Key)

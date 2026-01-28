@@ -12,6 +12,7 @@ import { getAIService } from '../../ai/service.js';
 import { getRouterService } from '../../router/router.service.js';
 import { formatDateInTimeZone } from '../../utils/timezone.js';
 import { sendError } from '../../utils/error-response.js';
+import { sseManager } from '../../services/sse-manager.js';
 import type {
   CreateItemRequest,
   CreateItemResponse,
@@ -261,16 +262,28 @@ export class InboxController {
             status: item.status,
             createdAt: item.createdAt.toISOString(),
             createdAtLocal: timezone ? formatDateInTimeZone(item.createdAt, timezone) : null,
-            routedTo: item.distributedTargets
+            routedTo: item.distributedTargets,
+            distributedTargets: item.distributedTargets,
+            distributedRuleNames: (item.distributionResults || [])
+              .filter((r: any) => r.ruleName && (r.status === 'success' || r.status === 'completed'))
+              .map((r: any) => r.ruleName)
           }))
         });
       } else {
         // Legacy API format (GET /v1/items)
-        const data = items.map(item => ({
-          ...item,
-          createdAtLocal: timezone ? formatDateInTimeZone(item.createdAt, timezone) : null,
-          updatedAtLocal: timezone ? formatDateInTimeZone(item.updatedAt, timezone) : null
-        }));
+        const data = items.map(item => {
+          const ruleNames = (item.distributionResults || [])
+            .filter((r: any) => r.ruleName && (r.status === 'success' || r.status === 'completed'))
+            .map((r: any) => r.ruleName);
+
+          return {
+            ...item,
+            createdAtLocal: timezone ? formatDateInTimeZone(item.createdAt, timezone) : null,
+            updatedAtLocal: timezone ? formatDateInTimeZone(item.updatedAt, timezone) : null,
+            distributedTargets: item.distributedTargets,
+            distributedRuleNames: ruleNames
+          };
+        });
 
         res.json({
           success: true,
@@ -710,12 +723,31 @@ export class InboxController {
   }
 
   /**
-   * Async item distribution
+   * Async item distribution with SSE progress
    */
   private async distributeItemAsync(item: Item): Promise<void> {
     try {
       logger.info(`Starting distribution for item ${item.id}`);
-      const results = await this.router.executeRoutingRules(item);
+      
+      // 发送开始分发事件
+      sseManager.sendToItem(item.id, {
+        type: 'routing:start',
+        itemId: item.id,
+        timestamp: new Date().toISOString(),
+        data: {
+          totalRules: 0, // 将在获取规则后更新
+          message: '开始路由分发...'
+        }
+      });
+
+      // 创建进度回调函数
+      const progressCallback = (event: any) => {
+        // 将路由服务的进度事件转换为 SSE 事件
+        this.handleRoutingProgress(item.id, event);
+      };
+
+      // 执行路由规则，传入进度回调
+      const results = await this.router.executeRoutingRules(item, progressCallback);
 
       // Update item with distribution results
       const successCount = results.filter(r => r.status === 'success').length;
@@ -728,12 +760,141 @@ export class InboxController {
         .filter(r => r.status === 'success')
         .map(r => r.targetId);
 
+      // 获取成功的规则名称列表
+      const successRuleNames = results
+        .filter(r => r.status === 'success')
+        .map(r => r.ruleName)
+        .filter(Boolean);
+
       this.db.updateItem(item.id, {
         distributedTargets,
         distributionResults: results
       });
+
+      // 发送完成事件
+      sseManager.sendToItem(item.id, {
+        type: 'routing:complete',
+        itemId: item.id,
+        timestamp: new Date().toISOString(),
+        data: {
+          distributedTargets,
+          ruleNames: successRuleNames,
+          totalSuccess: successCount,
+          totalFailed: failedCount,
+          message: successRuleNames.length > 0
+            ? `已分发到: ${successRuleNames.join(', ')}`
+            : '路由分发完成'
+        }
+      });
+
     } catch (error) {
       logger.error(`Distribution failed for item ${item.id}:`, error);
+      
+      // 发送错误事件
+      sseManager.sendToItem(item.id, {
+        type: 'routing:error',
+        itemId: item.id,
+        timestamp: new Date().toISOString(),
+        data: {
+          message: '路由分发失败',
+          error: error instanceof Error ? error.message : String(error)
+        }
+      });
+    }
+  }
+
+  /**
+   * 处理路由进度事件，转换为 SSE 事件
+   */
+  private handleRoutingProgress(itemId: string, event: any): void {
+    try {
+      // 根据事件类型转换为对应的 SSE 事件
+      switch (event.type) {
+        case 'rules_loaded':
+          sseManager.sendToItem(itemId, {
+            type: 'routing:start',
+            itemId,
+            timestamp: new Date().toISOString(),
+            data: {
+              totalRules: event.data?.totalRules || 0,
+              message: `找到 ${event.data?.totalRules || 0} 条路由规则`
+            }
+          });
+          break;
+
+        case 'rule_matched':
+          sseManager.sendToItem(itemId, {
+            type: 'routing:rule_match',
+            itemId,
+            timestamp: new Date().toISOString(),
+            data: {
+              ruleName: event.data?.ruleName || '未知规则',
+              ruleId: event.data?.ruleId || '',
+              message: `匹配规则: ${event.data?.ruleName || '未知规则'}`
+            }
+          });
+          break;
+
+        case 'tool_call_start':
+          sseManager.sendToItem(itemId, {
+            type: 'routing:tool_call_start',
+            itemId,
+            timestamp: new Date().toISOString(),
+            data: {
+              toolName: event.data?.toolName || '未知工具',
+              adapterName: event.data?.adapterName || '未知适配器',
+              message: `开始调用 ${event.data?.adapterName || '未知适配器'}.${event.data?.toolName || '未知工具'}`
+            }
+          });
+          break;
+
+        case 'tool_call_progress':
+          sseManager.sendToItem(itemId, {
+            type: 'routing:tool_call_progress',
+            itemId,
+            timestamp: new Date().toISOString(),
+            data: {
+              toolName: event.data?.toolName || '未知工具',
+              adapterName: event.data?.adapterName || '未知适配器',
+              message: event.data?.message || '工具执行中...',
+              step: event.data?.step
+            }
+          });
+          break;
+
+        case 'tool_call_success':
+          sseManager.sendToItem(itemId, {
+            type: 'routing:tool_call_success',
+            itemId,
+            timestamp: new Date().toISOString(),
+            data: {
+              toolName: event.data?.toolName || '未知工具',
+              adapterName: event.data?.adapterName || '未知适配器',
+              message: `✓ 成功分发到 ${event.data?.adapterName || '未知适配器'}`,
+              result: event.data?.result
+            }
+          });
+          break;
+
+        case 'tool_call_error':
+          sseManager.sendToItem(itemId, {
+            type: 'routing:tool_call_error',
+            itemId,
+            timestamp: new Date().toISOString(),
+            data: {
+              toolName: event.data?.toolName || '未知工具',
+              adapterName: event.data?.adapterName || '未知适配器',
+              message: `✗ 分发到 ${event.data?.adapterName || '未知适配器'} 失败`,
+              error: event.data?.error || '未知错误'
+            }
+          });
+          break;
+
+        default:
+          logger.debug(`Unknown routing progress event: ${event.type}`);
+      }
+    } catch (error) {
+      logger.error(`Failed to handle routing progress event:`, error);
     }
   }
 
@@ -1203,6 +1364,95 @@ export class InboxController {
       logger.info(`[Inbox] AI reclassification triggered for item ${item.id}`);
     } catch (error) {
       next(error);
+    }
+  };
+
+  /**
+   * Get routing progress via SSE
+   * GET /v1/inbox/:id/routing-progress
+   */
+  getRoutingProgress = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { id } = req.params;
+      const userId = (req as any).user?.id;
+
+      if (!userId) {
+        res.writeHead(401, { 'Content-Type': 'text/plain' });
+        res.end('Unauthorized');
+        return;
+      }
+
+      // 验证条目存在且属于当前用户
+      const item = this.db.getItemById(id);
+      if (!item) {
+        res.writeHead(404, { 'Content-Type': 'text/plain' });
+        res.end('Item not found');
+        return;
+      }
+
+      if (item.userId !== userId) {
+        res.writeHead(403, { 'Content-Type': 'text/plain' });
+        res.end('Access denied');
+        return;
+      }
+
+      // 创建 SSE 连接
+      const connectionId = sseManager.createConnection(id, userId, res);
+      
+      // 如果条目已经完成分发，立即发送完成事件
+      if (item.distributedTargets && item.distributedTargets.length > 0) {
+        // 从 distributionResults 中提取规则名称
+        const successRuleNames = (item.distributionResults || [])
+          .filter((r: any) => r.ruleName && (r.status === 'success' || r.status === 'completed'))
+          .map((r: any) => r.ruleName);
+
+        sseManager.sendToItem(id, {
+          type: 'routing:complete',
+          itemId: id,
+          timestamp: new Date().toISOString(),
+          data: {
+            distributedTargets: item.distributedTargets,
+            ruleNames: successRuleNames,
+            totalSuccess: item.distributedTargets.length,
+            totalFailed: 0,
+            message: successRuleNames.length > 0
+              ? `已分发: ${successRuleNames.join(', ')}`
+              : `已分发到 ${item.distributedTargets.length} 个目标`
+          }
+        });
+      } else if (item.status === 'processing') {
+        // 如果正在处理中，发送处理中事件
+        sseManager.sendToItem(id, {
+          type: 'routing:start',
+          itemId: id,
+          timestamp: new Date().toISOString(),
+          data: {
+            totalRules: 0, // 将在实际分发时更新
+            message: '正在分析路由规则...'
+          }
+        });
+      } else {
+        // 发送待配置状态
+        sseManager.sendToItem(id, {
+          type: 'routing:start',
+          itemId: id,
+          timestamp: new Date().toISOString(),
+          data: {
+            totalRules: 0,
+            message: '分发规则待配置'
+          }
+        });
+      }
+
+      logger.info(`[SSE] Routing progress connection established for item ${id}, connection ${connectionId}`);
+    } catch (error) {
+      logger.error('[SSE] Failed to establish routing progress connection:', error);
+      
+      // 对于 SSE 连接，直接返回错误响应
+      if (!res.headersSent) {
+        res.writeHead(500, { 'Content-Type': 'text/plain' });
+        res.end('Internal server error');
+      }
     }
   };
 }
