@@ -6,7 +6,7 @@ import type { Request, Response } from 'express';
 import {
   register,
   login,
-  refreshToken,
+  refreshToken as refreshTokenService,
   logout,
   getMe,
 } from './auth.service.js';
@@ -193,7 +193,7 @@ export const refreshTokenController = async (req: Request, res: Response): Promi
       return;
     }
 
-    const result = await refreshToken(refreshToken);
+    const result = await refreshTokenService(refreshToken);
 
     // Set cookies
     res.cookie('superinbox_auth_token', result.token, {

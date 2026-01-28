@@ -36,12 +36,14 @@ export const authenticateJwt = (
   next: NextFunction
 ): void => {
   try {
-    // Get token from Authorization header or cookie
+    // Get token from Authorization header, cookie, or URL parameter (for SSE)
     const authHeader = req.headers.authorization;
     const cookieToken = req.cookies?.superinbox_auth_token;
+    const urlToken = req.query.token as string; // For SSE connections
+    
     const token = authHeader?.startsWith('Bearer ')
       ? authHeader.substring(7)
-      : cookieToken;
+      : cookieToken || urlToken;
 
     if (!token) {
       sendError(res, {
@@ -297,12 +299,14 @@ export const authenticate = (
   next: NextFunction
 ): void => {
   try {
-    // Get token from Authorization header or cookie
+    // Get token from Authorization header, cookie, or URL parameter (for SSE)
     const authHeader = req.headers.authorization;
     const cookieToken = req.cookies?.superinbox_auth_token;
+    const urlToken = req.query.token as string; // For SSE connections
+    
     const token = authHeader?.startsWith('Bearer ')
       ? authHeader.substring(7)
-      : cookieToken;
+      : cookieToken || urlToken;
 
     if (!token) {
       sendError(res, {
