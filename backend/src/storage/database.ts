@@ -425,9 +425,9 @@ export class DatabaseManager {
   addDistributionResult(result: any): void {
     const stmt = this.db.prepare(`
       INSERT INTO distribution_results (
-        id, item_id, target_id, adapter_type, status,
+        id, item_id, target_id, adapter_type, status, rule_name,
         external_id, external_url, error, timestamp
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     stmt.run(
@@ -436,6 +436,7 @@ export class DatabaseManager {
       result.targetId,
       result.adapterType,
       result.status,
+      result.ruleName ?? null,
       result.externalId ?? null,
       result.externalUrl ?? null,
       result.error ?? null,
@@ -487,6 +488,23 @@ export class DatabaseManager {
    * Map database row to Item object
    */
   private mapRowToItem(row: any): Item {
+    // Load distribution results from distribution_results table
+    const distributionResultsStmt = this.db.prepare(`
+      SELECT * FROM distribution_results
+      WHERE item_id = ?
+      ORDER BY timestamp DESC
+    `);
+    const distributionResults = distributionResultsStmt.all(row.id).map((r: any) => ({
+      id: r.id,
+      itemId: r.item_id,
+      targetId: r.target_id,
+      adapterType: r.adapter_type,
+      status: r.status,
+      ruleName: r.rule_name,
+      timestamp: new Date(r.timestamp),
+      error: r.error
+    }));
+
     return {
       id: row.id,
       userId: row.user_id,
@@ -500,7 +518,7 @@ export class DatabaseManager {
       status: row.status,
       priority: row.priority,
       distributedTargets: JSON.parse(row.distributed_targets || '[]'),
-      distributionResults: [], // Loaded separately if needed
+      distributionResults,
       createdAt: new Date(row.created_at),
       updatedAt: new Date(row.updated_at),
       processedAt: row.processed_at ? new Date(row.processed_at) : undefined

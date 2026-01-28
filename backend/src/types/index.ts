@@ -207,6 +207,7 @@ export interface DistributionResult {
   error?: string;
   timestamp: Date;
   message?: string; // Optional message for rule results
+  ruleName?: string; // Name of the routing rule that caused this distribution
 }
 
 // ============================================

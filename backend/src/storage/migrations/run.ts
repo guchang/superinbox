@@ -331,6 +331,13 @@ const migrations = [
       CREATE INDEX IF NOT EXISTS idx_llm_usage_logs_session_id ON llm_usage_logs(session_id);
       CREATE INDEX IF NOT EXISTS idx_llm_usage_logs_session_type ON llm_usage_logs(session_type);
     `
+  },
+  {
+    version: '012',
+    name: 'add_rule_name_to_distribution_results',
+    up: `
+      ALTER TABLE distribution_results ADD COLUMN rule_name TEXT;
+    `
   }
 ];
 
