@@ -28,6 +28,42 @@ export class ApiClient {
       }
       return config;
     });
+
+    // Add response interceptor to handle token refresh
+    this.client.interceptors.response.use(
+      (response) => response,
+      async (error) => {
+        const originalRequest = error.config;
+        
+        // If we get a 401 and haven't already tried to refresh
+        if (error.response?.status === 401 && !originalRequest._retry) {
+          originalRequest._retry = true;
+          
+          const cfg = this.getConfig();
+          if (cfg.auth?.refreshToken) {
+            try {
+              await this.refreshToken();
+              // Retry the original request with new token
+              const newCfg = this.getConfig();
+              if (newCfg.auth?.token) {
+                originalRequest.headers['Authorization'] = `Bearer ${newCfg.auth.token}`;
+                return this.client(originalRequest);
+              }
+            } catch (refreshError) {
+              // Refresh failed, clear auth data
+              config.delete('auth.token');
+              config.delete('auth.refreshToken');
+              config.delete('auth.user');
+              throw new Error('Session expired. Please login again with: sinbox login');
+            }
+          } else {
+            throw new Error('Authentication required. Please login with: sinbox login');
+          }
+        }
+        
+        return Promise.reject(error);
+      }
+    );
   }
 
   /**
@@ -150,6 +186,33 @@ export class ApiClient {
       status: response.data.status,
       version: response.data.version
     };
+  }
+
+  /**
+   * Refresh access token
+   */
+  private async refreshToken(): Promise<LoginResponse> {
+    const cfg = config.get();
+    if (!cfg.auth?.refreshToken) {
+      throw new Error('No refresh token available');
+    }
+
+    const response = await this.client.post<ApiResponse<LoginResponse>>('/auth/refresh', {
+      refreshToken: cfg.auth.refreshToken
+    });
+
+    if (!response.data.success || !response.data.data) {
+      throw new Error(response.data.error?.message ?? 'Token refresh failed');
+    }
+
+    const { user, token, refreshToken } = response.data.data;
+
+    // Save to config
+    config.set('auth.token', token);
+    config.set('auth.refreshToken', refreshToken);
+    config.set('auth.user', user);
+
+    return response.data.data;
   }
 
   /**
