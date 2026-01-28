@@ -153,7 +153,8 @@
       },
       "aiSuccessRate": {
         "title": "AI 处理率",
-        "description": "分析成功率"
+        "description": "分析成功率",
+        "breakdown": "{completed} 成功 / {failed} 失败"
       },
       "todayItems": {
         "title": "今日新增",
@@ -161,7 +162,8 @@
       },
       "pending": {
         "title": "待处理",
-        "description": "需要处理的条目"
+        "description": "需要处理的条目",
+        "breakdown": "{processing} 处理中 + {pending} 待处理"
       }
     },
     "categoryDistribution": {
@@ -199,13 +201,13 @@
     "title": "收件箱",
     "resultsCount": "找到 {count} 条结果",
     "emptyFiltered": "没有找到匹配的条目",
-    "processingHint": "等待 AI 解析分类以匹配路由规则...",
-    "routePending": "路由: 待配置",
+    "routePending": "分发规则待配置",
+    "routeDistributed": "路由: 已分发到 {count} 个目标",
     "actions": {
       "viewDetails": "查看详情"
     },
     "badge": {
-      "analyzing": "解析中...",
+      "analyzing": "后台解析中，可关闭页面",
       "failed": "失败",
       "todo": "待办",
       "idea": "想法",
@@ -341,13 +343,17 @@
     "history": {
       "meeting": "开会"
     },
-    "placeholder": "搜索... (⌘K)",
+    "placeholder": "搜索内容、分类或状态...",
+    "tip": {
+      "text": "💡 直接输入内容搜索，或使用筛选条件：",
+      "description": "例如: 会议、category:todo、status:completed"
+    },
     "sections": {
       "options": "搜索选项",
       "history": "最近搜索",
       "suggestions": "建议"
     },
-    "hint": "Tab 确认 · ESC 关闭"
+    "hint": "按 / 打开 · Tab 确认 · ESC 关闭"
   },
   "filePreview": {
     "sections": {

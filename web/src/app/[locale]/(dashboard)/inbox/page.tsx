@@ -28,6 +28,7 @@ import { CommandSearch, SearchFilters } from '@/components/shared/command-search
 import { useAutoRefetch } from '@/hooks/use-auto-refetch'
 import { FilePreview } from '@/components/file-preview'
 import { getApiErrorMessage } from '@/lib/i18n/api-errors'
+import { RoutingStatus } from '@/components/inbox/routing-status'
 
 export default function InboxPage() {
   const t = useTranslations('inbox')
@@ -280,7 +281,7 @@ export default function InboxPage() {
         </Card>
       ) : (
         <div className="space-y-4">
-          {items.map((item) => (
+          {items.map((item, index) => (
             <Card
               key={item.id}
               className={`transition-all hover:bg-accent/50 ${
@@ -353,19 +354,13 @@ export default function InboxPage() {
                 {/* Bottom Row: Actions */}
                 <div className="flex items-center justify-between pt-4 border-t">
                   <div className="flex-1">
-                    {/* Route Status - Simplified */}
-                    {item.status === ItemStatus.PROCESSING ? (
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Loader2 className="h-3 w-3 animate-spin" />
-                        <span>{t('processingHint')}</span>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-2">
-                        <Badge variant="outline" className="text-xs">
-                          {t('routePending')}
-                        </Badge>
-                      </div>
-                    )}
+                    {/* Route Status - SSE only for first item, others disabled */}
+                    <RoutingStatus
+                      itemId={item.id}
+                      initialDistributedTargets={item.distributedTargets}
+                      initialRuleNames={item.distributedRuleNames}
+                      disabled={index !== 0}  // 只有第一条启用 SSE
+                    />
                   </div>
                   
                   <div className="flex items-center gap-1">

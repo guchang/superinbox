@@ -183,7 +183,7 @@ export function CommandSearch({
 
   React.useEffect(() => {
     const down = (e: KeyboardEvent) => {
-      if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
+      if (e.key === "/" && !open) {
         e.preventDefault()
         const willOpen = !open
         setOpen(willOpen)
@@ -206,9 +206,16 @@ export function CommandSearch({
   const getSuggestions = React.useMemo(() => {
     if (!inputValue) {
       // 显示所有搜索选项
-      const suggestions: Array<{ type: 'history' | 'option', text: string, description?: string }> = []
+      const suggestions: Array<{ type: 'history' | 'option' | 'tip', text: string, description?: string }> = []
 
-      // 搜索选项（在前）
+      // 使用提示（在最前）
+      suggestions.push({
+        type: 'tip',
+        text: t('tip.text'),
+        description: t('tip.description')
+      })
+
+      // 搜索选项
       searchOptionsWithSources.forEach(option => {
         suggestions.push({
           type: 'option',
@@ -229,14 +236,25 @@ export function CommandSearch({
 
     // 检查输入是否以空格结尾（表示用户想继续添加筛选）
     if (inputValue.endsWith(' ')) {
-      // 显示所有搜索选项
+      // 解析当前已有的筛选类型
+      const usedTypes = new Set<SearchOptionType>()
+      const parts = inputValue.trim().split(/\s+/)
+      for (const part of parts) {
+        if (part.startsWith('category:')) usedTypes.add('category')
+        if (part.startsWith('status:')) usedTypes.add('status')
+        if (part.startsWith('source:')) usedTypes.add('source')
+      }
+
+      // 只显示还没有使用的搜索选项
       searchOptionsWithSources.forEach(option => {
-        suggestions.push({
-          type: 'option',
-          text: option.prefix,
-          description: option.label,
-          option
-        })
+        if (!usedTypes.has(option.id)) {
+          suggestions.push({
+            type: 'option',
+            text: option.prefix,
+            description: option.label,
+            option
+          })
+        }
       })
       return suggestions
     }
@@ -282,7 +300,19 @@ export function CommandSearch({
 
     // 如果没有匹配的选项，显示可能匹配的选项前缀
     // 当用户输入 "i" 时，显示 "category:" 选项
+    // 解析当前已有的筛选类型
+    const usedTypes = new Set<SearchOptionType>()
+    const existingParts = inputValue.trim().split(/\s+/).slice(0, -1) // 排除最后一个正在输入的部分
+    for (const part of existingParts) {
+      if (part.startsWith('category:')) usedTypes.add('category')
+      if (part.startsWith('status:')) usedTypes.add('status')
+      if (part.startsWith('source:')) usedTypes.add('source')
+    }
+
     searchOptionsWithSources.forEach(option => {
+      // 跳过已经使用的类型
+      if (usedTypes.has(option.id)) return
+
       // 检查选项前缀或关键词是否以用户输入开头
       if (option.prefix.toLowerCase().startsWith(lastPart.toLowerCase()) ||
           option.keywords.some(k => k.toLowerCase().startsWith(lastPart.toLowerCase()))) {
@@ -486,6 +516,11 @@ export function CommandSearch({
             placeholder={t('placeholder')}
             className="flex-1 bg-transparent border-0 outline-none text-sm placeholder:text-muted-foreground"
           />
+          {!inputValue && (
+            <kbd className="pointer-events-none shrink-0 h-5 select-none items-center gap-1 rounded border bg-background px-1.5 font-mono text-[10px] font-medium opacity-100 shadow-sm hidden sm:flex">
+              /
+            </kbd>
+          )}
           {inputValue && (
             <Button
               variant="ghost"
@@ -510,6 +545,25 @@ export function CommandSearch({
         <div className="max-h-[400px] overflow-auto">
           <Command>
             <CommandList>
+              {/* 使用提示 */}
+              {!inputValue && (
+                <CommandGroup>
+                  {getSuggestions.filter(s => s.type === 'tip').map((suggestion, index) => (
+                    <CommandItem
+                      key={index}
+                      onSelect={() => {
+                        inputRef.current?.focus()
+                      }}
+                      className="cursor-default opacity-70 hover:opacity-100"
+                    >
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <span>{suggestion.text}</span>
+                      </div>
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              )}
+
               {/* 搜索选项 */}
               {!inputValue && (
                 <CommandGroup heading={t('sections.options')}>
@@ -526,7 +580,7 @@ export function CommandSearch({
                       }}
                       className={cn(
                         "cursor-pointer",
-                        selectedIndex === index && "bg-accent text-accent-foreground"
+                        selectedIndex === index + 1 && "bg-accent text-accent-foreground"
                       )}
                     >
                       <div className="flex items-center justify-between w-full">
@@ -534,7 +588,7 @@ export function CommandSearch({
                           <span className="text-sm">{option.label}</span>
                           <Badge variant="outline" className="text-xs">{option.prefix}</Badge>
                         </div>
-                        {selectedIndex === index && (
+                        {selectedIndex === index + 1 && (
                           <span className="text-xs text-muted-foreground">{t('hint')}</span>
                         )}
                       </div>
@@ -556,7 +610,7 @@ export function CommandSearch({
                       }}
                       className={cn(
                         "cursor-pointer",
-                        selectedIndex === searchOptionsWithSources.length + index && "bg-accent text-accent-foreground"
+                        selectedIndex === searchOptionsWithSources.length + 1 + index && "bg-accent text-accent-foreground"
                       )}
                     >
                       <div className="flex items-center justify-between w-full">
@@ -564,7 +618,7 @@ export function CommandSearch({
                           <Clock className="h-3 w-3 opacity-50" />
                           <span className="text-sm">{item}</span>
                         </div>
-                        {selectedIndex === searchOptionsWithSources.length + index && (
+                        {selectedIndex === searchOptionsWithSources.length + 1 + index && (
                           <span className="text-xs text-muted-foreground">{t('hint')}</span>
                         )}
                       </div>

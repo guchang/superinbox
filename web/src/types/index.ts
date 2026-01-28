@@ -72,6 +72,8 @@ export interface Item {
   priority: Priority
   analysis?: AIAnalysis
   distributionResults?: Record<string, any>
+  distributedTargets?: any[]
+  distributedRuleNames?: string[]
   createdAt: string
   updatedAt: string
   createdAtLocal?: string | null

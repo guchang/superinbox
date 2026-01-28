@@ -79,7 +79,7 @@ export function QuickAddDialog({ trigger }: QuickAddDialogProps) {
                             target.contentEditable === 'true' ||
                             target.role === 'textbox'
       
-      if (e.key.toLowerCase() === 'q' && !isInputElement && !open) {
+      if (e.key === 'k' && (e.metaKey || e.ctrlKey) && !isInputElement && !open) {
         e.preventDefault()
         setOpen(true)
       }
@@ -290,7 +290,7 @@ export function QuickAddDialog({ trigger }: QuickAddDialogProps) {
         const response = await inboxApi.createItem({
           content: content.trim(),
           contentType: ContentType.TEXT,
-          source: "web-manual",
+          source: "web",
         })
 
         if (!response.success) {
@@ -332,9 +332,14 @@ export function QuickAddDialog({ trigger }: QuickAddDialogProps) {
       <Plus className="mr-2 h-4 w-4 shrink-0" />
       <span className="hidden sm:inline-flex">{t('trigger.full')}</span>
       <span className="inline-flex sm:hidden">{t('trigger.short')}</span>
-      <kbd className="pointer-events-none absolute right-[0.3rem] top-[0.3rem] hidden h-5 select-none items-center gap-1 rounded border bg-background px-1.5 font-mono text-[10px] font-medium opacity-100 shadow-sm sm:flex">
-        Q
-      </kbd>
+      <div className="pointer-events-none absolute right-[0.3rem] top-[0.3rem] hidden items-center gap-1 sm:flex">
+        <kbd className="inline-flex h-5 w-5 select-none items-center justify-center rounded border bg-background font-mono text-base font-medium opacity-100 shadow-sm">
+          ⌘
+        </kbd>
+        <kbd className="inline-flex h-5 w-5 select-none items-center justify-center rounded border bg-background font-mono text-xs font-medium opacity-100 shadow-sm">
+          K
+        </kbd>
+      </div>
     </Button>
   )
 

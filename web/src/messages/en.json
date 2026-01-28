@@ -153,7 +153,8 @@
       },
       "aiSuccessRate": {
         "title": "AI success rate",
-        "description": "Analysis success rate"
+        "description": "Analysis success rate",
+        "breakdown": "{completed} success / {failed} failed"
       },
       "todayItems": {
         "title": "New today",
@@ -161,7 +162,8 @@
       },
       "pending": {
         "title": "Pending",
-        "description": "Items requiring attention"
+        "description": "Items requiring attention",
+        "breakdown": "{processing} processing + {pending} pending"
       }
     },
     "categoryDistribution": {
@@ -199,13 +201,13 @@
     "title": "Inbox",
     "resultsCount": "Found {count} results",
     "emptyFiltered": "No matching items",
-    "processingHint": "Waiting for AI classification to match routing rules...",
-    "routePending": "Routing: Not configured",
+    "routePending": "Routing rules not configured",
+    "routeDistributed": "Routing: Distributed to {count} targets",
     "actions": {
       "viewDetails": "View details"
     },
     "badge": {
-      "analyzing": "ANALYZING...",
+      "analyzing": "Background processing, feel free to close",
       "failed": "FAILED",
       "todo": "TODO",
       "idea": "IDEA",
@@ -341,13 +343,17 @@
     "history": {
       "meeting": "Meeting"
     },
-    "placeholder": "Search... (⌘K)",
+    "placeholder": "Search content, category or status...",
+    "tip": {
+      "text": "💡 Type content directly, or use filters:",
+      "description": "Examples: meeting, category:todo, status:completed"
+    },
     "sections": {
       "options": "Search options",
       "history": "Recent searches",
       "suggestions": "Suggestions"
     },
-    "hint": "Tab to select · Esc to close"
+    "hint": "Press / to open · Tab to select · Esc to close"
   },
   "filePreview": {
     "sections": {

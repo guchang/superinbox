@@ -17,6 +17,7 @@ interface BackendItem {
   priority: string
   distributedTargets: any[]
   distributionResults: any[]
+  distributedRuleNames?: string[]
   createdAt: string
   updatedAt: string
   createdAtLocal?: string | null
@@ -63,6 +64,8 @@ export function adaptBackendItem(backendItem: BackendItem): Item {
     priority: backendItem.priority as any,
     analysis,
     distributionResults: backendItem.distributionResults,
+    distributedTargets: backendItem.distributedTargets,
+    distributedRuleNames: backendItem.distributedRuleNames,
     createdAt: backendItem.createdAt,
     updatedAt: backendItem.updatedAt,
     createdAtLocal: backendItem.createdAtLocal ?? null,

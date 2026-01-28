@@ -12,6 +12,32 @@ const getDefaultErrorMessage = () => {
   return lang.startsWith('zh') ? DEFAULT_ERROR_ZH : DEFAULT_ERROR_EN
 }
 
+/**
+ * Custom params serializer to handle array values correctly
+ * Converts { category: ['todo', 'idea'] } to "category=todo&category=idea"
+ */
+const serializeParams = (params: any) => {
+  const parts: string[] = []
+
+  Object.keys(params).forEach(key => {
+    const value = params[key]
+    if (value === undefined || value === null) return
+
+    if (Array.isArray(value)) {
+      // For arrays, repeat the key for each value (standard query string format)
+      value.forEach(v => {
+        if (v !== undefined && v !== null) {
+          parts.push(`${encodeURIComponent(key)}=${encodeURIComponent(v)}`)
+        }
+      })
+    } else {
+      parts.push(`${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
+    }
+  })
+
+  return parts.join('&')
+}
+
 class ApiClient {
   private client: AxiosInstance
 
@@ -23,6 +49,7 @@ class ApiClient {
       },
       withCredentials: true,
       timeout: 180000,
+      paramsSerializer: serializeParams,
     })
 
     // 请求拦截器：添加 JWT Token

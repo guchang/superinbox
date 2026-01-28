@@ -13,8 +13,6 @@ import {
   BrainCircuit,
   TrendingUp,
   Clock,
-  CheckCircle,
-  AlertCircle,
 } from 'lucide-react'
 import { ItemStatus } from '@/types'
 import { formatRelativeTime } from '@/lib/utils'
@@ -65,8 +63,8 @@ export default function DashboardPage() {
 
   // 获取最近条目
   const { data: itemsData } = useQuery({
-    queryKey: ['inbox', { limit: 10, sortBy: 'createdAt', sortOrder: 'desc' as const }],
-    queryFn: () => inboxApi.getItems({ limit: 10, sortBy: 'createdAt', sortOrder: 'desc' }),
+    queryKey: ['inbox', { limit: 3, sortBy: 'createdAt', sortOrder: 'desc' as const }],
+    queryFn: () => inboxApi.getItems({ limit: 3, sortBy: 'createdAt', sortOrder: 'desc' }),
   })
 
   const stats = statsData?.data
@@ -74,6 +72,12 @@ export default function DashboardPage() {
 
   // 计算待处理数量
   const pendingCount = (stats?.itemsByStatus?.pending || 0) + (stats?.itemsByStatus?.processing || 0)
+
+  // 计算AI处理相关的数量
+  const completedCount = stats?.itemsByStatus?.completed || 0
+  const failedCount = stats?.itemsByStatus?.failed || 0
+  const processingCount = stats?.itemsByStatus?.processing || 0
+  const totalProcessed = completedCount + failedCount
 
   const fallbackLabels = useMemo(() => ({
     todo: t('categories.todo'),
@@ -96,7 +100,10 @@ export default function DashboardPage() {
     {
       title: t('stats.aiSuccessRate.title'),
       value: `${stats?.aiSuccessRate || 0}%`,
-      description: t('stats.aiSuccessRate.description'),
+      // Show completed/failed breakdown
+      description: totalProcessed > 0
+        ? t('stats.aiSuccessRate.breakdown', { completed: completedCount, failed: failedCount })
+        : t('stats.aiSuccessRate.description'),
       icon: BrainCircuit,
       color: 'text-purple-600',
     },
@@ -110,7 +117,10 @@ export default function DashboardPage() {
     {
       title: t('stats.pending.title'),
       value: pendingCount.toString(),
-      description: t('stats.pending.description'),
+      // Show pending/processing breakdown
+      description: pendingCount > 0
+        ? t('stats.pending.breakdown', { processing: processingCount, pending: stats?.itemsByStatus?.pending || 0 })
+        : t('stats.pending.description'),
       icon: Clock,
       color: 'text-orange-600',
     },
@@ -131,7 +141,7 @@ export default function DashboardPage() {
   }, [stats])
 
   return (
-    <div className="space-y-6">
+    <div className="w-full max-w-6xl mx-auto space-y-6">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold">{t('title')}</h1>
@@ -157,19 +167,19 @@ export default function DashboardPage() {
       <div className="grid gap-6 md:grid-cols-2">
         {/* 意图分布 */}
         <Card>
-          <CardHeader>
+          <CardHeader className="pb-3">
             <CardTitle>{t('categoryDistribution.title')}</CardTitle>
             <CardDescription>{t('categoryDistribution.description')}</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="pt-0">
             {statsLoading ? (
               <div className="text-center text-muted-foreground py-8">{common('loading')}</div>
             ) : categoryDistribution.length === 0 ? (
               <div className="text-center text-muted-foreground py-8">{common('noData')}</div>
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {categoryDistribution.map(({ category, count, percentage }) => (
-                  <div key={category} className="space-y-2">
+                  <div key={category} className="space-y-1.5">
                     <div className="flex items-center justify-between text-sm">
                       <span className="font-medium capitalize">
                         {getIntentLabel(category, categoryLabelMap, fallbackLabels)}
@@ -189,110 +199,66 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* 状态分布 */}
+        {/* 最近条目 */}
         <Card>
-          <CardHeader>
-            <CardTitle>{t('statusDistribution.title')}</CardTitle>
-            <CardDescription>{t('statusDistribution.description')}</CardDescription>
+          <CardHeader className="pb-3">
+            <div className="flex items-start justify-between gap-4">
+              <div className="space-y-1.5">
+                <CardTitle>{t('recent.title')}</CardTitle>
+                <CardDescription>{t('recent.description')}</CardDescription>
+              </div>
+              <Button variant="ghost" size="sm" asChild>
+                <Link href="/inbox">{t('recent.viewAll')}</Link>
+              </Button>
+            </div>
           </CardHeader>
-          <CardContent>
-            {statsLoading ? (
-              <div className="text-center text-muted-foreground py-8">{common('loading')}</div>
+          <CardContent className="pt-0">
+            {recentItems.length === 0 ? (
+              <div className="text-center text-muted-foreground py-8">
+                {t('recent.emptyPrefix')}
+                <Link href="/inbox" className="text-primary hover:underline">
+                  {t('recent.emptyAction')}
+                </Link>
+              </div>
             ) : (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle className="h-4 w-4 text-green-600" />
-                    <span className="text-sm">{t('status.completed')}</span>
-                  </div>
-                  <Badge variant="secondary">{stats?.itemsByStatus?.completed || 0}</Badge>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Clock className="h-4 w-4 text-orange-600" />
-                    <span className="text-sm">{t('status.processing')}</span>
-                  </div>
-                  <Badge variant="secondary">{stats?.itemsByStatus?.processing || 0}</Badge>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <AlertCircle className="h-4 w-4 text-red-600" />
-                    <span className="text-sm">{t('status.failed')}</span>
-                  </div>
-                  <Badge variant="destructive">{stats?.itemsByStatus?.failed || 0}</Badge>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Inbox className="h-4 w-4 text-gray-600" />
-                    <span className="text-sm">{t('status.pending')}</span>
-                  </div>
-                  <Badge variant="outline">{stats?.itemsByStatus?.pending || 0}</Badge>
-                </div>
+              <div className="space-y-4">
+                {recentItems.map((item) => (
+                  <Link
+                    key={item.id}
+                    href={`/inbox/${item.id}`}
+                    className="block hover:bg-accent/50 rounded-lg transition-colors"
+                  >
+                    <div className="flex items-start justify-between gap-4 p-3 border-b last:border-0">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Badge
+                            variant={
+                              item.status === ItemStatus.COMPLETED
+                                ? 'default'
+                                : item.status === ItemStatus.FAILED
+                                  ? 'destructive'
+                                  : 'secondary'
+                            }
+                          >
+                            {getIntentLabel(item.analysis?.category ?? 'unknown', categoryLabelMap)}
+                          </Badge>
+                          <Badge variant="outline" className="text-xs">
+                            {item.source}
+                          </Badge>
+                        </div>
+                        <p className="text-sm line-clamp-2">{item.content}</p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {formatRelativeTime(item.createdAtLocal ?? item.createdAt, time)}
+                        </p>
+                      </div>
+                    </div>
+                  </Link>
+                ))}
               </div>
             )}
           </CardContent>
         </Card>
       </div>
-
-      {/* 最近条目 */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>{t('recent.title')}</CardTitle>
-              <CardDescription>{t('recent.description')}</CardDescription>
-            </div>
-            <Button variant="ghost" size="sm" asChild>
-              <Link href="/inbox">{t('recent.viewAll')}</Link>
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {recentItems.length === 0 ? (
-            <div className="text-center text-muted-foreground py-8">
-              {t('recent.emptyPrefix')}
-              <Link href="/inbox" className="text-primary hover:underline">
-                {t('recent.emptyAction')}
-              </Link>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {recentItems.map((item) => (
-                <Link
-                  key={item.id}
-                  href={`/inbox/${item.id}`}
-                  className="block hover:bg-accent/50 rounded-lg transition-colors"
-                >
-                  <div className="flex items-start justify-between gap-4 p-3 border-b last:border-0">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <Badge
-                          variant={
-                            item.status === ItemStatus.COMPLETED
-                              ? 'default'
-                              : item.status === ItemStatus.FAILED
-                                ? 'destructive'
-                                : 'secondary'
-                          }
-                        >
-                          {getIntentLabel(item.analysis?.category ?? 'unknown', categoryLabelMap)}
-                        </Badge>
-                        <Badge variant="outline" className="text-xs">
-                          {item.source}
-                        </Badge>
-                      </div>
-                      <p className="text-sm line-clamp-2">{item.content}</p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {formatRelativeTime(item.createdAtLocal ?? item.createdAt, time)}
-                      </p>
-                    </div>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
     </div>
   )
 }
