@@ -3,12 +3,13 @@
 import React, { useState } from "react"
 import { useTranslations } from 'next-intl'
 import { Button } from "@/components/ui/button"
-import { Download, Expand, File } from "lucide-react"
+import { Download, Expand, File, X } from "lucide-react"
 import {
   Dialog,
   DialogContent,
   DialogTrigger,
   DialogTitle,
+  DialogClose,
 } from "@/components/ui/dialog"
 import { inboxApi } from "@/lib/api/inbox"
 import { getApiBaseUrl } from "@/lib/api/base-url"
@@ -71,19 +72,16 @@ export function FilePreview({ itemId, fileName, mimeType, allFiles }: FilePrevie
             </div>
             <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin">
               {allFiles.map((file, originalIndex) => {
-                // Only show image files
                 if (!file.mimeType.startsWith('image/')) return null
-                
                 const imageUrl = `${apiBaseUrl}/inbox/${itemId}/file/${originalIndex}`
-                
+
                 return (
                   <div key={originalIndex} className="relative group flex-shrink-0 w-32 h-24">
                     <img
                       src={imageUrl}
                       alt={file.fileName}
-                      className="w-full h-full object-cover rounded-lg border"
+                      className="w-full h-full object-cover border"
                       onError={(e) => {
-                        // Handle auth if needed
                         const img = e.target as HTMLImageElement
                         const token = typeof window !== 'undefined'
                           ? localStorage.getItem('superinbox_auth_token')
@@ -102,50 +100,72 @@ export function FilePreview({ itemId, fileName, mimeType, allFiles }: FilePrevie
                           .catch(err => console.error('Failed to load image:', err))
                       }}
                     />
-                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1 rounded-lg">
+                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1">
                       <Dialog>
                         <DialogTrigger asChild>
                           <Button variant="secondary" size="sm" className="h-8 w-8 p-0">
                             <Expand className="h-4 w-4" />
                           </Button>
                         </DialogTrigger>
-                        <DialogContent className="max-w-[90vw] max-h-[90vh] p-0">
+                        <DialogContent className="max-w-[90vw] max-h-[90vh] p-0 border-none bg-transparent shadow-none">
                           <VisuallyHidden>
                             <DialogTitle>{t('dialog.imageTitle', { name: file.fileName })}</DialogTitle>
                           </VisuallyHidden>
-                          <div className="relative">
-                            <img 
-                              src={imageUrl} 
-                              alt={file.fileName} 
-                              className="w-full h-auto max-h-[90vh] object-contain"
-                              onError={(e) => {
-                                // Handle auth for dialog image as well
-                                const img = e.target as HTMLImageElement
-                                const token = typeof window !== 'undefined'
-                                  ? localStorage.getItem('superinbox_auth_token')
-                                  : null
+                          <div className="relative group/modal flex flex-col items-center justify-center w-full h-full min-h-[50vh]">
+                            <div className="fixed inset-0 bg-black/80 backdrop-blur-md -z-10" />
+                            <DialogClose className="absolute top-4 right-4 z-30 h-10 w-10 flex items-center justify-center rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white hover:bg-white/20 transition-all">
+                              <X className="h-5 w-5" />
+                              <span className="sr-only">Close</span>
+                            </DialogClose>
 
-                                fetch(imageUrl, {
-                                  headers: {
-                                    'Authorization': token ? `Bearer ${token}` : '',
-                                  },
-                                })
-                                  .then(res => res.blob())
-                                  .then(blob => {
-                                    const url = URL.createObjectURL(blob)
-                                    img.src = url
+                            <div className="absolute top-4 left-4 flex items-center gap-2 z-20 opacity-0 group-hover/modal:opacity-100 transition-opacity">
+                              <div className="bg-black/40 backdrop-blur-md px-4 py-2 rounded-full border border-white/10 text-white text-xs font-medium truncate max-w-[300px] shadow-lg">
+                                {file.fileName}
+                              </div>
+                              <Button
+                                variant="secondary"
+                                size="sm"
+                                className="h-9 w-9 p-0 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white hover:bg-white/20 shadow-lg"
+                                onClick={() => {
+                                  const downloadUrl = `${apiBaseUrl}/inbox/${itemId}/file/${originalIndex}/download`
+                                  const token = typeof window !== 'undefined'
+                                    ? localStorage.getItem('superinbox_auth_token')
+                                    : null
+
+                                  fetch(downloadUrl, {
+                                    headers: {
+                                      'Authorization': token ? `Bearer ${token}` : '',
+                                    },
                                   })
-                                  .catch(err => console.error('Failed to load dialog image:', err))
-                              }}
+                                    .then(res => res.blob())
+                                    .then(blob => {
+                                      const url = URL.createObjectURL(blob)
+                                      const link = document.createElement('a')
+                                      link.href = url
+                                      link.download = file.fileName
+                                      document.body.appendChild(link)
+                                      link.click()
+                                      document.body.removeChild(link)
+                                      URL.revokeObjectURL(url)
+                                    })
+                                }}
+                              >
+                                <Download className="h-5 w-5" />
+                              </Button>
+                            </div>
+
+                            <img
+                              src={imageUrl}
+                              alt={file.fileName}
+                              className="w-auto h-auto max-w-full max-h-[85vh] object-contain shadow-2xl transition-all duration-300 ease-out select-none"
                             />
                           </div>
                         </DialogContent>
                       </Dialog>
-                      <Button 
-                        variant="secondary" 
-                        size="sm" 
+                      <Button
+                        variant="secondary"
+                        size="sm"
                         onClick={() => {
-                          // Download specific image by index
                           const downloadUrl = `${apiBaseUrl}/inbox/${itemId}/file/${originalIndex}/download`
                           const token = typeof window !== 'undefined'
                             ? localStorage.getItem('superinbox_auth_token')
@@ -192,9 +212,8 @@ export function FilePreview({ itemId, fileName, mimeType, allFiles }: FilePrevie
             </div>
             <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin">
               {allFiles.map((file, originalIndex) => {
-                // Only show non-image files
                 if (file.mimeType.startsWith('image/')) return null
-                
+
                 return (
                   <div key={originalIndex} className="flex-shrink-0 flex items-center gap-3 p-3 bg-muted rounded-lg border min-w-[220px] hover:bg-muted/80 transition-colors cursor-pointer group">
                     <div className="w-10 h-10 flex items-center justify-center bg-background rounded-lg shadow-sm group-hover:scale-105 transition-transform">
@@ -208,11 +227,10 @@ export function FilePreview({ itemId, fileName, mimeType, allFiles }: FilePrevie
                         {(file.fileSize / 1024).toFixed(1)}KB
                       </div>
                     </div>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       onClick={() => {
-                        // Download specific file by index
                         const downloadUrl = `${apiBaseUrl}/v1/inbox/${itemId}/file/${originalIndex}/download`
                         const token = typeof window !== 'undefined'
                           ? localStorage.getItem('superinbox_auth_token')
@@ -262,12 +280,10 @@ export function FilePreview({ itemId, fileName, mimeType, allFiles }: FilePrevie
         <img
           src={fileUrl}
           alt={fileName || t('imageAltFallback')}
-          className="w-full h-full object-cover rounded-lg border"
+          className="w-full h-full object-cover border"
           onError={(e) => {
-            // If direct load fails, try fetching with auth
             const img = e.target as HTMLImageElement
             setIsLoadingImage(true)
-
             const token = typeof window !== 'undefined'
               ? localStorage.getItem('superinbox_auth_token')
               : null
@@ -296,33 +312,55 @@ export function FilePreview({ itemId, fileName, mimeType, allFiles }: FilePrevie
           }}
         />
         {isLoadingImage && (
-          <div className="absolute inset-0 bg-black/20 flex items-center justify-center rounded-lg">
+          <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
             <div className="text-white text-sm">{t('loading')}</div>
           </div>
         )}
-        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 rounded-lg">
+        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
           <Dialog>
             <DialogTrigger asChild>
               <Button variant="secondary" size="sm" className="h-8 w-8 p-0">
                 <Expand className="h-4 w-4" />
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-[90vw] max-h-[90vh] p-0">
+            <DialogContent className="max-w-[90vw] max-h-[90vh] p-0 border-none bg-transparent shadow-none">
               <VisuallyHidden>
                 <DialogTitle>
                   {t('dialog.imageTitle', { name: fileName || t('uploadedImage') })}
                 </DialogTitle>
               </VisuallyHidden>
-              <img 
-                src={imageDataUrl || fileUrl} 
-                alt={fileName} 
-                className="w-full h-auto max-h-[90vh] object-contain" 
-              />
+              <div className="relative group/modal flex flex-col items-center justify-center w-full h-full min-h-[50vh]">
+                <div className="fixed inset-0 bg-black/80 backdrop-blur-md -z-10" />
+                <DialogClose className="absolute top-4 right-4 z-30 h-10 w-10 flex items-center justify-center rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white hover:bg-white/20 transition-all">
+                  <X className="h-5 w-5" />
+                  <span className="sr-only">Close</span>
+                </DialogClose>
+
+                <div className="absolute top-4 left-4 flex items-center gap-2 z-20 opacity-0 group-hover/modal:opacity-100 transition-opacity">
+                  <div className="bg-black/40 backdrop-blur-md px-4 py-2 rounded-full border border-white/10 text-white text-xs font-medium truncate max-w-[300px] shadow-lg">
+                    {fileName || t('uploadedImage')}
+                  </div>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="h-9 w-9 p-0 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white hover:bg-white/20 shadow-lg"
+                    onClick={handleDownload}
+                  >
+                    <Download className="h-5 w-5" />
+                  </Button>
+                </div>
+
+                <img
+                  src={imageDataUrl || fileUrl}
+                  alt={fileName}
+                  className="w-auto h-auto max-w-full max-h-[85vh] object-contain shadow-2xl transition-all duration-300 ease-out select-none"
+                />
+              </div>
             </DialogContent>
           </Dialog>
-          <Button 
-            variant="secondary" 
-            size="sm" 
+          <Button
+            variant="secondary"
+            size="sm"
             onClick={handleDownload}
             className="h-8 w-8 p-0"
           >
@@ -333,7 +371,7 @@ export function FilePreview({ itemId, fileName, mimeType, allFiles }: FilePrevie
     )
   }
 
-  // Non-image file
+  // Non-image file fallback
   return (
     <div className="flex items-center gap-3 p-4 bg-muted rounded-lg border hover:bg-muted/80 transition-colors">
       <div className="w-10 h-10 flex items-center justify-center bg-background rounded-lg shadow-sm">
