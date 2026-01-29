@@ -11,7 +11,8 @@ interface AutoRefetchOptions {
 /**
  * Smart auto-refetch hook for polling processing items
  *
- * This hook automatically refetches data when there are items in PROCESSING or PENDING status.
+ * This hook automatically refetches data when there are items in PROCESSING status.
+ * It does NOT poll for PENDING items (they haven't started processing yet).
  * It stops polling when all items are completed or failed.
  *
  * @param options - Configuration options
@@ -41,9 +42,10 @@ export function useAutoRefetch({
       return
     }
 
-    // Check if there are any items that need polling (pending or processing)
+    // Check if there are any items that need polling (only processing status)
+    // PENDING items don't need polling as they haven't started processing yet
     const hasProcessingItems = items.some(
-      (item) => item.status === ItemStatus.PROCESSING || item.status === ItemStatus.PENDING
+      (item) => item.status === ItemStatus.PROCESSING
     )
 
     if (hasProcessingItems) {
