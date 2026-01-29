@@ -262,16 +262,12 @@
       "completed": "已完成",
       "failed": "失败"
     },
-    "priority": {
-      "low": "低",
-      "medium": "中",
-      "high": "高"
-    },
     "contentType": {
       "text": "文本",
       "image": "图片",
       "url": "链接",
-      "audio": "音频"
+      "audio": "音频",
+      "file": "文件"
     },
     "sections": {
       "content": "原始内容",
@@ -287,10 +283,12 @@
       "summary": "摘要",
       "entities": "提取的实体"
     },
+    "content": {
+      "empty": "无文本内容"
+    },
     "metadata": {
       "status": "状态",
       "category": "分类",
-      "priority": "优先级",
       "source": "来源",
       "id": "ID",
       "contentType": "内容类型",
@@ -336,6 +334,9 @@
       },
       "source": {
         "label": "来源"
+      },
+      "hastype": {
+        "label": "内容类型"
       }
     },
     "categories": {
@@ -352,13 +353,20 @@
       "completed": "已完成",
       "failed": "失败"
     },
+    "contentTypes": {
+      "text": "文本",
+      "url": "链接",
+      "image": "图片",
+      "audio": "音频",
+      "file": "文件"
+    },
     "history": {
       "meeting": "开会"
     },
-    "placeholder": "搜索内容、分类或状态...",
+    "placeholder": "搜索内容、分类、状态或内容类型...",
     "tip": {
       "text": "💡 直接输入内容搜索，或使用筛选条件：",
-      "description": "例如: 会议、category:todo、status:completed"
+      "description": "例如: 会议、category:todo、status:completed、hastype:image"
     },
     "sections": {
       "options": "搜索选项",
@@ -605,6 +613,13 @@
   },
   "settings": {
     "title": "系统设置",
+    "theme": {
+      "title": "主题设置",
+      "description": "选择应用程序的外观主题",
+      "light": "浅色",
+      "dark": "深色",
+      "system": "跟随系统"
+    },
     "llmConfig": {
       "title": "LLM 配置",
       "description": "配置用于内容处理的模型与访问地址",
@@ -1231,7 +1246,6 @@
     "fields": {
       "category": "分类",
       "source": "来源",
-      "priority": "优先级",
       "content": "内容"
     },
     "operators": {

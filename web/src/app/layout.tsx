@@ -39,7 +39,7 @@ export default async function RootLayout({
   const locale = await getLocale()
 
   return (
-    <html lang={locale}>
+    <html lang={locale} suppressHydrationWarning>
       <body className={`${inter.variable} ${outfit.variable} ${dmSans.variable} font-sans`}>
         {children}
       </body>

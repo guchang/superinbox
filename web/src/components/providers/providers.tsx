@@ -6,6 +6,7 @@ import { useState } from 'react'
 import { Toaster as ShadcnToaster } from '@/components/ui/toaster'
 import { Toaster } from 'sonner'
 import { AuthProvider } from '@/lib/hooks/use-auth'
+import { ThemeProvider } from '@/components/providers/theme-provider'
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
@@ -22,12 +23,19 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        {children}
-      </AuthProvider>
-      <Toaster richColors position="top-right" />
-      <ShadcnToaster />
-      <ReactQueryDevtools initialIsOpen={false} />
+      <ThemeProvider
+        attribute="class"
+        defaultTheme="system"
+        enableSystem
+        disableTransitionOnChange
+      >
+        <AuthProvider>
+          {children}
+        </AuthProvider>
+        <Toaster richColors position="top-right" />
+        <ShadcnToaster />
+        <ReactQueryDevtools initialIsOpen={false} />
+      </ThemeProvider>
     </QueryClientProvider>
   )
 }

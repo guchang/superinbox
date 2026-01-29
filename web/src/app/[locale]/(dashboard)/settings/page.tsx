@@ -11,6 +11,7 @@ import { useToast } from '@/hooks/use-toast'
 import { Check, AlertCircle } from 'lucide-react'
 import { settingsApi } from '@/lib/api/settings'
 import { getApiErrorMessage } from '@/lib/i18n/api-errors'
+import { ThemeSettings } from '@/components/theme/theme-settings'
 
 export default function SettingsPage() {
   const t = useTranslations('settings')
@@ -194,6 +195,9 @@ export default function SettingsPage() {
       <div>
         <h1 className="text-3xl font-bold">{t('title')}</h1>
       </div>
+
+      {/* Theme Settings */}
+      <ThemeSettings />
 
       {/* LLM Configuration */}
       <Card>

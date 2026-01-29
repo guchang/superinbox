@@ -261,16 +261,12 @@
       "completed": "Completed",
       "failed": "Failed"
     },
-    "priority": {
-      "low": "Low",
-      "medium": "Medium",
-      "high": "High"
-    },
     "contentType": {
       "text": "Text",
       "image": "Image",
       "url": "URL",
-      "audio": "Audio"
+      "audio": "Audio",
+      "file": "File"
     },
     "sections": {
       "content": "Original content",
@@ -286,10 +282,12 @@
       "summary": "Summary",
       "entities": "Extracted entities"
     },
+    "content": {
+      "empty": "No text content"
+    },
     "metadata": {
       "status": "Status",
       "category": "Category",
-      "priority": "Priority",
       "source": "Source",
       "id": "ID",
       "contentType": "Content type",
@@ -335,6 +333,9 @@
       },
       "source": {
         "label": "Source"
+      },
+      "hastype": {
+        "label": "Content type"
       }
     },
     "categories": {
@@ -351,13 +352,20 @@
       "completed": "Completed",
       "failed": "Failed"
     },
+    "contentTypes": {
+      "text": "Text",
+      "url": "URL",
+      "image": "Image",
+      "audio": "Audio",
+      "file": "File"
+    },
     "history": {
       "meeting": "Meeting"
     },
-    "placeholder": "Search content, category or status...",
+    "placeholder": "Search content, category, status, or content type...",
     "tip": {
       "text": "💡 Type content directly, or use filters:",
-      "description": "Examples: meeting, category:todo, status:completed"
+      "description": "Examples: meeting, category:todo, status:completed, hastype:image"
     },
     "sections": {
       "options": "Search options",
@@ -604,6 +612,13 @@
   },
   "settings": {
     "title": "Settings",
+    "theme": {
+      "title": "Theme",
+      "description": "Select the theme for the application",
+      "light": "Light",
+      "dark": "Dark",
+      "system": "System"
+    },
     "llmConfig": {
       "title": "LLM Configuration",
       "description": "Configure the model and endpoint used for AI processing",
@@ -1314,7 +1329,6 @@
     "fields": {
       "category": "Category",
       "source": "Source",
-      "priority": "Priority",
       "content": "Content"
     },
     "operators": {
