@@ -12,7 +12,7 @@ import { Separator } from '@/components/ui/separator'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { formatRelativeTime } from '@/lib/utils'
-import { CategoryType, ContentType, ItemStatus, Priority } from '@/types'
+import { CategoryType, ContentType, ItemStatus } from '@/types'
 import { ArrowLeft, RefreshCw, Sparkles, Trash2, Loader2, Share2, Clock, FileText, CheckCircle2, XCircle, AlertCircle, Paperclip, Settings2 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { FilePreview } from '@/components/file-preview'
@@ -46,11 +46,6 @@ export default function InboxDetailPage() {
   const categoryLabelMap = useMemo(() => {
     return new Map((categoriesData?.data || []).map((category) => [category.key, category.name]))
   }, [categoriesData])
-  const { isPolling } = useAutoRefetch({
-    refetch,
-    items: item ? [item] : [],
-    interval: 3000,
-  })
 
   // Mutations
   const deleteMutation = useMutation({
@@ -116,6 +111,64 @@ export default function InboxDetailPage() {
     },
   })
 
+  // Smart auto-refetch: only poll when necessary
+  // - When item is actively being processed (PROCESSING status)
+  // - When user manually triggers reclassify/redistribute operations
+  // - NOT for COMPLETED, FAILED, or PENDING items (no changes expected)
+  const { isPolling } = useAutoRefetch({
+    refetch,
+    items: item ? [item] : [],
+    interval: 3000,
+    enabled: !!item && (
+      item.status === ItemStatus.PROCESSING ||
+      reclassifyMutation.isPending ||
+      redistributeMutation.isPending
+    ),
+  })
+
+  const contentTypeTags = useMemo(() => {
+    if (!item) return []
+    const tags = new Set<string>()
+    const content = item.content?.trim() ?? ''
+
+    if (item.contentType === ContentType.URL) {
+      tags.add(t('contentType.url'))
+    } else if (content) {
+      tags.add(t('contentType.text'))
+    }
+
+    const fileSources = item.allFiles && item.allFiles.length > 0
+      ? item.allFiles
+      : item.mimeType
+        ? [{ mimeType: item.mimeType }]
+        : []
+
+    for (const file of fileSources) {
+      const mimeType = file?.mimeType?.toLowerCase() ?? ''
+      if (mimeType.startsWith('image/')) {
+        tags.add(t('contentType.image'))
+      } else if (mimeType.startsWith('audio/')) {
+        tags.add(t('contentType.audio'))
+      } else {
+        tags.add(t('contentType.file'))
+      }
+    }
+
+    if (tags.size === 0) {
+      if (item.contentType === ContentType.IMAGE) {
+        tags.add(t('contentType.image'))
+      } else if (item.contentType === ContentType.AUDIO) {
+        tags.add(t('contentType.audio'))
+      } else if (item.contentType === ContentType.FILE) {
+        tags.add(t('contentType.file'))
+      } else if (item.contentType === ContentType.TEXT) {
+        tags.add(t('contentType.text'))
+      }
+    }
+
+    return Array.from(tags)
+  }, [item, t])
+
   // Helpers
   const getCategoryBadgeVariant = (category: string) => {
     const variants: Record<string, any> = {
@@ -147,17 +200,12 @@ export default function InboxDetailPage() {
     [ItemStatus.FAILED]: t('status.failed'),
   }
 
-  const priorityLabelMap: Record<Priority, string> = {
-    [Priority.LOW]: t('priority.low'),
-    [Priority.MEDIUM]: t('priority.medium'),
-    [Priority.HIGH]: t('priority.high'),
-  }
-
   const contentTypeLabelMap: Record<ContentType, string> = {
     [ContentType.TEXT]: t('contentType.text'),
     [ContentType.IMAGE]: t('contentType.image'),
     [ContentType.URL]: t('contentType.url'),
     [ContentType.AUDIO]: t('contentType.audio'),
+    [ContentType.FILE]: t('contentType.file'),
   }
 
   if (isLoading) {
@@ -323,7 +371,9 @@ export default function InboxDetailPage() {
                 text-sm leading-relaxed min-h-[120px]
                 ${item.contentType === ContentType.URL ? 'font-mono break-all text-blue-600 hover:underline cursor-pointer' : 'whitespace-pre-wrap break-words'}
               `}>
-                {item.content}
+                {item.content?.trim() ? item.content : (
+                  <span className="text-muted-foreground italic">{t('content.empty')}</span>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -342,6 +392,7 @@ export default function InboxDetailPage() {
                   itemId={item.id}
                   fileName={item.fileName}
                   mimeType={item.mimeType}
+                  allFiles={item.allFiles}
                 />
               </CardContent>
             </Card>
@@ -462,15 +513,14 @@ export default function InboxDetailPage() {
 
               {/* 3. Detailed Metadata (ID, Time, etc) */}
               <div className="grid gap-4 text-xs">
-                {/* Priority & ContentType */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="grid gap-0.5">
-                    <span className="text-muted-foreground">{t('metadata.priority')}</span>
-                    <span className={`font-medium ${item.priority === Priority.HIGH ? 'text-destructive' : ''}`}>{priorityLabelMap[item.priority]}</span>
-                  </div>
-                  <div className="grid gap-0.5">
-                    <span className="text-muted-foreground">{t('metadata.contentType')}</span>
-                    <span className="font-medium">{contentTypeLabelMap[item.contentType]}</span>
+                <div className="grid gap-2">
+                  <span className="text-muted-foreground">{t('metadata.contentType')}</span>
+                  <div className="flex flex-wrap gap-2">
+                    {contentTypeTags.map((tag) => (
+                      <Badge key={tag} variant="secondary" className="text-[11px] px-2 py-0.5">
+                        {tag}
+                      </Badge>
+                    ))}
                   </div>
                 </div>
 
