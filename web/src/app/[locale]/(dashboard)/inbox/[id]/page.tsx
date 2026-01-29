@@ -8,15 +8,17 @@ import { Link, useRouter } from '@/i18n/navigation'
 import { categoriesApi } from '@/lib/api/categories'
 import { inboxApi } from '@/lib/api/inbox'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Separator } from '@/components/ui/separator'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { formatRelativeTime } from '@/lib/utils'
 import { CategoryType, ContentType, ItemStatus, Priority } from '@/types'
-import { ArrowLeft, RefreshCw, Sparkles, Trash2, Loader2, Share2 } from 'lucide-react'
+import { ArrowLeft, RefreshCw, Sparkles, Trash2, Loader2, Share2, Clock, FileText, CheckCircle2, XCircle, AlertCircle, Paperclip, Settings2 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { FilePreview } from '@/components/file-preview'
 import { useAutoRefetch } from '@/hooks/use-auto-refetch'
 import { getApiErrorMessage } from '@/lib/i18n/api-errors'
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog'
 
 export default function InboxDetailPage() {
   const t = useTranslations('inboxDetail')
@@ -50,7 +52,7 @@ export default function InboxDetailPage() {
     interval: 3000,
   })
 
-  // 删除 mutation
+  // Mutations
   const deleteMutation = useMutation({
     mutationFn: async () => {
       await inboxApi.deleteItem(id)
@@ -114,12 +116,7 @@ export default function InboxDetailPage() {
     },
   })
 
-  const handleDelete = () => {
-    if (confirm(t('confirmDelete'))) {
-      deleteMutation.mutate()
-    }
-  }
-
+  // Helpers
   const getCategoryBadgeVariant = (category: string) => {
     const variants: Record<string, any> = {
       [CategoryType.TODO]: 'default',
@@ -143,22 +140,52 @@ export default function InboxDetailPage() {
     return variants[status] || 'outline'
   }
 
+  const statusLabelMap: Record<ItemStatus, string> = {
+    [ItemStatus.PENDING]: t('status.pending'),
+    [ItemStatus.PROCESSING]: t('status.processing'),
+    [ItemStatus.COMPLETED]: t('status.completed'),
+    [ItemStatus.FAILED]: t('status.failed'),
+  }
+
+  const priorityLabelMap: Record<Priority, string> = {
+    [Priority.LOW]: t('priority.low'),
+    [Priority.MEDIUM]: t('priority.medium'),
+    [Priority.HIGH]: t('priority.high'),
+  }
+
+  const contentTypeLabelMap: Record<ContentType, string> = {
+    [ContentType.TEXT]: t('contentType.text'),
+    [ContentType.IMAGE]: t('contentType.image'),
+    [ContentType.URL]: t('contentType.url'),
+    [ContentType.AUDIO]: t('contentType.audio'),
+  }
+
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      <div className="flex items-center justify-center py-32">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          <p className="text-sm text-muted-foreground">{t('loading')}</p>
+        </div>
       </div>
     )
   }
 
   if (!item) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <p className="text-muted-foreground">{t('notFound')}</p>
+      <div className="flex flex-col items-center justify-center py-32 gap-4">
+        <div className="p-4 rounded-full bg-muted">
+          <AlertCircle className="h-8 w-8 text-muted-foreground" />
+        </div>
+        <p className="text-muted-foreground font-medium">{t('notFound')}</p>
+        <Link href="/inbox">
+          <Button variant="outline">{t('backToInbox')}</Button>
+        </Link>
       </div>
     )
   }
 
+  // Data processing
   const entityGroups = (item.analysis?.entities || []).reduce<Record<string, string[]>>(
     (acc, entity) => {
       if (!entity?.type || entity.type === 'customFields') return acc
@@ -184,242 +211,296 @@ export default function InboxDetailPage() {
       [CategoryType.UNKNOWN]: t('categories.unknown'),
     }[categoryKey] || categoryKey)
 
-  const statusLabelMap: Record<ItemStatus, string> = {
-    [ItemStatus.PENDING]: t('status.pending'),
-    [ItemStatus.PROCESSING]: t('status.processing'),
-    [ItemStatus.COMPLETED]: t('status.completed'),
-    [ItemStatus.FAILED]: t('status.failed'),
-  }
-
-  const priorityLabelMap: Record<Priority, string> = {
-    [Priority.LOW]: t('priority.low'),
-    [Priority.MEDIUM]: t('priority.medium'),
-    [Priority.HIGH]: t('priority.high'),
-  }
-
-  const contentTypeLabelMap: Record<ContentType, string> = {
-    [ContentType.TEXT]: t('contentType.text'),
-    [ContentType.IMAGE]: t('contentType.image'),
-    [ContentType.URL]: t('contentType.url'),
-    [ContentType.AUDIO]: t('contentType.audio'),
-  }
+  const distributionEntries = (() => {
+    const results = item.distributionResults
+    if (!results) return []
+    if (Array.isArray(results)) {
+      return results.map((result: any, index: number) => {
+        const target = result?.ruleName || result?.targetId || result?.adapter || result?.id || `目标${index + 1}`
+        const status = result?.status || (result?.success ? 'success' : 'failed')
+        const isSuccess = status === 'success' || status === 'completed'
+        return { key: `${target}-${index}`, target, isSuccess }
+      })
+    }
+    return Object.entries(results).map(([target, result]) => {
+      const status = (result as any)?.status || ((result as any)?.success ? 'success' : 'failed')
+      const isSuccess = status === 'success' || status === 'completed'
+      return { key: target, target, isSuccess }
+    })
+  })()
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
+    <div className="container py-6 max-w-7xl animate-in fade-in duration-500">
+      {/* 1. Header Area: Explicit Back Button & Clean Title */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between mb-8">
+        <div className="flex flex-col gap-2">
+          {/* Back Button */}
           <Link href="/inbox">
-            <Button variant="ghost" size="icon">
+            <Button variant="ghost" size="sm" className="-ml-3 gap-1 text-muted-foreground hover:text-foreground">
               <ArrowLeft className="h-4 w-4" />
+              {t('backToInbox')}
             </Button>
           </Link>
-          <div>
-            <h1 className="text-3xl font-bold">{t('title')}</h1>
-            <p className="text-muted-foreground">{t('subtitle', { id })}</p>
-          </div>
+
+          {/* Title (Clean) */}
+          <h1 className="text-3xl font-bold tracking-tight text-balance">{t('title')}</h1>
         </div>
-        <div className="flex gap-2">
+
+        {/* Global Page Actions */}
+        <div className="flex items-center gap-2 mt-2 sm:mt-0">
           <Button
             variant="outline"
-            size="icon"
+            size="sm"
             onClick={() => refetch()}
-            className="h-10 w-10"
+            disabled={isPolling}
           >
-            <RefreshCw className={`h-4 w-4 ${isPolling ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`h-3.5 w-3.5 mr-2 ${isPolling ? 'animate-spin' : ''}`} />
+            {t('actions.refresh')}
           </Button>
+
           <Button
             variant="outline"
+            size="sm"
             onClick={() => reclassifyMutation.mutate()}
             disabled={reclassifyMutation.isPending || item.status === ItemStatus.PROCESSING}
-            className="h-10 gap-2 px-4"
           >
-            {reclassifyMutation.isPending ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Sparkles className="h-4 w-4" />
-            )}
+            {reclassifyMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-2" /> : <Sparkles className="h-3.5 w-3.5 mr-2" />}
             {t('actions.reclassify')}
           </Button>
+
           <Button
             variant="outline"
+            size="sm"
             onClick={() => redistributeMutation.mutate()}
             disabled={redistributeMutation.isPending || item.status === ItemStatus.PROCESSING}
-            className="h-10 gap-2 px-4"
           >
-            {redistributeMutation.isPending ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Share2 className="h-4 w-4" />
-            )}
+            {redistributeMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-2" /> : <Share2 className="h-3.5 w-3.5 mr-2" />}
             {t('actions.redistribute')}
           </Button>
-          <Button
-            variant="destructive"
-            size="icon"
-            onClick={handleDelete}
-            disabled={deleteMutation.isPending}
-            className="h-10 w-10"
-          >
-            {deleteMutation.isPending ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Trash2 className="h-4 w-4" />
-            )}
-          </Button>
+
+          {/* Delete Dialog */}
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/20"
+                disabled={deleteMutation.isPending}
+              >
+                {deleteMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-2" /> : <Trash2 className="h-3.5 w-3.5 mr-2" />}
+                {common('delete')}
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>{t('confirmDelete')}</AlertDialogTitle>
+                <AlertDialogDescription>
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>{common('cancel')}</AlertDialogCancel>
+                <AlertDialogAction onClick={() => deleteMutation.mutate()}>{common('delete')}</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </div>
 
-      {/* Status & Category */}
-      <div className="flex items-center gap-2">
-        <Badge variant={getCategoryBadgeVariant(categoryKey)}>
-          {categoryLabel}
-        </Badge>
-        <Badge variant={getStatusBadgeVariant(item.status)} className="gap-1">
-          {item.status === ItemStatus.PROCESSING && (
-            <Loader2 className="h-3 w-3 animate-spin" />
+      <div className="grid gap-6 md:grid-cols-12 lg:gap-8">
+        {/* Main Content (Left, 8 cols) */}
+        <div className="md:col-span-8 flex flex-col gap-6">
+
+          {/* Content Card */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="h-4 w-4 text-muted-foreground" />
+                {t('sections.content')}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className={`
+                text-sm leading-relaxed min-h-[120px]
+                ${item.contentType === ContentType.URL ? 'font-mono break-all text-blue-600 hover:underline cursor-pointer' : 'whitespace-pre-wrap break-words'}
+              `}>
+                {item.content}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Attachments */}
+          {item.hasFile && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Paperclip className="h-4 w-4 text-muted-foreground" />
+                  {t('sections.attachments')}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <FilePreview
+                  itemId={item.id}
+                  fileName={item.fileName}
+                  mimeType={item.mimeType}
+                />
+              </CardContent>
+            </Card>
           )}
-          {statusLabelMap[item.status]}
-        </Badge>
-        <Badge variant="outline">{item.source}</Badge>
-        <Badge variant="outline">{contentTypeLabelMap[item.contentType]}</Badge>
-      </div>
 
-      {/* Content */}
-      <Card>
-        <CardHeader>
-          <CardTitle>{t('sections.content')}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className={`whitespace-pre-wrap ${item.contentType === ContentType.URL ? 'break-all' : 'break-words'}`}>
-            {item.content}
-          </p>
-        </CardContent>
-      </Card>
+          {/* AI Analysis Details */}
+          {item.analysis && (item.analysis.summary || entityEntries.length > 0) && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-muted-foreground" />
+                  {t('sections.analysis')}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="grid gap-6">
+                {item.analysis.summary && (
+                  <div className="grid gap-2">
+                    <span className="text-sm font-medium text-muted-foreground">{t('analysis.summary')}</span>
+                    <p className="text-sm text-foreground leading-relaxed bg-muted/30 p-3 rounded-md">
+                      {item.analysis.summary}
+                    </p>
+                  </div>
+                )}
 
-      {/* File Preview */}
-      {item.hasFile && (
-        <Card>
-          <CardHeader>
-            <CardTitle>{t('sections.attachments')}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <FilePreview
-              itemId={item.id}
-              fileName={item.fileName}
-              mimeType={item.mimeType}
-            />
-          </CardContent>
-        </Card>
-      )}
-
-      {/* AI Analysis */}
-      {item.analysis && (
-        <Card>
-          <CardHeader>
-            <CardTitle>{t('sections.analysis')}</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <p className="text-sm text-muted-foreground">{t('analysis.intent')}</p>
-                <p className="font-medium">{categoryLabel}</p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">{t('analysis.confidence')}</p>
-                <p className="font-medium">
-                  {(item.analysis.confidence * 100).toFixed(1)}%
-                </p>
-              </div>
-            </div>
-
-            {item.analysis.summary && (
-              <div>
-                <p className="text-sm text-muted-foreground mb-2">{t('analysis.summary')}</p>
-                <p className="text-sm">{item.analysis.summary}</p>
-              </div>
-            )}
-
-            {entityEntries.length > 0 && (
-              <div>
-                <p className="text-sm text-muted-foreground mb-2">{t('analysis.entities')}</p>
-                <div className="space-y-1">
-                  {entityEntries.map(([type, values]) => (
-                    <div key={type} className="text-sm">
-                      <span className="text-muted-foreground">{type}:</span>{' '}
-                      <span className="font-mono">{values.join(', ')}</span>
+                {entityEntries.length > 0 && (
+                  <div className="grid gap-2">
+                    <span className="text-sm font-medium text-muted-foreground">{t('analysis.entities')}</span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {entityEntries.flatMap(([type, values]) =>
+                        values.map((val, k) => (
+                          <Badge key={`${type}-${k}`} variant="secondary" className="font-normal">
+                            {val}
+                          </Badge>
+                        ))
+                      )}
                     </div>
-                  ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+        </div>
+
+        {/* Sidebar (Right, 4 cols) */}
+        <div className="md:col-span-4 flex flex-col gap-6">
+
+          {/* Properties Card (Source, Metadata, ID, Task Info) */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Settings2 className="h-4 w-4 text-muted-foreground" />
+                {t('sections.properties') || 'Properties'}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="grid gap-6">
+
+              {/* 1. Basic Info (Source & Classification) */}
+              <div className="grid grid-cols-2 gap-4">
+                {/* Source (Moved from Header) */}
+                <div className="grid gap-1.5">
+                  <span className="text-xs text-muted-foreground">{t('metadata.source')}</span>
+                  <div><Badge variant="outline">{item.source}</Badge></div>
+                </div>
+                {/* Status */}
+                <div className="grid gap-1.5">
+                  <span className="text-xs text-muted-foreground">{t('metadata.status')}</span>
+                  <div><Badge variant={getStatusBadgeVariant(item.status)}>{statusLabelMap[item.status]}</Badge></div>
                 </div>
               </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
 
-      {/* Metadata */}
-      <Card>
-        <CardHeader>
-          <CardTitle>{t('sections.metadata')}</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            <div>
-              <span className="text-muted-foreground">{t('metadata.status')}</span>
-              <p className="font-medium">{statusLabelMap[item.status]}</p>
-            </div>
-            <div>
-              <span className="text-muted-foreground">{t('metadata.priority')}</span>
-              <p className="font-medium">{priorityLabelMap[item.priority]}</p>
-            </div>
-            <div>
-              <span className="text-muted-foreground">{t('metadata.source')}</span>
-              <p className="font-medium">{item.source}</p>
-            </div>
-            <div>
-              <span className="text-muted-foreground">{t('metadata.contentType')}</span>
-              <p className="font-medium">{contentTypeLabelMap[item.contentType]}</p>
-            </div>
-          </div>
-          <div className="text-sm">
-            <span className="text-muted-foreground">{t('metadata.createdAt')}</span>
-            <p className="font-medium">{formatRelativeTime(item.createdAtLocal ?? item.createdAt, time)}</p>
-          </div>
-          <div className="text-sm">
-            <span className="text-muted-foreground">{t('metadata.updatedAt')}</span>
-            <p className="font-medium">{formatRelativeTime(item.updatedAtLocal ?? item.updatedAt, time)}</p>
-          </div>
-          {item.processedAt && (
-            <div className="text-sm">
-              <span className="text-muted-foreground">{t('metadata.processedAt')}</span>
-              <p className="font-medium">{formatRelativeTime(item.processedAt, time)}</p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Distribution Results */}
-      {item.distributionResults && Object.keys(item.distributionResults).length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>{t('sections.distribution')}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {Object.entries(item.distributionResults).map(([target, result]) => (
-                <div key={target} className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">{target}</span>
-                  <Badge
-                    variant={result?.success ? 'default' : 'destructive'}
-                  >
-                    {result?.success ? t('distribution.success') : t('distribution.failure')}
-                  </Badge>
+              {categoryLabel && (
+                <div className="grid gap-1.5">
+                  <span className="text-xs text-muted-foreground">{t('metadata.category')}</span>
+                  <div><Badge variant={getCategoryBadgeVariant(categoryKey)}>{categoryLabel}</Badge></div>
                 </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+              )}
+
+              {/* AI Confidence */}
+              {item.analysis && (
+                <div className="grid gap-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">{t('analysis.confidence')}</span>
+                    <span className="font-medium text-muted-foreground">{(item.analysis.confidence * 100).toFixed(0)}%</span>
+                  </div>
+                  <div className="h-1 w-full bg-secondary rounded-full overflow-hidden">
+                    <div className="h-full bg-primary" style={{ width: `${item.analysis.confidence * 100}%` }} />
+                  </div>
+                </div>
+              )}
+
+              <Separator />
+
+              {/* 2. Distribution Results */}
+              <div className="grid gap-2">
+                <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                  <Share2 className="h-3 w-3" />
+                  {t('sections.distribution')}
+                </div>
+                {distributionEntries.length > 0 ? (
+                  <div className="bg-muted/30 rounded-md p-3 space-y-2">
+                    {distributionEntries.map((entry) => (
+                      <div key={entry.key} className="flex items-center gap-2.5 text-xs">
+                        {entry.isSuccess ? (
+                          <div className="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-green-500" />
+                        ) : (
+                          <div className="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-red-500" />
+                        )}
+                        <span className="flex-1 truncate text-muted-foreground">{entry.target}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground italic pl-1">No distribution.</p>
+                )}
+              </div>
+
+              <Separator />
+
+              {/* 3. Detailed Metadata (ID, Time, etc) */}
+              <div className="grid gap-4 text-xs">
+                {/* Priority & ContentType */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-0.5">
+                    <span className="text-muted-foreground">{t('metadata.priority')}</span>
+                    <span className={`font-medium ${item.priority === Priority.HIGH ? 'text-destructive' : ''}`}>{priorityLabelMap[item.priority]}</span>
+                  </div>
+                  <div className="grid gap-0.5">
+                    <span className="text-muted-foreground">{t('metadata.contentType')}</span>
+                    <span className="font-medium">{contentTypeLabelMap[item.contentType]}</span>
+                  </div>
+                </div>
+
+                {/* Timestamps */}
+                <div className="grid grid-cols-1 gap-2">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">{t('metadata.createdAt')}</span>
+                    <span className="font-medium">{formatRelativeTime(item.createdAtLocal ?? item.createdAt, time)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">{t('metadata.updatedAt')}</span>
+                    <span className="font-medium">{formatRelativeTime(item.updatedAtLocal ?? item.updatedAt, time)}</span>
+                  </div>
+                </div>
+
+                <Separator />
+
+                {/* ID (Moved from Header - Full Display) */}
+                <div className="grid gap-1">
+                  <span className="text-muted-foreground">{t('metadata.id')}</span>
+                  <code className="bg-muted rounded px-2 py-1 font-mono text-[10px] break-all select-all">
+                    {item.id}
+                  </code>
+                </div>
+              </div>
+
+            </CardContent>
+          </Card>
+        </div>
+      </div>
     </div>
   )
 }

@@ -65,6 +65,9 @@ Thumbs.db
 # Trae AI 配置
 .trae/
 
+# Agent 配置
+.agent/
+
 # Web 测试文件
 web/tests/
 

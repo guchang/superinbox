@@ -238,11 +238,13 @@
   "inboxDetail": {
     "title": "Item details",
     "subtitle": "ID: {id}",
+    "backToInbox": "Back to inbox",
     "notFound": "Item not found",
     "confirmDelete": "Delete this item?",
     "actions": {
       "reclassify": "Reclassify",
-      "redistribute": "Redistribute"
+      "redistribute": "Redistribute",
+      "refresh": "Refresh"
     },
     "categories": {
       "todo": "Todo",
@@ -275,6 +277,7 @@
       "attachments": "Attachments",
       "analysis": "AI analysis",
       "metadata": "Metadata",
+      "properties": "Properties",
       "distribution": "Distribution results"
     },
     "analysis": {
@@ -285,8 +288,10 @@
     },
     "metadata": {
       "status": "Status",
+      "category": "Category",
       "priority": "Priority",
       "source": "Source",
+      "id": "ID",
       "contentType": "Content type",
       "createdAt": "Created",
       "updatedAt": "Updated",
@@ -322,9 +327,15 @@
   },
   "commandSearch": {
     "options": {
-      "category": { "label": "Category" },
-      "status": { "label": "Status" },
-      "source": { "label": "Source" }
+      "category": {
+        "label": "Category"
+      },
+      "status": {
+        "label": "Status"
+      },
+      "source": {
+        "label": "Source"
+      }
     },
     "categories": {
       "todo": "To-do",

@@ -238,11 +238,14 @@
   "inboxDetail": {
     "title": "条目详情",
     "subtitle": "ID: {id}",
+    "backToInbox": "返回收件箱",
     "notFound": "条目不存在",
+    "loading": "加载中...",
     "confirmDelete": "确定要删除这条记录吗？",
     "actions": {
       "reclassify": "重新分类",
-      "redistribute": "重新分发"
+      "redistribute": "重新分发",
+      "refresh": "刷新"
     },
     "categories": {
       "todo": "待办",
@@ -275,6 +278,7 @@
       "attachments": "附件",
       "analysis": "AI 分析结果",
       "metadata": "元数据",
+      "properties": "属性",
       "distribution": "分发结果"
     },
     "analysis": {
@@ -285,8 +289,10 @@
     },
     "metadata": {
       "status": "状态",
+      "category": "分类",
       "priority": "优先级",
       "source": "来源",
+      "id": "ID",
       "contentType": "内容类型",
       "createdAt": "创建时间",
       "updatedAt": "更新时间",
@@ -322,9 +328,15 @@
   },
   "commandSearch": {
     "options": {
-      "category": { "label": "分类" },
-      "status": { "label": "状态" },
-      "source": { "label": "来源" }
+      "category": {
+        "label": "分类"
+      },
+      "status": {
+        "label": "状态"
+      },
+      "source": {
+        "label": "来源"
+      }
     },
     "categories": {
       "todo": "待办事项",
