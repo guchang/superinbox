@@ -17,8 +17,8 @@ import type {
   CreateItemRequest,
   CreateItemResponse,
   Item,
+  ItemFileType,
   ItemStatus,
-  Priority,
   QueryFilter
 } from '../../types/index.js';
 import { ContentType } from '../../types/index.js';
@@ -34,8 +34,7 @@ const createItemSchema = z.object({
 
 const updateItemSchema = z.object({
   content: z.string().min(1).max(10000).optional(),
-  status: z.enum(['pending', 'processing', 'completed', 'failed', 'archived']).optional(),
-  priority: z.enum(['low', 'medium', 'high', 'urgent']).optional()
+  status: z.enum(['pending', 'processing', 'completed', 'failed', 'archived']).optional()
 });
 
 const batchCreateSchema = z.object({
@@ -78,7 +77,6 @@ export class InboxController {
         category: 'unknown' as any,
         entities: {},
         status: 'pending' as ItemStatus,
-        priority: 'medium' as Priority,
         distributedTargets: [],
         distributionResults: [],
         createdAt: new Date(),
@@ -219,11 +217,14 @@ export class InboxController {
       const finalLimit = Math.min(limit, maxLimit);
 
       // Parse filter parameters
+      const hasTypeParam = req.query.hastype;
+      const hasType = Array.isArray(hasTypeParam) ? hasTypeParam[0] : hasTypeParam;
       const filter: QueryFilter = {
         status: req.query.status as any,
         category: req.query.category as any,
         source: req.query.source as string,
         query: req.query.query as string,
+        hasType: hasType as any,
         since: req.query.since ? new Date(req.query.since as string) : undefined,
         startDate: req.query.startDate ? new Date(req.query.startDate as string) : undefined,
         endDate: req.query.endDate ? new Date(req.query.endDate as string) : undefined,
@@ -338,9 +339,6 @@ export class InboxController {
       }
       if (body.status !== undefined) {
         updates.status = body.status as ItemStatus;
-      }
-      if (body.priority !== undefined) {
-        updates.priority = body.priority as Priority;
       }
 
       const updated = this.db.updateItem(id, updates);
@@ -541,7 +539,6 @@ export class InboxController {
             category: 'unknown' as any,
             entities: {},
             status: 'pending' as ItemStatus,
-            priority: 'medium' as Priority,
             distributedTargets: [],
             distributionResults: [],
             createdAt: new Date(),
@@ -976,7 +973,7 @@ export class InboxController {
 
       const file = req.file as Express.Multer.File;
       const userId = req.user?.id ?? 'default-user';
-      const content = req.body.content || `File: ${file.originalname}`;
+      const content = req.body.content || '';
       const source = req.body.source || 'api';
 
       // Determine content type from file mimetype
@@ -1002,7 +999,6 @@ export class InboxController {
           mimeType: file.mimetype
         },
         status: 'pending' as ItemStatus,
-        priority: 'medium' as Priority,
         distributedTargets: [],
         distributionResults: [],
         createdAt: new Date(),
@@ -1011,6 +1007,23 @@ export class InboxController {
 
       // Save to database
       this.db.createItem(item);
+
+      const fileType: ItemFileType = file.mimetype.startsWith('image/')
+        ? 'image'
+        : file.mimetype.startsWith('audio/')
+          ? 'audio'
+          : 'file';
+
+      this.db.addItemFiles([{
+        id: uuidv4(),
+        itemId: item.id,
+        fileName: Buffer.from(file.originalname, 'latin1').toString('utf8'),
+        filePath: file.path,
+        fileSize: file.size,
+        mimeType: file.mimetype,
+        fileType,
+        createdAt: new Date()
+      }]);
 
       // Trigger async AI processing
       this.processItemAsync(item.id).catch(error => {
@@ -1065,12 +1078,6 @@ export class InboxController {
       const { content = '', source = 'api' } = req.body;
       const contentType = 'file' as ContentType;
 
-      // Create file list for content
-      const fileList = files.map(file => `📎 ${Buffer.from(file.originalname, 'latin1').toString('utf8')} (${(file.size / 1024).toFixed(1)}KB)`).join('\n');
-      const finalContent = content ? 
-        `${content}\n\n附件 (${files.length} 个文件):\n${fileList}` :
-        `多文件上传 (${files.length} 个文件):\n${fileList}`;
-
       // Store all files info in entities
       const filesInfo = files.map(file => ({
         filePath: file.path,
@@ -1082,7 +1089,7 @@ export class InboxController {
       const item: Item = {
         id: uuidv4(),
         userId,
-        originalContent: finalContent,
+        originalContent: content,
         contentType,
         source,
         category: 'unknown' as any,
@@ -1096,7 +1103,6 @@ export class InboxController {
           allFiles: filesInfo
         },
         status: 'pending' as ItemStatus,
-        priority: 'medium' as Priority,
         distributedTargets: [],
         distributionResults: [],
         createdAt: new Date(),
@@ -1105,6 +1111,28 @@ export class InboxController {
 
       // Save to database
       await this.db.createItem(item);
+
+      const itemFiles = files.map((entry) => {
+        const fileName = Buffer.from(entry.originalname, 'latin1').toString('utf8');
+        const fileType: ItemFileType = entry.mimetype.startsWith('image/')
+          ? 'image'
+          : entry.mimetype.startsWith('audio/')
+            ? 'audio'
+            : 'file';
+
+        return {
+          id: uuidv4(),
+          itemId: item.id,
+          fileName,
+          filePath: entry.path,
+          fileSize: entry.size,
+          mimeType: entry.mimetype,
+          fileType,
+          createdAt: new Date()
+        };
+      });
+
+      this.db.addItemFiles(itemFiles);
 
       // Trigger async AI processing
       this.processItemAsync(item.id).catch(error => {

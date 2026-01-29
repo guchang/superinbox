@@ -8,7 +8,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { sendError } from '../../utils/error-response.js';
 import { getDatabase } from '../../storage/database.js';
 import { getDispatcherService } from '../dispatcher.service.js';
-import { ContentType, ItemStatus, Priority } from '../../types/index.js';
+import { ContentType, ItemStatus } from '../../types/index.js';
 
 const router = Router();
 
@@ -490,7 +490,6 @@ router.post('/rules/test-dispatch', authenticate, async (req, res) => {
       summary: content.trim().slice(0, 100),
       suggestedTitle: content.trim().slice(0, 50),
       status: ItemStatus.PENDING,
-      priority: Priority.MEDIUM,
       distributedTargets: [],
       distributionResults: [],
       createdAt: new Date(),

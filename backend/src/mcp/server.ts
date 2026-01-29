@@ -110,10 +110,11 @@ const listItemsSchema = z.object({
   category: z.string().optional(),
   source: z.string().optional(),
   query: z.string().optional(),
+  hastype: z.enum(['image', 'audio', 'file', 'text', 'url']).optional(),
   since: z.string().optional(),
   startDate: z.string().optional(),
   endDate: z.string().optional(),
-  sortBy: z.string().optional(),
+  sortBy: z.enum(['createdAt', 'updatedAt']).optional(),
   sortOrder: z.string().optional()
 });
 const searchItemsSchema = z.object({

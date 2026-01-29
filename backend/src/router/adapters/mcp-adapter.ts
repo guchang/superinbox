@@ -413,7 +413,6 @@ export class MCPAdapter extends BaseAdapter {
 - Use suggestedTitle (or first 50 chars of originalContent) as task content
 - Use originalContent as task description if it's longer
 - Map dueDate to Todoist due string (e.g., "tomorrow at 10:00")
-- Map priority: LOW->1, MEDIUM->2, HIGH->3, URGENT->4
 - Map tags/labels from entities.tags
 - Map project ID from config.projectId if provided`
     };
@@ -488,14 +487,6 @@ export class MCPAdapter extends BaseAdapter {
 
     // Todoist addTasks tool mapping
     if (toolName === 'addTasks' || toolName.startsWith('todoist')) {
-      // Map priority to Todoist format (1=low, 2=medium, 3=high, 4=urgent)
-      const priorityMap: Record<string, number> = {
-        low: 1,
-        medium: 2,
-        high: 3,
-        urgent: 4
-      };
-
       // Build task object
       const task: Record<string, unknown> = {
         content: item.suggestedTitle || item.originalContent.substring(0, 50)
@@ -504,11 +495,6 @@ export class MCPAdapter extends BaseAdapter {
       // Add description if content is longer than title
       if (item.originalContent.length > 50) {
         task.description = item.originalContent;
-      }
-
-      // Add priority
-      if (item.priority) {
-        task.priority = priorityMap[item.priority] || 2;
       }
 
       // Add due date if available
