@@ -21,6 +21,12 @@ PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BACKEND_DIR="$PROJECT_ROOT/backend"
 WEB_DIR="$PROJECT_ROOT/web"
 
+# 跳过标记
+BACKEND_SKIPPED=0
+FRONTEND_SKIPPED=0
+BACKEND_OCCUPIED_PID=""
+FRONTEND_OCCUPIED_PID=""
+
 # PID 文件
 BACKEND_PID_FILE="$PROJECT_ROOT/.backend.pid"
 FRONTEND_PID_FILE="$PROJECT_ROOT/.frontend.pid"
@@ -168,11 +174,13 @@ start_backend() {
     cd "$BACKEND_DIR"
 
     # 检查后端端口
-    handle_port_conflict $BACKEND_PORT "后端"
-    local result=$?
+    local result=0
+    handle_port_conflict $BACKEND_PORT "后端" || result=$?
 
     if [ $result -eq 2 ]; then
-        return 1
+        BACKEND_SKIPPED=1
+        BACKEND_OCCUPIED_PID=$(lsof -ti :$BACKEND_PORT 2>/dev/null | head -n 1)
+        return 0
     fi
 
     log_info "启动后端服务 (端口: $BACKEND_PORT)..."
@@ -204,11 +212,13 @@ start_frontend() {
     cd "$WEB_DIR"
 
     # 检查前端端口
-    handle_port_conflict $FRONTEND_PORT "前端"
-    local result=$?
+    local result=0
+    handle_port_conflict $FRONTEND_PORT "前端" || result=$?
 
     if [ $result -eq 2 ]; then
-        return 1
+        FRONTEND_SKIPPED=1
+        FRONTEND_OCCUPIED_PID=$(lsof -ti :$FRONTEND_PORT 2>/dev/null | head -n 1)
+        return 0
     fi
 
     log_info "启动前端服务 (端口: $FRONTEND_PORT)..."
@@ -360,14 +370,18 @@ main() {
     echo "======================================"
     echo ""
 
-    if [ $backend_success -eq 0 ]; then
+    if [ $BACKEND_SKIPPED -eq 1 ]; then
+        echo -e "• 后端服务: ${YELLOW}已跳过${NC}"
+    elif [ $backend_success -eq 0 ]; then
         echo -e "✓ 后端服务: ${GREEN}http://localhost:$BACKEND_PORT${NC}"
         echo "  API 端点: http://localhost:$BACKEND_PORT/v1"
     else
         echo -e "✗ 后端服务: ${RED}启动失败${NC}"
     fi
 
-    if [ $frontend_success -eq 0 ]; then
+    if [ $FRONTEND_SKIPPED -eq 1 ]; then
+        echo -e "• 前端服务: ${YELLOW}已跳过${NC}"
+    elif [ $frontend_success -eq 0 ]; then
         echo -e "✓ 前端服务: ${GREEN}http://localhost:$FRONTEND_PORT${NC}"
     else
         echo -e "✗ 前端服务: ${RED}启动失败${NC}"
@@ -386,7 +400,41 @@ main() {
     sleep 2
 
     # 合并显示日志
-    tail -f "$PROJECT_ROOT/backend.log" "$PROJECT_ROOT/frontend.log" 2>/dev/null || true
+    local tail_targets=()
+    if [ $backend_success -eq 0 ] && [ $BACKEND_SKIPPED -eq 0 ]; then
+        tail_targets+=("$PROJECT_ROOT/backend.log")
+    elif [ $BACKEND_SKIPPED -eq 1 ]; then
+        if [ -n "$BACKEND_OCCUPIED_PID" ] && [ -f "$BACKEND_PID_FILE" ]; then
+            local backend_pid_file=$(cat "$BACKEND_PID_FILE")
+            if [ "$BACKEND_OCCUPIED_PID" = "$backend_pid_file" ]; then
+                tail_targets+=("$PROJECT_ROOT/backend.log")
+            else
+                log_info "后端已跳过，端口占用进程与 PID 文件不匹配，跳过日志跟踪"
+            fi
+        else
+            log_info "后端已跳过，未找到 PID 文件或占用进程，跳过日志跟踪"
+        fi
+    fi
+    if [ $frontend_success -eq 0 ] && [ $FRONTEND_SKIPPED -eq 0 ]; then
+        tail_targets+=("$PROJECT_ROOT/frontend.log")
+    elif [ $FRONTEND_SKIPPED -eq 1 ]; then
+        if [ -n "$FRONTEND_OCCUPIED_PID" ] && [ -f "$FRONTEND_PID_FILE" ]; then
+            local frontend_pid_file=$(cat "$FRONTEND_PID_FILE")
+            if [ "$FRONTEND_OCCUPIED_PID" = "$frontend_pid_file" ]; then
+                tail_targets+=("$PROJECT_ROOT/frontend.log")
+            else
+                log_info "前端已跳过，端口占用进程与 PID 文件不匹配，跳过日志跟踪"
+            fi
+        else
+            log_info "前端已跳过，未找到 PID 文件或占用进程，跳过日志跟踪"
+        fi
+    fi
+
+    if [ ${#tail_targets[@]} -gt 0 ]; then
+        tail -f "${tail_targets[@]}" 2>/dev/null || true
+    else
+        log_info "未启动任何服务，跳过日志跟踪"
+    fi
 }
 
 # 捕获 Ctrl+C 信号

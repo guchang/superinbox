@@ -13,6 +13,16 @@ const protectedRoutes = ['/']
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
+  const nextAction = request.headers.get('next-action')
+  if (nextAction) {
+    console.warn('[server-action] unexpected request', {
+      method: request.method,
+      pathname,
+      referer: request.headers.get('referer') || '',
+      userAgent: request.headers.get('user-agent') || '',
+      nextAction,
+    })
+  }
 
   const localeSegment = new RegExp(`^/(${routing.locales.join('|')})(?=/|$)`)
   const localeMatch = pathname.match(localeSegment)
