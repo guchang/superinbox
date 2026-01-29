@@ -552,51 +552,12 @@ export class RouterService {
       instructions,
       params: action.config?.params,
       onProgress: (event, data) => {
-        // Forward progress events from Dispatcher
+        // Forward raw DispatcherService events directly
         if (progressCallback && data) {
-          const stepData = data as any;
-
-          switch (event) {
-            case 'step:start':
-              // Step is starting
-              progressCallback({
-                type: 'tool_call_progress',
-                data: {
-                  adapterName: mcpConfig.name,
-                  toolName: stepData.toolName || 'unknown',
-                  message: `开始调用 ${stepData.toolName || 'unknown'}...`
-                }
-              });
-              break;
-
-            case 'step:complete':
-              // Step completed successfully
-              progressCallback({
-                type: 'tool_call_progress',
-                data: {
-                  adapterName: mcpConfig.name,
-                  toolName: stepData.toolName || 'unknown',
-                  message: `✓ ${stepData.toolName || 'unknown'} 完成`
-                }
-              });
-              break;
-
-            case 'step:error':
-              // Step failed
-              progressCallback({
-                type: 'tool_call_progress',
-                data: {
-                  adapterName: mcpConfig.name,
-                  toolName: stepData.toolName || 'unknown',
-                  message: `✗ ${stepData.toolName || 'unknown'} 失败: ${stepData.error || 'Unknown error'}`
-                }
-              });
-              break;
-
-            case 'complete':
-              // All steps completed
-              break;
-          }
+          progressCallback({
+            type: event,  // Use original event type: step:start, step:executing, step:complete, etc.
+            data: data    // Use original data without transformation
+          });
         }
       }
     });

@@ -890,6 +890,66 @@ export class InboxController {
           });
           break;
 
+        // Direct forwarding of DispatcherService raw events
+        case 'init':
+        case 'tools':
+          // Ignore initialization events
+          break;
+
+        case 'step:start':
+          sseManager.sendToItem(itemId, {
+            type: 'step:start',
+            itemId,
+            timestamp: new Date().toISOString(),
+            data: event.data
+          });
+          break;
+
+        case 'step:planned':
+          sseManager.sendToItem(itemId, {
+            type: 'step:planned',
+            itemId,
+            timestamp: new Date().toISOString(),
+            data: event.data
+          });
+          break;
+
+        case 'step:executing':
+          sseManager.sendToItem(itemId, {
+            type: 'step:executing',
+            itemId,
+            timestamp: new Date().toISOString(),
+            data: event.data
+          });
+          break;
+
+        case 'step:complete':
+          sseManager.sendToItem(itemId, {
+            type: 'step:complete',
+            itemId,
+            timestamp: new Date().toISOString(),
+            data: event.data
+          });
+          break;
+
+        case 'step:error':
+          sseManager.sendToItem(itemId, {
+            type: 'step:error',
+            itemId,
+            timestamp: new Date().toISOString(),
+            data: event.data
+          });
+          break;
+
+        case 'complete':
+          sseManager.sendToItem(itemId, {
+            type: 'complete',
+            itemId,
+            timestamp: new Date().toISOString(),
+            data: event.data
+          });
+          break;
+
         default:
           logger.debug(`Unknown routing progress event: ${event.type}`);
       }

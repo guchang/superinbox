@@ -67,7 +67,7 @@ export function useRoutingProgress(itemId: string | null, options?: { disabled?:
           setState(prev => ({
             ...prev,
             status: 'starting',
-            message: data.message || '后台路由分发中...',
+            message: data.message || '后台执行中——后台路由分发中...',
             error: null
           }))
           break
@@ -76,47 +76,72 @@ export function useRoutingProgress(itemId: string | null, options?: { disabled?:
           setState(prev => ({
             ...prev,
             status: 'matching',
-            message: data.message || `后台匹配规则: ${data.ruleName}`
+            message: data.message || `后台执行中——后台匹配规则: ${data.ruleName}`
           }))
           break
 
-        case 'routing:tool_call_start':
+        case 'step:start':
           setState(prev => ({
             ...prev,
             status: 'distributing',
-            message: data.message || `后台调用中: ${data.adapterName}`
+            message: `后台执行中——步骤${data.step}: 规划中...`
           }))
           break
 
-        case 'routing:tool_call_progress':
+        case 'step:planned':
           setState(prev => ({
             ...prev,
             status: 'distributing',
-            message: data.message || '后台处理中...'
+            message: `后台执行中——步骤${data.step}: 规划完成`
           }))
           break
 
-        case 'routing:tool_call_success':
+        case 'step:executing':
           setState(prev => ({
             ...prev,
             status: 'distributing',
-            message: data.message || `✓ 已分发到 ${data.adapterName}`
+            message: `后台执行中——步骤${data.step}: 开始调用 ${data.toolName}...`
           }))
           break
 
-        case 'routing:tool_call_error':
+        case 'step:complete':
+          const isSuccess = data.status === 'success' || data.status === 'done'
+          const toolName = data.toolName || 'unknown'
           setState(prev => ({
             ...prev,
             status: 'distributing',
-            message: data.message || `✗ 分发失败: ${data.adapterName}`
+            message: `后台执行中——✓ 步骤${data.step}: ${toolName} 完成`
           }))
+          break
+
+        case 'step:error':
+          setState(prev => ({
+            ...prev,
+            status: 'distributing',
+            message: `后台执行中——✗ 步骤${data.step}: ${data.toolName || 'unknown'} 失败${data.error ? ': ' + data.error : ''}`
+          }))
+          break
+
+        case 'complete':
+          // All steps completed
+          setState(prev => ({
+            ...prev,
+            status: 'completed',
+            message: data.message || '后台执行中——路由分发完成',
+            distributedTargets: data.distributedTargets || [],
+            ruleNames: data.ruleNames || [],
+            totalSuccess: data.totalSuccess || 0,
+            totalFailed: data.totalFailed || 0
+          }))
+          // Auto-disconnect on completion
+          disconnect()
           break
 
         case 'routing:complete':
           setState(prev => ({
             ...prev,
             status: 'completed',
-            message: data.message || '路由分发完成',
+            message: data.message || '后台执行中——路由分发完成',
             distributedTargets: data.distributedTargets || [],
             ruleNames: data.ruleNames || [],
             totalSuccess: data.totalSuccess || 0,
@@ -130,7 +155,7 @@ export function useRoutingProgress(itemId: string | null, options?: { disabled?:
           setState(prev => ({
             ...prev,
             status: 'error',
-            message: data.message || '路由分发失败',
+            message: data.message || '后台执行中——路由分发失败',
             error: data.error
           }))
           // Auto-disconnect on error
