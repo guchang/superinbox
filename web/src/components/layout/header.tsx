@@ -14,6 +14,7 @@ import {
 import { useAuth } from '@/lib/hooks/use-auth'
 import { useToast } from '@/hooks/use-toast'
 import { routing } from '@/i18n/routing'
+import { ThemeSwitcher } from '@/components/theme/theme-switcher'
 
 export function Header() {
   const t = useTranslations('header')
@@ -46,6 +47,7 @@ export function Header() {
 
   return (
     <div className="flex items-center gap-2 ml-auto">
+      <ThemeSwitcher />
       <Button variant="ghost" size="icon">
         <Bell className="h-5 w-5" />
       </Button>

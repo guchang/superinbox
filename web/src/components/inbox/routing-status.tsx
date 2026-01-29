@@ -144,11 +144,11 @@ function RoutingStatusBadge({
     <div className={`flex items-center gap-2 ${showIndicator ? 'pr-1' : ''}`}>
       <Badge
         variant={config.variant}
-        className={config.className}
+        className={`${config.className} max-w-[200px] sm:max-w-none truncate`}
         title={error ? `错误: ${error}` : message}
       >
         {config.icon}
-        {config.text}
+        <span className="truncate">{config.text}</span>
       </Badge>
 
       {/* 连接状态指示器（仅开发模式 + SSE 活跃时显示） */}

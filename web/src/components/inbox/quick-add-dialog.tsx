@@ -451,8 +451,8 @@ export function QuickAddDialog({ trigger }: QuickAddDialogProps) {
           </div>
         )}
 
-        <DialogFooter className="flex items-center justify-between">
-          <div className="flex items-center gap-3 text-xs text-muted-foreground">
+        <DialogFooter className="flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="hidden sm:flex items-center gap-3 text-xs text-muted-foreground">
             <div className="flex items-center gap-1">
               <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-background px-1.5 font-mono text-[10px] font-medium shadow-sm">
                 Esc
@@ -469,11 +469,11 @@ export function QuickAddDialog({ trigger }: QuickAddDialogProps) {
               <span>{t('hints.submit')}</span>
             </div>
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setOpen(false)}>
+          <div className="flex gap-2 w-full sm:w-auto">
+            <Button variant="outline" onClick={() => setOpen(false)} className="flex-1 sm:flex-none">
               {common('cancel')}
             </Button>
-            <Button onClick={handleSubmit} disabled={isUploading}>
+            <Button onClick={handleSubmit} disabled={isUploading} className="flex-1 sm:flex-none">
               {isUploading ? (
                 <>
                   <Loader2 className="h-3 w-3 animate-spin mr-1" />

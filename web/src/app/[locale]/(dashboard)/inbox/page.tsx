@@ -60,6 +60,9 @@ export default function InboxPage() {
     if (searchFilters.source) {
       params.source = searchFilters.source
     }
+    if (searchFilters.hasType) {
+      params.hastype = searchFilters.hasType
+    }
 
     return params
   }, [searchFilters])
@@ -208,7 +211,7 @@ export default function InboxPage() {
       </div>
 
       {/* Results Count */}
-      {(searchFilters.query || searchFilters.category || searchFilters.status || searchFilters.source) && (
+      {(searchFilters.query || searchFilters.category || searchFilters.status || searchFilters.source || searchFilters.hasType) && (
         <div className="text-sm text-muted-foreground">
           {t('resultsCount', { count: items.length })}
         </div>
@@ -224,7 +227,7 @@ export default function InboxPage() {
       ) : items.length === 0 ? (
         <Card>
           <CardContent className="py-8 text-center text-muted-foreground">
-            {searchFilters.query || searchFilters.category || searchFilters.status || searchFilters.source
+            {searchFilters.query || searchFilters.category || searchFilters.status || searchFilters.source || searchFilters.hasType
               ? t('emptyFiltered')
               : common('noData')}
           </CardContent>
@@ -315,13 +318,14 @@ export default function InboxPage() {
                   
                   <div className="flex items-center gap-1">
                     <Link href={`/inbox/${item.id}`}>
-                      <Button 
-                        variant="outline" 
+                      <Button
+                        variant="ghost"
+                        size="icon"
                         disabled={item.status === ItemStatus.PROCESSING}
-                        className="h-9 gap-2 px-3 text-xs font-medium"
+                        className="h-9 w-9"
+                        aria-label={t('actions.viewDetails')}
                       >
                         <Eye className="h-4 w-4" />
-                        {t('actions.viewDetails')}
                       </Button>
                     </Link>
                     <Button
@@ -334,6 +338,7 @@ export default function InboxPage() {
                       }}
                       disabled={deletingId === item.id}
                       className="h-9 w-9 text-muted-foreground hover:text-destructive"
+                      aria-label={common('delete')}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
