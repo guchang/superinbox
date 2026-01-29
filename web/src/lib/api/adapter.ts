@@ -14,7 +14,6 @@ interface BackendItem {
   summary: string | null
   suggestedTitle: string | null
   status: string
-  priority: string
   distributedTargets: any[]
   distributionResults: any[]
   distributedRuleNames?: string[]
@@ -61,7 +60,6 @@ export function adaptBackendItem(backendItem: BackendItem): Item {
     contentType: backendItem.contentType as any,
     source: backendItem.source,
     status: backendItem.status as any,
-    priority: backendItem.priority as any,
     analysis,
     distributionResults: backendItem.distributionResults,
     distributedTargets: backendItem.distributedTargets,

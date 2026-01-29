@@ -4,6 +4,7 @@ export enum ContentType {
   IMAGE = 'image',
   URL = 'url',
   AUDIO = 'audio',
+  FILE = 'file',
 }
 
 // Category type
@@ -39,13 +40,6 @@ export enum ItemStatus {
   FAILED = 'failed',
 }
 
-// 优先级
-export enum Priority {
-  LOW = 'low',
-  MEDIUM = 'medium',
-  HIGH = 'high',
-}
-
 // 实体类型
 export interface Entity {
   type: string
@@ -69,7 +63,6 @@ export interface Item {
   contentType: ContentType
   source: string
   status: ItemStatus
-  priority: Priority
   analysis?: AIAnalysis
   distributionResults?: Record<string, any>
   distributedTargets?: any[]
@@ -134,7 +127,8 @@ export interface FilterParams extends PaginationParams {
   status?: ItemStatus
   source?: string
   search?: string
-  sortBy?: 'createdAt' | 'updatedAt' | 'priority'
+  hasType?: 'text' | 'url' | 'image' | 'audio' | 'file'
+  sortBy?: 'createdAt' | 'updatedAt'
   sortOrder?: 'asc' | 'desc'
 }
 
@@ -205,7 +199,7 @@ export interface RoutingRule {
 }
 
 export interface RuleCondition {
-  field: 'category' | 'source' | 'priority' | 'content'
+  field: 'category' | 'source' | 'content'
   operator: 'equals' | 'contains' | 'matches' | 'in'
   value: any
 }

@@ -111,7 +111,6 @@ export default function RoutingPage() {
     () => ({
       category: t('fields.category'),
       source: t('fields.source'),
-      priority: t('fields.priority'),
       content: t('fields.content'),
     }),
     [t]

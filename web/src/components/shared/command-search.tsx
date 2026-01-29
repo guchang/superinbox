@@ -17,7 +17,8 @@ import { CategoryType, ItemStatus, type CategoryKey } from '@/types'
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 
 // 搜索选项类型
-type SearchOptionType = 'category' | 'status' | 'source'
+type SearchOptionType = 'category' | 'status' | 'source' | 'hastype'
+type HasType = 'text' | 'url' | 'image' | 'audio' | 'file'
 
 interface SearchOption {
   id: SearchOptionType
@@ -33,6 +34,7 @@ interface ParsedSearch {
   category?: CategoryKey
   status?: ItemStatus
   source?: string
+  hasType?: HasType
 }
 
 interface CommandSearchProps {
@@ -47,6 +49,7 @@ export interface SearchFilters {
   category?: CategoryKey
   status?: ItemStatus
   source?: string
+  hasType?: HasType
 }
 
 // 解析搜索字符串
@@ -81,6 +84,16 @@ function parseSearchString(input: string): ParsedSearch {
     const sourceMatch = part.match(/^source:(.+)$/i)
     if (sourceMatch) {
       result.source = sourceMatch[1]
+      continue
+    }
+
+    // 检查是否是 hastype:xxx
+    const hasTypeMatch = part.match(/^hastype:(.+)$/i)
+    if (hasTypeMatch) {
+      const value = hasTypeMatch[1].trim().toLowerCase() as HasType
+      if (['text', 'url', 'image', 'audio', 'file'].includes(value)) {
+        result.hasType = value
+      }
       continue
     }
 
@@ -139,6 +152,19 @@ export function CommandSearch({
       keywords: ['source', '来源'],
       prefix: 'source:',
       values: [] // 动态填充
+    },
+    {
+      id: 'hastype',
+      label: t('options.hastype.label'),
+      keywords: ['hastype', 'type', '类型', '内容类型'],
+      prefix: 'hastype:',
+      values: [
+        { value: 'text', label: t('contentTypes.text') },
+        { value: 'url', label: t('contentTypes.url') },
+        { value: 'image', label: t('contentTypes.image') },
+        { value: 'audio', label: t('contentTypes.audio') },
+        { value: 'file', label: t('contentTypes.file') },
+      ]
     }
   ]), [t])
 
@@ -154,6 +180,7 @@ export function CommandSearch({
     if (filters.category) parts.push(`category:${filters.category}`)
     if (filters.status) parts.push(`status:${filters.status}`)
     if (filters.source) parts.push(`source:${filters.source}`)
+    if (filters.hasType) parts.push(`hastype:${filters.hasType}`)
     if (filters.query) parts.push(filters.query)
     setInputValue(parts.join(' '))
     // 初始化选中索引为第一个选项
@@ -243,6 +270,7 @@ export function CommandSearch({
         if (part.startsWith('category:')) usedTypes.add('category')
         if (part.startsWith('status:')) usedTypes.add('status')
         if (part.startsWith('source:')) usedTypes.add('source')
+        if (part.startsWith('hastype:')) usedTypes.add('hastype')
       }
 
       // 只显示还没有使用的搜索选项
@@ -307,6 +335,7 @@ export function CommandSearch({
       if (part.startsWith('category:')) usedTypes.add('category')
       if (part.startsWith('status:')) usedTypes.add('status')
       if (part.startsWith('source:')) usedTypes.add('source')
+      if (part.startsWith('hastype:')) usedTypes.add('hastype')
     }
 
     searchOptionsWithSources.forEach(option => {
@@ -336,7 +365,8 @@ export function CommandSearch({
       query: parsed.query,
       category: parsed.category,
       status: parsed.status,
-      source: parsed.source
+      source: parsed.source,
+      hasType: parsed.hasType
     })
   }
 
