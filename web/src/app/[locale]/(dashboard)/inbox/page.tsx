@@ -4,20 +4,9 @@ import { useTranslations } from 'next-intl'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { categoriesApi } from '@/lib/api/categories'
 import { inboxApi } from '@/lib/api/inbox'
-import { batchRedistribute } from '@/lib/api/redistribute'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
 import { formatRelativeTime } from '@/lib/utils'
 import { CategoryType, ContentType, ItemStatus } from '@/types'
 import { Eye, Trash2, Loader2, Clock, RefreshCw } from 'lucide-react'
@@ -40,8 +29,6 @@ export default function InboxPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [retryingId, setRetryingId] = useState<string | null>(null)
   const [searchFilters, setSearchFilters] = useState<SearchFilters>({ query: '' })
-  const [showBatchDialog, setShowBatchDialog] = useState(false)
-  const [isRedistributing, setIsRedistributing] = useState(false)
 
   const { data: categoriesData } = useQuery({
     queryKey: ['categories'],
@@ -162,34 +149,6 @@ export default function InboxPage() {
     await retryMutation.mutateAsync(id)
   }
 
-  const handleBatchRedistribute = async () => {
-    setIsRedistributing(true)
-    try {
-      const result = await batchRedistribute({
-        filter: {
-          status: 'completed'
-        },
-        batchSize: 10,
-        delayBetweenBatches: 5000
-      })
-
-      toast({
-        title: '批量重新分发已启动',
-        description: `预计处理 ${result.total} 条数据，分 ${result.estimatedBatches} 批，约需 ${result.estimatedDurationMinutes} 分钟`
-      })
-
-      setShowBatchDialog(false)
-    } catch (error) {
-      toast({
-        title: '批量重新分发失败',
-        description: error instanceof Error ? error.message : '未知错误',
-        variant: 'destructive'
-      })
-    } finally {
-      setIsRedistributing(false)
-    }
-  }
-
   // Unified badge that combines category and AI status
   const getUnifiedBadgeVariant = (_category: string, status: ItemStatus) => {
     switch (status) {
@@ -232,15 +191,6 @@ export default function InboxPage() {
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
         <div className="space-y-1">
           <h1 className="text-3xl font-bold tracking-tight">{t('title')}</h1>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowBatchDialog(true)}
-            >
-              批量重新分发
-            </Button>
-          </div>
         </div>
         
         {/* Unified Search - 右对齐，扩展时向左延伸 */}
@@ -394,33 +344,6 @@ export default function InboxPage() {
           ))}
         </div>
       )}
-
-      {/* Batch Redistribute Confirmation Dialog */}
-      <AlertDialog open={showBatchDialog} onOpenChange={setShowBatchDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>批量重新分发</AlertDialogTitle>
-            <AlertDialogDescription>
-              这将使用当前配置的路由规则重新分发历史数据。
-              <br /><br />
-              <strong>配置:</strong>
-              <ul className="list-disc list-inside mt-2 text-sm">
-                <li>批次大小: 10 条/批</li>
-                <li>批次间延迟: 5 秒</li>
-                <li>筛选条件: 已完成的条目</li>
-              </ul>
-              <br />
-              此操作可能需要较长时间，请勿关闭页面。
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>取消</AlertDialogCancel>
-            <AlertDialogAction onClick={handleBatchRedistribute} disabled={isRedistributing}>
-              {isRedistributing ? '启动中...' : '确认启动'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   )
 }
