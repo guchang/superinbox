@@ -27,7 +27,7 @@ Routing rules allow you to automatically route incoming items to multiple target
 |--------|-------------|---------|
 | `distribute_mcp` | Send to MCP adapter | Add todo to Notion database |
 | `distribute_adapter` | Send to traditional adapter | Send to webhook |
-| `update_item` | Modify item properties | Change priority to high |
+| `update_item` | Modify item properties | Set status to completed |
 | `skip_distribution` | Halt further distribution | Stop processing |
 
 ### Condition Operators
@@ -71,12 +71,12 @@ Routing rules allow you to automatically route incoming items to multiple target
 }
 ```
 
-### Example 2: High priority items
+### Example 2: Urgent items to todo
 
 ```json
 {
-  "name": "Urgent items high priority",
-  "description": "Mark urgent items as high priority",
+  "name": "Urgent items to todo",
+  "description": "Mark urgent items as todo",
   "priority": 90,
   "conditions": [
     {
@@ -89,7 +89,7 @@ Routing rules allow you to automatically route incoming items to multiple target
     {
       "type": "update_item",
       "updates": {
-        "priority": "high"
+        "category": "todo"
       }
     }
   ],
@@ -148,8 +148,7 @@ Routing rules allow you to automatically route incoming items to multiple target
     {
       "type": "update_item",
       "updates": {
-        "priority": "medium",
-        "tags": ["work", "expense", "finance"]
+        "summary": "Work-related expense for finance review"
       }
     }
   ],
@@ -312,7 +311,7 @@ The system includes a global rate limiter:
 - Check adapter is properly configured
 
 **"Invalid field in condition"**
-- Valid fields: `id`, `originalContent`, `contentType`, `source`, `category`, `summary`, `status`, `priority`, `createdAt`, `updatedAt`
+- Valid fields: `id`, `originalContent`, `contentType`, `source`, `category`, `summary`, `status`, `createdAt`, `updatedAt`
 - Use exact field names (case-sensitive)
 
 **"Invalid action type"**
@@ -321,12 +320,12 @@ The system includes a global rate limiter:
 
 ## Advanced Patterns
 
-### Pattern 1: Conditional Priority
+### Pattern 1: Conditional Category
 
-Set priority based on content:
+Set category based on content:
 ```json
 {
-  "name": "Mark urgent as high priority",
+  "name": "Mark urgent as todo",
   "conditions": [
     {
       "field": "originalContent",
@@ -338,7 +337,7 @@ Set priority based on content:
     {
       "type": "update_item",
       "updates": {
-        "priority": "high"
+        "category": "todo"
       }
     }
   ]
@@ -353,16 +352,16 @@ Send to multiple destinations:
   "name": "Important items everywhere",
   "conditions": [
     {
-      "field": "priority",
+      "field": "category",
       "operator": "equals",
-      "value": "high"
+      "value": "todo"
     }
   ],
   "actions": [
     {
       "type": "distribute_mcp",
       "mcp_adapter_id": "notion-tasks",
-      "processing_instructions": "Create as high-priority task"
+      "processing_instructions": "Create urgent task"
     },
     {
       "type": "distribute_adapter",

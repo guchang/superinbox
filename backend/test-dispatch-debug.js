@@ -10,7 +10,6 @@ const item = db.createItem({
   intent: 'unknown',
   entities: {},
   status: 'pending',
-  priority: 'medium',
   distributedTargets: [],
   distributionResults: [],
   createdAt: new Date(),

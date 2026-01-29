@@ -105,7 +105,6 @@ export function createTestItem(overrides: Partial<any> = {}) {
     category: 'unknown' as const,
     entities: {},
     status: 'pending' as const,
-    priority: 'medium' as const,
     distributedTargets: [],
     distributionResults: [],
     createdAt: new Date(),

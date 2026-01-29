@@ -61,7 +61,6 @@ export interface Item {
   summary?: string;
   suggestedTitle?: string;
   status: string;
-  priority: string;
   distributedTargets: string[];
   createdAt: string;
   updatedAt: string;

@@ -1788,7 +1788,7 @@ print(f'New API Key: {regenerated["apiKey"]}')
 | 意图 | 说明 | 典型实体 |
 |------|------|----------|
 | `expense` | 消费记账 | amount, currency, category, merchant |
-| `todo` | 待办任务 | task, dueDate, priority, tags |
+| `todo` | 待办任务 | task, dueDate, tags |
 | `idea` | 灵感笔记 | title, content, tags |
 | `link` | 网页收藏 | url, title, summary, tags |
 | `event` | 日程安排 | title, startTime, endTime, location |

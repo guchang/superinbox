@@ -60,7 +60,6 @@ describe('Routing Rules Integration', () => {
       category: 'todo',
       entities: {},
       status: 'completed',
-      priority: 'medium',
       distributedTargets: [],
       distributionResults: [],
       createdAt: new Date(),

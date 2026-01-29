@@ -427,7 +427,6 @@ interface Item {
   summary?: string;
   suggestedTitle?: string;
   status: ItemStatus;
-  priority: Priority;
   distributedTargets: string[];
   distributionResults: DistributionResult[];
   createdAt: Date;

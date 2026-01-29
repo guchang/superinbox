@@ -120,7 +120,6 @@ Create a new item in the inbox.
     "summary": "Todo to buy milk",
     "suggestedTitle": "Buy milk",
     "status": "pending",
-    "priority": "medium",
     "distributedTargets": [],
     "distributionResults": [],
     "createdAt": "2026-01-17T12:00:00.000Z",
@@ -295,8 +294,7 @@ Update an existing item.
 
 ```json
 {
-  "status": "completed",
-  "priority": "high"
+  "status": "completed"
 }
 ```
 
@@ -308,7 +306,6 @@ Update an existing item.
   "data": {
     "id": "...",
     "status": "completed",
-    "priority": "high",
     "updatedAt": "2026-01-17T12:05:00.000Z"
   }
 }
@@ -450,8 +447,7 @@ Get all routing rules.
         "name": "Todo to Notion",
         "enabled": true,
         "conditions": {
-          "intent": ["todo", "schedule"],
-          "priority": ["high", "medium"]
+          "intent": ["todo", "schedule"]
         },
         "actions": [
           {

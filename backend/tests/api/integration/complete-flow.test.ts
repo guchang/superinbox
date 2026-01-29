@@ -141,14 +141,12 @@ describe('Complete Flow Integration Tests', () => {
         .put(`/v1/items/${itemId}`)
         .set('Authorization', `Bearer ${apiKey}`)
         .send({
-          status: 'completed',
-          priority: 'high'
+          status: 'completed'
         });
 
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
       expect(response.body.data).toHaveProperty('status', 'completed');
-      expect(response.body.data).toHaveProperty('priority', 'high');
     });
   });
 
