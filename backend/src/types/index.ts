@@ -44,15 +44,6 @@ export enum ItemStatus {
   ARCHIVED = 'archived'    // 已归档
 }
 
-/**
- * 优先级
- */
-export enum Priority {
-  LOW = 'low',
-  MEDIUM = 'medium',
-  HIGH = 'high',
-  URGENT = 'urgent'
-}
 
 // ============================================
 // Input/Output Types
@@ -145,7 +136,6 @@ export interface Item {
 
   // Status management
   status: ItemStatus;
-  priority: Priority;
 
   // 分发信息
   distributedTargets: string[];
@@ -155,6 +145,19 @@ export interface Item {
   createdAt: Date;
   updatedAt: Date;
   processedAt?: Date;
+}
+
+export type ItemFileType = 'image' | 'audio' | 'file';
+
+export interface ItemFile {
+  id: string;
+  itemId: string;
+  fileName?: string;
+  filePath: string;
+  fileSize?: number;
+  mimeType?: string;
+  fileType: ItemFileType;
+  createdAt: Date;
 }
 
 // ============================================
@@ -274,13 +277,14 @@ export interface QueryFilter {
   category?: CategoryKey;
   source?: string;
   query?: string; // Full-text search
+  hasType?: 'image' | 'audio' | 'file' | 'text' | 'url';
   since?: Date; // Incremental sync filter - return items updated after this timestamp
   startDate?: Date;
   endDate?: Date;
   tags?: string[];
   limit?: number;
   offset?: number;
-  sortBy?: 'createdAt' | 'updatedAt' | 'priority';
+  sortBy?: 'createdAt' | 'updatedAt';
   sortOrder?: 'asc' | 'desc';
 }
 

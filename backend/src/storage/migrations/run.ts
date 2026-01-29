@@ -3,6 +3,7 @@
  */
 
 import { getDatabase } from '../database.js';
+import crypto from 'crypto';
 import { existsSync, mkdirSync } from 'fs';
 import { dirname } from 'path';
 
@@ -22,7 +23,6 @@ const migrations = [
         summary TEXT,
         suggested_title TEXT,
         status TEXT NOT NULL,
-        priority TEXT NOT NULL,
         distributed_targets TEXT,
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL,
@@ -338,6 +338,76 @@ const migrations = [
     up: `
       ALTER TABLE distribution_results ADD COLUMN rule_name TEXT;
     `
+  },
+  {
+    version: '013',
+    name: 'remove_item_priority',
+    up: `
+      PRAGMA foreign_keys=off;
+
+      BEGIN TRANSACTION;
+
+      CREATE TABLE IF NOT EXISTS items_new (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        original_content TEXT NOT NULL,
+        content_type TEXT NOT NULL,
+        source TEXT NOT NULL,
+        category TEXT NOT NULL,
+        entities TEXT,
+        summary TEXT,
+        suggested_title TEXT,
+        status TEXT NOT NULL,
+        distributed_targets TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        processed_at TEXT,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      );
+
+      INSERT INTO items_new (
+        id, user_id, original_content, content_type, source,
+        category, entities, summary, suggested_title,
+        status, distributed_targets, created_at, updated_at, processed_at
+      )
+      SELECT
+        id, user_id, original_content, content_type, source,
+        category, entities, summary, suggested_title,
+        status, distributed_targets, created_at, updated_at, processed_at
+      FROM items;
+
+      DROP TABLE items;
+      ALTER TABLE items_new RENAME TO items;
+
+      CREATE INDEX IF NOT EXISTS idx_items_user_id ON items(user_id);
+      CREATE INDEX IF NOT EXISTS idx_items_status ON items(status);
+      CREATE INDEX IF NOT EXISTS idx_items_category ON items(category);
+      CREATE INDEX IF NOT EXISTS idx_items_created_at ON items(created_at);
+
+      COMMIT;
+      PRAGMA foreign_keys=on;
+    `
+  },
+  {
+    version: '014',
+    name: 'add_item_files_table',
+    up: `
+      CREATE TABLE IF NOT EXISTS item_files (
+        id TEXT PRIMARY KEY,
+        item_id TEXT NOT NULL,
+        file_name TEXT,
+        file_path TEXT NOT NULL,
+        file_size INTEGER,
+        mime_type TEXT,
+        file_type TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_item_files_item_id ON item_files(item_id);
+      CREATE INDEX IF NOT EXISTS idx_item_files_file_type ON item_files(file_type);
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_item_files_item_path ON item_files(item_id, file_path);
+    `
   }
 ];
 
@@ -352,6 +422,9 @@ export const runMigrations = async (): Promise<void> => {
     if (!alreadyApplied) {
       console.log(`Applying migration: ${migration.version} - ${migration.name}`);
       (db as any).db.exec(migration.up);
+      if (migration.version === '014') {
+        backfillItemFiles(db);
+      }
       recordMigration(migration.version, migration.name);
     } else {
       console.log(`Migration ${migration.version} already applied, skipping.`);
@@ -377,6 +450,110 @@ const recordMigration = (version: string, name: string): void => {
     'INSERT INTO migrations (version, name, applied_at) VALUES (?, ?, ?)'
   );
   stmt.run(version, name, new Date().toISOString());
+};
+
+const backfillItemFiles = (db: ReturnType<typeof getDatabase>): void => {
+  const database = (db as any).db;
+
+  try {
+    const rows = database.prepare('SELECT id, entities, created_at FROM items').all() as Array<{
+      id: string;
+      entities: string | null;
+      created_at: string;
+    }>;
+
+    if (rows.length === 0) return;
+
+    const insertStmt = database.prepare(`
+      INSERT OR IGNORE INTO item_files (
+        id, item_id, file_name, file_path, file_size, mime_type, file_type, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    const insertMany = database.transaction((entries: Array<{
+      id: string;
+      itemId: string;
+      fileName: string | null;
+      filePath: string;
+      fileSize: number | null;
+      mimeType: string | null;
+      fileType: string;
+      createdAt: string;
+    }>) => {
+      for (const entry of entries) {
+        insertStmt.run(
+          entry.id,
+          entry.itemId,
+          entry.fileName,
+          entry.filePath,
+          entry.fileSize,
+          entry.mimeType,
+          entry.fileType,
+          entry.createdAt
+        );
+      }
+    });
+
+    const entries: Array<{
+      id: string;
+      itemId: string;
+      fileName: string | null;
+      filePath: string;
+      fileSize: number | null;
+      mimeType: string | null;
+      fileType: string;
+      createdAt: string;
+    }> = [];
+
+    for (const row of rows) {
+      if (!row.entities) continue;
+
+      let entities: any = {};
+      try {
+        entities = JSON.parse(row.entities);
+      } catch {
+        entities = {};
+      }
+
+      const allFiles = Array.isArray(entities.allFiles) ? entities.allFiles : [];
+      const fileEntries = allFiles.length > 0
+        ? allFiles
+        : (entities.filePath || entities.fileName || entities.mimeType)
+          ? [{
+              filePath: entities.filePath,
+              fileName: entities.fileName,
+              fileSize: entities.fileSize,
+              mimeType: entities.mimeType
+            }]
+          : [];
+
+      for (const file of fileEntries) {
+        if (!file?.filePath) continue;
+        const mimeType = typeof file.mimeType === 'string' ? file.mimeType : null;
+        const fileType = mimeType?.startsWith('image/')
+          ? 'image'
+          : mimeType?.startsWith('audio/')
+            ? 'audio'
+            : 'file';
+        entries.push({
+          id: crypto.randomUUID(),
+          itemId: row.id,
+          fileName: typeof file.fileName === 'string' ? file.fileName : null,
+          filePath: file.filePath,
+          fileSize: typeof file.fileSize === 'number' ? file.fileSize : null,
+          mimeType,
+          fileType,
+          createdAt: row.created_at
+        });
+      }
+    }
+
+    if (entries.length > 0) {
+      insertMany(entries);
+    }
+  } catch (error) {
+    console.error('Failed to backfill item_files:', error);
+  }
 };
 
 // Run migrations if executed directly

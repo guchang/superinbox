@@ -6,7 +6,7 @@ import Database from 'better-sqlite3';
 import { existsSync, mkdirSync } from 'fs';
 import { dirname } from 'path';
 import crypto from 'crypto';
-import type { Item, QueryFilter } from '../types/index.js';
+import type { Item, ItemFile, QueryFilter } from '../types/index.js';
 import { config, isDevelopment } from '../config/index.js';
 
 export class DatabaseManager {
@@ -88,12 +88,23 @@ export class DatabaseManager {
         summary TEXT,
         suggested_title TEXT,
         status TEXT NOT NULL,
-        priority TEXT NOT NULL,
         distributed_targets TEXT,
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL,
         processed_at TEXT,
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      );
+
+      CREATE TABLE IF NOT EXISTS item_files (
+        id TEXT PRIMARY KEY,
+        item_id TEXT NOT NULL,
+        file_name TEXT,
+        file_path TEXT NOT NULL,
+        file_size INTEGER,
+        mime_type TEXT,
+        file_type TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE
       );
 
       CREATE TABLE IF NOT EXISTS distribution_results (
@@ -156,6 +167,9 @@ export class DatabaseManager {
       CREATE INDEX IF NOT EXISTS idx_items_status ON items(status);
       CREATE INDEX IF NOT EXISTS idx_items_category ON items(category);
       CREATE INDEX IF NOT EXISTS idx_items_created_at ON items(created_at);
+      CREATE INDEX IF NOT EXISTS idx_item_files_item_id ON item_files(item_id);
+      CREATE INDEX IF NOT EXISTS idx_item_files_file_type ON item_files(file_type);
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_item_files_item_path ON item_files(item_id, file_path);
       CREATE INDEX IF NOT EXISTS idx_distribution_results_item_id ON distribution_results(item_id);
       CREATE INDEX IF NOT EXISTS idx_api_keys_key_value ON api_keys(key_value);
       CREATE INDEX IF NOT EXISTS idx_api_keys_user_id ON api_keys(user_id);
@@ -210,9 +224,9 @@ export class DatabaseManager {
       INSERT INTO items (
         id, user_id, original_content, content_type, source,
         category, entities, summary, suggested_title,
-        status, priority, distributed_targets,
+        status, distributed_targets,
         created_at, updated_at, processed_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     stmt.run(
@@ -226,7 +240,6 @@ export class DatabaseManager {
       item.summary ?? null,
       item.suggestedTitle ?? null,
       item.status,
-      item.priority,
       JSON.stringify(item.distributedTargets),
       item.createdAt.toISOString(),
       item.updatedAt.toISOString(),
@@ -234,6 +247,36 @@ export class DatabaseManager {
     );
 
     return item;
+  }
+
+  /**
+   * Add files for an item
+   */
+  addItemFiles(files: ItemFile[]): void {
+    if (files.length === 0) return;
+
+    const stmt = this.db.prepare(`
+      INSERT OR IGNORE INTO item_files (
+        id, item_id, file_name, file_path, file_size, mime_type, file_type, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    const insertMany = this.db.transaction((rows: ItemFile[]) => {
+      for (const file of rows) {
+        stmt.run(
+          file.id,
+          file.itemId,
+          file.fileName ?? null,
+          file.filePath,
+          file.fileSize ?? null,
+          file.mimeType ?? null,
+          file.fileType,
+          file.createdAt.toISOString()
+        );
+      }
+    });
+
+    insertMany(files);
   }
 
   /**
@@ -268,6 +311,18 @@ export class DatabaseManager {
     if (filter.source) {
       query += ' AND source = ?';
       params.push(filter.source);
+    }
+
+    if (filter.hasType) {
+      if (filter.hasType === 'text') {
+        query += ' AND TRIM(original_content) <> \'\'';
+      } else if (filter.hasType === 'url') {
+        query += ' AND content_type = ?';
+        params.push('url');
+      } else if (['image', 'audio', 'file'].includes(filter.hasType)) {
+        query += ' AND EXISTS (SELECT 1 FROM item_files WHERE item_files.item_id = items.id AND item_files.file_type = ?)';
+        params.push(filter.hasType);
+      }
     }
 
     // Add since parameter filtering for incremental sync
@@ -321,6 +376,18 @@ export class DatabaseManager {
       params.push(filter.source);
     }
 
+    if (filter.hasType) {
+      if (filter.hasType === 'text') {
+        query += ' AND TRIM(original_content) <> \'\'';
+      } else if (filter.hasType === 'url') {
+        query += ' AND content_type = ?';
+        params.push('url');
+      } else if (['image', 'audio', 'file'].includes(filter.hasType)) {
+        query += ' AND EXISTS (SELECT 1 FROM item_files WHERE item_files.item_id = items.id AND item_files.file_type = ?)';
+        params.push(filter.hasType);
+      }
+    }
+
     // Add since parameter filtering for incremental sync
     if (filter.since) {
       query += ' AND updated_at > ?';
@@ -346,8 +413,10 @@ export class DatabaseManager {
     }
 
     // Sorting
-    const sortBy = filter.sortBy ?? 'createdAt';
-    const sortOrder = filter.sortOrder ?? 'desc';
+    const sortBy = filter.sortBy && ['createdAt', 'updatedAt'].includes(filter.sortBy)
+      ? filter.sortBy
+      : 'createdAt';
+    const sortOrder = filter.sortOrder === 'asc' ? 'asc' : 'desc';
     query += ` ORDER BY ${this.camelToSnake(sortBy)} ${sortOrder.toUpperCase()}`;
 
     // Pagination
@@ -385,7 +454,6 @@ export class DatabaseManager {
         summary = ?,
         suggested_title = ?,
         status = ?,
-        priority = ?,
         distributed_targets = ?,
         updated_at = ?,
         processed_at = ?
@@ -400,7 +468,6 @@ export class DatabaseManager {
       updated.summary ?? null,
       updated.suggestedTitle ?? null,
       updated.status,
-      updated.priority,
       JSON.stringify(updated.distributedTargets),
       updated.updatedAt.toISOString(),
       updated.processedAt?.toISOString() ?? null,
@@ -516,7 +583,6 @@ export class DatabaseManager {
       summary: row.summary,
       suggestedTitle: row.suggested_title,
       status: row.status,
-      priority: row.priority,
       distributedTargets: JSON.parse(row.distributed_targets || '[]'),
       distributionResults,
       createdAt: new Date(row.created_at),
