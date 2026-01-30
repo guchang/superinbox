@@ -844,8 +844,6 @@ export class InboxController {
       });
     }
   }
-    }
-  }
 
   /**
    * 处理路由进度事件，转换为 SSE 事件
