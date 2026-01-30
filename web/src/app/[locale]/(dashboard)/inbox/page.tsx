@@ -353,6 +353,14 @@ export default function InboxPage() {
                       />
                     </div>
                   )}
+
+                  {/* Matched Routing Rules - Temporary Display */}
+                  {item.distributedRuleNames && item.distributedRuleNames.length > 0 && (
+                    <div className="mt-3 text-sm text-muted-foreground">
+                      <span className="font-medium">Matched Routing Rules: </span>
+                      <span>{item.distributedRuleNames.join(', ')}</span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Bottom Row: Actions */}

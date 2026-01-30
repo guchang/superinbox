@@ -117,6 +117,11 @@ export interface AIAnalysisResult {
 }
 
 /**
+ * Routing Status - Tracks the state of routing distribution
+ */
+export type RoutingStatus = 'pending' | 'skipped' | 'processing' | 'completed' | 'failed';
+
+/**
  * Item - Core data model
  */
 export interface Item {
@@ -140,6 +145,7 @@ export interface Item {
   // 分发信息
   distributedTargets: string[];
   distributionResults: DistributionResult[];
+  routingStatus: RoutingStatus;
 
   // 时间戳
   createdAt: Date;

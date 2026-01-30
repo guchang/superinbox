@@ -89,6 +89,7 @@ export class DatabaseManager {
         suggested_title TEXT,
         status TEXT NOT NULL,
         distributed_targets TEXT,
+        routing_status TEXT DEFAULT 'pending' CHECK(routing_status IN ('pending', 'skipped', 'processing', 'completed', 'failed')),
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL,
         processed_at TEXT,
@@ -165,6 +166,7 @@ export class DatabaseManager {
       CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user_id ON refresh_tokens(user_id);
       CREATE INDEX IF NOT EXISTS idx_items_user_id ON items(user_id);
       CREATE INDEX IF NOT EXISTS idx_items_status ON items(status);
+      CREATE INDEX IF NOT EXISTS idx_items_routing_status ON items(routing_status);
       CREATE INDEX IF NOT EXISTS idx_items_category ON items(category);
       CREATE INDEX IF NOT EXISTS idx_items_created_at ON items(created_at);
       CREATE INDEX IF NOT EXISTS idx_item_files_item_id ON item_files(item_id);
@@ -224,9 +226,9 @@ export class DatabaseManager {
       INSERT INTO items (
         id, user_id, original_content, content_type, source,
         category, entities, summary, suggested_title,
-        status, distributed_targets,
+        status, distributed_targets, routing_status,
         created_at, updated_at, processed_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     stmt.run(
@@ -241,6 +243,7 @@ export class DatabaseManager {
       item.suggestedTitle ?? null,
       item.status,
       JSON.stringify(item.distributedTargets),
+      item.routingStatus,
       item.createdAt.toISOString(),
       item.updatedAt.toISOString(),
       item.processedAt?.toISOString() ?? null
@@ -455,6 +458,7 @@ export class DatabaseManager {
         suggested_title = ?,
         status = ?,
         distributed_targets = ?,
+        routing_status = ?,
         updated_at = ?,
         processed_at = ?
       WHERE id = ?
@@ -469,6 +473,7 @@ export class DatabaseManager {
       updated.suggestedTitle ?? null,
       updated.status,
       JSON.stringify(updated.distributedTargets),
+      updated.routingStatus,
       updated.updatedAt.toISOString(),
       updated.processedAt?.toISOString() ?? null,
       id
@@ -585,6 +590,7 @@ export class DatabaseManager {
       status: row.status,
       distributedTargets: JSON.parse(row.distributed_targets || '[]'),
       distributionResults,
+      routingStatus: row.routing_status || 'pending',
       createdAt: new Date(row.created_at),
       updatedAt: new Date(row.updated_at),
       processedAt: row.processed_at ? new Date(row.processed_at) : undefined
