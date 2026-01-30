@@ -40,6 +40,9 @@ export enum ItemStatus {
   FAILED = 'failed',
 }
 
+// 路由分发状态
+export type RoutingStatus = 'pending' | 'skipped' | 'processing' | 'completed' | 'failed'
+
 // 实体类型
 export interface Entity {
   type: string
@@ -67,6 +70,7 @@ export interface Item {
   distributionResults?: Record<string, any>
   distributedTargets?: any[]
   distributedRuleNames?: string[]
+  routingStatus?: RoutingStatus
   createdAt: string
   updatedAt: string
   createdAtLocal?: string | null

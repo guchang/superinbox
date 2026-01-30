@@ -10,9 +10,8 @@ import { getBackendDirectUrl } from '@/lib/api/base-url'
 // 路由进度状态
 export type RoutingStatus =
   | 'pending'      // 待配置
-  | 'starting'     // 开始分发
-  | 'matching'     // 匹配规则
-  | 'distributing' // 分发中
+  | 'skipped'      // 跳过（无规则配置）
+  | 'processing'   // 处理中
   | 'completed'    // 已完成
   | 'error'        // 出错
 
@@ -66,16 +65,27 @@ export function useRoutingProgress(itemId: string | null, options?: { disabled?:
         case 'routing:start':
           setState(prev => ({
             ...prev,
-            status: 'starting',
+            status: 'processing',
             message: data.message || '后台执行中——后台路由分发中...',
             error: null
           }))
           break
 
+        case 'routing:skipped':
+          setState(prev => ({
+            ...prev,
+            status: 'skipped',
+            message: data.message || '未配置路由规则',
+            error: null
+          }))
+          // Auto-disconnect on skipped
+          disconnect()
+          break
+
         case 'routing:rule_match':
           setState(prev => ({
             ...prev,
-            status: 'matching',
+            status: 'processing',
             message: data.message || `后台执行中——后台匹配规则: ${data.ruleName}`
           }))
           break
@@ -83,7 +93,7 @@ export function useRoutingProgress(itemId: string | null, options?: { disabled?:
         case 'step:start':
           setState(prev => ({
             ...prev,
-            status: 'distributing',
+            status: 'processing',
             message: `后台执行中——步骤${data.step}: 规划中...`
           }))
           break
@@ -91,7 +101,7 @@ export function useRoutingProgress(itemId: string | null, options?: { disabled?:
         case 'step:planned':
           setState(prev => ({
             ...prev,
-            status: 'distributing',
+            status: 'processing',
             message: `后台执行中——步骤${data.step}: 规划完成`
           }))
           break
@@ -99,7 +109,7 @@ export function useRoutingProgress(itemId: string | null, options?: { disabled?:
         case 'step:executing':
           setState(prev => ({
             ...prev,
-            status: 'distributing',
+            status: 'processing',
             message: `后台执行中——步骤${data.step}: 开始调用 ${data.toolName}...`
           }))
           break
@@ -109,7 +119,7 @@ export function useRoutingProgress(itemId: string | null, options?: { disabled?:
           const toolName = data.toolName || 'unknown'
           setState(prev => ({
             ...prev,
-            status: 'distributing',
+            status: 'processing',
             message: `后台执行中——✓ 步骤${data.step}: ${toolName} 完成`
           }))
           break
@@ -117,7 +127,7 @@ export function useRoutingProgress(itemId: string | null, options?: { disabled?:
         case 'step:error':
           setState(prev => ({
             ...prev,
-            status: 'distributing',
+            status: 'processing',
             message: `后台执行中——✗ 步骤${data.step}: ${data.toolName || 'unknown'} 失败${data.error ? ': ' + data.error : ''}`
           }))
           break

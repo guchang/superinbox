@@ -13,9 +13,9 @@ interface AutoRefetchOptions {
  *
  * This hook automatically refetches data when:
  * 1. There are items in PROCESSING status (AI classification in progress)
- * 2. There are recently created items (within 3 minutes) - to capture routing distribution updates
+ * 2. There are items with routingStatus === 'processing' (routing distribution in progress)
  *
- * It stops polling when all items are completed/failed and no recent items exist.
+ * It stops polling when all items are completed/failed and no routing in progress.
  *
  * @param options - Configuration options
  * @param options.refetch - Function to refetch data
@@ -44,29 +44,20 @@ export function useAutoRefetch({
       return
     }
 
-    // Check if there are any items that need polling (only processing status)
-    // PENDING items don't need polling as they haven't started processing yet
+    // Check if there are any items that need polling
     const hasProcessingItems = items.some(
       (item) => item.status === ItemStatus.PROCESSING
     )
 
-    // Check if there are recently created items (likely undergoing routing distribution)
-    // Poll for items created within the last 3 minutes to capture routing status updates
-    const now = new Date()
-    const hasRecentItems = items.some((item) => {
-      const createdAt = new Date(item.createdAt)
-      const diffMinutes = (now.getTime() - createdAt.getTime()) / (1000 * 60)
-      const isRecent = diffMinutes < 3 // Poll for 3 minutes after creation
-      if (isRecent && process.env.NODE_ENV === 'development') {
-        console.log(`[useAutoRefetch] Recent item detected: ${item.id}, age: ${diffMinutes.toFixed(2)} minutes`)
-      }
-      return isRecent
-    })
+    // Check if there are items with routing in progress
+    const hasRoutingInProgress = items.some(
+      (item) => item.routingStatus === 'processing'
+    )
 
-    const shouldPoll = hasProcessingItems || hasRecentItems
+    const shouldPoll = hasProcessingItems || hasRoutingInProgress
 
     if (process.env.NODE_ENV === 'development') {
-      console.log(`[useAutoRefetch] shouldPoll: ${shouldPoll}, hasProcessingItems: ${hasProcessingItems}, hasRecentItems: ${hasRecentItems}`)
+      console.log(`[useAutoRefetch] shouldPoll: ${shouldPoll}, hasProcessingItems: ${hasProcessingItems}, hasRoutingInProgress: ${hasRoutingInProgress}`)
     }
 
     if (shouldPoll) {
@@ -78,7 +69,7 @@ export function useAutoRefetch({
         setIsPolling(true)
       }
     } else {
-      // Stop polling when all items are completed/failed and no recent items
+      // Stop polling when no items need updates
       if (intervalRef.current) {
         clearInterval(intervalRef.current)
         intervalRef.current = null
