@@ -4,7 +4,7 @@
  */
 
 import { Badge } from '@/components/ui/badge'
-import { Loader2, CheckCircle, XCircle, Clock, Zap } from 'lucide-react'
+import { Loader2, CheckCircle, XCircle, Clock, Zap, MinusCircle } from 'lucide-react'
 import { useRoutingProgress, type RoutingStatus } from '@/hooks/use-routing-progress'
 import { useTranslations } from 'next-intl'
 
@@ -12,24 +12,25 @@ interface RoutingStatusProps {
   itemId: string
   initialDistributedTargets?: any[]
   initialRuleNames?: string[]
+  routingStatus?: string  // 从数据库获取的路由状态
   className?: string
   disabled?: boolean  // 禁用 SSE 连接
   showAnimation?: boolean  // 是否显示动画效果
 }
 
-export function RoutingStatus({ itemId, initialDistributedTargets = [], initialRuleNames = [], className, disabled = false, showAnimation = true }: RoutingStatusProps) {
+export function RoutingStatus({ itemId, initialDistributedTargets = [], initialRuleNames = [], routingStatus, className, disabled = false, showAnimation = true }: RoutingStatusProps) {
   const t = useTranslations('inbox')
   const progress = useRoutingProgress(itemId, { disabled })
 
-  // 对于禁用 SSE 的条目，主要依赖轮询数据（initialDistributedTargets/initialRuleNames）
+  // 对于禁用 SSE 的条目，使用数据库中的 routingStatus
   // 这些数据会通过 useAutoRefetch 定期更新
   const hasStaticData = initialDistributedTargets && initialDistributedTargets.length > 0
 
-  // 如果禁用了 SSE，优先使用轮询数据
+  // 如果禁用了 SSE，使用数据库状态
   const useStatic = disabled
 
   const effectiveStatus = useStatic 
-    ? (hasStaticData ? 'completed' : 'pending')
+    ? (routingStatus as RoutingStatus || 'pending')  // 使用数据库中的状态
     : progress.status
   const effectiveTargets = useStatic ? initialDistributedTargets : progress.distributedTargets
   const effectiveRuleNames = useStatic ? initialRuleNames : (progress.ruleNames || [])
@@ -38,21 +39,19 @@ export function RoutingStatus({ itemId, initialDistributedTargets = [], initialR
         ? `已分发: ${initialRuleNames.join(', ')}` 
         : hasStaticData 
           ? `已分发到 ${initialDistributedTargets.length} 个目标`
-          : '分发规则待配置'
+          : routingStatus === 'skipped'
+            ? '未配置路由规则'
+            : '分发规则待配置'
       )
     : progress.message
 
   // Debug logging in development
   if (process.env.NODE_ENV === 'development' && disabled) {
-    console.log(`[RoutingStatus] itemId: ${itemId}, disabled: ${disabled}, hasStaticData: ${hasStaticData}, ruleNames:`, initialRuleNames)
+    console.log(`[RoutingStatus] itemId: ${itemId}, disabled: ${disabled}, routingStatus: ${routingStatus}, ruleNames:`, initialRuleNames)
   }
 
   // 只在允许动画且 SSE 活跃连接时显示状态指示器（正在处理中）
-  const showIndicator = showAnimation && !disabled && (
-    progress.status === 'starting' ||
-    progress.status === 'matching' ||
-    progress.status === 'distributing'
-  )
+  const showIndicator = showAnimation && !disabled && progress.status === 'processing'
 
   return (
     <RoutingStatusBadge
@@ -102,28 +101,20 @@ function RoutingStatusBadge({
           text: message || '分发规则待配置'
         }
 
-      case 'starting':
+      case 'skipped':
+        return {
+          variant: 'outline' as const,
+          className: 'text-xs border-gray-300 text-gray-500 bg-gray-50',
+          icon: <MinusCircle className="h-3 w-3 mr-1" />,
+          text: message || '未配置路由规则'
+        }
+
+      case 'processing':
         return {
           variant: 'outline' as const,
           className: `text-xs border-blue-200 text-blue-700 bg-blue-50 ${showAnimation ? 'animate-pulse' : ''}`,
           icon: <Loader2 className={`h-3 w-3 mr-1 ${showAnimation ? 'animate-spin' : ''}`} />,
           text: message || '后台路由分发中...'
-        }
-
-      case 'matching':
-        return {
-          variant: 'outline' as const,
-          className: `text-xs border-yellow-200 text-yellow-700 bg-yellow-50 ${showAnimation ? 'animate-pulse' : ''}`,
-          icon: <Zap className="h-3 w-3 mr-1" />,
-          text: message || '后台匹配规则中...'
-        }
-
-      case 'distributing':
-        return {
-          variant: 'outline' as const,
-          className: `text-xs border-blue-200 text-blue-700 bg-blue-50 ${showAnimation ? 'animate-pulse' : ''}`,
-          icon: <Loader2 className={`h-3 w-3 mr-1 ${showAnimation ? 'animate-spin' : ''}`} />,
-          text: message || '后台分发中...'
         }
 
       case 'completed':

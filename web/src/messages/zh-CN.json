@@ -205,6 +205,13 @@
     "emptyFiltered": "没有找到匹配的条目",
     "routePending": "分发规则待配置",
     "routeDistributed": "路由: 已分发到 {count} 个目标",
+    "routingStatus": {
+      "pending": "等待路由分发",
+      "skipped": "未配置路由规则",
+      "processing": "路由分发中...",
+      "completed": "路由分发完成",
+      "failed": "路由分发失败"
+    },
     "actions": {
       "viewDetails": "查看详情"
     },

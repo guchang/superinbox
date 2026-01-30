@@ -205,6 +205,13 @@
     "emptyFiltered": "No matching items",
     "routePending": "Routing rules not configured",
     "routeDistributed": "Routing: Distributed to {count} targets",
+    "routingStatus": {
+      "pending": "Waiting for routing",
+      "skipped": "No routing rules configured",
+      "processing": "Routing in progress...",
+      "completed": "Routing completed",
+      "failed": "Routing failed"
+    },
     "actions": {
       "viewDetails": "View details"
     },

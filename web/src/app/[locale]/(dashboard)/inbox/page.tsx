@@ -371,6 +371,7 @@ export default function InboxPage() {
                       itemId={item.id}
                       initialDistributedTargets={item.distributedTargets}
                       initialRuleNames={item.distributedRuleNames}
+                      routingStatus={item.routingStatus}
                       disabled={index !== 0}  // 只有第一条启用 SSE
                       showAnimation={index === 0}  // 只有第一条显示动画
                     />
