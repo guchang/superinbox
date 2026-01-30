@@ -74,6 +74,15 @@ export default function InboxPage() {
 
   const items = itemsData?.data?.items || []
 
+  // Debug: log items data in development
+  if (process.env.NODE_ENV === 'development' && items.length > 0) {
+    console.log('[InboxPage] Items data:', items.map(item => ({
+      id: item.id,
+      distributedTargets: item.distributedTargets,
+      distributedRuleNames: item.distributedRuleNames
+    })))
+  }
+
   // Auto-refetch when there are processing items
   const { isPolling } = useAutoRefetch({
     refetch,
@@ -307,12 +316,13 @@ export default function InboxPage() {
                 {/* Bottom Row: Actions */}
                 <div className="flex items-center justify-between pt-4 border-t">
                   <div className="flex-1">
-                    {/* Route Status - SSE only for first item, others disabled */}
+                    {/* Route Status - SSE only for first item, others use polling data */}
                     <RoutingStatus
                       itemId={item.id}
                       initialDistributedTargets={item.distributedTargets}
                       initialRuleNames={item.distributedRuleNames}
                       disabled={index !== 0}  // 只有第一条启用 SSE
+                      showAnimation={index === 0}  // 只有第一条显示动画
                     />
                   </div>
                   

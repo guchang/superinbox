@@ -308,22 +308,36 @@ export function useRoutingProgress(itemId: string | null, options?: { disabled?:
     connect(newConnectionId)
   }, [disconnect, connect, itemId])
 
+  // 监听 disabled 参数变化，立即断开连接并重置状态
+  useEffect(() => {
+    if (disabled) {
+      disconnect()
+      setState(prev => ({
+        ...prev,
+        status: 'pending',
+        message: '分发规则待配置',
+        isConnected: false,
+        error: null
+      }))
+    }
+  }, [disabled, disconnect])
+
   // 自动连接和清理
   useEffect(() => {
     // 为每次挂载生成唯一的连接 ID
     const currentConnectionId = `${itemId}-${Date.now()}-${Math.random()}`
 
-    if (itemId) {
+    if (itemId && !disabled) {
       connect(currentConnectionId)
     } else {
-      console.log(`[useRoutingProgress] No itemId provided`)
+      console.log(`[useRoutingProgress] No itemId provided or disabled`)
     }
 
     return () => {
       console.log(`[useRoutingProgress] Cleanup for item: ${itemId}`)
       disconnect()
     }
-  }, [itemId, connect, disconnect])
+  }, [itemId, disabled, connect, disconnect])
 
   return {
     ...state,
