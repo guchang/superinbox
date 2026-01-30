@@ -1,7 +1,7 @@
 "use client"
 
 import { useTranslations } from 'next-intl'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useInfiniteQuery, useMutation, useQueryClient, useQuery } from '@tanstack/react-query'
 import { categoriesApi } from '@/lib/api/categories'
 import { inboxApi } from '@/lib/api/inbox'
 import { Card, CardContent } from '@/components/ui/card'
@@ -12,7 +12,7 @@ import { CategoryType, ContentType, ItemStatus } from '@/types'
 import { Eye, Trash2, Loader2, Clock, RefreshCw } from 'lucide-react'
 import { Link } from '@/i18n/navigation'
 import { useToast } from '@/hooks/use-toast'
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import { CommandSearch, SearchFilters } from '@/components/shared/command-search'
 import { useAutoRefetch } from '@/hooks/use-auto-refetch'
 import { FilePreview } from '@/components/file-preview'
@@ -29,6 +29,7 @@ export default function InboxPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [retryingId, setRetryingId] = useState<string | null>(null)
   const [searchFilters, setSearchFilters] = useState<SearchFilters>({ query: '' })
+  const loadMoreRef = useRef<HTMLDivElement>(null)
 
   const { data: categoriesData } = useQuery({
     queryKey: ['categories'],
@@ -46,7 +47,7 @@ export default function InboxPage() {
 
   // 构建查询参数
   const queryParams = useMemo(() => {
-    const params: any = { limit: 100 }
+    const params: any = {}
 
     if (searchFilters.query) {
       params.query = searchFilters.query
@@ -67,12 +68,34 @@ export default function InboxPage() {
     return params
   }, [searchFilters])
 
-  const { data: itemsData, isLoading, refetch } = useQuery({
+  // 使用 useInfiniteQuery 实现无限滚动
+  const {
+    data: itemsData,
+    isLoading,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    refetch,
+  } = useInfiniteQuery({
     queryKey: ['inbox', queryParams],
-    queryFn: () => inboxApi.getItems(queryParams),
+    queryFn: ({ pageParam = 1 }) =>
+      inboxApi.getItems({ ...queryParams, page: pageParam, limit: 20 }),
+    getNextPageParam: (lastPage) => {
+      if (!lastPage.data) return undefined
+      const { page, limit, total } = lastPage.data
+      const hasMore = page * limit < total
+      return hasMore ? page + 1 : undefined
+    },
+    initialPageParam: 1,
   })
 
-  const items = itemsData?.data?.items || []
+  // 合并所有页面的数据
+  const items = useMemo(() => {
+    return itemsData?.pages.flatMap((page) => page.data?.items || []) || []
+  }, [itemsData])
+
+  // 获取总数
+  const totalCount = itemsData?.pages[0]?.data?.total || 0
 
   // Debug: log items data in development
   if (process.env.NODE_ENV === 'development' && items.length > 0) {
@@ -89,6 +112,24 @@ export default function InboxPage() {
     items,
     interval: 3000, // Poll every 3 seconds
   })
+
+  // Intersection Observer for infinite scroll
+  useEffect(() => {
+    if (!loadMoreRef.current || !hasNextPage || isFetchingNextPage) return
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          fetchNextPage()
+        }
+      },
+      { threshold: 0.1 }
+    )
+
+    observer.observe(loadMoreRef.current)
+
+    return () => observer.disconnect()
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage])
 
   // 获取所有可用的来源（需要从所有数据中获取，而不是筛选后的数据）
   const { data: allItemsData } = useQuery({
@@ -222,7 +263,8 @@ export default function InboxPage() {
       {/* Results Count */}
       {(searchFilters.query || searchFilters.category || searchFilters.status || searchFilters.source || searchFilters.hasType) && (
         <div className="text-sm text-muted-foreground">
-          {t('resultsCount', { count: items.length })}
+          {t('resultsCount', { count: totalCount })}
+          {items.length < totalCount && ` (${t('showing')} ${items.length})`}
         </div>
       )}
 
@@ -357,6 +399,26 @@ export default function InboxPage() {
               </CardContent>
             </Card>
           ))}
+
+          {/* Load More Trigger */}
+          {hasNextPage && (
+            <div ref={loadMoreRef} className="py-4 text-center">
+              {isFetchingNextPage ? (
+                <div className="flex items-center justify-center gap-2 text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>{common('loading')}</span>
+                </div>
+              ) : (
+                <Button
+                  variant="outline"
+                  onClick={() => fetchNextPage()}
+                  disabled={isFetchingNextPage}
+                >
+                  {t('loadMore')}
+                </Button>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>

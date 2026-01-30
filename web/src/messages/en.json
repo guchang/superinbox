@@ -200,6 +200,8 @@
   "inbox": {
     "title": "Inbox",
     "resultsCount": "Found {count} results",
+    "showing": "Showing",
+    "loadMore": "Load More",
     "emptyFiltered": "No matching items",
     "routePending": "Routing rules not configured",
     "routeDistributed": "Routing: Distributed to {count} targets",

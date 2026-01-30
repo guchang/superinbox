@@ -200,6 +200,8 @@
   "inbox": {
     "title": "收件箱",
     "resultsCount": "找到 {count} 条结果",
+    "showing": "显示",
+    "loadMore": "加载更多",
     "emptyFiltered": "没有找到匹配的条目",
     "routePending": "分发规则待配置",
     "routeDistributed": "路由: 已分发到 {count} 个目标",
