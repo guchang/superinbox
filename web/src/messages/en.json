@@ -207,7 +207,7 @@
     "routeDistributed": "Routing: Distributed to {count} targets",
     "routingStatus": {
       "pending": "Waiting for routing",
-      "skipped": "No routing rules configured",
+      "skipped": "Routing skipped",
       "processing": "Routing in progress...",
       "completed": "Routing completed",
       "failed": "Routing failed"

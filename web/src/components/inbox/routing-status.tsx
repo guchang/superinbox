@@ -40,8 +40,8 @@ export function RoutingStatus({ itemId, initialDistributedTargets = [], initialR
         : hasStaticData 
           ? `已分发到 ${initialDistributedTargets.length} 个目标`
           : routingStatus === 'skipped'
-            ? '未配置路由规则'
-            : '分发规则待配置'
+            ? '不执行路由分发'
+            : '等待路由分发'
       )
     : progress.message
 
@@ -98,7 +98,7 @@ function RoutingStatusBadge({
           variant: 'outline' as const,
           className: 'text-xs border-gray-200 text-gray-600 bg-gray-50',
           icon: <Clock className="h-3 w-3 mr-1" />,
-          text: message || '分发规则待配置'
+          text: message || '等待路由分发'
         }
 
       case 'skipped':
@@ -106,7 +106,7 @@ function RoutingStatusBadge({
           variant: 'outline' as const,
           className: 'text-xs border-gray-300 text-gray-500 bg-gray-50',
           icon: <MinusCircle className="h-3 w-3 mr-1" />,
-          text: message || '未配置路由规则'
+          text: message || '不执行路由分发'
         }
 
       case 'processing':

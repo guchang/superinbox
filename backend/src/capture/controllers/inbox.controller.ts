@@ -304,6 +304,29 @@ export class InboxController {
   };
 
   /**
+   * Get available sources
+   * GET /v1/inbox/sources
+   */
+  getSources = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const userId = req.user?.id ?? 'default-user';
+
+      // Get all items for the user (without pagination)
+      const items = this.db.getItemsByUserId(userId, {});
+
+      // Extract unique sources
+      const sources = Array.from(new Set(items.map(item => item.source))).sort();
+
+      res.json({
+        success: true,
+        data: sources
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
    * Update item
    * PUT /v1/items/:id
    */

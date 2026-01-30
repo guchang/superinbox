@@ -131,16 +131,16 @@ export default function InboxPage() {
     return () => observer.disconnect()
   }, [hasNextPage, isFetchingNextPage, fetchNextPage])
 
-  // 获取所有可用的来源（需要从所有数据中获取，而不是筛选后的数据）
-  const { data: allItemsData } = useQuery({
-    queryKey: ['inbox', { limit: 1000 }], // 获取所有数据用于提取 source
-    queryFn: () => inboxApi.getItems({ limit: 1000 }),
+  // 获取所有可用的来源
+  const { data: sourcesData } = useQuery({
+    queryKey: ['inbox', 'sources'],
+    queryFn: () => inboxApi.getSources(),
+    staleTime: 5 * 60 * 1000, // 缓存 5 分钟
   })
 
   const availableSources = useMemo(() => {
-    const sources = new Set((allItemsData?.data?.items || []).map(item => item.source))
-    return Array.from(sources).sort()
-  }, [allItemsData])
+    return sourcesData?.data || []
+  }, [sourcesData])
 
   // 删除 mutation
   const deleteMutation = useMutation({

@@ -207,7 +207,7 @@
     "routeDistributed": "路由: 已分发到 {count} 个目标",
     "routingStatus": {
       "pending": "等待路由分发",
-      "skipped": "未配置路由规则",
+      "skipped": "不执行路由分发",
       "processing": "路由分发中...",
       "completed": "路由分发完成",
       "failed": "路由分发失败"

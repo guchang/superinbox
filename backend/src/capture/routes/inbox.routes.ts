@@ -46,6 +46,18 @@ router.get(
 );
 
 /**
+ * @route   GET /v1/inbox/sources
+ * @desc    Get available sources for filtering
+ * @access  Private (API Key)
+ * NOTE: Must come before /inbox/:id to avoid being matched as :id
+ */
+router.get(
+  '/inbox/sources',
+  authenticate,
+  inboxController.getSources
+);
+
+/**
  * @route   POST /v1/inbox/batch
  * @desc    Create multiple items in one request (documented API)
  * @access  Private (API Key)

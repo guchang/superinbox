@@ -39,6 +39,7 @@ export const inboxApi = {
         distributedTargets: entry.distributedTargets || entry.routedTo || [],
         distributionResults: entry.distributionResults || [],
         distributedRuleNames: entry.distributedRuleNames || [],
+        routingStatus: entry.routingStatus || 'skipped',
         createdAt: entry.createdAt,
         updatedAt: entry.updatedAt,
         createdAtLocal: entry.createdAtLocal || null,
@@ -92,6 +93,7 @@ export const inboxApi = {
           timestamp: h.timestamp,
         })) || [],
         distributedRuleNames: data.distributedRuleNames || [],
+        routingStatus: data.routingStatus || 'skipped',
         createdAt: data.createdAt,
         updatedAt: data.updatedAt,
         createdAtLocal: data.createdAtLocal || null,
@@ -236,5 +238,11 @@ export const inboxApi = {
       console.error('Download error:', error)
       throw error
     }
+  },
+
+  // 获取可用的 source 列表
+  async getSources(): Promise<ApiResponse<string[]>> {
+    const response = await apiClient.get<string[]>('/inbox/sources')
+    return response
   },
 }

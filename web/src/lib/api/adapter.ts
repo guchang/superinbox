@@ -17,6 +17,7 @@ interface BackendItem {
   distributedTargets: any[]
   distributionResults: any[]
   distributedRuleNames?: string[]
+  routingStatus?: string
   createdAt: string
   updatedAt: string
   createdAtLocal?: string | null
@@ -64,6 +65,7 @@ export function adaptBackendItem(backendItem: BackendItem): Item {
     distributionResults: backendItem.distributionResults,
     distributedTargets: backendItem.distributedTargets,
     distributedRuleNames: backendItem.distributedRuleNames,
+    routingStatus: backendItem.routingStatus as any,
     createdAt: backendItem.createdAt,
     updatedAt: backendItem.updatedAt,
     createdAtLocal: backendItem.createdAtLocal ?? null,
