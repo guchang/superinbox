@@ -74,8 +74,17 @@ export interface RoutingCompleteEvent extends RoutingProgressEvent {
   type: 'routing:complete'
   data: {
     distributedTargets: string[]
+    ruleNames: string[]
     totalSuccess: number
     totalFailed: number
+    message: string
+  }
+}
+
+// 路由分发跳过（无规则配置）
+export interface RoutingSkippedEvent extends RoutingProgressEvent {
+  type: 'routing:skipped'
+  data: {
     message: string
   }
 }
@@ -98,6 +107,7 @@ export type RoutingProgressEventType =
   | RoutingToolCallSuccessEvent
   | RoutingToolCallErrorEvent
   | RoutingCompleteEvent
+  | RoutingSkippedEvent
   | RoutingErrorEvent
 
 // 进度回调函数类型

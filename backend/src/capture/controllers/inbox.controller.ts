@@ -79,6 +79,7 @@ export class InboxController {
         status: 'pending' as ItemStatus,
         distributedTargets: [],
         distributionResults: [],
+        routingStatus: 'pending',
         createdAt: new Date(),
         updatedAt: new Date()
       };
@@ -267,7 +268,8 @@ export class InboxController {
             distributedTargets: item.distributedTargets,
             distributedRuleNames: (item.distributionResults || [])
               .filter((r: any) => r.ruleName && (r.status === 'success' || r.status === 'completed'))
-              .map((r: any) => r.ruleName)
+              .map((r: any) => r.ruleName),
+            routingStatus: item.routingStatus
           }))
         });
       } else {
@@ -282,7 +284,8 @@ export class InboxController {
             createdAtLocal: timezone ? formatDateInTimeZone(item.createdAt, timezone) : null,
             updatedAtLocal: timezone ? formatDateInTimeZone(item.updatedAt, timezone) : null,
             distributedTargets: item.distributedTargets,
-            distributedRuleNames: ruleNames
+            distributedRuleNames: ruleNames,
+            routingStatus: item.routingStatus
           };
         });
 
@@ -541,6 +544,7 @@ export class InboxController {
             status: 'pending' as ItemStatus,
             distributedTargets: [],
             distributionResults: [],
+            routingStatus: 'pending',
             createdAt: new Date(),
             updatedAt: new Date()
           };
@@ -726,27 +730,61 @@ export class InboxController {
     try {
       logger.info(`Starting distribution for item ${item.id}`);
       
-      // 发送开始分发事件
+      // 1. Check if there are any active routing rules
+      const rules = this.db.database.prepare(`
+        SELECT COUNT(*) as count FROM routing_rules
+        WHERE user_id = ? AND is_active = 1
+      `).get(item.userId) as any;
+
+      const ruleCount = rules?.count || 0;
+
+      if (ruleCount === 0) {
+        // No rules configured, mark as skipped
+        logger.info(`No routing rules configured for user ${item.userId}, skipping distribution for item ${item.id}`);
+        
+        this.db.updateItem(item.id, {
+          routingStatus: 'skipped'
+        });
+
+        // Send skipped event
+        sseManager.sendToItem(item.id, {
+          type: 'routing:skipped',
+          itemId: item.id,
+          timestamp: new Date().toISOString(),
+          data: {
+            message: '未配置路由规则'
+          }
+        });
+
+        return;
+      }
+
+      // 2. Mark as processing
+      this.db.updateItem(item.id, {
+        routingStatus: 'processing'
+      });
+      
+      // 3. Send start event
       sseManager.sendToItem(item.id, {
         type: 'routing:start',
         itemId: item.id,
         timestamp: new Date().toISOString(),
         data: {
-          totalRules: 0, // 将在获取规则后更新
+          totalRules: ruleCount,
           message: '开始路由分发...'
         }
       });
 
-      // 创建进度回调函数
+      // 4. Create progress callback
       const progressCallback = (event: any) => {
-        // 将路由服务的进度事件转换为 SSE 事件
+        // Convert routing service progress events to SSE events
         this.handleRoutingProgress(item.id, event);
       };
 
-      // 执行路由规则，传入进度回调
+      // 5. Execute routing rules
       const results = await this.router.executeRoutingRules(item, progressCallback);
 
-      // Update item with distribution results
+      // 6. Process results
       const successCount = results.filter(r => r.status === 'success').length;
       const failedCount = results.filter(r => r.status === 'failed').length;
 
@@ -757,18 +795,20 @@ export class InboxController {
         .filter(r => r.status === 'success')
         .map(r => r.targetId);
 
-      // 获取成功的规则名称列表
+      // Get successful rule names
       const successRuleNames = results
         .filter(r => r.status === 'success')
         .map(r => r.ruleName)
         .filter(Boolean);
 
+      // 7. Update item with results and mark as completed
       this.db.updateItem(item.id, {
         distributedTargets,
-        distributionResults: results
+        distributionResults: results,
+        routingStatus: 'completed'
       });
 
-      // 发送完成事件
+      // 8. Send completion event
       sseManager.sendToItem(item.id, {
         type: 'routing:complete',
         itemId: item.id,
@@ -787,7 +827,12 @@ export class InboxController {
     } catch (error) {
       logger.error(`Distribution failed for item ${item.id}:`, error);
       
-      // 发送错误事件
+      // Mark as failed
+      this.db.updateItem(item.id, {
+        routingStatus: 'failed'
+      });
+      
+      // Send error event
       sseManager.sendToItem(item.id, {
         type: 'routing:error',
         itemId: item.id,
@@ -797,6 +842,8 @@ export class InboxController {
           error: error instanceof Error ? error.message : String(error)
         }
       });
+    }
+  }
     }
   }
 
@@ -1001,6 +1048,7 @@ export class InboxController {
         status: 'pending' as ItemStatus,
         distributedTargets: [],
         distributionResults: [],
+        routingStatus: 'pending',
         createdAt: new Date(),
         updatedAt: new Date()
       };
@@ -1105,6 +1153,7 @@ export class InboxController {
         status: 'pending' as ItemStatus,
         distributedTargets: [],
         distributionResults: [],
+        routingStatus: 'pending',
         createdAt: new Date(),
         updatedAt: new Date()
       };
