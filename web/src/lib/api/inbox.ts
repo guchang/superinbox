@@ -12,39 +12,103 @@ import type {
 export const inboxApi = {
   // 获取条目列表
   async getItems(params?: FilterParams): Promise<ApiResponse<PaginatedResponse<Item>>> {
-    const response = await apiClient.get<any>('/items', params)
+    const response = await apiClient.get<any>('/inbox', params)
 
-    // 适配后端数据格式
-    if (response.success && response.data) {
-      const items = Array.isArray(response.data) ? response.data : []
+    // 新的 /inbox API 直接返回数据，不包装在 { success, data } 中
+    // 返回格式: { total, page, limit, entries: [...] }
+    const data = response.success ? response.data : response
+    
+    if (data && data.entries) {
+      const entries = data.entries || []
+      const total = data.total || entries.length
+      const page = data.page || params?.page || 1
+      const limit = data.limit || params?.limit || 20
+      
+      // 将 entries 转换为前端期望的格式
+      const items = entries.map((entry: any) => ({
+        id: entry.id,
+        userId: entry.userId,
+        originalContent: entry.content,
+        contentType: entry.contentType || 'text',
+        source: entry.source,
+        category: entry.category,
+        entities: entry.entities || {},
+        summary: entry.summary || null,
+        suggestedTitle: entry.suggestedTitle || null,
+        status: entry.status,
+        distributedTargets: entry.distributedTargets || entry.routedTo || [],
+        distributionResults: entry.distributionResults || [],
+        distributedRuleNames: entry.distributedRuleNames || [],
+        createdAt: entry.createdAt,
+        updatedAt: entry.updatedAt,
+        createdAtLocal: entry.createdAtLocal || null,
+        updatedAtLocal: entry.updatedAtLocal || null,
+        processedAt: entry.processedAt,
+      }))
+      
       return {
         success: true,
         data: {
           items: adaptBackendItems(items),
-          total: items.length,
-          page: params?.page || 1,
-          limit: params?.limit || 20,
-          hasMore: false,
+          total,
+          page,
+          limit,
+          hasMore: page * limit < total,
         },
       }
     }
 
-    return response
+    return {
+      success: false,
+      error: 'Invalid response format',
+    }
   },
 
   // 获取单个条目
   async getItem(id: string): Promise<ApiResponse<Item>> {
-    const response = await apiClient.get<any>(`/items/${id}`)
+    const response = await apiClient.get<any>(`/inbox/${id}`)
 
-    // 适配后端数据格式
-    if (response.success && response.data) {
+    // 新的 /inbox/:id API 直接返回数据，不包装在 { success, data } 中
+    // 返回格式: { id, content, source, parsed, routingHistory, ... }
+    const data = response.success ? response.data : response
+    
+    if (data && data.id) {
+      // 将新格式转换为前端期望的格式
+      const backendItem = {
+        id: data.id,
+        userId: data.userId,
+        originalContent: data.content,
+        contentType: data.contentType || 'text',
+        source: data.source,
+        category: data.parsed?.category || '',
+        entities: data.parsed?.entities || {},
+        summary: data.summary || null,
+        suggestedTitle: data.suggestedTitle || null,
+        status: data.status,
+        distributedTargets: data.distributedTargets || [],
+        distributionResults: data.routingHistory?.map((h: any) => ({
+          targetId: h.adapter,
+          status: h.status,
+          timestamp: h.timestamp,
+        })) || [],
+        distributedRuleNames: data.distributedRuleNames || [],
+        createdAt: data.createdAt,
+        updatedAt: data.updatedAt,
+        createdAtLocal: data.createdAtLocal || null,
+        updatedAtLocal: data.updatedAtLocal || null,
+        processedAt: data.processedAt,
+      }
+      
       return {
         success: true,
-        data: adaptBackendItem(response.data),
+        data: adaptBackendItem(backendItem),
       }
     }
 
-    return response
+    return {
+      success: false,
+      error: 'Invalid response format',
+    }
   },
 
   // 创建条目
@@ -68,7 +132,7 @@ export const inboxApi = {
 
   // 更新条目
   async updateItem(id: string, data: Partial<Item>): Promise<ApiResponse<Item>> {
-    const response = await apiClient.put<any>(`/items/${id}`, data)
+    const response = await apiClient.put<any>(`/inbox/${id}`, data)
 
     // 适配后端数据格式
     if (response.success && response.data) {
@@ -83,7 +147,7 @@ export const inboxApi = {
 
   // 删除条目
   async deleteItem(id: string): Promise<ApiResponse<void>> {
-    return apiClient.delete<void>(`/items/${id}`)
+    return apiClient.delete<void>(`/inbox/${id}`)
   },
 
   // 重试AI处理
@@ -98,7 +162,7 @@ export const inboxApi = {
 
   // 重新分发
   async distributeItem(id: string): Promise<ApiResponse<{ message: string }>> {
-    return apiClient.post<{ message: string }>(`/items/${id}/distribute`)
+    return apiClient.post<{ message: string }>(`/inbox/${id}/distribute`)
   },
 
   // 上传文件
