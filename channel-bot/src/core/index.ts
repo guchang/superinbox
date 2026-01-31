@@ -1,0 +1,9 @@
+/**
+ * Core module exports
+ *
+ * Exports all core interfaces and types for channel-bot.
+ */
+
+export * from './channel.interface.js';
+export * from './user-mapper.interface.js';
+export * from './core-api.interface.js';
