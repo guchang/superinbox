@@ -73,13 +73,22 @@ export class CoreApiClient implements ICoreApiClient {
   }
 
   async createItem(data: CreateItemRequest): Promise<Item> {
-    const response = await this.client.post<Item>('/inbox', {
+    const response = await this.client.post<{
+      success: boolean;
+      data: Item;
+    }>('/inbox', {
       content: data.originalContent,
       source: data.source,
       type: data.contentType,  // Map contentType to type
     });
 
-    return response.data;
+    // Handle wrapped response format
+    if (response.data.success && response.data.data) {
+      return response.data.data;
+    }
+
+    // Fallback to direct data (for compatibility)
+    return response.data as unknown as Item;
   }
 
   async getUser(userId: string): Promise<User | null> {
@@ -106,6 +115,14 @@ export class CoreApiClient implements ICoreApiClient {
     } catch {
       return false;
     }
+  }
+
+  /**
+   * Get API key (for SSE authentication)
+   * @returns API key
+   */
+  getApiKey(): string {
+    return this.apiKey;
   }
 
   /**
