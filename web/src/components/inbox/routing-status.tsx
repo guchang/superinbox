@@ -36,12 +36,12 @@ export function RoutingStatus({ itemId, initialDistributedTargets = [], initialR
   const effectiveRuleNames = useStatic ? initialRuleNames : (progress.ruleNames || [])
   const effectiveMessage = useStatic
     ? (initialRuleNames.length > 0 
-        ? `已分发: ${initialRuleNames.join(', ')}` 
+        ? t('routingStatus.distributedWithRules', { rules: initialRuleNames.join(', ') })
         : hasStaticData 
-          ? `已分发到 ${initialDistributedTargets.length} 个目标`
+          ? t('routeDistributed', { count: initialDistributedTargets.length })
           : routingStatus === 'skipped'
-            ? '不执行路由分发'
-            : '等待路由分发'
+            ? t('routingStatus.skipped')
+            : t('routingStatus.pending')
       )
     : progress.message
 
@@ -89,6 +89,7 @@ function RoutingStatusBadge({
   showIndicator = false,
   showAnimation = true
 }: RoutingStatusBadgeProps) {
+  const t = useTranslations('inbox')
   
   // 根据状态返回不同的徽章样式和图标
   const getStatusConfig = () => {
@@ -98,7 +99,7 @@ function RoutingStatusBadge({
           variant: 'outline' as const,
           className: 'text-xs border-gray-200 text-gray-600 bg-gray-50',
           icon: <Clock className="h-3 w-3 mr-1" />,
-          text: message || '等待路由分发'
+          text: message || t('routingStatus.pending')
         }
 
       case 'skipped':
@@ -106,7 +107,7 @@ function RoutingStatusBadge({
           variant: 'outline' as const,
           className: 'text-xs border-gray-300 text-gray-500 bg-gray-50',
           icon: <MinusCircle className="h-3 w-3 mr-1" />,
-          text: message || '不执行路由分发'
+          text: message || t('routingStatus.skipped')
         }
 
       case 'processing':
@@ -114,7 +115,7 @@ function RoutingStatusBadge({
           variant: 'outline' as const,
           className: `text-xs border-blue-200 text-blue-700 bg-blue-50 ${showAnimation ? 'animate-pulse' : ''}`,
           icon: <Loader2 className={`h-3 w-3 mr-1 ${showAnimation ? 'animate-spin' : ''}`} />,
-          text: message || '后台路由分发中...'
+          text: message || t('routingStatus.processing')
         }
 
       case 'completed':
@@ -123,8 +124,8 @@ function RoutingStatusBadge({
           className: 'text-xs border-green-200 text-green-700 bg-green-50 hover:bg-green-100 hover:border-green-300',
           icon: <CheckCircle className="h-3 w-3 mr-1" />,
           text: ruleNames.length > 0
-            ? `已分发: ${ruleNames.join(', ')}`
-            : '路由分发完成'
+            ? t('routingStatus.distributedWithRules', { rules: ruleNames.join(', ') })
+            : t('routingStatus.completed')
         }
 
       case 'error':
@@ -132,7 +133,7 @@ function RoutingStatusBadge({
           variant: 'outline' as const,
           className: 'text-xs border-red-200 text-red-700 bg-red-50',
           icon: <XCircle className="h-3 w-3 mr-1" />,
-          text: message || '路由分发失败'
+          text: message || t('routingStatus.failed')
         }
 
       default:

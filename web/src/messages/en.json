@@ -210,7 +210,23 @@
       "skipped": "Routing skipped",
       "processing": "Routing in progress...",
       "completed": "Routing completed",
-      "failed": "Routing failed"
+      "failed": "Routing failed",
+      "distributedWithRules": "Routed to: {rules}"
+    },
+    "routingProgress": {
+      "connecting": "Connecting...",
+      "start": "Routing in progress...",
+      "startWithRules": "Found {count} routing rules",
+      "skipped": "No routing rules configured",
+      "ruleMatch": "Matched rule: {ruleName}",
+      "stepStart": "Step {step}: planning...",
+      "stepPlanned": "Step {step}: plan ready",
+      "stepExecuting": "Step {step}: calling {toolName}...",
+      "stepComplete": "✓ Step {step}: {toolName} done",
+      "stepError": "✗ Step {step}: {toolName} failed{error}",
+      "completed": "Routing completed",
+      "error": "Routing failed",
+      "unknownTool": "unknown"
     },
     "actions": {
       "viewDetails": "View details"

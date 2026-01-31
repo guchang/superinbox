@@ -210,7 +210,23 @@
       "skipped": "不执行路由分发",
       "processing": "路由分发中...",
       "completed": "路由分发完成",
-      "failed": "路由分发失败"
+      "failed": "路由分发失败",
+      "distributedWithRules": "已分发: {rules}"
+    },
+    "routingProgress": {
+      "connecting": "连接中...",
+      "start": "后台执行中——路由分发中...",
+      "startWithRules": "后台执行中——已找到 {count} 条规则",
+      "skipped": "未配置路由规则",
+      "ruleMatch": "后台执行中——后台匹配规则: {ruleName}",
+      "stepStart": "后台执行中——步骤{step}: 规划中...",
+      "stepPlanned": "后台执行中——步骤{step}: 规划完成",
+      "stepExecuting": "后台执行中——步骤{step}: 开始调用 {toolName}...",
+      "stepComplete": "后台执行中——✓ 步骤{step}: {toolName} 完成",
+      "stepError": "后台执行中——✗ 步骤{step}: {toolName} 失败{error}",
+      "completed": "后台执行中——路由分发完成",
+      "error": "后台执行中——路由分发失败",
+      "unknownTool": "未知工具"
     },
     "actions": {
       "viewDetails": "查看详情"

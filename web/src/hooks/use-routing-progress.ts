@@ -5,6 +5,7 @@
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { useTranslations } from 'next-intl'
 import { getBackendDirectUrl } from '@/lib/api/base-url'
 
 // 路由进度状态
@@ -29,10 +30,11 @@ export interface RoutingProgressState {
 
 export function useRoutingProgress(itemId: string | null, options?: { disabled?: boolean }) {
   const { disabled = false } = options || {}
+  const t = useTranslations('inbox')
 
   const [state, setState] = useState<RoutingProgressState>({
     status: 'pending',
-    message: (itemId && !disabled) ? '连接中...' : '分发规则待配置',
+    message: (itemId && !disabled) ? t('routingProgress.connecting') : t('routePending'),
     distributedTargets: [],
     ruleNames: [],
     totalSuccess: 0,
@@ -44,6 +46,24 @@ export function useRoutingProgress(itemId: string | null, options?: { disabled?:
   const abortControllerRef = useRef<AbortController | null>(null)
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const connectionIdRef = useRef<string | null>(null)
+
+  // 断开连接
+  const disconnect = useCallback(() => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
+      abortControllerRef.current = null
+    }
+
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current)
+      reconnectTimeoutRef.current = null
+    }
+
+    setState(prev => ({
+      ...prev,
+      isConnected: false
+    }))
+  }, [])
 
   // 处理 SSE 事件
   const handleEvent = useCallback((event: MessageEvent) => {
@@ -66,7 +86,9 @@ export function useRoutingProgress(itemId: string | null, options?: { disabled?:
           setState(prev => ({
             ...prev,
             status: 'processing',
-            message: data.message || '后台执行中——后台路由分发中...',
+            message: typeof data?.totalRules === 'number'
+              ? t('routingProgress.startWithRules', { count: data.totalRules })
+              : t('routingProgress.start'),
             error: null
           }))
           break
@@ -75,7 +97,7 @@ export function useRoutingProgress(itemId: string | null, options?: { disabled?:
           setState(prev => ({
             ...prev,
             status: 'skipped',
-            message: data.message || '未配置路由规则',
+            message: t('routingProgress.skipped'),
             error: null
           }))
           // Auto-disconnect on skipped
@@ -86,7 +108,7 @@ export function useRoutingProgress(itemId: string | null, options?: { disabled?:
           setState(prev => ({
             ...prev,
             status: 'processing',
-            message: data.message || `后台执行中——后台匹配规则: ${data.ruleName}`
+            message: t('routingProgress.ruleMatch', { ruleName: data.ruleName || '' })
           }))
           break
 
@@ -94,7 +116,7 @@ export function useRoutingProgress(itemId: string | null, options?: { disabled?:
           setState(prev => ({
             ...prev,
             status: 'processing',
-            message: `后台执行中——步骤${data.step}: 规划中...`
+            message: t('routingProgress.stepStart', { step: data.step ?? '-' })
           }))
           break
 
@@ -102,7 +124,7 @@ export function useRoutingProgress(itemId: string | null, options?: { disabled?:
           setState(prev => ({
             ...prev,
             status: 'processing',
-            message: `后台执行中——步骤${data.step}: 规划完成`
+            message: t('routingProgress.stepPlanned', { step: data.step ?? '-' })
           }))
           break
 
@@ -110,17 +132,22 @@ export function useRoutingProgress(itemId: string | null, options?: { disabled?:
           setState(prev => ({
             ...prev,
             status: 'processing',
-            message: `后台执行中——步骤${data.step}: 开始调用 ${data.toolName}...`
+            message: t('routingProgress.stepExecuting', {
+              step: data.step ?? '-',
+              toolName: data.toolName || t('routingProgress.unknownTool')
+            })
           }))
           break
 
         case 'step:complete':
-          const isSuccess = data.status === 'success' || data.status === 'done'
-          const toolName = data.toolName || 'unknown'
+          const toolName = data.toolName || t('routingProgress.unknownTool')
           setState(prev => ({
             ...prev,
             status: 'processing',
-            message: `后台执行中——✓ 步骤${data.step}: ${toolName} 完成`
+            message: t('routingProgress.stepComplete', {
+              step: data.step ?? '-',
+              toolName
+            })
           }))
           break
 
@@ -128,7 +155,11 @@ export function useRoutingProgress(itemId: string | null, options?: { disabled?:
           setState(prev => ({
             ...prev,
             status: 'processing',
-            message: `后台执行中——✗ 步骤${data.step}: ${data.toolName || 'unknown'} 失败${data.error ? ': ' + data.error : ''}`
+            message: t('routingProgress.stepError', {
+              step: data.step ?? '-',
+              toolName: data.toolName || t('routingProgress.unknownTool'),
+              error: data.error ? `: ${data.error}` : ''
+            })
           }))
           break
 
@@ -137,7 +168,7 @@ export function useRoutingProgress(itemId: string | null, options?: { disabled?:
           setState(prev => ({
             ...prev,
             status: 'completed',
-            message: data.message || '后台执行中——路由分发完成',
+            message: t('routingProgress.completed'),
             distributedTargets: data.distributedTargets || [],
             ruleNames: data.ruleNames || [],
             totalSuccess: data.totalSuccess || 0,
@@ -151,7 +182,7 @@ export function useRoutingProgress(itemId: string | null, options?: { disabled?:
           setState(prev => ({
             ...prev,
             status: 'completed',
-            message: data.message || '后台执行中——路由分发完成',
+            message: t('routingProgress.completed'),
             distributedTargets: data.distributedTargets || [],
             ruleNames: data.ruleNames || [],
             totalSuccess: data.totalSuccess || 0,
@@ -165,7 +196,7 @@ export function useRoutingProgress(itemId: string | null, options?: { disabled?:
           setState(prev => ({
             ...prev,
             status: 'error',
-            message: data.message || '后台执行中——路由分发失败',
+            message: t('routingProgress.error'),
             error: data.error
           }))
           // Auto-disconnect on error
@@ -178,7 +209,7 @@ export function useRoutingProgress(itemId: string | null, options?: { disabled?:
     } catch (error) {
       console.error('[SSE] Failed to parse event data:', error)
     }
-  }, [])
+  }, [t, disconnect])
 
   // 使用 fetch + ReadableStream 替代 EventSource（支持自定义 headers 和代理）
   const connect = useCallback(async (currentConnectionId: string) => {
@@ -292,24 +323,6 @@ export function useRoutingProgress(itemId: string | null, options?: { disabled?:
     }
   }, [itemId, handleEvent, disabled, getBackendDirectUrl])
 
-  // 断开连接
-  const disconnect = useCallback(() => {
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort()
-      abortControllerRef.current = null
-    }
-
-    if (reconnectTimeoutRef.current) {
-      clearTimeout(reconnectTimeoutRef.current)
-      reconnectTimeoutRef.current = null
-    }
-
-    setState(prev => ({
-      ...prev,
-      isConnected: false
-    }))
-  }, [])
-
   // 手动重连
   const reconnect = useCallback(() => {
     // 生成新的连接 ID 并重新连接
@@ -325,12 +338,12 @@ export function useRoutingProgress(itemId: string | null, options?: { disabled?:
       setState(prev => ({
         ...prev,
         status: 'pending',
-        message: '分发规则待配置',
+        message: t('routePending'),
         isConnected: false,
         error: null
       }))
     }
-  }, [disabled, disconnect])
+  }, [disabled, disconnect, t])
 
   // 自动连接和清理
   useEffect(() => {

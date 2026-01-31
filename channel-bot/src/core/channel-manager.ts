@@ -14,7 +14,9 @@ import type {
   SendMessageResponse,
 } from './channel.interface.js';
 import type { IUserMapper } from './user-mapper.interface.js';
-import type { ICoreApiClient } from './core-api.interface.js';
+import type { CoreApiClient } from './core-api.client.js';
+import { SSESubscriptionService } from './sse-subscription.service.js';
+import { buildNotificationMessage } from './notification-builder.js';
 
 /**
  * Channel Manager Configuration
@@ -23,7 +25,7 @@ export interface ChannelManagerConfig {
   /** User mapper service */
   userMapper: IUserMapper;
   /** Core API client */
-  coreApiClient: ICoreApiClient;
+  coreApiClient: CoreApiClient;
 }
 
 /**
@@ -34,11 +36,46 @@ export interface ChannelManagerConfig {
 export class ChannelManager {
   private channels: Map<ChannelType, IChannel> = new Map();
   private userMapper: IUserMapper;
-  private coreApiClient: ICoreApiClient;
+  private coreApiClient: CoreApiClient;
+  private sseService: SSESubscriptionService;
+  private itemChannelMapping: Map<string, string> = new Map(); // itemId -> channelId
 
   constructor(config: ChannelManagerConfig) {
     this.userMapper = config.userMapper;
     this.coreApiClient = config.coreApiClient;
+    this.sseService = new SSESubscriptionService(config.coreApiClient);
+    this.initializeEventHandlers();
+  }
+
+  /**
+   * Initialize SSE event handlers
+   */
+  private initializeEventHandlers(): void {
+    // AI completed
+    this.sseService.on('ai.completed', async (event) => {
+      await this.sendNotificationToUser(event.channelId, buildNotificationMessage(event));
+    });
+
+    // AI failed
+    this.sseService.on('ai.failed', async (event) => {
+      await this.sendNotificationToUser(event.channelId, buildNotificationMessage(event));
+    });
+
+    // Routing completed
+    this.sseService.on('routing.completed', async (event) => {
+      await this.sendNotificationToUser(event.channelId, buildNotificationMessage(event));
+      // Unsubscribe after routing complete
+      this.sseService.unsubscribe(event.itemId);
+      this.itemChannelMapping.delete(event.itemId);
+    });
+
+    // Routing failed
+    this.sseService.on('routing.failed', async (event) => {
+      await this.sendNotificationToUser(event.channelId, buildNotificationMessage(event));
+      // Unsubscribe after routing failed
+      this.sseService.unsubscribe(event.itemId);
+      this.itemChannelMapping.delete(event.itemId);
+    });
   }
 
   /**
@@ -188,10 +225,16 @@ export class ChannelManager {
 
       console.log(`Item created: ${item.id} from ${message.channel}`);
 
+      // Store mapping for notifications
+      this.itemChannelMapping.set(item.id, message.channelId);
+
+      // Subscribe to SSE events for this item
+      this.sseService.subscribeToItem(item.id, message.channelId);
+
       // Optionally send confirmation back to user
       const channel = this.channels.get(message.channel);
       if (channel) {
-        await channel.sendMessage(message.channelId, '✅ Message received');
+        await channel.sendMessage(message.channelId, '✅ Added to inbox');
       }
     } catch (error) {
       console.error('Error handling message:', error);
@@ -268,5 +311,27 @@ export class ChannelManager {
     if (message.content.startsWith('http')) return 'url';
 
     return 'text';
+  }
+
+  /**
+   * Send notification message to user through channel
+   * @param channelId - Platform channel ID
+   * @param message - Notification message
+   */
+  private async sendNotificationToUser(channelId: string, message: string): Promise<void> {
+    // Find which channel this user belongs to
+    // For now, we only support Telegram, but we could extend this
+    const channel = this.channels.get('telegram');
+    if (!channel) {
+      console.warn(`No channel available to send notification to ${channelId}`);
+      return;
+    }
+
+    try {
+      await channel.sendMessage(channelId, message);
+      console.log(`Notification sent to ${channelId}: ${message.substring(0, 50)}...`);
+    } catch (error) {
+      console.error(`Failed to send notification to ${channelId}:`, error);
+    }
   }
 }

@@ -586,6 +586,31 @@ export class InboxController {
         processedAt: new Date()
       });
 
+      if (shouldMarkAsFailed) {
+        sseManager.sendToItem(itemId, {
+          type: 'ai.failed',
+          itemId,
+          timestamp: new Date().toISOString(),
+          data: {
+            message: `AI confidence too low (category=${analysis.category || 'unknown'})`,
+            error: analysis.confidence !== undefined ? `confidence=${analysis.confidence}` : undefined
+          }
+        });
+      } else {
+        // Send AI completion event for notifications
+        sseManager.sendToItem(itemId, {
+          type: 'ai.completed',
+          itemId,
+          timestamp: new Date().toISOString(),
+          data: {
+            category: analysis.category,
+            summary: analysis.summary,
+            suggestedTitle: analysis.suggestedTitle,
+            confidence: analysis.confidence
+          }
+        });
+      }
+
       // Only trigger distribution for successfully processed items
       if (!shouldMarkAsFailed && updatedItem) {
         await this.distributeItemAsync(updatedItem);
@@ -598,6 +623,15 @@ export class InboxController {
         logger.error(`[AI Processing] Error details: ${error.message}\n${error.stack}`);
       }
       this.db.updateItem(itemId, { status: 'failed' });
+      sseManager.sendToItem(itemId, {
+        type: 'ai.failed',
+        itemId,
+        timestamp: new Date().toISOString(),
+        data: {
+          message: 'AI processing failed',
+          error: error instanceof Error ? error.message : String(error)
+        }
+      });
     }
   }
 

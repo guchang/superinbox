@@ -98,6 +98,27 @@ export interface RoutingErrorEvent extends RoutingProgressEvent {
   }
 }
 
+// AI 分析完成
+export interface AICompletedEvent extends RoutingProgressEvent {
+  type: 'ai.completed'
+  data: {
+    category?: string
+    summary?: string
+    suggestedTitle?: string
+    confidence?: number
+    message?: string
+  }
+}
+
+// AI 分析失败
+export interface AIFailedEvent extends RoutingProgressEvent {
+  type: 'ai.failed'
+  data: {
+    message: string
+    error?: string
+  }
+}
+
 // 联合类型
 export type RoutingProgressEventType = 
   | RoutingStartEvent
@@ -109,6 +130,8 @@ export type RoutingProgressEventType =
   | RoutingCompleteEvent
   | RoutingSkippedEvent
   | RoutingErrorEvent
+  | AICompletedEvent
+  | AIFailedEvent
 
 // 进度回调函数类型
 export type RoutingProgressCallback = (event: RoutingProgressEventType) => void
