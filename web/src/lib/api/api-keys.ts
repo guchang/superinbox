@@ -38,7 +38,7 @@ function getHeaders(): HeadersInit {
  * List all API keys for the current user
  */
 export async function listApiKeys(): Promise<ApiKey[]> {
-  const response = await fetch(`${API_BASE_URL}/api-keys`, {
+  const response = await fetch(`${API_BASE_URL}/auth/api-keys`, {
     method: 'GET',
     headers: getHeaders(),
   })
@@ -55,7 +55,7 @@ export async function listApiKeys(): Promise<ApiKey[]> {
  * Create a new API key
  */
 export async function createApiKey(request: CreateApiKeyRequest): Promise<ApiKey> {
-  const response = await fetch(`${API_BASE_URL}/api-keys`, {
+  const response = await fetch(`${API_BASE_URL}/auth/api-keys`, {
     method: 'POST',
     headers: getHeaders(),
     body: JSON.stringify(request),
@@ -74,7 +74,7 @@ export async function createApiKey(request: CreateApiKeyRequest): Promise<ApiKey
  * Get a single API key by ID
  */
 export async function getApiKey(id: string): Promise<ApiKey> {
-  const response = await fetch(`${API_BASE_URL}/api-keys/${id}`, {
+  const response = await fetch(`${API_BASE_URL}/auth/api-keys/${id}`, {
     method: 'GET',
     headers: getHeaders(),
   })
@@ -91,7 +91,7 @@ export async function getApiKey(id: string): Promise<ApiKey> {
  * Update an API key
  */
 export async function updateApiKey(id: string, request: UpdateApiKeyRequest): Promise<ApiKey> {
-  const response = await fetch(`${API_BASE_URL}/api-keys/${id}`, {
+  const response = await fetch(`${API_BASE_URL}/auth/api-keys/${id}`, {
     method: 'PATCH',
     headers: getHeaders(),
     body: JSON.stringify(request),
@@ -110,7 +110,7 @@ export async function updateApiKey(id: string, request: UpdateApiKeyRequest): Pr
  * Toggle API key status (enable/disable)
  */
 export async function toggleApiKey(id: string, isActive: boolean): Promise<ApiKey> {
-  const response = await fetch(`${API_BASE_URL}/api-keys/${id}/toggle`, {
+  const response = await fetch(`${API_BASE_URL}/auth/api-keys/${id}/toggle`, {
     method: 'POST',
     headers: getHeaders(),
     body: JSON.stringify({ isActive }),
@@ -129,7 +129,7 @@ export async function toggleApiKey(id: string, isActive: boolean): Promise<ApiKe
  * Regenerate an API key (creates new key value)
  */
 export async function regenerateApiKey(id: string): Promise<ApiKey> {
-  const response = await fetch(`${API_BASE_URL}/api-keys/${id}/regenerate`, {
+  const response = await fetch(`${API_BASE_URL}/auth/api-keys/${id}/regenerate`, {
     method: 'POST',
     headers: getHeaders(),
   })
@@ -147,7 +147,7 @@ export async function regenerateApiKey(id: string): Promise<ApiKey> {
  * Delete an API key
  */
 export async function deleteApiKey(id: string): Promise<void> {
-  const response = await fetch(`${API_BASE_URL}/api-keys/${id}`, {
+  const response = await fetch(`${API_BASE_URL}/auth/api-keys/${id}`, {
     method: 'DELETE',
     headers: getHeaders(),
   })
@@ -169,7 +169,7 @@ export async function getApiKeyLogs(
   if (options?.limit) params.append('limit', options.limit.toString())
   if (options?.offset) params.append('offset', options.offset.toString())
 
-  const url = `${API_BASE_URL}/api-keys/${id}/logs${params.toString() ? `?${params.toString()}` : ''}`
+  const url = `${API_BASE_URL}/auth/api-keys/${id}/logs${params.toString() ? `?${params.toString()}` : ''}`
 
   const response = await fetch(url, {
     method: 'GET',

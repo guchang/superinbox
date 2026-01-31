@@ -2,7 +2,6 @@
 
 > **Version:** 0.1.0
 > **Base URL:** `http://localhost:3000/v1`
-> **Legacy Base URL:** `http://localhost:3000/api/v1` (已弃用，请使用 /v1)
 > **Content-Type:** `application/json`
 
 ---
@@ -33,7 +32,7 @@ Authorization: Bearer sinbox_your_api_key_here
 ### Example
 
 ```bash
-curl -X GET http://localhost:3000/v1/items \
+curl -X GET http://localhost:3000/v1/inbox \
   -H "Authorization: Bearer sinbox_your_api_key_here"
 ```
 
@@ -230,7 +229,7 @@ curl -X GET "http://localhost:3000/v1/inbox/search?q=milk&intent=todo&limit=10"
 
 Get all items with optional filtering.
 
-**Endpoint:** `GET /v1/items`
+**Endpoint:** `GET /v1/inbox`
 
 **Query Parameters:**
 
@@ -244,18 +243,25 @@ Get all items with optional filtering.
 **Example:**
 
 ```bash
-curl -X GET "http://localhost:3000/v1/items?status=pending&limit=20"
+curl -X GET "http://localhost:3000/v1/inbox?status=pending&limit=20"
 ```
 
 **Response:**
 
 ```json
 {
-  "success": true,
-  "data": {
-    "items": [...],
-    "total": 42
-  }
+  "total": 42,
+  "page": 1,
+  "limit": 20,
+  "entries": [
+    {
+      "id": "...",
+      "content": "Buy milk",
+      "category": "todo",
+      "status": "pending",
+      "createdAt": "2026-01-17T12:00:00.000Z"
+    }
+  ]
 }
 ```
 
@@ -265,20 +271,21 @@ curl -X GET "http://localhost:3000/v1/items?status=pending&limit=20"
 
 Get a single item by ID.
 
-**Endpoint:** `GET /v1/items/:id`
+**Endpoint:** `GET /v1/inbox/:id`
 
 **Response:**
 
 ```json
 {
-  "success": true,
-  "data": {
-    "id": "550e8400-e29b-41d4-a716-446655440000",
-    "originalContent": "Buy milk",
-    "intent": "todo",
-    "status": "pending",
-    ...
-  }
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "content": "Buy milk",
+  "parsed": {
+    "category": "todo",
+    "confidence": 1,
+    "entities": {}
+  },
+  "createdAt": "2026-01-17T12:00:00.000Z",
+  "updatedAt": "2026-01-17T12:05:00.000Z"
 }
 ```
 
@@ -288,7 +295,7 @@ Get a single item by ID.
 
 Update an existing item.
 
-**Endpoint:** `PUT /v1/items/:id`
+**Endpoint:** `PUT /v1/inbox/:id`
 
 **Request Body:**
 
@@ -317,17 +324,14 @@ Update an existing item.
 
 Delete an item by ID.
 
-**Endpoint:** `DELETE /v1/items/:id`
+**Endpoint:** `DELETE /v1/inbox/:id`
 
 **Response:**
 
 ```json
 {
   "success": true,
-  "data": {
-    "id": "...",
-    "deleted": true
-  }
+  "message": "Item deleted"
 }
 ```
 
@@ -733,11 +737,7 @@ Major versions may introduce breaking changes. Minor versions are backward compa
 - POST `/v1/auth/api-keys/:id/enable` - Enable API key
 
 **Deprecated:**
-- `/api/v1/*` paths - Use `/v1/*` instead
 - `/v1/settings/logs` - Will be removed in v0.2.0
-
-**Breaking Changes:**
-- Moved API key management from `/v1/settings/api-keys` to `/v1/auth/api-keys`
 
 ---
 

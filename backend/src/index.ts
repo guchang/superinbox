@@ -88,14 +88,17 @@ app.use(accessLogMiddleware);
 // Health Check
 // ============================================
 
-app.get('/health', (_req, res) => {
+const healthHandler = (_req: express.Request, res: express.Response) => {
   res.json({
     status: 'healthy',
     version: '0.1.0',
     timestamp: new Date().toISOString(),
     uptime: process.uptime()
   });
-});
+};
+
+app.get('/health', healthHandler);
+app.get('/v1/health', healthHandler);
 
 app.get('/ping', (_req, res) => {
   res.json({ pong: true });
@@ -110,7 +113,6 @@ app.use('/v1/auth/oauth', oauthRoutes);
 app.use('/v1/auth', authRoutes);
 app.use('/v1/auth', logsRoutes); // Log routes under auth
 app.use('/v1/auth/api-keys', apiKeysRoutes); // Documented path (Task 11)
-app.use('/v1/api-keys', apiKeysRoutes);      // Legacy path (backward compatibility)
 app.use('/v1/mcp-adapters', mcpAdaptersRoutes);
 app.use('/v1/intelligence', promptsRoutes);
 app.use('/v1/categories', categoriesRoutes);

@@ -30,11 +30,12 @@ describe('Complete Flow Integration Tests', () => {
           contentType: 'text'
         });
 
-      expect(response.status).toBe(200);
+      expect(response.status).toBe(201);
       expect(response.body.success).toBe(true);
       expect(response.body.data).toHaveProperty('id');
-      expect(response.body.data).toHaveProperty('originalContent', 'Buy milk tomorrow at 9am');
       expect(response.body.data).toHaveProperty('category');
+      expect(response.body.data).toHaveProperty('status');
+      expect(response.body.data).toHaveProperty('message');
 
       itemId = response.body.data.id;
     });
@@ -84,23 +85,21 @@ describe('Complete Flow Integration Tests', () => {
         .set('Authorization', `Bearer ${apiKey}`);
 
       expect(response.status).toBe(200);
-      expect(response.body.success).toBe(true);
-      expect(response.body.data).toHaveProperty('items');
-      expect(Array.isArray(response.body.data.items)).toBe(true);
+      expect(Array.isArray(response.body.entries)).toBe(true);
 
       // Find our item in the results
-      const found = response.body.data.items.some((item: any) => item.id === itemId);
+      const found = response.body.entries.some((item: any) => item.id === itemId);
       expect(found).toBe(true);
     });
 
     it('should filter by category', async () => {
       const response = await request(app)
         .get('/v1/inbox/search')
-        .query({ category: 'todo' })
+        .query({ q: 'milk', category: 'todo' })
         .set('Authorization', `Bearer ${apiKey}`);
 
       expect(response.status).toBe(200);
-      expect(response.body.data.items).toBeInstanceOf(Array);
+      expect(response.body.entries).toBeInstanceOf(Array);
     });
   });
 
@@ -110,17 +109,17 @@ describe('Complete Flow Integration Tests', () => {
         .post('/v1/inbox/batch')
         .set('Authorization', `Bearer ${apiKey}`)
         .send({
-          items: [
+          entries: [
             { content: 'Second item', source: 'test', contentType: 'text' },
             { content: 'Third item', source: 'test', contentType: 'text' }
           ]
         });
 
       expect(response.status).toBe(200);
-      expect(response.body.success).toBe(true);
-      expect(response.body.data).toHaveProperty('created', 2);
-      expect(response.body.data).toHaveProperty('items');
-      expect(response.body.data.items).toHaveLength(2);
+      expect(response.body).toHaveProperty('total', 2);
+      expect(response.body).toHaveProperty('succeeded', 2);
+      expect(response.body).toHaveProperty('failed', 0);
+      expect(response.body.entries).toHaveLength(2);
     });
 
     it('should fail with empty batch', async () => {
@@ -128,7 +127,7 @@ describe('Complete Flow Integration Tests', () => {
         .post('/v1/inbox/batch')
         .set('Authorization', `Bearer ${apiKey}`)
         .send({
-          items: []
+          entries: []
         });
 
       expect(response.status).toBeGreaterThanOrEqual(400);
@@ -138,7 +137,7 @@ describe('Complete Flow Integration Tests', () => {
   describe('Step 5: Update Item', () => {
     it('should update item status', async () => {
       const response = await request(app)
-        .put(`/v1/items/${itemId}`)
+        .put(`/v1/inbox/${itemId}`)
         .set('Authorization', `Bearer ${apiKey}`)
         .send({
           status: 'completed'
@@ -168,27 +167,25 @@ describe('Complete Flow Integration Tests', () => {
   describe('Step 7: Get All Items', () => {
     it('should retrieve all items with filters', async () => {
       const response = await request(app)
-        .get('/v1/items')
+        .get('/v1/inbox')
         .query({ status: 'completed', limit: 10 })
         .set('Authorization', `Bearer ${apiKey}`);
 
       expect(response.status).toBe(200);
-      expect(response.body.success).toBe(true);
-      expect(response.body.data).toHaveProperty('items');
-      expect(Array.isArray(response.body.data.items)).toBe(true);
-      expect(response.body.data).toHaveProperty('total');
+      expect(Array.isArray(response.body.entries)).toBe(true);
+      expect(response.body).toHaveProperty('total');
     });
 
     it('should support since parameter for incremental sync', async () => {
       const since = new Date(Date.now() - 3600000).toISOString(); // 1 hour ago
 
       const response = await request(app)
-        .get('/v1/items')
+        .get('/v1/inbox')
         .query({ since })
         .set('Authorization', `Bearer ${apiKey}`);
 
       expect(response.status).toBe(200);
-      expect(response.body.success).toBe(true);
+      expect(Array.isArray(response.body.entries)).toBe(true);
     });
   });
 
@@ -279,18 +276,17 @@ describe('Complete Flow Integration Tests', () => {
   describe('Step 10: Delete Item', () => {
     it('should delete the created item', async () => {
       const response = await request(app)
-        .delete(`/v1/items/${itemId}`)
+        .delete(`/v1/inbox/${itemId}`)
         .set('Authorization', `Bearer ${apiKey}`);
 
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
-      expect(response.body.data).toHaveProperty('id', itemId);
-      expect(response.body.data).toHaveProperty('deleted', true);
+      expect(response.body).toHaveProperty('message', 'Item deleted');
     });
 
     it('should return 404 when trying to get deleted item', async () => {
       const response = await request(app)
-        .get(`/v1/items/${itemId}`)
+        .get(`/v1/inbox/${itemId}`)
         .set('Authorization', `Bearer ${apiKey}`);
 
       expect(response.status).toBe(404);
@@ -300,7 +296,7 @@ describe('Complete Flow Integration Tests', () => {
   describe('Error Handling', () => {
     it('should return 401 without authentication', async () => {
       const response = await request(app)
-        .get('/v1/items');
+        .get('/v1/inbox');
 
       expect(response.status).toBe(401);
       expect(response.body.success).toBe(false);
@@ -309,7 +305,7 @@ describe('Complete Flow Integration Tests', () => {
 
     it('should return 401 with invalid API key', async () => {
       const response = await request(app)
-        .get('/v1/items')
+        .get('/v1/inbox')
         .set('Authorization', 'Bearer invalid-key');
 
       expect(response.status).toBe(401);

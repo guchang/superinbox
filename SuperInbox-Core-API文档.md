@@ -70,7 +70,7 @@ SuperInbox Core 是一个开源的全渠道智能信息收纳与路由系统。�
 
 ### 基础信息
 
-- **Base URL (本地部署):** `http://localhost:3000/api/v1`
+- **Base URL (本地部署):** `http://localhost:3000/v1`
 - **Content-Type:** `application/json`
 - **字符编码:** UTF-8
 
@@ -186,13 +186,13 @@ POST /inbox
 
 ```bash
 # JSON 方式（更简洁）
-curl -X POST http://localhost:3000/api/v1/inbox \
+curl -X POST http://localhost:3000/v1/inbox \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"content":"打车花了 30 元","source":"ios"}'
 
 # 表单方式
-curl -X POST http://localhost:3000/api/v1/inbox \
+curl -X POST http://localhost:3000/v1/inbox \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -F "content=打车花了 30 元" \
   -F "source=ios"
@@ -201,7 +201,7 @@ curl -X POST http://localhost:3000/api/v1/inbox \
 **示例 2 - 文件+文字：**
 
 ```bash
-curl -X POST http://localhost:3000/api/v1/inbox \
+curl -X POST http://localhost:3000/v1/inbox \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -F "file=@receipt.jpg" \
   -F "content=今天的打车发票" \
@@ -211,7 +211,7 @@ curl -X POST http://localhost:3000/api/v1/inbox \
 **示例 3 - 纯文件：**
 
 ```bash
-curl -X POST http://localhost:3000/api/v1/inbox \
+curl -X POST http://localhost:3000/v1/inbox \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -F "file=@screenshot.png"
 ```
@@ -286,7 +286,7 @@ POST /inbox/batch
 **示例：**
 
 ```bash
-curl -X POST http://localhost:3000/api/v1/inbox/batch \
+curl -X POST http://localhost:3000/v1/inbox/batch \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -F 'entries=[
     {"content":"今天的发票","fileIndex":0,"source":"ios"},
@@ -1222,7 +1222,7 @@ GET /auth/api-keys/key_abc123/logs?startDate=2026-01-01T00:00:00Z&status=success
       "id": "log_xyz789",
       "timestamp": "2026-01-15T14:20:35Z",
       "method": "POST",
-      "endpoint": "/api/v1/inbox",
+      "endpoint": "/v1/inbox",
       "status": "success",
       "statusCode": 200,
       "requestSize": 245,
@@ -1239,7 +1239,7 @@ GET /auth/api-keys/key_abc123/logs?startDate=2026-01-01T00:00:00Z&status=success
       "id": "log_xyz790",
       "timestamp": "2026-01-15T14:18:22Z",
       "method": "GET",
-      "endpoint": "/api/v1/inbox",
+      "endpoint": "/v1/inbox",
       "status": "success",
       "statusCode": 200,
       "requestSize": 0,
@@ -1256,7 +1256,7 @@ GET /auth/api-keys/key_abc123/logs?startDate=2026-01-01T00:00:00Z&status=success
       "id": "log_xyz791",
       "timestamp": "2026-01-15T14:15:10Z",
       "method": "GET",
-      "endpoint": "/api/v1/inbox",
+      "endpoint": "/v1/inbox",
       "status": "denied",
       "statusCode": 403,
       "requestSize": 0,
@@ -1332,7 +1332,7 @@ GET /auth/logs/exports/{exportId}
 {
   "exportId": "export_abc123",
   "status": "completed",
-  "downloadUrl": "/api/v1/auth/logs/exports/export_abc123/download",
+  "downloadUrl": "/v1/auth/logs/exports/export_abc123/download",
   "fileSize": 2456789,
   "recordCount": 15234,
   "expiresAt": "2026-01-16T15:30:00Z",
@@ -1385,13 +1385,13 @@ GET /auth/api-keys/{keyId}/stats
   },
   "byEndpoint": [
     {
-      "endpoint": "/api/v1/inbox",
+      "endpoint": "/v1/inbox",
       "method": "POST",
       "count": 5234,
       "successRate": 0.98
     },
     {
-      "endpoint": "/api/v1/inbox",
+      "endpoint": "/v1/inbox",
       "method": "GET",
       "count": 3456,
       "successRate": 0.99
@@ -1658,7 +1658,7 @@ import { SuperInboxClient } from '@superinbox/core-sdk';
 
 const client = new SuperInboxClient({
   apiKey: 'sk_live_abc123',
-  baseUrl: 'http://localhost:3000/api/v1'
+  baseUrl: 'http://localhost:3000/v1'
 });
 
 // 创建记录
@@ -1729,7 +1729,7 @@ from superinbox import SuperInboxClient
 
 client = SuperInboxClient(
     api_key='sk_live_abc123',
-    base_url='http://localhost:3000/api/v1'
+    base_url='http://localhost:3000/v1'
 )
 
 # 创建记录

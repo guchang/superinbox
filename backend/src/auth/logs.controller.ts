@@ -253,7 +253,7 @@ export async function getExportStatus(req: Request, res: Response): Promise<void
     }
 
     const downloadUrl = task.status === 'completed'
-      ? `/api/v1/auth/logs/exports/${exportId}/download`
+      ? `/v1/auth/logs/exports/${exportId}/download`
       : null;
 
     res.json({

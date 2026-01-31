@@ -107,6 +107,17 @@ router.get(
 );
 
 /**
+ * @route   PUT /v1/inbox/:id
+ * @desc    Update an item by ID (documented API)
+ * @access  Private (API Key)
+ */
+router.put(
+  '/inbox/:id',
+  authenticate,
+  inboxController.updateItem
+);
+
+/**
  * @route   DELETE /v1/inbox/:id
  * @desc    Delete an item by ID (documented API)
  * @access  Private (API Key)
@@ -192,63 +203,6 @@ router.post(
   '/inbox/:id/reclassify',
   authenticate,
   inboxController.reclassifyItem
-);
-
-/**
- * @route   GET /v1/items
- * @desc    Get all items with filtering
- * @access  Private (JWT or API Key)
- */
-router.get(
-  '/items',
-  authenticate,
-  inboxController.getItems
-);
-
-/**
- * @route   GET /v1/items/:id
- * @desc    Get a single item by ID
- * @access  Private (JWT or API Key)
- */
-router.get(
-  '/items/:id',
-  authenticate,
-  inboxController.getItem
-);
-
-/**
- * @route   PUT /v1/items/:id
- * @desc    Update an item
- * @access  Private (JWT or API Key)
- */
-router.put(
-  '/items/:id',
-  authenticate,
-  inboxController.updateItem
-);
-
-/**
- * @route   DELETE /v1/items/:id
- * @desc    Delete an item
- * @access  Private (JWT or API Key)
- */
-router.delete(
-  '/items/:id',
-  authenticate,
-  inboxController.deleteItem
-);
-
-/**
- * @route   POST /v1/items/:id/distribute
- * @desc    Manually trigger distribution for an item
- * @access  Private (JWT or API Key)
- * @legacy  This route is maintained for backward compatibility.
- *           New code should use POST /v1/routing/dispatch/:id instead.
- */
-router.post(
-  '/items/:id/distribute',
-  authenticate,
-  inboxController.triggerDistribution
 );
 
 /**

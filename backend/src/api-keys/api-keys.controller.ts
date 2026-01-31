@@ -9,7 +9,7 @@ import { sendError } from '../utils/error-response.js';
 
 /**
  * Create a new API key
- * POST /v1/api-keys
+ * POST /v1/auth/api-keys
  */
 export const createApiKeyController = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -79,7 +79,7 @@ export const createApiKeyController = async (req: Request, res: Response): Promi
 
 /**
  * List all API keys for the current user
- * GET /v1/api-keys
+ * GET /v1/auth/api-keys
  */
 export const listApiKeysController = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -124,7 +124,7 @@ export const listApiKeysController = async (req: Request, res: Response): Promis
 
 /**
  * Get a single API key by ID
- * GET /v1/api-keys/:id
+ * GET /v1/auth/api-keys/:id
  */
 export const getApiKeyController = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -187,7 +187,7 @@ export const getApiKeyController = async (req: Request, res: Response): Promise<
 
 /**
  * Update an API key (name and scopes only)
- * PATCH /v1/api-keys/:id
+ * PATCH /v1/auth/api-keys/:id
  */
 export const updateApiKeyController = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -266,9 +266,9 @@ export const updateApiKeyController = async (req: Request, res: Response): Promi
 
 /**
  * Toggle API key status (enable/disable)
- * POST /v1/api-keys/:id/toggle
+ * POST /v1/auth/api-keys/:id/toggle
  * @legacy  This endpoint is maintained for backward compatibility.
- *          New code should use POST /v1/api-keys/:id/enable or /disable instead.
+ *          New code should use POST /v1/auth/api-keys/:id/enable or /disable instead.
  */
 export const toggleApiKeyController = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -342,7 +342,7 @@ export const toggleApiKeyController = async (req: Request, res: Response): Promi
 
 /**
  * Disable an API key
- * POST /v1/api-keys/:id/disable
+ * POST /v1/auth/api-keys/:id/disable
  */
 export const disableApiKeyController = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -396,7 +396,7 @@ export const disableApiKeyController = async (req: Request, res: Response): Prom
 
 /**
  * Enable an API key
- * POST /v1/api-keys/:id/enable
+ * POST /v1/auth/api-keys/:id/enable
  */
 export const enableApiKeyController = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -450,7 +450,7 @@ export const enableApiKeyController = async (req: Request, res: Response): Promi
 
 /**
  * Regenerate an API key (creates a new key value)
- * POST /v1/api-keys/:id/regenerate
+ * POST /v1/auth/api-keys/:id/regenerate
  */
 export const regenerateApiKeyController = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -527,7 +527,7 @@ export const regenerateApiKeyController = async (req: Request, res: Response): P
 
 /**
  * Delete an API key
- * DELETE /v1/api-keys/:id
+ * DELETE /v1/auth/api-keys/:id
  */
 export const deleteApiKeyController = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -592,7 +592,7 @@ export const deleteApiKeyController = async (req: Request, res: Response): Promi
 
 /**
  * Get access logs for an API key
- * GET /v1/api-keys/:id/logs
+ * GET /v1/auth/api-keys/:id/logs
  */
 export const getApiKeyLogsController = async (req: Request, res: Response): Promise<void> => {
   try {

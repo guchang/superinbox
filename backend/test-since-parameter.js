@@ -11,8 +11,8 @@ async function testSinceParameter() {
 
   try {
     // Test 1: Get all items
-    console.log('Test 1: GET /v1/items (no since parameter)');
-    const response1 = await fetch(`${API_URL}/items`, {
+    console.log('Test 1: GET /v1/inbox (no since parameter)');
+    const response1 = await fetch(`${API_URL}/inbox`, {
       headers: {
         'Authorization': `Bearer ${API_KEY}`
       }
@@ -20,16 +20,17 @@ async function testSinceParameter() {
 
     const data1 = await response1.json();
     console.log(`✅ Status: ${response1.status}`);
-    console.log(`📊 Total items: ${data1.data?.length || 0}\n`);
+    console.log(`📊 Total items: ${data1.entries?.length || 0}\n`);
 
-    if (data1.data && data1.data.length > 0) {
-      const latestItem = data1.data[0];
-      console.log(`📅 Latest item updated_at: ${latestItem.updated_at}`);
+    if (data1.entries && data1.entries.length > 0) {
+      const latestItem = data1.entries[0];
+      const latestTimestamp = latestItem.updatedAt || latestItem.createdAt;
+      console.log(`📅 Latest item timestamp: ${latestTimestamp}`);
       console.log(`📝 Latest item id: ${latestItem.id}\n`);
 
       // Test 2: Get items since a future date (should return empty)
-      console.log('Test 2: GET /v1/items?since=2099-01-01T00:00:00Z (future date)');
-      const response2 = await fetch(`${API_URL}/items?since=2099-01-01T00:00:00Z`, {
+      console.log('Test 2: GET /v1/inbox?since=2099-01-01T00:00:00Z (future date)');
+      const response2 = await fetch(`${API_URL}/inbox?since=2099-01-01T00:00:00Z`, {
         headers: {
           'Authorization': `Bearer ${API_KEY}`
         }
@@ -37,12 +38,12 @@ async function testSinceParameter() {
 
       const data2 = await response2.json();
       console.log(`✅ Status: ${response2.status}`);
-      console.log(`📊 Items since future date: ${data2.data?.length || 0}`);
-      console.log(`✅ Expected: 0 items${data2.data?.length === 0 ? ' ✓' : ' ✗'}\n`);
+      console.log(`📊 Items since future date: ${data2.entries?.length || 0}`);
+      console.log(`✅ Expected: 0 items${data2.entries?.length === 0 ? ' ✓' : ' ✗'}\n`);
 
       // Test 3: Get items since epoch (should return all items)
-      console.log('Test 3: GET /v1/items?since=1970-01-01T00:00:00Z (epoch)');
-      const response3 = await fetch(`${API_URL}/items?since=1970-01-01T00:00:00Z`, {
+      console.log('Test 3: GET /v1/inbox?since=1970-01-01T00:00:00Z (epoch)');
+      const response3 = await fetch(`${API_URL}/inbox?since=1970-01-01T00:00:00Z`, {
         headers: {
           'Authorization': `Bearer ${API_KEY}`
         }
@@ -50,15 +51,15 @@ async function testSinceParameter() {
 
       const data3 = await response3.json();
       console.log(`✅ Status: ${response3.status}`);
-      console.log(`📊 Items since epoch: ${data3.data?.length || 0}`);
-      console.log(`✅ Should equal Test 1: ${data3.data?.length === data1.data?.length ? '✓' : '✗'}\n`);
+      console.log(`📊 Items since epoch: ${data3.entries?.length || 0}`);
+      console.log(`✅ Should equal Test 1: ${data3.entries?.length === data1.entries?.length ? '✓' : '✗'}\n`);
 
       // Test 4: Get items since latest item updated_at (should return 0 or 1)
-      const updatedAt = new Date(latestItem.updated_at);
-      updatedAt.setSeconds(updatedAt.getSeconds() + 1); // Add 1 second to exclude the latest item
+      const updatedAt = new Date(latestTimestamp);
+      updatedAt.setSeconds(updatedAt.getSeconds() + 1);
 
-      console.log(`Test 4: GET /v1/items?since=${updatedAt.toISOString()}`);
-      const response4 = await fetch(`${API_URL}/items?since=${updatedAt.toISOString()}`, {
+      console.log(`Test 4: GET /v1/inbox?since=${updatedAt.toISOString()}`);
+      const response4 = await fetch(`${API_URL}/inbox?since=${updatedAt.toISOString()}`, {
         headers: {
           'Authorization': `Bearer ${API_KEY}`
         }
@@ -66,8 +67,8 @@ async function testSinceParameter() {
 
       const data4 = await response4.json();
       console.log(`✅ Status: ${response4.status}`);
-      console.log(`📊 Items since ${updatedAt.toISOString()}: ${data4.data?.length || 0}`);
-      console.log(`✅ Expected: 0 items${data4.data?.length === 0 ? ' ✓' : ' ✗'}\n`);
+      console.log(`📊 Items since ${updatedAt.toISOString()}: ${data4.entries?.length || 0}`);
+      console.log(`✅ Expected: 0 items${data4.entries?.length === 0 ? ' ✓' : ' ✗'}\n`);
     } else {
       console.log('⚠️  No items found in database. Please create some items first.\n');
     }

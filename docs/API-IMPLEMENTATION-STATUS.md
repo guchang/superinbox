@@ -28,10 +28,10 @@ The SuperInbox Core API has been successfully implemented with **95% alignment**
 - POST `/v1/inbox` - Create single item
 - POST `/v1/inbox/batch` - Batch create items
 - GET `/v1/inbox/search` - Search with filters
-- GET `/v1/items` - List all items with pagination
-- GET `/v1/items/:id` - Get single item
-- PUT `/v1/items/:id` - Update item
-- DELETE `/v1/items/:id` - Delete item
+- GET `/v1/inbox` - List all items with pagination
+- GET `/v1/inbox/:id` - Get single item
+- PUT `/v1/inbox/:id` - Update item
+- DELETE `/v1/inbox/:id` - Delete item
 - Incremental sync support (`since` parameter)
 
 ✅ **Intelligence API (100%)**
@@ -158,20 +158,9 @@ The SuperInbox Core API has been successfully implemented with **95% alignment**
 
 ## Deprecated Features
 
-### Moved Endpoints
+### Deprecated Endpoint
 
-The following endpoints have been moved to new paths:
-
-| Old Path | New Path | Status |
-|----------|----------|--------|
-| `/api/v1/*` | `/v1/*` | ⚠️ Deprecated |
-| `/v1/settings/api-keys/*` | `/v1/auth/api-keys/*` | ⚠️ Deprecated |
-| `/v1/settings/logs` | N/A (will be removed) | ⚠️ Deprecated |
-
-**Migration Guide:**
-- Update base URL from `/api/v1` to `/v1`
-- Update API key endpoints from `/v1/settings/api-keys` to `/v1/auth/api-keys`
-- Deprecated endpoints will be removed in v0.2.0
+- `/v1/settings/logs` is deprecated and will be removed in v0.2.0.
 
 ---
 
@@ -200,7 +189,7 @@ The following endpoints have been moved to new paths:
 ### Response Times (p50)
 
 - POST /v1/inbox: ~50ms
-- GET /v1/items: ~30ms
+- GET /v1/inbox: ~30ms
 - GET /v1/intelligence/parse/:id: ~20ms
 - POST /v1/routing/dispatch/:id: ~100ms
 
@@ -296,7 +285,7 @@ Development: http://localhost:3000/v1
 
 ```bash
 curl -H "Authorization: Bearer sinbox_your_key" \
-  http://localhost:3000/v1/items
+  http://localhost:3000/v1/inbox
 ```
 
 ### Quick Start
@@ -309,7 +298,7 @@ curl -X POST http://localhost:3000/v1/inbox \
   -d '{"content": "Buy milk tomorrow"}'
 
 # List items
-curl http://localhost:3000/v1/items \
+curl http://localhost:3000/v1/inbox \
   -H "Authorization: Bearer sinbox_your_key"
 
 # Get parse result

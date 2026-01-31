@@ -138,25 +138,6 @@ describe('POST /v1/routing/dispatch/:id', () => {
     });
   });
 
-  describe('Backward Compatibility', () => {
-    it('should maintain legacy POST /v1/items/:id/distribute endpoint', async () => {
-      const item = await createTestItem({
-        content: 'Test legacy distribute endpoint',
-        source: 'test'
-      });
-
-      const response = await request(app)
-        .post(`/v1/items/${item.id}/distribute`)
-        .set('Authorization', `Bearer ${testContext.testApiKey}`)
-        .send({});
-
-      // Legacy endpoint should still work
-      expect([200, 202]).toContain(response.status);
-
-      // Cleanup
-      cleanupTestItem(item.id);
-    });
-  });
 });
 
 describe('Routing Rules API', () => {

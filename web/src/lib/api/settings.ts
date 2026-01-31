@@ -9,17 +9,17 @@ export const settingsApi = {
 
   // 获取 API Keys
   async getApiKeys(): Promise<ApiResponse<ApiKey[]>> {
-    return apiClient.get<ApiKey[]>('/settings/api-keys')
+    return apiClient.get<ApiKey[]>('/auth/api-keys')
   },
 
   // 创建 API Key
   async createApiKey(name: string, scopes: string[]): Promise<ApiResponse<ApiKey>> {
-    return apiClient.post<ApiKey>('/settings/api-keys', { name, scopes })
+    return apiClient.post<ApiKey>('/auth/api-keys', { name, scopes })
   },
 
   // 删除 API Key
   async deleteApiKey(id: string): Promise<ApiResponse<void>> {
-    return apiClient.delete<void>(`/settings/api-keys/${id}`)
+    return apiClient.delete<void>(`/auth/api-keys/${id}`)
   },
 
   // 获取访问日志

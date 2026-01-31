@@ -120,7 +120,7 @@ export class InboxController {
 
   /**
    * Get item by ID
-   * GET /v1/items/:id and GET /v1/inbox/:id
+   * GET /v1/inbox/:id
    */
   getItem = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
@@ -150,49 +150,28 @@ export class InboxController {
         return;
       }
 
-      // Determine response format based on route path
-      // GET /v1/inbox/:id -> new API format (unwrapped)
-      // GET /v1/items/:id -> legacy API format (wrapped)
-      const isInboxRoute = req.originalUrl?.includes('/inbox/') || req.url?.includes('/inbox/');
+      const createdAtLocal = timezone ? formatDateInTimeZone(item.createdAt, timezone) : null;
+      const updatedAtLocal = timezone ? formatDateInTimeZone(item.updatedAt, timezone) : null;
 
-      if (isInboxRoute) {
-        const createdAtLocal = timezone ? formatDateInTimeZone(item.createdAt, timezone) : null;
-        const updatedAtLocal = timezone ? formatDateInTimeZone(item.updatedAt, timezone) : null;
-
-        // New API format (GET /v1/inbox/:id)
-        res.json({
-          id: item.id,
-          content: item.originalContent,
-          source: item.source,
-          parsed: {
-            category: item.category,
-            confidence: 1.0, // Default confidence as it's not stored in current model
-            entities: item.entities
-          },
-          routingHistory: item.distributionResults.map(result => ({
-            adapter: result.targetId,
-            status: result.status,
-            timestamp: result.timestamp || new Date().toISOString()
-          })),
-          createdAt: item.createdAt.toISOString(),
-          updatedAt: item.updatedAt.toISOString(),
-          createdAtLocal,
-          updatedAtLocal
-        });
-      } else {
-        const createdAtLocal = timezone ? formatDateInTimeZone(item.createdAt, timezone) : null;
-        const updatedAtLocal = timezone ? formatDateInTimeZone(item.updatedAt, timezone) : null;
-
-        // Legacy API format (GET /v1/items/:id)
-        res.json({
-          success: true,
-          data: {
-            ...item,
-            createdAtLocal,
-            updatedAtLocal
-          }
-        });
-      }
+      res.json({
+        id: item.id,
+        content: item.originalContent,
+        source: item.source,
+        parsed: {
+          category: item.category,
+          confidence: 1.0, // Default confidence as it's not stored in current model
+          entities: item.entities
+        },
+        routingHistory: item.distributionResults.map(result => ({
+          adapter: result.targetId,
+          status: result.status,
+          timestamp: result.timestamp || new Date().toISOString()
+        })),
+        createdAt: item.createdAt.toISOString(),
+        updatedAt: item.updatedAt.toISOString(),
+        createdAtLocal,
+        updatedAtLocal
+      });
     } catch (error) {
       next(error);
     }
@@ -200,7 +179,7 @@ export class InboxController {
 
   /**
    * Get items with filtering
-   * GET /v1/items and GET /v1/inbox
+   * GET /v1/inbox
    */
   getItems = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
@@ -244,60 +223,27 @@ export class InboxController {
       // Get items
       const items = this.db.getItemsByUserId(userId, filter);
 
-      // Determine response format based on route path
-      // GET /v1/inbox -> new API format with 'entries'
-      // GET /v1/items -> legacy API format with 'data' and 'meta'
-      const isInboxRoute = req.path === '/v1/inbox' || req.path === '/inbox';
-
-      if (isInboxRoute) {
-        // New API format (GET /v1/inbox)
-        res.json({
-          total,
-          page,
-          limit: finalLimit,
-          entries: items.map(item => ({
-            id: item.id,
-            content: item.originalContent,
-            source: item.source,
-            category: item.category,
-            entities: item.entities,
-            status: item.status,
-            createdAt: item.createdAt.toISOString(),
-            createdAtLocal: timezone ? formatDateInTimeZone(item.createdAt, timezone) : null,
-            routedTo: item.distributedTargets,
-            distributedTargets: item.distributedTargets,
-            distributedRuleNames: (item.distributionResults || [])
-              .filter((r: any) => r.ruleName && (r.status === 'success' || r.status === 'completed'))
-              .map((r: any) => r.ruleName),
-            routingStatus: item.routingStatus
-          }))
-        });
-      } else {
-        // Legacy API format (GET /v1/items)
-        const data = items.map(item => {
-          const ruleNames = (item.distributionResults || [])
+      res.json({
+        total,
+        page,
+        limit: finalLimit,
+        entries: items.map(item => ({
+          id: item.id,
+          content: item.originalContent,
+          source: item.source,
+          category: item.category,
+          entities: item.entities,
+          status: item.status,
+          createdAt: item.createdAt.toISOString(),
+          createdAtLocal: timezone ? formatDateInTimeZone(item.createdAt, timezone) : null,
+          routedTo: item.distributedTargets,
+          distributedTargets: item.distributedTargets,
+          distributedRuleNames: (item.distributionResults || [])
             .filter((r: any) => r.ruleName && (r.status === 'success' || r.status === 'completed'))
-            .map((r: any) => r.ruleName);
-
-          return {
-            ...item,
-            createdAtLocal: timezone ? formatDateInTimeZone(item.createdAt, timezone) : null,
-            updatedAtLocal: timezone ? formatDateInTimeZone(item.updatedAt, timezone) : null,
-            distributedTargets: item.distributedTargets,
-            distributedRuleNames: ruleNames,
-            routingStatus: item.routingStatus
-          };
-        });
-
-        res.json({
-          success: true,
-          data,
-          meta: {
-            total,
-            hasMore: offset + items.length < total
-          }
-        });
-      }
+            .map((r: any) => r.ruleName),
+          routingStatus: item.routingStatus
+        }))
+      });
     } catch (error) {
       next(error);
     }
@@ -328,7 +274,7 @@ export class InboxController {
 
   /**
    * Update item
-   * PUT /v1/items/:id
+   * PUT /v1/inbox/:id
    */
   updateItem = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
@@ -383,97 +329,6 @@ export class InboxController {
         });
         return;
       }
-      next(error);
-    }
-  };
-
-  /**
-   * Delete item
-   * DELETE /v1/items/:id
-   */
-  deleteItem = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    try {
-      const { id } = req.params;
-      const userId = req.user?.id ?? 'default-user';
-
-      const existing = this.db.getItemById(id);
-
-      if (!existing) {
-        sendError(res, {
-          statusCode: 404,
-          code: 'INBOX.NOT_FOUND',
-          message: 'Item not found',
-          params: { id }
-        });
-        return;
-      }
-
-      // Check ownership
-      if (existing.userId !== userId) {
-        sendError(res, {
-          statusCode: 403,
-          code: 'AUTH.FORBIDDEN',
-          message: 'Access denied'
-        });
-        return;
-      }
-
-      const deleted = this.db.deleteItem(id);
-
-      res.json({
-        success: true,
-        data: {
-          deleted
-        }
-      });
-    } catch (error) {
-      next(error);
-    }
-  };
-
-  /**
-   * Manually trigger distribution
-   * POST /v1/items/:id/distribute
-   */
-  triggerDistribution = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    try {
-      const { id } = req.params;
-      const userId = req.user?.id ?? 'default-user';
-
-      const item = this.db.getItemById(id);
-
-      if (!item) {
-        sendError(res, {
-          statusCode: 404,
-          code: 'INBOX.NOT_FOUND',
-          message: 'Item not found',
-          params: { id }
-        });
-        return;
-      }
-
-      // Check ownership
-      if (item.userId !== userId) {
-        sendError(res, {
-          statusCode: 403,
-          code: 'AUTH.FORBIDDEN',
-          message: 'Access denied'
-        });
-        return;
-      }
-
-      // Trigger async distribution
-      this.distributeItemAsync(item).catch(error => {
-        console.error(`Failed to distribute item ${item.id}:`, error);
-      });
-
-      res.json({
-        success: true,
-        data: {
-          message: 'Distribution triggered'
-        }
-      });
-    } catch (error) {
       next(error);
     }
   };

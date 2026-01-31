@@ -41,7 +41,7 @@ sinbox config set api.baseUrl http://localhost:3001/v1
 
 ```bash
 curl -H "Authorization: Bearer dev-key-change-this-in-production" \
-  http://localhost:3001/v1/items
+  http://localhost:3001/v1/inbox
 ```
 
 ## 默认开发密钥
@@ -63,7 +63,7 @@ curl -X POST \
   -H "Authorization: Bearer dev-key-change-this-in-production" \
   -H "Content-Type: application/json" \
   -d '{"name": "My App", "scopes": ["full"]}' \
-  http://localhost:3001/v1/settings/api-keys
+  http://localhost:3001/v1/auth/api-keys
 ```
 
 ### API Key 权限范围
@@ -103,5 +103,5 @@ sinbox config get api
 curl http://localhost:3001/health
 
 # 验证 API Key
-curl -H "Authorization: Bearer your-key" http://localhost:3001/v1/items
+curl -H "Authorization: Bearer your-key" http://localhost:3001/v1/inbox
 ```

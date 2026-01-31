@@ -387,11 +387,10 @@ backend/
 | 方法 | 路径 | 说明 |
 |------|------|------|
 | POST | `/v1/inbox` | 创建新条目 |
-| GET | `/v1/items` | 获取条目列表（支持筛选） |
-| GET | `/v1/items/:id` | 获取单个条目详情 |
-| PUT | `/v1/items/:id` | 更新条目 |
-| DELETE | `/v1/items/:id` | 删除条目 |
-| POST | `/v1/items/:id/distribute` | 手动触发分发 |
+| GET | `/v1/inbox` | 获取条目列表（支持筛选） |
+| GET | `/v1/inbox/:id` | 获取单个条目详情 |
+| PUT | `/v1/inbox/:id` | 更新条目 |
+| DELETE | `/v1/inbox/:id` | 删除条目 |
 
 #### 智能分析 API
 
@@ -410,6 +409,7 @@ backend/
 | POST | `/v1/routing/rules` | 创建路由规则 |
 | PUT | `/v1/routing/rules/:id` | 更新路由规则 |
 | DELETE | `/v1/routing/rules/:id` | 删除路由规则 |
+| POST | `/v1/routing/dispatch/:id` | 手动触发分发 |
 
 ### 数据模型
 

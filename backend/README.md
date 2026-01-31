@@ -61,11 +61,11 @@ backend/
 ### 核心端点
 
 - `POST /v1/inbox` - 接收并处理输入内容
-- `GET /v1/items` - 获取所有项目
-- `GET /v1/items/:id` - 获取单个项目详情
-- `PUT /v1/items/:id` - 更新项目
-- `DELETE /v1/items/:id` - 删除项目
-- `POST /v1/distribute` - 手动触发分发
+- `GET /v1/inbox` - 获取所有项目
+- `GET /v1/inbox/:id` - 获取单个项目详情
+- `PUT /v1/inbox/:id` - 更新项目
+- `DELETE /v1/inbox/:id` - 删除项目
+- `POST /v1/routing/dispatch/:id` - 手动触发分发
 
 ## 技术栈
 

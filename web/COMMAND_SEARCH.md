@@ -70,7 +70,7 @@ SuperInbox 收件箱现在支持强大的命令搜索功能，类似于你截图
 ```
 
 ### 后端支持
-- **API 端点**: `GET /v1/items`
+- **API 端点**: `GET /v1/inbox`
 - **认证**: `Authorization: Bearer <api-key>`
 - **查询参数**: 支持上述所有筛选参数
 
