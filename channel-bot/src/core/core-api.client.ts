@@ -155,6 +155,65 @@ export class CoreApiClient implements ICoreApiClient {
   }
 
   /**
+   * Create a new item with file upload from a URL
+   * @param params - File upload params
+   * @param apiKey - API key for authentication
+   */
+  async createItemWithFileFromUrl(params: {
+    url: string;
+    fileName?: string;
+    mimeType?: string;
+    content?: string;
+    source?: string;
+    maxBytes?: number;
+  }, apiKey: string): Promise<Item> {
+    const response = await fetch(params.url);
+    if (!response.ok) {
+      throw new CoreApiError(`Failed to download file (HTTP ${response.status})`, response.status);
+    }
+
+    const contentLength = response.headers.get('content-length');
+    if (params.maxBytes && contentLength && Number(contentLength) > params.maxBytes) {
+      throw new CoreApiError('File too large', 413);
+    }
+
+    const buffer = await response.arrayBuffer();
+    if (params.maxBytes && buffer.byteLength > params.maxBytes) {
+      throw new CoreApiError('File too large', 413);
+    }
+
+    const blob = new Blob([buffer], { type: params.mimeType || 'application/octet-stream' });
+    const formData = new FormData();
+    formData.append('file', blob, params.fileName || 'file');
+    formData.append('content', params.content || '');
+    formData.append('source', params.source || 'telegram');
+
+    const uploadUrl = `${this.client.defaults.baseURL}/inbox/file`;
+    const uploadResponse = await fetch(uploadUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      body: formData,
+    });
+
+    const uploadData = await uploadResponse.json().catch(() => null);
+    if (!uploadResponse.ok) {
+      const message =
+        uploadData?.error?.message ||
+        uploadData?.message ||
+        `Upload failed (HTTP ${uploadResponse.status})`;
+      throw new CoreApiError(message, uploadResponse.status, uploadData);
+    }
+
+    if (uploadData?.success && uploadData?.data) {
+      return uploadData.data as Item;
+    }
+
+    return uploadData as Item;
+  }
+
+  /**
    * Get item by ID
    * @param itemId - Item ID
    * @returns Item or null if not found

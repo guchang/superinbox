@@ -26,10 +26,12 @@ export interface TelegramChannelConfig {
 export class TelegramChannel implements IChannel {
   readonly name: ChannelType = 'telegram';
   private bot: Bot;
+  private botToken: string;
   private messageHandler?: (message: ChannelMessage) => Promise<void>;
   private isStarted: boolean = false;
 
   constructor(config: TelegramChannelConfig) {
+    this.botToken = config.botToken;
     this.bot = new Bot(config.botToken);
   }
 
@@ -50,6 +52,18 @@ export class TelegramChannel implements IChannel {
 
     this.bot.on('message:document', async (ctx) => {
       await this.handleDocumentMessage(ctx);
+    });
+
+    this.bot.on('message:audio', async (ctx) => {
+      await this.handleAudioMessage(ctx);
+    });
+
+    this.bot.on('message:voice', async (ctx) => {
+      await this.handleVoiceMessage(ctx);
+    });
+
+    this.bot.on('message:video', async (ctx) => {
+      await this.handleVideoMessage(ctx);
     });
 
     // Register /start command
@@ -73,6 +87,7 @@ export class TelegramChannel implements IChannel {
       await ctx.reply(
         `SuperInbox Bot Help 📚\n\n` +
           `/start - Bind your account\n` +
+          `/bind <API_KEY> - Bind your account\n` +
           `/help - Show this help message\n\n` +
           `Just send any message and it will be forwarded to SuperInbox!`
       );
@@ -162,6 +177,10 @@ export class TelegramChannel implements IChannel {
     const attachment: MessageAttachment = {
       type: 'photo',
       fileId: largestPhoto.file_id,
+      fileName: `photo_${largestPhoto.file_id}.jpg`,
+      fileSize: largestPhoto.file_size,
+      mimeType: 'image/jpeg',
+      url: await this.buildFileUrl(largestPhoto.file_id),
     };
 
     const caption = message.caption || 'Photo';
@@ -195,9 +214,112 @@ export class TelegramChannel implements IChannel {
       fileName: message.document.file_name,
       fileSize: message.document.file_size,
       mimeType: message.document.mime_type,
+      url: await this.buildFileUrl(message.document.file_id),
     };
 
     const caption = message.caption || 'Document';
+
+    const channelMessage: ChannelMessage = {
+      channel: this.name,
+      channelId,
+      content: caption,
+      attachments: [attachment],
+      raw: message,
+    };
+
+    await this.dispatchMessage(channelMessage);
+  }
+
+  /**
+   * Handle audio message
+   */
+  private async handleAudioMessage(ctx: Context): Promise<void> {
+    const message = ctx.message;
+
+    if (!message || !message.audio) return;
+
+    const channelId = ctx.chat?.id.toString();
+
+    if (!channelId) return;
+
+    const attachment: MessageAttachment = {
+      type: 'audio',
+      fileId: message.audio.file_id,
+      fileName: message.audio.file_name || `audio_${message.audio.file_id}`,
+      fileSize: message.audio.file_size,
+      mimeType: message.audio.mime_type,
+      url: await this.buildFileUrl(message.audio.file_id),
+    };
+
+    const caption = message.caption || 'Audio';
+
+    const channelMessage: ChannelMessage = {
+      channel: this.name,
+      channelId,
+      content: caption,
+      attachments: [attachment],
+      raw: message,
+    };
+
+    await this.dispatchMessage(channelMessage);
+  }
+
+  /**
+   * Handle voice message
+   */
+  private async handleVoiceMessage(ctx: Context): Promise<void> {
+    const message = ctx.message;
+
+    if (!message || !message.voice) return;
+
+    const channelId = ctx.chat?.id.toString();
+
+    if (!channelId) return;
+
+    const attachment: MessageAttachment = {
+      type: 'audio',
+      fileId: message.voice.file_id,
+      fileName: `voice_${message.voice.file_id}.ogg`,
+      fileSize: message.voice.file_size,
+      mimeType: message.voice.mime_type || 'audio/ogg',
+      url: await this.buildFileUrl(message.voice.file_id),
+    };
+
+    const caption = message.caption || 'Voice message';
+
+    const channelMessage: ChannelMessage = {
+      channel: this.name,
+      channelId,
+      content: caption,
+      attachments: [attachment],
+      raw: message,
+    };
+
+    await this.dispatchMessage(channelMessage);
+  }
+
+  /**
+   * Handle video message
+   */
+  private async handleVideoMessage(ctx: Context): Promise<void> {
+    const message = ctx.message;
+
+    if (!message || !message.video) return;
+
+    const channelId = ctx.chat?.id.toString();
+
+    if (!channelId) return;
+
+    const attachment: MessageAttachment = {
+      type: 'video',
+      fileId: message.video.file_id,
+      fileName: message.video.file_name || `video_${message.video.file_id}`,
+      fileSize: message.video.file_size,
+      mimeType: message.video.mime_type,
+      url: await this.buildFileUrl(message.video.file_id),
+    };
+
+    const caption = message.caption || 'Video';
 
     const channelMessage: ChannelMessage = {
       channel: this.name,
@@ -220,6 +342,20 @@ export class TelegramChannel implements IChannel {
       } catch (error) {
         console.error('Error in message handler:', error);
       }
+    }
+  }
+
+  /**
+   * Build file download URL from Telegram
+   */
+  private async buildFileUrl(fileId: string): Promise<string | undefined> {
+    try {
+      const file = await this.bot.api.getFile(fileId);
+      if (!file.file_path) return undefined;
+      return `https://api.telegram.org/file/bot${this.botToken}/${file.file_path}`;
+    } catch (error) {
+      console.error('Failed to get Telegram file path:', error);
+      return undefined;
     }
   }
 

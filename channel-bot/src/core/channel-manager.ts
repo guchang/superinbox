@@ -18,6 +18,27 @@ import type { CoreApiClient } from './core-api.client.js';
 import { SSESubscriptionService } from './sse-subscription.service.js';
 import { buildNotificationMessage } from './notification-builder.js';
 
+const MAX_UPLOAD_BYTES = 10 * 1024 * 1024; // 10MB
+const ALLOWED_MIME_TYPES = new Set([
+  'image/jpeg',
+  'image/jpg',
+  'image/png',
+  'image/gif',
+  'image/webp',
+  'image/svg+xml',
+  'application/pdf',
+  'text/plain',
+  'text/markdown',
+  'application/zip',
+  'audio/mpeg',
+  'audio/mp3',
+  'audio/wav',
+  'audio/ogg',
+  'audio/opus',
+  'video/mp4',
+  'video/webm',
+]);
+
 /**
  * Channel Manager Configuration
  */
@@ -237,6 +258,58 @@ export class ChannelManager {
       if (!apiKey) {
         await this.sendNotificationToUser(message.channelId, 'No API key bound. Use /bind <API_KEY> to bind.');
         return;
+      }
+
+      const attachment = message.attachments?.[0];
+      if (attachment) {
+        if (!attachment.url) {
+          await this.sendNotificationToUser(message.channelId, 'Failed to read file from Telegram. Please try again.');
+          return;
+        }
+
+        if (attachment.fileSize && attachment.fileSize > MAX_UPLOAD_BYTES) {
+          await this.sendNotificationToUser(
+            message.channelId,
+            `File too large. Max ${Math.round(MAX_UPLOAD_BYTES / (1024 * 1024))}MB.`
+          );
+          return;
+        }
+
+        if (!attachment.mimeType || !ALLOWED_MIME_TYPES.has(attachment.mimeType)) {
+          const mime = attachment.mimeType || 'unknown';
+          await this.sendNotificationToUser(
+            message.channelId,
+            `Unsupported file type: ${mime}`
+          );
+          return;
+        }
+
+        try {
+          const item = await this.coreApiClient.createItemWithFileFromUrl({
+            url: attachment.url,
+            fileName: attachment.fileName,
+            mimeType: attachment.mimeType,
+            content: message.content,
+            source: message.channel,
+            maxBytes: MAX_UPLOAD_BYTES,
+          }, apiKey);
+
+          console.log(`Item created: ${item.id} from ${message.channel}`);
+
+          // Store mapping for notifications
+          this.itemChannelMapping.set(item.id, message.channelId);
+
+          // Subscribe to SSE events for this item
+          this.sseService.subscribeToItem(item.id, message.channelId, apiKey);
+
+          await this.sendNotificationToUser(message.channelId, '✅ Added to inbox');
+          return;
+        } catch (error) {
+          const errorMessage =
+            error instanceof Error ? error.message : 'Failed to upload file';
+          await this.sendNotificationToUser(message.channelId, `❌ ${errorMessage}`);
+          return;
+        }
       }
 
       // Create item in Core

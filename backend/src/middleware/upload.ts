@@ -47,6 +47,8 @@ const fileFilter = (
     'audio/mpeg',
     'audio/mp3',
     'audio/wav',
+    'audio/ogg',
+    'audio/opus',
     'video/mp4',
     'video/webm'
   ];
