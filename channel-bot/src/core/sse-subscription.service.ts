@@ -85,15 +85,13 @@ export class SSESubscriptionService {
   /**
    * Subscribe to item progress via SSE
    */
-  subscribeToItem(itemId: string, channelId: string): void {
+  subscribeToItem(itemId: string, channelId: string, apiKey: string): void {
     // Close existing subscription if any
     this.unsubscribe(itemId);
 
     try {
       // Get Core API base URL (keep /v1 prefix for SSE endpoint)
       const baseURL = this.coreApiClient['client'].defaults.baseURL || 'http://localhost:3001/v1';
-      // Get API key for authentication via URL parameter
-      const apiKey = this.coreApiClient.getApiKey();
       const url = `${baseURL}/inbox/${itemId}/routing-progress?token=${encodeURIComponent(apiKey)}`;
 
       console.info(`Subscribing to SSE for item ${itemId}`);

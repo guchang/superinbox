@@ -58,15 +58,14 @@ export class TelegramChannel implements IChannel {
 
       if (!chatId) return;
 
-      // Send binding instructions
-      const token = this.generateBindingToken(chatId);
+      const channelMessage: ChannelMessage = {
+        channel: this.name,
+        channelId: chatId,
+        content: '/start',
+        raw: ctx.message,
+      };
 
-      await ctx.reply(
-        `Welcome to SuperInbox Bot! 🚀\n\n` +
-          `To bind your account, please visit:\n` +
-          `https://superinbox.com/bot/bind?channel=telegram&channel_id=${chatId}&token=${token}\n\n` +
-          `After binding, you can send messages here and they will be automatically forwarded to SuperInbox.`
-      );
+      await this.dispatchMessage(channelMessage);
     });
 
     // Register /help command
@@ -130,6 +129,10 @@ export class TelegramChannel implements IChannel {
     const channelId = ctx.chat?.id.toString();
 
     if (!channelId) return;
+
+    if (message.text?.startsWith('/start') || message.text?.startsWith('/help')) {
+      return;
+    }
 
     const channelMessage: ChannelMessage = {
       channel: this.name,

@@ -26,8 +26,17 @@ export interface IUserMapper {
    * @param userId - SuperInbox user ID
    * @param channelId - Platform user ID
    * @param channel - Channel type
+   * @param apiKey - API key for this binding
    */
-  bindUser(userId: string, channelId: string, channel: string): Promise<void>;
+  bindUser(userId: string, channelId: string, channel: string, apiKey?: string): Promise<void>;
+
+  /**
+   * Find API key by platform channel ID
+   * @param channelId - Platform user ID
+   * @param channel - Channel type
+   * @returns API key or null if not found
+   */
+  findChannelApiKey(channelId: string, channel: string): Promise<string | null>;
 
   /**
    * Unbind platform channel from SuperInbox user
@@ -52,6 +61,7 @@ export interface UserBinding {
   superInboxUserId: string;
   channel: string;
   channelId: string;
+  apiKey?: string;
   createdAt: Date;
   updatedAt: Date;
 }

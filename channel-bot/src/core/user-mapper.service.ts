@@ -48,6 +48,7 @@ export class UserMapperService implements IUserMapper {
         super_inbox_user_id TEXT NOT NULL,
         channel TEXT NOT NULL,
         channel_id TEXT NOT NULL,
+        api_key TEXT,
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL,
         UNIQUE(channel, channel_id)
@@ -62,6 +63,19 @@ export class UserMapperService implements IUserMapper {
       CREATE INDEX IF NOT EXISTS idx_user_channel_bindings_channel_id
         ON user_channel_bindings(channel_id);
     `);
+
+    this.ensureApiKeyColumn();
+  }
+
+  /**
+   * Ensure api_key column exists (for upgrades)
+   */
+  private ensureApiKeyColumn(): void {
+    const columns = this.db.prepare(`PRAGMA table_info(user_channel_bindings)`).all() as Array<{ name: string }>;
+    const hasApiKey = columns.some((column) => column.name === 'api_key');
+    if (!hasApiKey) {
+      this.db.exec(`ALTER TABLE user_channel_bindings ADD COLUMN api_key TEXT`);
+    }
   }
 
   /**
@@ -104,19 +118,23 @@ export class UserMapperService implements IUserMapper {
     return row?.channel_id ?? null;
   }
 
-  async bindUser(userId: string, channelId: string, channel: string): Promise<void> {
+  async bindUser(userId: string, channelId: string, channel: string, apiKey?: string): Promise<void> {
     const stmt = this.db.prepare(`
-      INSERT INTO user_channel_bindings (id, super_inbox_user_id, channel, channel_id, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?)
+      INSERT INTO user_channel_bindings (id, super_inbox_user_id, channel, channel_id, api_key, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(channel, channel_id) DO UPDATE SET
         super_inbox_user_id = excluded.super_inbox_user_id,
+        api_key = CASE
+          WHEN excluded.api_key IS NOT NULL THEN excluded.api_key
+          ELSE api_key
+        END,
         updated_at = excluded.updated_at
     `);
 
     const id = this.generateId();
     const now = this.now();
 
-    stmt.run(id, userId, channel, channelId, now, now);
+    stmt.run(id, userId, channel, channelId, apiKey ?? null, now, now);
   }
 
   async unbindUser(userId: string, channel: string): Promise<void> {
@@ -130,7 +148,7 @@ export class UserMapperService implements IUserMapper {
 
   async getUserBindings(userId: string): Promise<UserBinding[]> {
     const stmt = this.db.prepare(`
-      SELECT id, super_inbox_user_id, channel, channel_id, created_at, updated_at
+      SELECT id, super_inbox_user_id, channel, channel_id, api_key, created_at, updated_at
       FROM user_channel_bindings
       WHERE super_inbox_user_id = ?
     `);
@@ -140,6 +158,7 @@ export class UserMapperService implements IUserMapper {
       super_inbox_user_id: string;
       channel: string;
       channel_id: string;
+      api_key?: string;
       created_at: string;
       updated_at: string;
     }>;
@@ -149,9 +168,23 @@ export class UserMapperService implements IUserMapper {
       superInboxUserId: row.super_inbox_user_id,
       channel: row.channel,
       channelId: row.channel_id,
+      apiKey: row.api_key,
       createdAt: new Date(row.created_at),
       updatedAt: new Date(row.updated_at),
     }));
+  }
+
+  async findChannelApiKey(channelId: string, channel: string): Promise<string | null> {
+    const stmt = this.db.prepare(`
+      SELECT api_key
+      FROM user_channel_bindings
+      WHERE channel_id = ? AND channel = ?
+      LIMIT 1
+    `);
+
+    const row = stmt.get(channelId, channel) as { api_key: string | null } | undefined;
+
+    return row?.api_key ?? null;
   }
 
   /**

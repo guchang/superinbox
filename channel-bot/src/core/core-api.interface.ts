@@ -59,7 +59,7 @@ export interface ICoreApiClient {
    * @param data - Item data
    * @returns Created item
    */
-  createItem(data: CreateItemRequest): Promise<Item>;
+  createItem(data: CreateItemRequest, apiKey?: string): Promise<Item>;
 
   /**
    * Get user by ID

@@ -72,7 +72,7 @@ export class CoreApiClient implements ICoreApiClient {
     );
   }
 
-  async createItem(data: CreateItemRequest): Promise<Item> {
+  async createItem(data: CreateItemRequest, apiKey?: string): Promise<Item> {
     const response = await this.client.post<{
       success: boolean;
       data: Item;
@@ -80,7 +80,7 @@ export class CoreApiClient implements ICoreApiClient {
       content: data.originalContent,
       source: data.source,
       type: data.contentType,  // Map contentType to type
-    });
+    }, apiKey ? { headers: { Authorization: `Bearer ${apiKey}` } } : undefined);
 
     // Handle wrapped response format
     if (response.data.success && response.data.data) {
@@ -123,6 +123,35 @@ export class CoreApiClient implements ICoreApiClient {
    */
   getApiKey(): string {
     return this.apiKey;
+  }
+
+  /**
+   * Get current user by API key
+   * @param apiKey - API key
+   * @returns User or null if invalid
+   */
+  async getMeByApiKey(apiKey: string): Promise<User | null> {
+    try {
+      const response = await this.client.get<{
+        success: boolean;
+        data: User;
+      }>('/auth/me', {
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+        },
+      });
+
+      if (response.data?.success && response.data?.data) {
+        return response.data.data;
+      }
+
+      return response.data as unknown as User;
+    } catch (error) {
+      if (error instanceof CoreApiError && error.statusCode === 401) {
+        return null;
+      }
+      throw error;
+    }
   }
 
   /**

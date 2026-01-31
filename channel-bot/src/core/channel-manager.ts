@@ -200,6 +200,20 @@ export class ChannelManager {
    */
   private async handleMessage(message: ChannelMessage): Promise<void> {
     try {
+      const trimmedContent = message.content.trim();
+
+      if (message.channel === 'telegram') {
+        if (trimmedContent === '/start') {
+          await this.handleStartCommand(message);
+          return;
+        }
+
+        if (trimmedContent.startsWith('/bind')) {
+          await this.handleBindCommand(message);
+          return;
+        }
+      }
+
       // Find SuperInbox user ID by channel ID
       const superInboxUserId = await this.userMapper.findSuperInboxUser(
         message.channelId,
@@ -211,6 +225,17 @@ export class ChannelManager {
           `No SuperInbox user found for ${message.channel} channel ID: ${message.channelId}`
         );
         // Optionally send message back to user asking them to bind
+        await this.sendNotificationToUser(message.channelId, 'Please bind your account with /bind <API_KEY>.');
+        return;
+      }
+
+      const apiKey = await this.userMapper.findChannelApiKey(
+        message.channelId,
+        message.channel
+      );
+
+      if (!apiKey) {
+        await this.sendNotificationToUser(message.channelId, 'No API key bound. Use /bind <API_KEY> to bind.');
         return;
       }
 
@@ -221,7 +246,7 @@ export class ChannelManager {
         userId: superInboxUserId,
         contentType: this.inferContentType(message),
         attachments: message.attachments,
-      });
+      }, apiKey);
 
       console.log(`Item created: ${item.id} from ${message.channel}`);
 
@@ -229,7 +254,7 @@ export class ChannelManager {
       this.itemChannelMapping.set(item.id, message.channelId);
 
       // Subscribe to SSE events for this item
-      this.sseService.subscribeToItem(item.id, message.channelId);
+      this.sseService.subscribeToItem(item.id, message.channelId, apiKey);
 
       // Optionally send confirmation back to user
       const channel = this.channels.get(message.channel);
@@ -247,6 +272,49 @@ export class ChannelManager {
         await channel.sendMessage(message.channelId, `❌ Error: ${errorMessage}`);
       }
     }
+  }
+
+  /**
+   * Handle /start command
+   */
+  private async handleStartCommand(message: ChannelMessage): Promise<void> {
+    const userId = await this.userMapper.findSuperInboxUser(message.channelId, message.channel);
+    const apiKey = await this.userMapper.findChannelApiKey(message.channelId, message.channel);
+
+    if (userId && apiKey) {
+      await this.sendNotificationToUser(
+        message.channelId,
+        'Your account is already bound. Use /bind <API_KEY> to update.'
+      );
+      return;
+    }
+
+    await this.sendNotificationToUser(
+      message.channelId,
+      'Welcome! Please bind your account:\n/bind <API_KEY>'
+    );
+  }
+
+  /**
+   * Handle /bind command
+   */
+  private async handleBindCommand(message: ChannelMessage): Promise<void> {
+    const parts = message.content.trim().split(/\s+/);
+    const apiKey = parts.slice(1).join(' ').trim();
+
+    if (!apiKey) {
+      await this.sendNotificationToUser(message.channelId, 'Usage: /bind <API_KEY>');
+      return;
+    }
+
+    const me = await this.coreApiClient.getMeByApiKey(apiKey);
+    if (!me) {
+      await this.sendNotificationToUser(message.channelId, 'Invalid API key. Please try again.');
+      return;
+    }
+
+    await this.userMapper.bindUser(me.id, message.channelId, message.channel, apiKey);
+    await this.sendNotificationToUser(message.channelId, '✅ Binding successful. You can now send messages.');
   }
 
   /**

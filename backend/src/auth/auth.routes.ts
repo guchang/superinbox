@@ -10,7 +10,7 @@ import {
   logoutController,
   getMeController,
 } from './auth.controller.js';
-import { authenticateJwt } from '../middleware/auth.js';
+import { authenticate } from '../middleware/auth.js';
 
 const router = Router();
 
@@ -47,6 +47,6 @@ router.post('/logout', logoutController);
  * @desc    Get current user
  * @access  Private
  */
-router.get('/me', authenticateJwt, getMeController);
+router.get('/me', authenticate, getMeController);
 
 export default router;
