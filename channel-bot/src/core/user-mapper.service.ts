@@ -7,11 +7,15 @@
 
 import Database from 'better-sqlite3';
 import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { mkdirSync } from 'node:fs';
 import type {
   IUserMapper,
   UserBinding,
+  CreateBindingRequest,
 } from './user-mapper.interface.js';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 /**
  * User Mapper Service Implementation
