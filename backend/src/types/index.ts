@@ -534,3 +534,9 @@ export interface StdioMcpClientConfig {
   env?: Record<string, string>;  // Environment variables
   timeout?: number;  // Request timeout in milliseconds
 }
+
+// ============================================
+// Bot Types
+// ============================================
+// TODO: Add bot types when needed
+// export * from './bot';
