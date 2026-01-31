@@ -36,6 +36,9 @@ export interface Item {
   contentType: string;
   source: string;
   status: string;
+  category: string;
+  summary?: string;
+  suggestedTitle?: string;
   createdAt: string;
   updatedAt: string;
 }

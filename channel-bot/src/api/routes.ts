@@ -74,7 +74,7 @@ export function createApiRoutes(channelManager: ChannelManager): Router {
    *   ]
    * }
    */
-  router.get('/status', async (req, res) => {
+  router.get('/status', async (_req, res) => {
     try {
       const statuses = await channelManager.getChannelStatuses();
 
@@ -122,7 +122,7 @@ export function createApiRoutes(channelManager: ChannelManager): Router {
    * GET /health
    * Health check endpoint
    */
-  router.get('/health', (req, res) => {
+  router.get('/health', (_req, res) => {
     res.status(200).json({
       status: 'ok',
       timestamp: new Date().toISOString(),

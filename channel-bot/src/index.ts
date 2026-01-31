@@ -21,7 +21,7 @@ interface AppConfig {
   nodeEnv: string;
   coreApiUrl: string;
   coreApiKey: string;
-  databasePath: string;
+  databasePath?: string;
   enabledChannels: ChannelType[];
   telegramBotToken?: string;
 }
@@ -69,7 +69,7 @@ function createApp(channelManager: ChannelManager): express.Express {
   app.use(express.urlencoded({ extended: true }));
 
   // Request logging middleware
-  app.use((req, res, next) => {
+  app.use((req, _res, next) => {
     console.log(`${req.method} ${req.path}`);
     next();
   });
@@ -78,7 +78,7 @@ function createApp(channelManager: ChannelManager): express.Express {
   app.use('/api', createApiRoutes(channelManager));
 
   // Root endpoint
-  app.get('/', (req, res) => {
+  app.get('/', (_req, res) => {
     res.json({
       name: '@superinbox/channel-bot',
       version: '1.0.0',
@@ -88,14 +88,14 @@ function createApp(channelManager: ChannelManager): express.Express {
   });
 
   // 404 handler
-  app.use((req, res) => {
+  app.use((_req, res) => {
     res.status(404).json({
       error: 'Not found',
     });
   });
 
   // Error handler
-  app.use((err: unknown, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
     console.error('Unhandled error:', err);
 
     res.status(500).json({

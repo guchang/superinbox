@@ -7,3 +7,5 @@
 export * from './channel.interface.js';
 export * from './user-mapper.interface.js';
 export * from './core-api.interface.js';
+export * from './sse-subscription.service.js';
+export * from './notification-builder.js';
