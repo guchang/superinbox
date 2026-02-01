@@ -39,6 +39,22 @@ export interface IUserMapper {
   findChannelApiKey(channelId: string, channel: string): Promise<string | null>;
 
   /**
+   * Find language by platform channel ID
+   * @param channelId - Platform user ID
+   * @param channel - Channel type
+   * @returns Language code or null if not found
+   */
+  findChannelLanguage(channelId: string, channel: string): Promise<string | null>;
+
+  /**
+   * Set language for a platform channel ID
+   * @param channelId - Platform user ID
+   * @param channel - Channel type
+   * @param language - Language code
+   */
+  setChannelLanguage(channelId: string, channel: string, language: string): Promise<void>;
+
+  /**
    * Unbind platform channel from SuperInbox user
    * @param userId - SuperInbox user ID
    * @param channel - Channel type
@@ -62,6 +78,7 @@ export interface UserBinding {
   channel: string;
   channelId: string;
   apiKey?: string;
+  language?: string;
   createdAt: Date;
   updatedAt: Date;
 }

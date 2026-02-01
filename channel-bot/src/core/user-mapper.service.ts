@@ -49,6 +49,7 @@ export class UserMapperService implements IUserMapper {
         channel TEXT NOT NULL,
         channel_id TEXT NOT NULL,
         api_key TEXT,
+        language TEXT,
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL,
         UNIQUE(channel, channel_id)
@@ -65,6 +66,7 @@ export class UserMapperService implements IUserMapper {
     `);
 
     this.ensureApiKeyColumn();
+    this.ensureLanguageColumn();
   }
 
   /**
@@ -75,6 +77,17 @@ export class UserMapperService implements IUserMapper {
     const hasApiKey = columns.some((column) => column.name === 'api_key');
     if (!hasApiKey) {
       this.db.exec(`ALTER TABLE user_channel_bindings ADD COLUMN api_key TEXT`);
+    }
+  }
+
+  /**
+   * Ensure language column exists (for upgrades)
+   */
+  private ensureLanguageColumn(): void {
+    const columns = this.db.prepare(`PRAGMA table_info(user_channel_bindings)`).all() as Array<{ name: string }>;
+    const hasLanguage = columns.some((column) => column.name === 'language');
+    if (!hasLanguage) {
+      this.db.exec(`ALTER TABLE user_channel_bindings ADD COLUMN language TEXT`);
     }
   }
 
@@ -148,7 +161,7 @@ export class UserMapperService implements IUserMapper {
 
   async getUserBindings(userId: string): Promise<UserBinding[]> {
     const stmt = this.db.prepare(`
-      SELECT id, super_inbox_user_id, channel, channel_id, api_key, created_at, updated_at
+      SELECT id, super_inbox_user_id, channel, channel_id, api_key, language, created_at, updated_at
       FROM user_channel_bindings
       WHERE super_inbox_user_id = ?
     `);
@@ -159,6 +172,7 @@ export class UserMapperService implements IUserMapper {
       channel: string;
       channel_id: string;
       api_key?: string;
+      language?: string;
       created_at: string;
       updated_at: string;
     }>;
@@ -169,6 +183,7 @@ export class UserMapperService implements IUserMapper {
       channel: row.channel,
       channelId: row.channel_id,
       apiKey: row.api_key,
+      language: row.language,
       createdAt: new Date(row.created_at),
       updatedAt: new Date(row.updated_at),
     }));
@@ -185,6 +200,29 @@ export class UserMapperService implements IUserMapper {
     const row = stmt.get(channelId, channel) as { api_key: string | null } | undefined;
 
     return row?.api_key ?? null;
+  }
+
+  async findChannelLanguage(channelId: string, channel: string): Promise<string | null> {
+    const stmt = this.db.prepare(`
+      SELECT language
+      FROM user_channel_bindings
+      WHERE channel_id = ? AND channel = ?
+      LIMIT 1
+    `);
+
+    const row = stmt.get(channelId, channel) as { language: string | null } | undefined;
+
+    return row?.language ?? null;
+  }
+
+  async setChannelLanguage(channelId: string, channel: string, language: string): Promise<void> {
+    const stmt = this.db.prepare(`
+      UPDATE user_channel_bindings
+      SET language = ?, updated_at = ?
+      WHERE channel_id = ? AND channel = ?
+    `);
+
+    stmt.run(language, this.now(), channelId, channel);
   }
 
   /**
