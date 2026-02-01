@@ -228,17 +228,24 @@ export function useRoutingProgress(itemId: string | null, options?: { disabled?:
         return
       }
 
+      // 将 token 同步到 cookie，确保后台可以通过 cookie 进行校验（避免使用触发预检的自定义头）
+      if (typeof document !== 'undefined') {
+        const cookieName = 'superinbox_auth_token'
+        const secureFlag = typeof window !== 'undefined' && window.location.protocol === 'https:' ? '; Secure' : ''
+        document.cookie = `${cookieName}=${encodeURIComponent(token)}; Path=/; SameSite=Lax${secureFlag}`
+      }
+
       setState(prev => ({ ...prev, isConnected: false }))
 
       // 直接连接后端（绕过 Next.js 代理，因为代理不支持 SSE）
-      // 使用 fetch + ReadableStream 替代 EventSource，支持自定义 headers
+      // 使用 fetch + ReadableStream 替代 EventSource，并依赖 cookie 进行认证
       const backendUrl = getBackendDirectUrl()
       const response = await fetch(`${backendUrl}/v1/inbox/${itemId}/routing-progress`, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Accept': 'text/event-stream',
         },
+        credentials: 'include',
         signal: abortControllerRef.current?.signal,
       })
 
