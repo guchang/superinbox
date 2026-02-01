@@ -14,6 +14,7 @@ type MessageKey =
   | 'addedToInbox'
   | 'errorProcessing'
   | 'uploadFailed'
+  | 'helpText'
   | 'langUsage'
   | 'langInvalid'
   | 'langSet'
@@ -59,6 +60,14 @@ const MESSAGES: Record<LanguageCode, Record<MessageKey, string>> = {
     addedToInbox: '✅ Added to inbox',
     errorProcessing: '❌ Error: {message}',
     uploadFailed: '❌ {message}',
+    helpText:
+      'SuperInbox Bot Help 📚\n\n' +
+      '/start - Bind your account\n' +
+      '/bind <API_KEY> - Bind your account\n' +
+      '/list [page] [limit] - View your inbox\n' +
+      '/lang <en|zh> - Set language (Lark only)\n' +
+      '/help - Show this help message\n\n' +
+      'Just send any message and it will be forwarded to SuperInbox!',
     langUsage: 'Usage: /lang <en|zh>',
     langInvalid: 'Unsupported language. Use /lang <en|zh>.',
     langSet: '✅ Language set to {language}',
@@ -103,6 +112,14 @@ const MESSAGES: Record<LanguageCode, Record<MessageKey, string>> = {
     addedToInbox: '✅ 已加入收件箱',
     errorProcessing: '❌ 错误：{message}',
     uploadFailed: '❌ {message}',
+    helpText:
+      'SuperInbox 机器人帮助 📚\n\n' +
+      '/start - 绑定账号\n' +
+      '/bind <API_KEY> - 绑定账号\n' +
+      '/list [页码] [数量] - 查看收件箱\n' +
+      '/lang <en|zh> - 设置语言（仅飞书）\n' +
+      '/help - 显示此帮助信息\n\n' +
+      '直接发送任意消息即可转发到 SuperInbox！',
     langUsage: '用法：/lang <en|zh>',
     langInvalid: '不支持的语言，请用 /lang <en|zh>。',
     langSet: '✅ 已切换为{language}',

@@ -249,6 +249,11 @@ export class ChannelManager {
         return;
       }
 
+      if (trimmedContent === '/help') {
+        await this.handleHelpCommand(message);
+        return;
+      }
+
       if (trimmedContent === '/start') {
         await this.handleStartCommand(message);
         return;
@@ -593,6 +598,18 @@ export class ChannelManager {
       message.channel,
       message.channelId,
       getMessage(requested, 'langSet', { language: this.languageLabel(requested) })
+    );
+  }
+
+  /**
+   * Handle /help command
+   */
+  private async handleHelpCommand(message: ChannelMessage): Promise<void> {
+    const language = await this.resolveLanguage(message.channel, message.channelId);
+    await this.sendNotificationToUser(
+      message.channel,
+      message.channelId,
+      getMessage(language, 'helpText')
     );
   }
 
