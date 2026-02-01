@@ -12,6 +12,7 @@ import { getUserMapper } from './core/user-mapper.service.js';
 import { getCoreApiClient } from './core/core-api.client.js';
 import { createApiRoutes } from './api/routes.js';
 import { createTelegramChannel } from './channels/telegram/index.js';
+import { createLarkChannel } from './channels/lark/index.js';
 
 /**
  * Application configuration from environment variables
@@ -24,6 +25,9 @@ interface AppConfig {
   databasePath: string;
   enabledChannels: ChannelType[];
   telegramBotToken?: string;
+  larkAppId?: string;
+  larkAppSecret?: string;
+  larkVerificationToken?: string;
 }
 
 /**
@@ -42,6 +46,9 @@ function loadConfig(): AppConfig {
       'wework',
     ]) as ChannelType[],
     telegramBotToken: process.env.TELEGRAM_BOT_TOKEN,
+    larkAppId: process.env.LARK_APP_ID,
+    larkAppSecret: process.env.LARK_APP_SECRET,
+    larkVerificationToken: process.env.LARK_VERIFICATION_TOKEN,
   };
 }
 
@@ -176,7 +183,18 @@ async function main(): Promise<void> {
       console.warn('  - Telegram channel enabled but TELEGRAM_BOT_TOKEN not set');
     }
 
-    // TODO: Add Lark channel registration
+    if (config.enabledChannels.includes('lark') && config.larkAppId && config.larkAppSecret) {
+      const larkChannel = createLarkChannel({
+        appId: config.larkAppId,
+        appSecret: config.larkAppSecret,
+        verificationToken: config.larkVerificationToken,
+      });
+      channelManager.registerChannel(larkChannel);
+      console.log('  - Lark channel registered');
+    } else if (config.enabledChannels.includes('lark')) {
+      console.warn('  - Lark channel enabled but LARK_APP_ID/LARK_APP_SECRET not set');
+    }
+
     // TODO: Add Wework channel registration
 
     // Create Express app

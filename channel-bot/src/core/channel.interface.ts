@@ -56,6 +56,7 @@ export interface MessageAttachment {
   fileSize?: number;
   mimeType?: string;
   url?: string;
+  data?: Buffer;
 }
 
 /**

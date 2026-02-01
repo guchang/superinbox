@@ -73,6 +73,30 @@ export interface ICoreApiClient {
    * @returns true if Core API is accessible
    */
   healthCheck(): Promise<boolean>;
+
+  /**
+   * Create a new item with file upload from a URL
+   */
+  createItemWithFileFromUrl(params: {
+    url: string;
+    fileName?: string;
+    mimeType?: string;
+    content?: string;
+    source?: string;
+    maxBytes?: number;
+  }, apiKey: string): Promise<Item>;
+
+  /**
+   * Create a new item with file upload from a Buffer
+   */
+  createItemWithFileBuffer(params: {
+    buffer: Buffer;
+    fileName?: string;
+    mimeType?: string;
+    content?: string;
+    source?: string;
+    maxBytes?: number;
+  }, apiKey: string): Promise<Item>;
 }
 
 /**

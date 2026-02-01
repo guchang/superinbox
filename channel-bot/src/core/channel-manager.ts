@@ -59,7 +59,7 @@ export class ChannelManager {
   private userMapper: IUserMapper;
   private coreApiClient: CoreApiClient;
   private sseService: SSESubscriptionService;
-  private itemChannelMapping: Map<string, string> = new Map(); // itemId -> channelId
+  private itemChannelMapping: Map<string, { channelId: string; channel: ChannelType }> = new Map();
 
   constructor(config: ChannelManagerConfig) {
     this.userMapper = config.userMapper;
@@ -74,17 +74,17 @@ export class ChannelManager {
   private initializeEventHandlers(): void {
     // AI completed
     this.sseService.on('ai.completed', async (event) => {
-      await this.sendNotificationToUser(event.channelId, buildNotificationMessage(event));
+      await this.sendNotificationToUser(event.channel, event.channelId, buildNotificationMessage(event));
     });
 
     // AI failed
     this.sseService.on('ai.failed', async (event) => {
-      await this.sendNotificationToUser(event.channelId, buildNotificationMessage(event));
+      await this.sendNotificationToUser(event.channel, event.channelId, buildNotificationMessage(event));
     });
 
     // Routing completed
     this.sseService.on('routing.completed', async (event) => {
-      await this.sendNotificationToUser(event.channelId, buildNotificationMessage(event));
+      await this.sendNotificationToUser(event.channel, event.channelId, buildNotificationMessage(event));
       // Unsubscribe after routing complete
       this.sseService.unsubscribe(event.itemId);
       this.itemChannelMapping.delete(event.itemId);
@@ -92,7 +92,7 @@ export class ChannelManager {
 
     // Routing failed
     this.sseService.on('routing.failed', async (event) => {
-      await this.sendNotificationToUser(event.channelId, buildNotificationMessage(event));
+      await this.sendNotificationToUser(event.channel, event.channelId, buildNotificationMessage(event));
       // Unsubscribe after routing failed
       this.sseService.unsubscribe(event.itemId);
       this.itemChannelMapping.delete(event.itemId);
@@ -223,16 +223,14 @@ export class ChannelManager {
     try {
       const trimmedContent = message.content.trim();
 
-      if (message.channel === 'telegram') {
-        if (trimmedContent === '/start') {
-          await this.handleStartCommand(message);
-          return;
-        }
+      if (trimmedContent === '/start') {
+        await this.handleStartCommand(message);
+        return;
+      }
 
-        if (trimmedContent.startsWith('/bind')) {
-          await this.handleBindCommand(message);
-          return;
-        }
+      if (trimmedContent.startsWith('/bind')) {
+        await this.handleBindCommand(message);
+        return;
       }
 
       // Find SuperInbox user ID by channel ID
@@ -246,7 +244,7 @@ export class ChannelManager {
           `No SuperInbox user found for ${message.channel} channel ID: ${message.channelId}`
         );
         // Optionally send message back to user asking them to bind
-        await this.sendNotificationToUser(message.channelId, 'Please bind your account with /bind <API_KEY>.');
+        await this.sendNotificationToUser(message.channel, message.channelId, 'Please bind your account with /bind <API_KEY>.');
         return;
       }
 
@@ -256,19 +254,21 @@ export class ChannelManager {
       );
 
       if (!apiKey) {
-        await this.sendNotificationToUser(message.channelId, 'No API key bound. Use /bind <API_KEY> to bind.');
+        await this.sendNotificationToUser(message.channel, message.channelId, 'No API key bound. Use /bind <API_KEY> to bind.');
         return;
       }
 
       const attachment = message.attachments?.[0];
       if (attachment) {
-        if (!attachment.url) {
-          await this.sendNotificationToUser(message.channelId, 'Failed to read file from Telegram. Please try again.');
+        if (!attachment.url && !attachment.data) {
+          await this.sendNotificationToUser(message.channel, message.channelId, 'Failed to read file. Please try again.');
           return;
         }
 
-        if (attachment.fileSize && attachment.fileSize > MAX_UPLOAD_BYTES) {
+        const size = attachment.data ? attachment.data.byteLength : attachment.fileSize;
+        if (size && size > MAX_UPLOAD_BYTES) {
           await this.sendNotificationToUser(
+            message.channel,
             message.channelId,
             `File too large. Max ${Math.round(MAX_UPLOAD_BYTES / (1024 * 1024))}MB.`
           );
@@ -277,37 +277,43 @@ export class ChannelManager {
 
         if (!attachment.mimeType || !ALLOWED_MIME_TYPES.has(attachment.mimeType)) {
           const mime = attachment.mimeType || 'unknown';
-          await this.sendNotificationToUser(
-            message.channelId,
-            `Unsupported file type: ${mime}`
-          );
+          await this.sendNotificationToUser(message.channel, message.channelId, `Unsupported file type: ${mime}`);
           return;
         }
 
         try {
-          const item = await this.coreApiClient.createItemWithFileFromUrl({
-            url: attachment.url,
-            fileName: attachment.fileName,
-            mimeType: attachment.mimeType,
-            content: message.content,
-            source: message.channel,
-            maxBytes: MAX_UPLOAD_BYTES,
-          }, apiKey);
+          const item = attachment.data
+            ? await this.coreApiClient.createItemWithFileBuffer({
+              buffer: attachment.data,
+              fileName: attachment.fileName,
+              mimeType: attachment.mimeType,
+              content: message.content,
+              source: message.channel,
+              maxBytes: MAX_UPLOAD_BYTES,
+            }, apiKey)
+            : await this.coreApiClient.createItemWithFileFromUrl({
+              url: attachment.url as string,
+              fileName: attachment.fileName,
+              mimeType: attachment.mimeType,
+              content: message.content,
+              source: message.channel,
+              maxBytes: MAX_UPLOAD_BYTES,
+            }, apiKey);
 
           console.log(`Item created: ${item.id} from ${message.channel}`);
 
           // Store mapping for notifications
-          this.itemChannelMapping.set(item.id, message.channelId);
+          this.itemChannelMapping.set(item.id, { channelId: message.channelId, channel: message.channel });
 
           // Subscribe to SSE events for this item
-          this.sseService.subscribeToItem(item.id, message.channelId, apiKey);
+          this.sseService.subscribeToItem(item.id, message.channelId, message.channel, apiKey);
 
-          await this.sendNotificationToUser(message.channelId, '✅ Added to inbox');
+          await this.sendNotificationToUser(message.channel, message.channelId, '✅ Added to inbox');
           return;
         } catch (error) {
           const errorMessage =
             error instanceof Error ? error.message : 'Failed to upload file';
-          await this.sendNotificationToUser(message.channelId, `❌ ${errorMessage}`);
+          await this.sendNotificationToUser(message.channel, message.channelId, `❌ ${errorMessage}`);
           return;
         }
       }
@@ -324,10 +330,10 @@ export class ChannelManager {
       console.log(`Item created: ${item.id} from ${message.channel}`);
 
       // Store mapping for notifications
-      this.itemChannelMapping.set(item.id, message.channelId);
+      this.itemChannelMapping.set(item.id, { channelId: message.channelId, channel: message.channel });
 
       // Subscribe to SSE events for this item
-      this.sseService.subscribeToItem(item.id, message.channelId, apiKey);
+      this.sseService.subscribeToItem(item.id, message.channelId, message.channel, apiKey);
 
       // Optionally send confirmation back to user
       const channel = this.channels.get(message.channel);
@@ -356,6 +362,7 @@ export class ChannelManager {
 
     if (userId && apiKey) {
       await this.sendNotificationToUser(
+        message.channel,
         message.channelId,
         'Your account is already bound. Use /bind <API_KEY> to update.'
       );
@@ -363,6 +370,7 @@ export class ChannelManager {
     }
 
     await this.sendNotificationToUser(
+      message.channel,
       message.channelId,
       'Welcome! Please bind your account:\n/bind <API_KEY>'
     );
@@ -376,18 +384,18 @@ export class ChannelManager {
     const apiKey = parts.slice(1).join(' ').trim();
 
     if (!apiKey) {
-      await this.sendNotificationToUser(message.channelId, 'Usage: /bind <API_KEY>');
+      await this.sendNotificationToUser(message.channel, message.channelId, 'Usage: /bind <API_KEY>');
       return;
     }
 
     const me = await this.coreApiClient.getMeByApiKey(apiKey);
     if (!me) {
-      await this.sendNotificationToUser(message.channelId, 'Invalid API key. Please try again.');
+      await this.sendNotificationToUser(message.channel, message.channelId, 'Invalid API key. Please try again.');
       return;
     }
 
     await this.userMapper.bindUser(me.id, message.channelId, message.channel, apiKey);
-    await this.sendNotificationToUser(message.channelId, '✅ Binding successful. You can now send messages.');
+    await this.sendNotificationToUser(message.channel, message.channelId, '✅ Binding successful. You can now send messages.');
   }
 
   /**
@@ -459,12 +467,10 @@ export class ChannelManager {
    * @param channelId - Platform channel ID
    * @param message - Notification message
    */
-  private async sendNotificationToUser(channelId: string, message: string): Promise<void> {
-    // Find which channel this user belongs to
-    // For now, we only support Telegram, but we could extend this
-    const channel = this.channels.get('telegram');
+  private async sendNotificationToUser(channelName: ChannelType, channelId: string, message: string): Promise<void> {
+    const channel = this.channels.get(channelName);
     if (!channel) {
-      console.warn(`No channel available to send notification to ${channelId}`);
+      console.warn(`No channel available to send notification to ${channelId} (${channelName})`);
       return;
     }
 

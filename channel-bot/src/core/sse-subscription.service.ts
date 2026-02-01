@@ -6,6 +6,7 @@
 
 import { EventSource } from 'eventsource';
 import type { CoreApiClient } from './core-api.client.js';
+import type { ChannelType } from './channel.interface.js';
 
 /**
  * SSE Event types from Core API
@@ -41,7 +42,7 @@ export interface SSEEvent {
 /**
  * SSE Event handler
  */
-export type SSEEventHandler = (event: SSEEvent & { channelId: string }) => Promise<void> | void;
+export type SSEEventHandler = (event: SSEEvent & { channelId: string; channel: ChannelType }) => Promise<void> | void;
 
 /**
  * SSE Subscription Service
@@ -85,7 +86,7 @@ export class SSESubscriptionService {
   /**
    * Subscribe to item progress via SSE
    */
-  subscribeToItem(itemId: string, channelId: string, apiKey: string): void {
+  subscribeToItem(itemId: string, channelId: string, channel: ChannelType, apiKey: string): void {
     // Close existing subscription if any
     this.unsubscribe(itemId);
 
@@ -120,7 +121,7 @@ export class SSESubscriptionService {
       eventSource.addEventListener('ai.completed', (event: any) => {
         try {
           const data = JSON.parse(event.data) as SSEEvent['data'];
-          this.handleEvent(channelId, { type: 'ai.completed', itemId, data });
+          this.handleEvent(channelId, channel, { type: 'ai.completed', itemId, data });
         } catch (error) {
           console.error(`Failed to parse SSE event: ${error}`);
         }
@@ -129,7 +130,7 @@ export class SSESubscriptionService {
       eventSource.addEventListener('ai.failed', (event: any) => {
         try {
           const data = JSON.parse(event.data) as SSEEvent['data'];
-          this.handleEvent(channelId, { type: 'ai.failed', itemId, data });
+          this.handleEvent(channelId, channel, { type: 'ai.failed', itemId, data });
         } catch (error) {
           console.error(`Failed to parse SSE event: ${error}`);
         }
@@ -138,7 +139,7 @@ export class SSESubscriptionService {
       eventSource.addEventListener('routing:complete', (event: any) => {
         try {
           const data = JSON.parse(event.data) as SSEEvent['data'];
-          this.handleEvent(channelId, { type: 'routing.completed', itemId, data });
+          this.handleEvent(channelId, channel, { type: 'routing.completed', itemId, data });
           markClosing();
           closeSubscription('routing:complete');
         } catch (error) {
@@ -149,7 +150,7 @@ export class SSESubscriptionService {
       eventSource.addEventListener('routing:error', (event: any) => {
         try {
           const data = JSON.parse(event.data) as SSEEvent['data'];
-          this.handleEvent(channelId, { type: 'routing.failed', itemId, data });
+          this.handleEvent(channelId, channel, { type: 'routing.failed', itemId, data });
           markClosing();
           closeSubscription('routing:error');
         } catch (error) {
@@ -211,7 +212,7 @@ export class SSESubscriptionService {
   /**
    * Handle incoming SSE event
    */
-  private async handleEvent(channelId: string, event: SSEEvent): Promise<void> {
+  private async handleEvent(channelId: string, channel: ChannelType, event: SSEEvent): Promise<void> {
     console.log(`Received SSE event: ${event.type} for item ${event.itemId}`);
 
     // Get handlers for this event type
@@ -220,7 +221,7 @@ export class SSESubscriptionService {
     // Execute all handlers
     for (const handler of handlers) {
       try {
-        await handler({ ...event, channelId });
+        await handler({ ...event, channelId, channel });
       } catch (error) {
         console.error(`Handler error for event ${event.type}:`, error);
       }
