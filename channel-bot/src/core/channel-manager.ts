@@ -17,6 +17,7 @@ import type { IUserMapper } from './user-mapper.interface.js';
 import type { CoreApiClient } from './core-api.client.js';
 import { SSESubscriptionService } from './sse-subscription.service.js';
 import { buildNotificationMessage } from './notification-builder.js';
+import { getMessage, normalizeLanguage, type LanguageCode } from './messages.js';
 
 const MAX_UPLOAD_BYTES = 10 * 1024 * 1024; // 10MB
 const ALLOWED_MIME_TYPES = new Set([
@@ -59,7 +60,7 @@ export class ChannelManager {
   private userMapper: IUserMapper;
   private coreApiClient: CoreApiClient;
   private sseService: SSESubscriptionService;
-  private itemChannelMapping: Map<string, string> = new Map(); // itemId -> channelId
+  private itemChannelMapping: Map<string, { channelId: string; channel: ChannelType }> = new Map();
 
   constructor(config: ChannelManagerConfig) {
     this.userMapper = config.userMapper;
@@ -74,17 +75,32 @@ export class ChannelManager {
   private initializeEventHandlers(): void {
     // AI completed
     this.sseService.on('ai.completed', async (event) => {
-      await this.sendNotificationToUser(event.channelId, buildNotificationMessage(event));
+      const language = await this.resolveLanguage(event.channel, event.channelId);
+      await this.sendNotificationToUser(
+        event.channel,
+        event.channelId,
+        buildNotificationMessage(event, language)
+      );
     });
 
     // AI failed
     this.sseService.on('ai.failed', async (event) => {
-      await this.sendNotificationToUser(event.channelId, buildNotificationMessage(event));
+      const language = await this.resolveLanguage(event.channel, event.channelId);
+      await this.sendNotificationToUser(
+        event.channel,
+        event.channelId,
+        buildNotificationMessage(event, language)
+      );
     });
 
     // Routing completed
     this.sseService.on('routing.completed', async (event) => {
-      await this.sendNotificationToUser(event.channelId, buildNotificationMessage(event));
+      const language = await this.resolveLanguage(event.channel, event.channelId);
+      await this.sendNotificationToUser(
+        event.channel,
+        event.channelId,
+        buildNotificationMessage(event, language)
+      );
       // Unsubscribe after routing complete
       this.sseService.unsubscribe(event.itemId);
       this.itemChannelMapping.delete(event.itemId);
@@ -92,7 +108,12 @@ export class ChannelManager {
 
     // Routing failed
     this.sseService.on('routing.failed', async (event) => {
-      await this.sendNotificationToUser(event.channelId, buildNotificationMessage(event));
+      const language = await this.resolveLanguage(event.channel, event.channelId);
+      await this.sendNotificationToUser(
+        event.channel,
+        event.channelId,
+        buildNotificationMessage(event, language)
+      );
       // Unsubscribe after routing failed
       this.sseService.unsubscribe(event.itemId);
       this.itemChannelMapping.delete(event.itemId);
@@ -223,17 +244,32 @@ export class ChannelManager {
     try {
       const trimmedContent = message.content.trim();
 
-      if (message.channel === 'telegram') {
-        if (trimmedContent === '/start') {
-          await this.handleStartCommand(message);
-          return;
-        }
-
-        if (trimmedContent.startsWith('/bind')) {
-          await this.handleBindCommand(message);
-          return;
-        }
+      if (trimmedContent.startsWith('/lang')) {
+        await this.handleLangCommand(message);
+        return;
       }
+
+      if (trimmedContent === '/help') {
+        await this.handleHelpCommand(message);
+        return;
+      }
+
+      if (trimmedContent === '/start') {
+        await this.handleStartCommand(message);
+        return;
+      }
+
+      if (trimmedContent.startsWith('/bind')) {
+        await this.handleBindCommand(message);
+        return;
+      }
+
+      if (trimmedContent.startsWith('/list')) {
+        await this.handleListCommand(message);
+        return;
+      }
+
+      const language = await this.resolveLanguage(message.channel, message.channelId);
 
       // Find SuperInbox user ID by channel ID
       const superInboxUserId = await this.userMapper.findSuperInboxUser(
@@ -246,7 +282,11 @@ export class ChannelManager {
           `No SuperInbox user found for ${message.channel} channel ID: ${message.channelId}`
         );
         // Optionally send message back to user asking them to bind
-        await this.sendNotificationToUser(message.channelId, 'Please bind your account with /bind <API_KEY>.');
+        await this.sendNotificationToUser(
+          message.channel,
+          message.channelId,
+          getMessage(language, 'pleaseBind')
+        );
         return;
       }
 
@@ -256,58 +296,88 @@ export class ChannelManager {
       );
 
       if (!apiKey) {
-        await this.sendNotificationToUser(message.channelId, 'No API key bound. Use /bind <API_KEY> to bind.');
+        await this.sendNotificationToUser(
+          message.channel,
+          message.channelId,
+          getMessage(language, 'noApiKeyBound')
+        );
         return;
       }
 
       const attachment = message.attachments?.[0];
       if (attachment) {
-        if (!attachment.url) {
-          await this.sendNotificationToUser(message.channelId, 'Failed to read file from Telegram. Please try again.');
+        if (!attachment.url && !attachment.data) {
+          await this.sendNotificationToUser(
+            message.channel,
+            message.channelId,
+            getMessage(language, 'failedReadFile')
+          );
           return;
         }
 
-        if (attachment.fileSize && attachment.fileSize > MAX_UPLOAD_BYTES) {
+        const size = attachment.data ? attachment.data.byteLength : attachment.fileSize;
+        if (size && size > MAX_UPLOAD_BYTES) {
           await this.sendNotificationToUser(
+            message.channel,
             message.channelId,
-            `File too large. Max ${Math.round(MAX_UPLOAD_BYTES / (1024 * 1024))}MB.`
+            getMessage(language, 'fileTooLarge', {
+              max: Math.round(MAX_UPLOAD_BYTES / (1024 * 1024)),
+            })
           );
           return;
         }
 
         if (!attachment.mimeType || !ALLOWED_MIME_TYPES.has(attachment.mimeType)) {
-          const mime = attachment.mimeType || 'unknown';
+          const mime = attachment.mimeType || getMessage(language, 'unknownMime');
           await this.sendNotificationToUser(
+            message.channel,
             message.channelId,
-            `Unsupported file type: ${mime}`
+            getMessage(language, 'unsupportedFileType', { mime })
           );
           return;
         }
 
         try {
-          const item = await this.coreApiClient.createItemWithFileFromUrl({
-            url: attachment.url,
-            fileName: attachment.fileName,
-            mimeType: attachment.mimeType,
-            content: message.content,
-            source: message.channel,
-            maxBytes: MAX_UPLOAD_BYTES,
-          }, apiKey);
+          const item = attachment.data
+            ? await this.coreApiClient.createItemWithFileBuffer({
+              buffer: attachment.data,
+              fileName: attachment.fileName,
+              mimeType: attachment.mimeType,
+              content: message.content,
+              source: message.channel,
+              maxBytes: MAX_UPLOAD_BYTES,
+            }, apiKey)
+            : await this.coreApiClient.createItemWithFileFromUrl({
+              url: attachment.url as string,
+              fileName: attachment.fileName,
+              mimeType: attachment.mimeType,
+              content: message.content,
+              source: message.channel,
+              maxBytes: MAX_UPLOAD_BYTES,
+            }, apiKey);
 
           console.log(`Item created: ${item.id} from ${message.channel}`);
 
           // Store mapping for notifications
-          this.itemChannelMapping.set(item.id, message.channelId);
+          this.itemChannelMapping.set(item.id, { channelId: message.channelId, channel: message.channel });
 
           // Subscribe to SSE events for this item
-          this.sseService.subscribeToItem(item.id, message.channelId, apiKey);
+          this.sseService.subscribeToItem(item.id, message.channelId, message.channel, apiKey);
 
-          await this.sendNotificationToUser(message.channelId, '✅ Added to inbox');
+          await this.sendNotificationToUser(
+            message.channel,
+            message.channelId,
+            `${getMessage(language, 'addedToInbox')}${this.formatItemIdSuffix(item.id)}`
+          );
           return;
         } catch (error) {
           const errorMessage =
             error instanceof Error ? error.message : 'Failed to upload file';
-          await this.sendNotificationToUser(message.channelId, `❌ ${errorMessage}`);
+          await this.sendNotificationToUser(
+            message.channel,
+            message.channelId,
+            getMessage(language, 'uploadFailed', { message: errorMessage })
+          );
           return;
         }
       }
@@ -324,15 +394,18 @@ export class ChannelManager {
       console.log(`Item created: ${item.id} from ${message.channel}`);
 
       // Store mapping for notifications
-      this.itemChannelMapping.set(item.id, message.channelId);
+      this.itemChannelMapping.set(item.id, { channelId: message.channelId, channel: message.channel });
 
       // Subscribe to SSE events for this item
-      this.sseService.subscribeToItem(item.id, message.channelId, apiKey);
+      this.sseService.subscribeToItem(item.id, message.channelId, message.channel, apiKey);
 
       // Optionally send confirmation back to user
       const channel = this.channels.get(message.channel);
       if (channel) {
-        await channel.sendMessage(message.channelId, '✅ Added to inbox');
+        await channel.sendMessage(
+          message.channelId,
+          `${getMessage(language, 'addedToInbox')}${this.formatItemIdSuffix(item.id)}`
+        );
       }
     } catch (error) {
       console.error('Error handling message:', error);
@@ -342,7 +415,11 @@ export class ChannelManager {
       if (channel) {
         const errorMessage =
           error instanceof Error ? error.message : 'Failed to process message';
-        await channel.sendMessage(message.channelId, `❌ Error: ${errorMessage}`);
+        const language = await this.resolveLanguage(message.channel, message.channelId);
+        await channel.sendMessage(
+          message.channelId,
+          getMessage(language, 'errorProcessing', { message: errorMessage })
+        );
       }
     }
   }
@@ -353,18 +430,21 @@ export class ChannelManager {
   private async handleStartCommand(message: ChannelMessage): Promise<void> {
     const userId = await this.userMapper.findSuperInboxUser(message.channelId, message.channel);
     const apiKey = await this.userMapper.findChannelApiKey(message.channelId, message.channel);
+    const language = await this.resolveLanguage(message.channel, message.channelId);
 
     if (userId && apiKey) {
       await this.sendNotificationToUser(
+        message.channel,
         message.channelId,
-        'Your account is already bound. Use /bind <API_KEY> to update.'
+        getMessage(language, 'bindingAlready')
       );
       return;
     }
 
     await this.sendNotificationToUser(
+      message.channel,
       message.channelId,
-      'Welcome! Please bind your account:\n/bind <API_KEY>'
+      getMessage(language, 'bindingPrompt')
     );
   }
 
@@ -374,20 +454,33 @@ export class ChannelManager {
   private async handleBindCommand(message: ChannelMessage): Promise<void> {
     const parts = message.content.trim().split(/\s+/);
     const apiKey = parts.slice(1).join(' ').trim();
+    const language = await this.resolveLanguage(message.channel, message.channelId);
 
     if (!apiKey) {
-      await this.sendNotificationToUser(message.channelId, 'Usage: /bind <API_KEY>');
+      await this.sendNotificationToUser(
+        message.channel,
+        message.channelId,
+        getMessage(language, 'usageBind')
+      );
       return;
     }
 
     const me = await this.coreApiClient.getMeByApiKey(apiKey);
     if (!me) {
-      await this.sendNotificationToUser(message.channelId, 'Invalid API key. Please try again.');
+      await this.sendNotificationToUser(
+        message.channel,
+        message.channelId,
+        getMessage(language, 'invalidApiKey')
+      );
       return;
     }
 
     await this.userMapper.bindUser(me.id, message.channelId, message.channel, apiKey);
-    await this.sendNotificationToUser(message.channelId, '✅ Binding successful. You can now send messages.');
+    await this.sendNotificationToUser(
+      message.channel,
+      message.channelId,
+      getMessage(language, 'bindingSuccess')
+    );
   }
 
   /**
@@ -455,16 +548,80 @@ export class ChannelManager {
   }
 
   /**
+   * Handle /lang command (Lark only)
+   */
+  private async handleLangCommand(message: ChannelMessage): Promise<void> {
+    const parts = message.content.trim().split(/\s+/);
+    const requestedRaw = parts[1];
+    const currentLanguage = await this.resolveLanguage(message.channel, message.channelId);
+
+    if (message.channel === 'telegram') {
+      await this.sendNotificationToUser(
+        message.channel,
+        message.channelId,
+        getMessage('en', 'telegramFixedLang')
+      );
+      return;
+    }
+
+    if (!requestedRaw) {
+      await this.sendNotificationToUser(
+        message.channel,
+        message.channelId,
+        getMessage(currentLanguage, 'langUsage')
+      );
+      return;
+    }
+
+    const requested = normalizeLanguage(requestedRaw);
+    if (!requested) {
+      await this.sendNotificationToUser(
+        message.channel,
+        message.channelId,
+        getMessage(currentLanguage, 'langInvalid')
+      );
+      return;
+    }
+
+    const userId = await this.userMapper.findSuperInboxUser(message.channelId, message.channel);
+    if (!userId) {
+      await this.sendNotificationToUser(
+        message.channel,
+        message.channelId,
+        getMessage(requested, 'pleaseBind')
+      );
+      return;
+    }
+
+    await this.userMapper.setChannelLanguage(message.channelId, message.channel, requested);
+    await this.sendNotificationToUser(
+      message.channel,
+      message.channelId,
+      getMessage(requested, 'langSet', { language: this.languageLabel(requested) })
+    );
+  }
+
+  /**
+   * Handle /help command
+   */
+  private async handleHelpCommand(message: ChannelMessage): Promise<void> {
+    const language = await this.resolveLanguage(message.channel, message.channelId);
+    await this.sendNotificationToUser(
+      message.channel,
+      message.channelId,
+      getMessage(language, 'helpText')
+    );
+  }
+
+  /**
    * Send notification message to user through channel
    * @param channelId - Platform channel ID
    * @param message - Notification message
    */
-  private async sendNotificationToUser(channelId: string, message: string): Promise<void> {
-    // Find which channel this user belongs to
-    // For now, we only support Telegram, but we could extend this
-    const channel = this.channels.get('telegram');
+  private async sendNotificationToUser(channelName: ChannelType, channelId: string, message: string): Promise<void> {
+    const channel = this.channels.get(channelName);
     if (!channel) {
-      console.warn(`No channel available to send notification to ${channelId}`);
+      console.warn(`No channel available to send notification to ${channelId} (${channelName})`);
       return;
     }
 
@@ -473,6 +630,129 @@ export class ChannelManager {
       console.log(`Notification sent to ${channelId}: ${message.substring(0, 50)}...`);
     } catch (error) {
       console.error(`Failed to send notification to ${channelId}:`, error);
+    }
+  }
+
+  private formatItemIdSuffix(itemId: string): string {
+    if (!itemId || itemId.length < 4) return '';
+    return ` (ID:${itemId.slice(-4)})`;
+  }
+
+  private async resolveLanguage(channel: ChannelType, channelId: string): Promise<LanguageCode> {
+    if (channel === 'telegram') return 'en';
+    const stored = await this.userMapper.findChannelLanguage(channelId, channel);
+    const normalized = normalizeLanguage(stored);
+    if (normalized) return normalized;
+    if (channel === 'lark') return 'zh';
+    return 'en';
+  }
+
+  private languageLabel(language: LanguageCode): string {
+    return language === 'zh' ? '中文' : 'English';
+  }
+
+  /**
+   * Handle /list command
+   */
+  private async handleListCommand(message: ChannelMessage): Promise<void> {
+    const language = await this.resolveLanguage(message.channel, message.channelId);
+    const apiKey = await this.userMapper.findChannelApiKey(message.channelId, message.channel);
+
+    if (!apiKey) {
+      await this.sendNotificationToUser(
+        message.channel,
+        message.channelId,
+        getMessage(language, 'noApiKeyBound')
+      );
+      return;
+    }
+
+    // Parse command arguments: /list [page] [limit]
+    const parts = message.content.trim().split(/\s+/);
+    const page = parts[1] ? parseInt(parts[1], 10) : 1;
+    const limit = parts[2] ? parseInt(parts[2], 10) : 10;
+
+    // Validate arguments
+    if (isNaN(page) || page < 1) {
+      await this.sendNotificationToUser(
+        message.channel,
+        message.channelId,
+        getMessage(language, 'listUsage')
+      );
+      return;
+    }
+
+    if (parts[2] !== undefined && (isNaN(limit) || limit < 1 || limit > 50)) {
+      await this.sendNotificationToUser(
+        message.channel,
+        message.channelId,
+        getMessage(language, 'listUsage')
+      );
+      return;
+    }
+
+    try {
+      const response = await this.coreApiClient.getItems(apiKey, { page, limit });
+
+      if (response.entries.length === 0) {
+        await this.sendNotificationToUser(
+          message.channel,
+          message.channelId,
+          getMessage(language, 'listEmpty')
+        );
+        return;
+      }
+
+      // Build list message
+      const totalPages = Math.ceil(response.total / response.limit);
+      let listMessage = getMessage(language, 'listTitle', { total: response.total }) + '\n\n';
+
+      for (let i = 0; i < response.entries.length; i++) {
+        const entry = response.entries[i];
+        const content = entry.content.length > 50
+          ? entry.content.substring(0, 50) + '...'
+          : entry.content;
+
+        // Format date
+        const date = new Date(entry.createdAt);
+        const dateStr = `${date.getMonth() + 1}/${date.getDate()} ${date.getHours()}:${String(date.getMinutes()).padStart(2, '0')}`;
+
+        // Format status emoji
+        const statusEmoji = entry.status === 'completed' ? '✅' :
+                           entry.status === 'processing' ? '⏳' :
+                           entry.status === 'failed' ? '❌' : '📝';
+
+        listMessage += getMessage(language, 'listItem', {
+          index: (page - 1) * response.limit + i + 1,
+          content: `${statusEmoji} ${content}`,
+          category: entry.category || 'unknown',
+          status: entry.status,
+          date: dateStr
+        }) + '\n';
+      }
+
+      // Add page info
+      listMessage += '\n' + getMessage(language, 'listPageInfo', {
+        page: response.page,
+        totalPages: totalPages
+      });
+
+      // Add "more items" hint if applicable
+      if (response.total > response.page * response.limit) {
+        listMessage += '\n' + getMessage(language, 'listMoreItems', {
+          more: response.total - response.page * response.limit,
+          page: response.page + 1
+        });
+      }
+
+      await this.sendNotificationToUser(message.channel, message.channelId, listMessage);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      await this.sendNotificationToUser(
+        message.channel,
+        message.channelId,
+        getMessage(language, 'listError', { message: errorMessage })
+      );
     }
   }
 }

@@ -88,13 +88,25 @@ export class TelegramChannel implements IChannel {
         `SuperInbox Bot Help 📚\n\n` +
           `/start - Bind your account\n` +
           `/bind <API_KEY> - Bind your account\n` +
+          `/list [page] [limit] - View your inbox\n` +
           `/help - Show this help message\n\n` +
           `Just send any message and it will be forwarded to SuperInbox!`
       );
     });
 
-    // Start polling
-    await this.bot.start();
+    // Set up menu button and command list before starting polling
+    this.setupMenuButton().catch(error => {
+      console.error('Failed to set up Telegram menu button:', error);
+    });
+
+    this.setupCommands().catch(error => {
+      console.error('Failed to set up Telegram commands:', error);
+    });
+
+    // Start polling (non-blocking)
+    this.bot.start().catch(error => {
+      console.error('Failed to start Telegram bot:', error);
+    });
 
     this.isStarted = true;
     console.log('Telegram channel started');
@@ -144,10 +156,6 @@ export class TelegramChannel implements IChannel {
     const channelId = ctx.chat?.id.toString();
 
     if (!channelId) return;
-
-    if (message.text?.startsWith('/start') || message.text?.startsWith('/help')) {
-      return;
-    }
 
     const channelMessage: ChannelMessage = {
       channel: this.name,
@@ -367,6 +375,47 @@ export class TelegramChannel implements IChannel {
     const timestamp = Date.now();
     const random = Math.random().toString(36).substring(2, 11);
     return Buffer.from(`${channelId}:${timestamp}:${random}`).toString('base64');
+  }
+
+  /**
+   * Set up Telegram menu button
+   * This configures the menu button that appears in Telegram client
+   */
+  private async setupMenuButton(): Promise<void> {
+    try {
+      await this.bot.api.setChatMenuButton({
+        menu_button: {
+          type: 'commands',
+        },
+      });
+      console.log('Telegram menu button configured successfully');
+    } catch (error) {
+      console.error('Failed to configure Telegram menu button:', error);
+    }
+  }
+
+  /**
+   * Set up Telegram command list (EN + ZH)
+   */
+  private async setupCommands(): Promise<void> {
+    const englishCommands = [
+      { command: 'start', description: 'Bind your account' },
+      { command: 'bind', description: 'Bind your account with API key' },
+      { command: 'list', description: 'View your inbox' },
+      { command: 'help', description: 'Show help message' },
+    ];
+
+    const chineseCommands = [
+      { command: 'start', description: '绑定账号' },
+      { command: 'bind', description: '使用 API key 绑定账号' },
+      { command: 'list', description: '查看收件箱' },
+      { command: 'help', description: '显示帮助' },
+    ];
+
+    await this.bot.api.setMyCommands(englishCommands, { language_code: 'en' });
+    console.log('Telegram commands set for language: en');
+    await this.bot.api.setMyCommands(chineseCommands, { language_code: 'zh' });
+    console.log('Telegram commands set for language: zh');
   }
 }
 
