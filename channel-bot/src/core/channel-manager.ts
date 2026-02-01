@@ -259,6 +259,11 @@ export class ChannelManager {
         return;
       }
 
+      if (trimmedContent.startsWith('/list')) {
+        await this.handleListCommand(message);
+        return;
+      }
+
       const language = await this.resolveLanguage(message.channel, message.channelId);
 
       // Find SuperInbox user ID by channel ID
@@ -627,5 +632,110 @@ export class ChannelManager {
 
   private languageLabel(language: LanguageCode): string {
     return language === 'zh' ? '中文' : 'English';
+  }
+
+  /**
+   * Handle /list command
+   */
+  private async handleListCommand(message: ChannelMessage): Promise<void> {
+    const language = await this.resolveLanguage(message.channel, message.channelId);
+    const apiKey = await this.userMapper.findChannelApiKey(message.channelId, message.channel);
+
+    if (!apiKey) {
+      await this.sendNotificationToUser(
+        message.channel,
+        message.channelId,
+        getMessage(language, 'noApiKeyBound')
+      );
+      return;
+    }
+
+    // Parse command arguments: /list [page] [limit]
+    const parts = message.content.trim().split(/\s+/);
+    const page = parts[1] ? parseInt(parts[1], 10) : 1;
+    const limit = parts[2] ? parseInt(parts[2], 10) : 10;
+
+    // Validate arguments
+    if (isNaN(page) || page < 1) {
+      await this.sendNotificationToUser(
+        message.channel,
+        message.channelId,
+        getMessage(language, 'listUsage')
+      );
+      return;
+    }
+
+    if (parts[2] !== undefined && (isNaN(limit) || limit < 1 || limit > 50)) {
+      await this.sendNotificationToUser(
+        message.channel,
+        message.channelId,
+        getMessage(language, 'listUsage')
+      );
+      return;
+    }
+
+    try {
+      const response = await this.coreApiClient.getItems(apiKey, { page, limit });
+
+      if (response.entries.length === 0) {
+        await this.sendNotificationToUser(
+          message.channel,
+          message.channelId,
+          getMessage(language, 'listEmpty')
+        );
+        return;
+      }
+
+      // Build list message
+      const totalPages = Math.ceil(response.total / response.limit);
+      let listMessage = getMessage(language, 'listTitle', { total: response.total }) + '\n\n';
+
+      for (let i = 0; i < response.entries.length; i++) {
+        const entry = response.entries[i];
+        const content = entry.content.length > 50
+          ? entry.content.substring(0, 50) + '...'
+          : entry.content;
+
+        // Format date
+        const date = new Date(entry.createdAt);
+        const dateStr = `${date.getMonth() + 1}/${date.getDate()} ${date.getHours()}:${String(date.getMinutes()).padStart(2, '0')}`;
+
+        // Format status emoji
+        const statusEmoji = entry.status === 'completed' ? '✅' :
+                           entry.status === 'processing' ? '⏳' :
+                           entry.status === 'failed' ? '❌' : '📝';
+
+        listMessage += getMessage(language, 'listItem', {
+          index: (page - 1) * response.limit + i + 1,
+          content: `${statusEmoji} ${content}`,
+          category: entry.category || 'unknown',
+          status: entry.status,
+          date: dateStr
+        }) + '\n';
+      }
+
+      // Add page info
+      listMessage += '\n' + getMessage(language, 'listPageInfo', {
+        page: response.page,
+        totalPages: totalPages
+      });
+
+      // Add "more items" hint if applicable
+      if (response.total > response.page * response.limit) {
+        listMessage += '\n' + getMessage(language, 'listMoreItems', {
+          more: response.total - response.page * response.limit,
+          page: response.page + 1
+        });
+      }
+
+      await this.sendNotificationToUser(message.channel, message.channelId, listMessage);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      await this.sendNotificationToUser(
+        message.channel,
+        message.channelId,
+        getMessage(language, 'listError', { message: errorMessage })
+      );
+    }
   }
 }

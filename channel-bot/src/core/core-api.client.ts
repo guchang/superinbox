@@ -10,6 +10,7 @@ import type {
   CreateItemRequest,
   Item,
   User,
+  ItemsListResponse,
 } from './core-api.interface.js';
 import { CoreApiError } from './core-api.interface.js';
 
@@ -296,6 +297,36 @@ export class CoreApiClient implements ICoreApiClient {
    */
   async distributeItem(itemId: string): Promise<unknown> {
     const response = await this.client.post(`/items/${itemId}/distribute`);
+    return response.data;
+  }
+
+  /**
+   * Get items list
+   * @param apiKey - API key for authentication
+   * @param params - Query parameters
+   * @returns Items list
+   */
+  async getItems(apiKey: string, params: {
+    limit?: number;
+    page?: number;
+    status?: string;
+    category?: string;
+  } = {}): Promise<ItemsListResponse> {
+    const queryParams = new URLSearchParams();
+
+    if (params.limit) queryParams.append('limit', params.limit.toString());
+    if (params.page) queryParams.append('page', params.page.toString());
+    if (params.status) queryParams.append('status', params.status);
+    if (params.category) queryParams.append('category', params.category);
+
+    const url = `/inbox${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+
+    const response = await this.client.get<ItemsListResponse>(url, {
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+      },
+    });
+
     return response.data;
   }
 }

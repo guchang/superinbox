@@ -35,7 +35,14 @@ type MessageKey =
   | 'failedToSendMultiple'
   | 'errorLabel'
   | 'unknownError'
-  | 'eventTitle';
+  | 'eventTitle'
+  | 'listTitle'
+  | 'listEmpty'
+  | 'listItem'
+  | 'listMoreItems'
+  | 'listPageInfo'
+  | 'listError'
+  | 'listUsage';
 
 const MESSAGES: Record<LanguageCode, Record<MessageKey, string>> = {
   en: {
@@ -74,6 +81,13 @@ const MESSAGES: Record<LanguageCode, Record<MessageKey, string>> = {
     errorLabel: 'Error',
     unknownError: 'Unknown error.',
     eventTitle: '📝 Event: {type}',
+    listTitle: '📬 Inbox ({total} items)',
+    listEmpty: '📬 Inbox is empty',
+    listItem: '{index}. {content}\n   📌 {category} | {status} | {date}',
+    listMoreItems: '... and {more} more items. Use /list {page} to see more.',
+    listPageInfo: 'Page {page} of {totalPages}',
+    listError: '❌ Failed to fetch inbox: {message}',
+    listUsage: 'Usage: /list [page] [limit=10]\nExample: /list 1 10',
   },
   zh: {
     bindingAlready: '账号已绑定，可用 /bind <API_KEY> 更新。',
@@ -111,6 +125,13 @@ const MESSAGES: Record<LanguageCode, Record<MessageKey, string>> = {
     errorLabel: '错误',
     unknownError: '未知错误。',
     eventTitle: '📝 事件：{type}',
+    listTitle: '📬 收件箱（共 {total} 条）',
+    listEmpty: '📬 收件箱为空',
+    listItem: '{index}. {content}\n   📌 {category} | {status} | {date}',
+    listMoreItems: '... 还有 {more} 条。使用 /list {page} 查看更多。',
+    listPageInfo: '第 {page}/{totalPages} 页',
+    listError: '❌ 获取收件箱失败：{message}',
+    listUsage: '用法：/list [页码] [数量=10]\n示例：/list 1 10',
   },
 };
 

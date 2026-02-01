@@ -38,6 +38,30 @@ export interface Item {
   status: string;
   createdAt: string;
   updatedAt: string;
+  category?: string;
+  entities?: Record<string, unknown>;
+}
+
+/**
+ * Items list response
+ */
+export interface ItemsListResponse {
+  total: number;
+  page: number;
+  limit: number;
+  entries: ItemEntry[];
+}
+
+/**
+ * Item entry in list
+ */
+export interface ItemEntry {
+  id: string;
+  content: string;
+  source: string;
+  category: string;
+  status: string;
+  createdAt: string;
 }
 
 /**
@@ -73,6 +97,19 @@ export interface ICoreApiClient {
    * @returns true if Core API is accessible
    */
   healthCheck(): Promise<boolean>;
+
+  /**
+   * Get items list
+   * @param apiKey - API key for authentication
+   * @param params - Query parameters
+   * @returns Items list
+   */
+  getItems(apiKey: string, params?: {
+    limit?: number;
+    page?: number;
+    status?: string;
+    category?: string;
+  }): Promise<ItemsListResponse>;
 
   /**
    * Create a new item with file upload from a URL
