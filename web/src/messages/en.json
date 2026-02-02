@@ -402,6 +402,8 @@
   "filePreview": {
     "sections": {
       "images": "Images ({count})",
+      "audio": "Audio ({count})",
+      "video": "Video ({count})",
       "files": "Files ({count})"
     },
     "dialog": {

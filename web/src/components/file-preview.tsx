@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useEffect, useRef, useState } from "react"
 import { useTranslations } from 'next-intl'
 import { Button } from "@/components/ui/button"
 import { Download, Expand, File, X } from "lucide-react"
@@ -45,9 +45,24 @@ export function FilePreview({ itemId, fileName, mimeType, allFiles }: FilePrevie
   const t = useTranslations('filePreview')
   const [imageDataUrl, setImageDataUrl] = useState<string | null>(null)
   const [isLoadingImage, setIsLoadingImage] = useState(false)
+  const [mediaObjectUrls, setMediaObjectUrls] = useState<Record<string, string>>({})
+  const mediaObjectUrlsRef = useRef<Record<string, string>>({})
+  const mediaLoadAttempts = useRef<Set<string>>(new Set())
 
   const apiBaseUrl = getApiBaseUrl()
   const fileUrl = `${apiBaseUrl}/inbox/${itemId}/file`
+
+  useEffect(() => {
+    return () => {
+      Object.values(mediaObjectUrlsRef.current).forEach((url) => URL.revokeObjectURL(url))
+    }
+  }, [])
+
+  const getAuthToken = () => {
+    return typeof window !== 'undefined'
+      ? localStorage.getItem('superinbox_auth_token')
+      : null
+  }
 
   const handleDownload = async () => {
     try {
@@ -57,13 +72,77 @@ export function FilePreview({ itemId, fileName, mimeType, allFiles }: FilePrevie
     }
   }
 
+  const downloadFileByIndex = (originalIndex: number, name: string) => {
+    const downloadUrl = `${apiBaseUrl}/inbox/${itemId}/file/${originalIndex}/download`
+    const token = getAuthToken()
+
+    fetch(downloadUrl, {
+      headers: {
+        'Authorization': token ? `Bearer ${token}` : '',
+      },
+    })
+      .then(res => {
+        if (!res.ok) throw new Error('Download failed')
+        return res.blob()
+      })
+      .then(blob => {
+        const url = URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.href = url
+        link.download = name
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        URL.revokeObjectURL(url)
+      })
+      .catch(err => console.error('Download failed:', err))
+  }
+
+  const formatFileSize = (fileSize?: number) => {
+    if (typeof fileSize !== 'number') return ''
+    const kb = fileSize / 1024
+    if (kb >= 1024) {
+      return `${(kb / 1024).toFixed(1)}MB`
+    }
+    return `${kb.toFixed(1)}KB`
+  }
+
+  const handleMediaError = async (key: string, url: string) => {
+    if (mediaObjectUrlsRef.current[key] || mediaLoadAttempts.current.has(key)) return
+    mediaLoadAttempts.current.add(key)
+
+    const token = getAuthToken()
+
+    try {
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : '',
+        },
+      })
+      if (!response.ok) throw new Error('Failed to load media')
+      const blob = await response.blob()
+      const objectUrl = URL.createObjectURL(blob)
+      mediaObjectUrlsRef.current[key] = objectUrl
+      setMediaObjectUrls(prev => ({ ...prev, [key]: objectUrl }))
+    } catch (error) {
+      console.error('Failed to load media:', error)
+    }
+  }
+
   // If we have multiple files, show horizontal scrolling layout
   if (allFiles && allFiles.length > 1) {
-    const imageFiles = allFiles.filter(file => file.mimeType.startsWith('image/'))
-    const otherFiles = allFiles.filter(file => !file.mimeType.startsWith('image/'))
+    const imageFiles = allFiles.filter(file => file.mimeType?.toLowerCase().startsWith('image/'))
+    const audioFiles = allFiles.filter(file => file.mimeType?.toLowerCase().startsWith('audio/'))
+    const videoFiles = allFiles.filter(file => file.mimeType?.toLowerCase().startsWith('video/'))
+    const otherFiles = allFiles.filter(file => {
+      const lowerMimeType = file.mimeType?.toLowerCase() ?? ''
+      return !lowerMimeType.startsWith('image/')
+        && !lowerMimeType.startsWith('audio/')
+        && !lowerMimeType.startsWith('video/')
+    })
 
     return (
-      <div className="space-y-4">
+      <div className="space-y-4 w-full max-w-full min-w-0 overflow-hidden">
         {/* Image files - horizontal scroll */}
         {imageFiles.length > 0 && (
           <div className="space-y-2">
@@ -204,6 +283,107 @@ export function FilePreview({ itemId, fileName, mimeType, allFiles }: FilePrevie
           </div>
         )}
 
+        {/* Audio files */}
+        {audioFiles.length > 0 && (
+          <div className="space-y-2">
+            <div className="text-xs font-medium text-muted-foreground">
+              {t('sections.audio', { count: audioFiles.length })}
+            </div>
+            <div className="grid gap-3 w-full min-w-0">
+              {allFiles.map((file, originalIndex) => {
+                const lowerMimeType = file.mimeType?.toLowerCase() ?? ''
+                if (!lowerMimeType.startsWith('audio/')) return null
+
+                const mediaKey = `audio-${originalIndex}`
+                const mediaUrl = `${apiBaseUrl}/inbox/${itemId}/file/${originalIndex}`
+                const mediaSrc = mediaObjectUrls[mediaKey] || mediaUrl
+
+                return (
+                  <div key={originalIndex} className="grid gap-2 p-3 bg-muted rounded-lg border">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="text-xs font-bold text-foreground truncate" title={file.fileName}>
+                          {file.fileName}
+                        </div>
+                        <div className="text-xs text-muted-foreground font-mono">
+                          {formatFileSize(file.fileSize)}
+                        </div>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => downloadFileByIndex(originalIndex, file.fileName)}
+                        className="h-8 w-8 p-0 flex-shrink-0"
+                      >
+                        <Download className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <audio
+                      controls
+                      preload="metadata"
+                      src={mediaSrc}
+                      onError={() => handleMediaError(mediaKey, mediaUrl)}
+                      className="block w-full max-w-full"
+                    />
+                  </div>
+                )
+              }).filter(Boolean)}
+            </div>
+          </div>
+        )}
+
+        {/* Video files */}
+        {videoFiles.length > 0 && (
+          <div className="space-y-2">
+            <div className="text-xs font-medium text-muted-foreground">
+              {t('sections.video', { count: videoFiles.length })}
+            </div>
+            <div className="grid gap-3 w-full min-w-0">
+              {allFiles.map((file, originalIndex) => {
+                const lowerMimeType = file.mimeType?.toLowerCase() ?? ''
+                if (!lowerMimeType.startsWith('video/')) return null
+
+                const mediaKey = `video-${originalIndex}`
+                const mediaUrl = `${apiBaseUrl}/inbox/${itemId}/file/${originalIndex}`
+                const mediaSrc = mediaObjectUrls[mediaKey] || mediaUrl
+
+                return (
+                  <div key={originalIndex} className="grid gap-2 p-3 bg-muted rounded-lg border">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="text-xs font-bold text-foreground truncate" title={file.fileName}>
+                          {file.fileName}
+                        </div>
+                        <div className="text-xs text-muted-foreground font-mono">
+                          {formatFileSize(file.fileSize)}
+                        </div>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => downloadFileByIndex(originalIndex, file.fileName)}
+                        className="h-8 w-8 p-0 flex-shrink-0"
+                      >
+                        <Download className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <div className="w-full max-w-full min-w-0 max-h-48 sm:max-h-56 lg:max-h-64 overflow-hidden rounded-md bg-black">
+                      <video
+                        controls
+                        preload="metadata"
+                        playsInline
+                        src={mediaSrc}
+                        onError={() => handleMediaError(mediaKey, mediaUrl)}
+                        className="block w-full h-full max-w-full object-contain"
+                      />
+                    </div>
+                  </div>
+                )
+              }).filter(Boolean)}
+            </div>
+          </div>
+        )}
+
         {/* Other files - horizontal scroll */}
         {otherFiles.length > 0 && (
           <div className="space-y-2">
@@ -272,7 +452,10 @@ export function FilePreview({ itemId, fileName, mimeType, allFiles }: FilePrevie
   }
 
   // Single file or fallback to original logic
-  const isImage = mimeType?.startsWith("image/")
+  const lowerMimeType = mimeType?.toLowerCase() ?? ''
+  const isImage = lowerMimeType.startsWith("image/")
+  const isAudio = lowerMimeType.startsWith("audio/")
+  const isVideo = lowerMimeType.startsWith("video/")
 
   if (isImage) {
     return (
@@ -367,6 +550,52 @@ export function FilePreview({ itemId, fileName, mimeType, allFiles }: FilePrevie
             <Download className="h-4 w-4" />
           </Button>
         </div>
+      </div>
+    )
+  }
+
+  if (isAudio || isVideo) {
+    const mediaKey = 'single-media'
+    const mediaSrc = mediaObjectUrls[mediaKey] || fileUrl
+
+    return (
+      <div className="grid gap-3 p-4 bg-muted rounded-lg border w-full max-w-full min-w-0 overflow-hidden">
+        <div className="flex items-center justify-between gap-2 max-w-full min-w-0">
+          <div className="min-w-0 max-w-full">
+            <div className="text-sm font-medium text-foreground truncate">
+              {fileName || t('fileFallback')}
+            </div>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleDownload}
+            className="h-8 w-8 p-0 flex-shrink-0"
+            aria-label={t('download')}
+          >
+            <Download className="h-4 w-4" />
+          </Button>
+        </div>
+        {isAudio ? (
+          <audio
+            controls
+            preload="metadata"
+            src={mediaSrc}
+            onError={() => handleMediaError(mediaKey, fileUrl)}
+            className="block w-full max-w-full"
+          />
+        ) : (
+          <div className="w-full max-w-full min-w-0 max-h-48 sm:max-h-56 lg:max-h-64 overflow-hidden rounded-md bg-black box-border">
+            <video
+              controls
+              preload="metadata"
+              playsInline
+              src={mediaSrc}
+              onError={() => handleMediaError(mediaKey, fileUrl)}
+              className="block w-full h-full max-w-full object-contain"
+            />
+          </div>
+        )}
       </div>
     )
   }

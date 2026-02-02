@@ -403,6 +403,8 @@
   "filePreview": {
     "sections": {
       "images": "图片 ({count})",
+      "audio": "音频 ({count})",
+      "video": "视频 ({count})",
       "files": "文件 ({count})"
     },
     "dialog": {
