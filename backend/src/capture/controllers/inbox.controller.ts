@@ -24,6 +24,29 @@ import type {
 import { ContentType } from '../../types/index.js';
 import { logger } from '../../middleware/logger.js';
 
+/**
+ * Parse date string with proper end-of-day handling
+ * If the input is a date-only string (YYYY-MM-DD), set it to end of day (23:59:59.999)
+ * If the input already includes time, preserve it as-is
+ */
+const parseDateFilter = (dateStr: string, isEndDate = false): Date => {
+  const date = new Date(dateStr);
+
+  // Check if the input is date-only (no time component)
+  // by comparing the string with its YYYY-MM-DD format
+  const isDateOnly = /^\d{4}-\d{2}-\d{2}$/.test(dateStr);
+
+  if (isDateOnly && isEndDate) {
+    // Set to end of the day (23:59:59.999)
+    date.setUTCHours(23, 59, 59, 999);
+  } else if (isDateOnly) {
+    // Set to start of the day (00:00:00.000) - this is the default
+    date.setUTCHours(0, 0, 0, 0);
+  }
+
+  return date;
+};
+
 // Validation schemas
 const createItemSchema = z.object({
   content: z.string().min(1, 'Content is required').max(10000),
@@ -206,8 +229,8 @@ export class InboxController {
         query: req.query.query as string,
         hasType: hasType as any,
         since: req.query.since ? new Date(req.query.since as string) : undefined,
-        startDate: req.query.startDate ? new Date(req.query.startDate as string) : undefined,
-        endDate: req.query.endDate ? new Date(req.query.endDate as string) : undefined,
+        startDate: req.query.startDate ? parseDateFilter(req.query.startDate as string, false) : undefined,
+        endDate: req.query.endDate ? parseDateFilter(req.query.endDate as string, true) : undefined,
         limit: finalLimit,
         offset: offset,
         sortBy: req.query.sortBy as any,
