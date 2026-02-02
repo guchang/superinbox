@@ -14,7 +14,8 @@ const getBaseUrl = (): string => process.env.SUPERINBOX_BASE_URL || DEFAULT_BASE
 
 const http = axios.create({
   baseURL: getBaseUrl(),
-  timeout: 30000
+  timeout: 30000,
+  proxy: false
 });
 
 const toolError = (message: string) => ({
