@@ -30,8 +30,6 @@ class SSEManager {
     res.setHeader('Cache-Control', 'no-cache')
     res.setHeader('Connection', 'keep-alive')
     res.setHeader('X-Accel-Buffering', 'no')
-    res.setHeader('Access-Control-Allow-Origin', '*')
-    res.setHeader('Access-Control-Allow-Headers', 'Cache-Control')
 
     // 发送初始连接事件
     this.sendSSEEvent(res, 'connected', {
