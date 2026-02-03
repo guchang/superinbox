@@ -47,6 +47,7 @@ export class LarkChannel implements IChannel {
   private messageHandler?: (message: ChannelMessage) => Promise<void>;
   private isStarted = false;
   private config: LarkChannelConfig;
+  private recentMessageIds: Map<string, number> = new Map();
 
   constructor(config: LarkChannelConfig) {
     this.config = config;
@@ -144,6 +145,11 @@ export class LarkChannel implements IChannel {
 
     if (!channelId) return;
 
+    const messageId = message.message_id;
+    if (this.shouldSkipMessage(messageId)) {
+      return;
+    }
+
     const messageType = message.message_type || 'text';
     const content = this.safeParseContent(message.content);
 
@@ -160,6 +166,61 @@ export class LarkChannel implements IChannel {
 
       await this.dispatchMessage(channelMessage);
       return;
+    }
+
+    if (messageType === 'post') {
+      const { text, attachments: postAttachments } = this.extractPostContent(content);
+      if (!text && postAttachments.length === 0) {
+        const messageId = message.message_id || 'unknown';
+        const preview = this.safeStringify(content, 500);
+        console.warn(`[Lark] Unsupported post content: messageId=${messageId} preview=${preview}`);
+        return;
+      }
+
+      if (postAttachments.length === 0) {
+        const channelMessage: ChannelMessage = {
+          channel: this.name,
+          channelId,
+          content: text,
+          raw: data,
+        };
+
+        await this.dispatchMessage(channelMessage);
+        return;
+      }
+
+      try {
+        const messageId = message.message_id;
+        if (!messageId) return;
+
+        const attachments: MessageAttachment[] = [];
+        for (const entry of postAttachments) {
+          const attachment = await this.buildAttachmentFromFileKey({
+            messageId,
+            fileKey: entry.fileKey,
+            messageType: entry.messageType,
+            mimeType: entry.mimeType,
+            fileName: entry.fileName,
+            fileSize: entry.fileSize,
+          });
+          attachments.push(attachment);
+        }
+
+        const channelMessage: ChannelMessage = {
+          channel: this.name,
+          channelId,
+          content: text || 'Post',
+          attachments,
+          raw: data,
+        };
+
+        await this.dispatchMessage(channelMessage);
+        return;
+      } catch (error) {
+        console.error('Failed to handle Lark message:', error);
+        await this.sendMessage(channelId, '❌ Failed to read file. Please try again.');
+        return;
+      }
     }
 
     try {
@@ -207,16 +268,43 @@ export class LarkChannel implements IChannel {
       return null;
     }
 
-    const resourceType = this.mapResourceType(messageType);
-    const download = await this.downloadMessageResource(messageId, fileKey, resourceType);
-
     let mimeType =
       this.pickString(content, ['mime_type', 'file_type']) ||
-      download.mimeType ||
       undefined;
 
     const fileName =
       this.pickString(content, ['file_name', 'name']) ||
+      this.buildFallbackFileName(messageType, fileKey, mimeType);
+
+    const fileSize =
+      this.pickNumber(content, ['file_size']) ||
+      undefined;
+
+    return this.buildAttachmentFromFileKey({
+      messageId,
+      fileKey,
+      messageType,
+      mimeType,
+      fileName,
+      fileSize,
+    });
+  }
+
+  private async buildAttachmentFromFileKey(params: {
+    messageId: string;
+    fileKey: string;
+    messageType: string;
+    mimeType?: string;
+    fileName?: string;
+    fileSize?: number;
+  }): Promise<MessageAttachment> {
+    const { messageId, fileKey, messageType } = params;
+    const resourceType = this.mapResourceType(messageType);
+    const download = await this.downloadMessageResource(messageId, fileKey, resourceType);
+
+    let mimeType = params.mimeType || download.mimeType || undefined;
+    const fileName =
+      params.fileName ||
       this.buildFallbackFileName(messageType, fileKey, mimeType);
 
     if (
@@ -231,7 +319,7 @@ export class LarkChannel implements IChannel {
     }
 
     const fileSize =
-      this.pickNumber(content, ['file_size']) ||
+      params.fileSize ||
       download.fileSize ||
       undefined;
 
@@ -394,6 +482,305 @@ export class LarkChannel implements IChannel {
     } catch {
       return null;
     }
+  }
+
+  private extractPostContent(content: Record<string, unknown> | null): {
+    text: string;
+    attachments: Array<{
+      fileKey: string;
+      messageType: string;
+      fileName?: string;
+      mimeType?: string;
+      fileSize?: number;
+    }>;
+  } {
+    if (!content) return { text: '', attachments: [] };
+
+    const post = content.post;
+    let postObj: Record<string, unknown> | null = null;
+    if (post && typeof post === 'object' && !Array.isArray(post)) {
+      postObj = post as Record<string, unknown>;
+    } else if (content.content && Array.isArray(content.content)) {
+      postObj = content;
+    }
+
+    if (!postObj) {
+      return { text: '', attachments: [] };
+    }
+
+    const localeBlocks: Record<string, unknown>[] = [];
+    const textLines: string[] = [];
+    const attachments: Array<{
+      fileKey: string;
+      messageType: string;
+      fileName?: string;
+      mimeType?: string;
+      fileSize?: number;
+    }> = [];
+    const attachmentKeys = new Set<string>();
+
+    if (postObj.content && typeof postObj.content === 'object') {
+      localeBlocks.push(postObj);
+    } else {
+      for (const value of Object.values(postObj)) {
+        if (value && typeof value === 'object' && !Array.isArray(value)) {
+          localeBlocks.push(value as Record<string, unknown>);
+        }
+      }
+    }
+
+    const pushText = (value: string) => {
+      const trimmed = value.trim();
+      if (!trimmed) return;
+      if (textLines.length === 0 || textLines[textLines.length - 1] !== trimmed) {
+        textLines.push(trimmed);
+      }
+    };
+
+    const normalizeType = (value?: string): string | undefined => {
+      if (!value) return undefined;
+      const lower = value.toLowerCase();
+      if (lower.startsWith('image/')) return 'image';
+      if (lower.startsWith('video/')) return 'video';
+      if (lower.startsWith('audio/')) return 'audio';
+      if (lower === 'image' || lower === 'video' || lower === 'audio') return lower;
+      return undefined;
+    };
+
+    const addAttachment = (entry: {
+      fileKey?: string;
+      messageType?: string;
+      fileName?: string;
+      mimeType?: string;
+      fileSize?: number;
+    }) => {
+      if (!entry.fileKey || !entry.messageType) return;
+      const key = `${entry.messageType}:${entry.fileKey}`;
+      if (attachmentKeys.has(key)) return;
+      attachmentKeys.add(key);
+      attachments.push({
+        fileKey: entry.fileKey,
+        messageType: entry.messageType,
+        fileName: entry.fileName,
+        mimeType: entry.mimeType,
+        fileSize: entry.fileSize,
+      });
+    };
+
+    const collectFromNode = (node: unknown) => {
+      if (!node) return;
+      if (typeof node === 'string') {
+        pushText(node);
+        return;
+      }
+      if (Array.isArray(node)) {
+        for (const entry of node) collectFromNode(entry);
+        return;
+      }
+      if (typeof node !== 'object') return;
+
+      const obj = node as Record<string, unknown>;
+      const tag = this.pickString(obj, ['tag', 'type']);
+      const imageKey = this.pickString(obj, ['image_key', 'imageKey']);
+      const fileKey = this.pickString(obj, ['file_key', 'fileKey']);
+      const videoKey = this.pickString(obj, ['video_key', 'videoKey', 'media_key', 'mediaKey']);
+      const audioKey = this.pickString(obj, ['audio_key', 'audioKey']);
+      const mimeType = this.pickString(obj, ['mime_type', 'file_type', 'mimeType', 'fileType']);
+      const fileName = this.pickString(obj, ['file_name', 'fileName', 'name']);
+      const fileSize = this.pickNumber(obj, ['file_size', 'fileSize', 'size']);
+
+      const imageKeyList = obj.image_key_list;
+      if (Array.isArray(imageKeyList)) {
+        for (const entry of imageKeyList) {
+          if (typeof entry === 'string' && entry) {
+            addAttachment({ fileKey: entry, messageType: 'image', fileName, mimeType, fileSize });
+          }
+        }
+      }
+
+      const inferredType = normalizeType(mimeType);
+      if (tag === 'img' || tag === 'image') {
+        addAttachment({
+          fileKey: imageKey || fileKey,
+          messageType: 'image',
+          fileName,
+          mimeType,
+          fileSize,
+        });
+      } else if (tag === 'media' || tag === 'video') {
+        if (videoKey || fileKey) {
+          addAttachment({
+            fileKey: videoKey || fileKey,
+            messageType: 'video',
+            fileName,
+            mimeType,
+            fileSize,
+          });
+        } else if (imageKey) {
+          addAttachment({
+            fileKey: imageKey,
+            messageType: 'image',
+            fileName,
+            mimeType,
+            fileSize,
+          });
+        }
+      } else if (tag === 'audio') {
+        addAttachment({
+          fileKey: audioKey || fileKey,
+          messageType: 'audio',
+          fileName,
+          mimeType,
+          fileSize,
+        });
+      } else if (tag === 'file') {
+        addAttachment({
+          fileKey: fileKey,
+          messageType: 'file',
+          fileName,
+          mimeType,
+          fileSize,
+        });
+      } else if (inferredType) {
+        addAttachment({
+          fileKey: (inferredType === 'image' ? imageKey : undefined) || fileKey || videoKey || audioKey,
+          messageType: inferredType,
+          fileName,
+          mimeType,
+          fileSize,
+        });
+      } else if (imageKey) {
+        addAttachment({
+          fileKey: imageKey,
+          messageType: 'image',
+          fileName,
+          mimeType,
+          fileSize,
+        });
+      } else if (videoKey) {
+        addAttachment({
+          fileKey: videoKey,
+          messageType: 'video',
+          fileName,
+          mimeType,
+          fileSize,
+        });
+      } else if (audioKey) {
+        addAttachment({
+          fileKey: audioKey,
+          messageType: 'audio',
+          fileName,
+          mimeType,
+          fileSize,
+        });
+      } else if (fileKey) {
+        addAttachment({
+          fileKey: fileKey,
+          messageType: 'file',
+          fileName,
+          mimeType,
+          fileSize,
+        });
+      }
+
+      const text = this.pickString(obj, ['text', 'content', 'title']);
+      if (text) pushText(text);
+
+      const href = this.pickString(obj, ['href']);
+      if (href) pushText(href);
+
+      for (const value of Object.values(obj)) {
+        if (value !== obj) collectFromNode(value);
+      }
+    };
+
+    for (const localeBlock of localeBlocks) {
+      const title = this.pickString(localeBlock, ['title']);
+      if (title) pushText(title);
+
+      const contentLines = localeBlock.content;
+      if (Array.isArray(contentLines)) {
+        for (const line of contentLines) {
+          if (Array.isArray(line)) {
+            const lineParts: string[] = [];
+            for (const node of line) {
+              if (!node || typeof node !== 'object') {
+                if (typeof node === 'string') lineParts.push(node);
+                continue;
+              }
+              const nodeObj = node as Record<string, unknown>;
+              const tag = this.pickString(nodeObj, ['tag']);
+              if (tag === 'img' || tag === 'image') {
+                const key = this.pickString(nodeObj, ['image_key', 'imageKey']);
+                if (key) {
+                  addAttachment({
+                    fileKey: key,
+                    messageType: 'image',
+                    fileName: this.pickString(nodeObj, ['file_name', 'fileName', 'name']),
+                    mimeType: this.pickString(nodeObj, ['mime_type', 'file_type', 'mimeType', 'fileType']),
+                    fileSize: this.pickNumber(nodeObj, ['file_size', 'fileSize', 'size']),
+                  });
+                }
+                continue;
+              }
+
+              const text = this.pickString(nodeObj, ['text', 'content']);
+              if (text) lineParts.push(text);
+
+              if (tag === 'a') {
+                const href = this.pickString(nodeObj, ['href']);
+                if (href && (!text || !text.includes(href))) {
+                  lineParts.push(` ${href}`);
+                }
+              }
+
+              collectFromNode(nodeObj);
+            }
+
+            if (lineParts.length > 0) {
+              pushText(lineParts.join(''));
+            }
+          } else {
+            collectFromNode(line);
+          }
+        }
+      } else {
+        collectFromNode(localeBlock);
+      }
+    }
+
+    return {
+      text: textLines.join('\n').trim(),
+      attachments,
+    };
+  }
+
+  private safeStringify(value: unknown, maxLength: number): string {
+    try {
+      const raw = typeof value === 'string' ? value : JSON.stringify(value);
+      if (!raw) return '';
+      return raw.length > maxLength ? `${raw.slice(0, maxLength)}...` : raw;
+    } catch {
+      return '';
+    }
+  }
+
+  private shouldSkipMessage(messageId?: string): boolean {
+    if (!messageId) return false;
+    const now = Date.now();
+    const ttl = 6 * 60 * 60 * 1000;
+    const last = this.recentMessageIds.get(messageId);
+    if (last && now - last < ttl) return true;
+    this.recentMessageIds.set(messageId, now);
+    if (this.recentMessageIds.size > 1000) {
+      for (const [id, timestamp] of this.recentMessageIds) {
+        if (now - timestamp > ttl) {
+          this.recentMessageIds.delete(id);
+        }
+        if (this.recentMessageIds.size <= 800) break;
+      }
+    }
+    return false;
   }
 
   private pickString(obj: Record<string, unknown> | null, keys: string[]): string | undefined {
