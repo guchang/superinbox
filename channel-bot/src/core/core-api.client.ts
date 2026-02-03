@@ -263,6 +263,66 @@ export class CoreApiClient implements ICoreApiClient {
   }
 
   /**
+   * Create a new item with multiple file uploads from Buffers
+   * @param params - File upload params
+   * @param apiKey - API key for authentication
+   */
+  async createItemWithFilesBuffer(params: {
+    files: Array<{
+      buffer: Buffer;
+      fileName?: string;
+      mimeType?: string;
+    }>;
+    content?: string;
+    source?: string;
+    maxBytes?: number;
+  }, apiKey: string): Promise<Item> {
+    if (!params.files || params.files.length === 0) {
+      throw new CoreApiError('No files uploaded', 400);
+    }
+
+    if (params.maxBytes) {
+      for (const file of params.files) {
+        if (file.buffer.byteLength > params.maxBytes) {
+          throw new CoreApiError('File too large', 413);
+        }
+      }
+    }
+
+    const formData = new FormData();
+    for (const file of params.files) {
+      const blob = new Blob([file.buffer], { type: file.mimeType || 'application/octet-stream' });
+      formData.append('files', blob, file.fileName || 'file');
+    }
+    formData.append('content', params.content || '');
+    formData.append('source', params.source || 'telegram');
+
+    const uploadUrl = `${this.client.defaults.baseURL}/inbox/files`;
+    const uploadResponse = await fetch(uploadUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      body: formData,
+    });
+
+    const uploadData = await uploadResponse.json().catch(() => null);
+    if (!uploadResponse.ok) {
+      const message =
+        uploadData?.error?.message ||
+        uploadData?.message ||
+        `Upload failed (HTTP ${uploadResponse.status})`;
+      throw new CoreApiError(message, uploadResponse.status, uploadData);
+    }
+
+    if (uploadData?.success && uploadData?.data) {
+      return uploadData.data as Item;
+    }
+
+    return uploadData as Item;
+  }
+
+  /**
    * Get item by ID
    * @param itemId - Item ID
    * @returns Item or null if not found

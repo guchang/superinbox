@@ -10,6 +10,7 @@ type MessageKey =
   | 'noApiKeyBound'
   | 'failedReadFile'
   | 'fileTooLarge'
+  | 'tooManyFiles'
   | 'unsupportedFileType'
   | 'addedToInbox'
   | 'errorProcessing'
@@ -56,6 +57,7 @@ const MESSAGES: Record<LanguageCode, Record<MessageKey, string>> = {
     noApiKeyBound: 'No API key bound. Use /bind <API_KEY> to bind.',
     failedReadFile: 'Failed to read file. Please try again.',
     fileTooLarge: 'File too large. Max {max}MB.',
+    tooManyFiles: 'Too many files (images/videos/etc). Max {max}.',
     unsupportedFileType: 'Unsupported file type: {mime}',
     addedToInbox: '✅ Added to inbox',
     errorProcessing: '❌ Error: {message}',
@@ -108,6 +110,7 @@ const MESSAGES: Record<LanguageCode, Record<MessageKey, string>> = {
     noApiKeyBound: '未绑定 API key，请用 /bind <API_KEY> 绑定。',
     failedReadFile: '读取文件失败，请重试。',
     fileTooLarge: '文件过大，最大 {max}MB。',
+    tooManyFiles: '文件（图片、视频等类型）数量过多，最多 {max} 个。',
     unsupportedFileType: '不支持的文件类型：{mime}',
     addedToInbox: '✅ 已加入收件箱',
     errorProcessing: '❌ 错误：{message}',

@@ -134,6 +134,20 @@ export interface ICoreApiClient {
     source?: string;
     maxBytes?: number;
   }, apiKey: string): Promise<Item>;
+
+  /**
+   * Create a new item with multiple file uploads from Buffers
+   */
+  createItemWithFilesBuffer(params: {
+    files: Array<{
+      buffer: Buffer;
+      fileName?: string;
+      mimeType?: string;
+    }>;
+    content?: string;
+    source?: string;
+    maxBytes?: number;
+  }, apiKey: string): Promise<Item>;
 }
 
 /**

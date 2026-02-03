@@ -20,6 +20,7 @@ import { buildNotificationMessage } from './notification-builder.js';
 import { getMessage, normalizeLanguage, type LanguageCode } from './messages.js';
 
 const MAX_UPLOAD_BYTES = 10 * 1024 * 1024; // 10MB
+const MAX_UPLOAD_FILES = 5;
 const ALLOWED_MIME_TYPES = new Set([
   'image/jpeg',
   'image/jpg',
@@ -304,8 +305,89 @@ export class ChannelManager {
         return;
       }
 
-      const attachment = message.attachments?.[0];
-      if (attachment) {
+      const attachments = message.attachments;
+      if (attachments && attachments.length > 0) {
+        if (attachments.length > MAX_UPLOAD_FILES) {
+          await this.sendNotificationToUser(
+            message.channel,
+            message.channelId,
+            getMessage(language, 'tooManyFiles', { max: MAX_UPLOAD_FILES })
+          );
+          return;
+        }
+
+        if (attachments.length > 1) {
+          for (const attachment of attachments) {
+            if (!attachment.data) {
+              await this.sendNotificationToUser(
+                message.channel,
+                message.channelId,
+                getMessage(language, 'failedReadFile')
+              );
+              return;
+            }
+
+            if (attachment.data.byteLength > MAX_UPLOAD_BYTES) {
+              await this.sendNotificationToUser(
+                message.channel,
+                message.channelId,
+                getMessage(language, 'fileTooLarge', {
+                  max: Math.round(MAX_UPLOAD_BYTES / (1024 * 1024)),
+                })
+              );
+              return;
+            }
+
+            if (!attachment.mimeType || !ALLOWED_MIME_TYPES.has(attachment.mimeType)) {
+              const mime = attachment.mimeType || getMessage(language, 'unknownMime');
+              await this.sendNotificationToUser(
+                message.channel,
+                message.channelId,
+                getMessage(language, 'unsupportedFileType', { mime })
+              );
+              return;
+            }
+          }
+
+          try {
+            const item = await this.coreApiClient.createItemWithFilesBuffer({
+              files: attachments.map((attachment) => ({
+                buffer: attachment.data as Buffer,
+                fileName: attachment.fileName,
+                mimeType: attachment.mimeType,
+              })),
+              content: message.content,
+              source: message.channel,
+              maxBytes: MAX_UPLOAD_BYTES,
+            }, apiKey);
+
+            console.log(`Item created: ${item.id} from ${message.channel}`);
+
+            // Store mapping for notifications
+            this.itemChannelMapping.set(item.id, { channelId: message.channelId, channel: message.channel });
+
+            // Subscribe to SSE events for this item
+            this.sseService.subscribeToItem(item.id, message.channelId, message.channel, apiKey);
+
+            await this.sendNotificationToUser(
+              message.channel,
+              message.channelId,
+              `${getMessage(language, 'addedToInbox')}${this.formatItemIdSuffix(item.id)}`
+            );
+            return;
+          } catch (error) {
+            const errorMessage =
+              error instanceof Error ? error.message : 'Failed to upload files';
+            await this.sendNotificationToUser(
+              message.channel,
+              message.channelId,
+              getMessage(language, 'uploadFailed', { message: errorMessage })
+            );
+            return;
+          }
+        }
+
+        const attachment = attachments[0];
         if (!attachment.url && !attachment.data) {
           await this.sendNotificationToUser(
             message.channel,
