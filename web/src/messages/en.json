@@ -234,7 +234,12 @@
       "unknownTool": "unknown"
     },
     "actions": {
-      "viewDetails": "View details"
+      "viewDetails": "View details",
+      "edit": "Edit",
+      "detail": "Detail",
+      "reclassify": "Reclassify",
+      "redistribute": "Redistribute",
+      "editContent": "Edit content"
     },
     "badge": {
       "analyzing": "Background processing, feel free to close",
@@ -248,6 +253,28 @@
       "unknown": "UNKNOWN"
     },
     "confirmDelete": "Delete this item?",
+    "emptyContentError": "Please enter content or select files",
+    "fileSelected": "File selected",
+    "inputPlaceholder": "Capture something...",
+    "inputPlaceholderExpanded": "Capture ideas, todos, bills, URLs...",
+    "voiceComingSoon": "Voice input coming soon",
+    "captureButton": "Capture",
+    "inputHint": "Cmd/Ctrl + Enter to submit, ESC to cancel",
+    "sections": {
+      "content": "Original content",
+      "attachments": "Attachments",
+      "aiAnalysis": "AI Analysis",
+      "distributionTargets": "Distribution targets",
+      "rules": "Rules"
+    },
+    "analysis": {
+      "analyzing": "Analyzing content...",
+      "category": "Category",
+      "entities": "Entities",
+      "summary": "Summary",
+      "intent": "Intent",
+      "confidence": "Confidence"
+    },
     "toast": {
       "deleteSuccess": {
         "title": "Deleted",
@@ -262,6 +289,27 @@
       },
       "retryFailure": {
         "title": "Retry failed"
+      },
+      "reclassifySuccess": {
+        "title": "Reclassification started",
+        "description": "Re-analyzing item"
+      },
+      "reclassifyFailure": {
+        "title": "Reclassification failed"
+      },
+      "redistributeSuccess": {
+        "title": "Redistribution started",
+        "description": "Distributing item with current routing rules"
+      },
+      "redistributeFailure": {
+        "title": "Redistribution failed"
+      },
+      "createSuccess": {
+        "title": "Created",
+        "description": "New item added to inbox"
+      },
+      "createFailure": {
+        "title": "Create failed"
       }
     }
   },
@@ -272,9 +320,12 @@
     "notFound": "Item not found",
     "confirmDelete": "Delete this item?",
     "actions": {
+      "edit": "Edit",
+      "detail": "Detail",
       "reclassify": "Reclassify",
       "redistribute": "Redistribute",
-      "refresh": "Refresh"
+      "refresh": "Refresh",
+      "editContent": "Edit content"
     },
     "categories": {
       "todo": "Todo",
@@ -301,16 +352,17 @@
     "sections": {
       "content": "Original content",
       "attachments": "Attachments",
-      "analysis": "AI analysis",
-      "metadata": "Metadata",
-      "properties": "Properties",
-      "distribution": "Distribution results"
+      "aiAnalysis": "AI Analysis",
+      "distributionTargets": "Distribution targets",
+      "rules": "Rules"
     },
     "analysis": {
-      "intent": "Intent",
-      "confidence": "Confidence",
+      "analyzing": "Analyzing content...",
+      "category": "Category",
+      "entities": "Entities",
       "summary": "Summary",
-      "entities": "Extracted entities"
+      "intent": "Intent",
+      "confidence": "Confidence"
     },
     "content": {
       "empty": "No text content"
@@ -354,6 +406,8 @@
     }
   },
   "commandSearch": {
+    "title": "Search",
+    "description": "Search your memories by keywords, category, status, and more",
     "options": {
       "category": {
         "label": "Category"

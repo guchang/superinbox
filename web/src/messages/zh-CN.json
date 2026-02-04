@@ -11,6 +11,7 @@
     "operationFailed": "操作失败",
     "tryLater": "请稍后重试",
     "cancel": "取消",
+    "close": "关闭",
     "processing": "处理中",
     "reload": "重新加载",
     "showing": "显示",
@@ -234,7 +235,12 @@
       "unknownTool": "未知工具"
     },
     "actions": {
-      "viewDetails": "查看详情"
+      "viewDetails": "查看详情",
+      "edit": "编辑",
+      "detail": "详情",
+      "reclassify": "重新识别",
+      "redistribute": "重新分发",
+      "editContent": "编辑内容"
     },
     "badge": {
       "analyzing": "后台解析中，可关闭页面",
@@ -262,7 +268,50 @@
       },
       "retryFailure": {
         "title": "重试失败"
+      },
+      "reclassifySuccess": {
+        "title": "重新识别成功",
+        "description": "AI 正在重新分析内容"
+      },
+      "reclassifyFailure": {
+        "title": "重新识别失败"
+      },
+      "redistributeSuccess": {
+        "title": "重新分发成功",
+        "description": "正在重新分发到目标平台"
+      },
+      "redistributeFailure": {
+        "title": "重新分发失败"
+      },
+      "createSuccess": {
+        "title": "创建成功",
+        "description": "新条目已添加到收件箱"
+      },
+      "createFailure": {
+        "title": "创建失败"
       }
+    },
+    "emptyContentError": "请输入内容或选择文件",
+    "fileSelected": "文件已选择",
+    "inputPlaceholder": "记录点什么...",
+    "inputPlaceholderExpanded": "记录想法、待办、账单、URL...",
+    "voiceComingSoon": "语音输入即将推出",
+    "captureButton": "记录",
+    "inputHint": "按 Cmd/Ctrl + Enter 提交，ESC 取消",
+    "sections": {
+      "content": "原始内容",
+      "attachments": "附件",
+      "aiAnalysis": "AI 分析",
+      "distributionTargets": "分发目标",
+      "rules": "规则"
+    },
+    "analysis": {
+      "analyzing": "正在分析内容...",
+      "category": "分类",
+      "entities": "实体",
+      "summary": "摘要",
+      "intent": "意图分类",
+      "confidence": "置信度"
     }
   },
   "inboxDetail": {
@@ -273,9 +322,12 @@
     "loading": "加载中...",
     "confirmDelete": "确定要删除这条记录吗？",
     "actions": {
+      "edit": "编辑",
+      "detail": "详情",
       "reclassify": "重新分类",
       "redistribute": "重新分发",
-      "refresh": "刷新"
+      "refresh": "刷新",
+      "editContent": "编辑内容"
     },
     "categories": {
       "todo": "待办",
@@ -302,16 +354,17 @@
     "sections": {
       "content": "原始内容",
       "attachments": "附件",
-      "analysis": "AI 分析结果",
-      "metadata": "元数据",
-      "properties": "属性",
-      "distribution": "分发结果"
+      "aiAnalysis": "AI 分析",
+      "distributionTargets": "分发目标",
+      "rules": "规则"
     },
     "analysis": {
-      "intent": "意图分类",
-      "confidence": "置信度",
+      "analyzing": "正在分析内容...",
+      "category": "分类",
+      "entities": "实体",
       "summary": "摘要",
-      "entities": "提取的实体"
+      "intent": "意图分类",
+      "confidence": "置信度"
     },
     "content": {
       "empty": "无文本内容"
@@ -355,6 +408,8 @@
     }
   },
   "commandSearch": {
+    "title": "搜索",
+    "description": "通过关键词、分类、状态等搜索您的记忆",
     "options": {
       "category": {
         "label": "分类"
@@ -939,7 +994,8 @@
       "enabled": "已启用",
       "disabled": "已停用",
       "healthy": "健康",
-      "unhealthy": "异常"
+      "unhealthy": "异常",
+      "pending": "未测试"
     },
     "transport": {
       "stdio": "📡 Stdio",
@@ -1056,7 +1112,9 @@
     },
     "tools": {
       "title": "可用工具 ({count})",
-      "noTools": "暂无工具信息"
+      "noTools": "暂无可用工具",
+      "unavailable": "连接器状态异常，无法获取工具列表",
+      "notTested": "请先测试连接后再查看工具列表"
     },
     "config": {
       "title": "配置信息",
@@ -1082,13 +1140,6 @@
         "noCommand": "配置中必须包含 command 字段"
       }
     },
-    "status": {
-      "enabled": "已启用",
-      "disabled": "已停用",
-      "healthy": "健康",
-      "unhealthy": "异常",
-      "pending": "未测试"
-    },
     "validation": {
       "name": {
         "title": "请输入连接器名称",
@@ -1102,12 +1153,6 @@
         "title": "请输入 API Key",
         "description": "API Key 不能为空（将作为环境变量传递给 MCP 服务器）"
       }
-    },
-    "tools": {
-      "title": "可用工具 ({count})",
-      "noTools": "暂无可用工具",
-      "unavailable": "连接器状态异常，无法获取工具列表",
-      "notTested": "请先测试连接后再查看工具列表"
     }
   },
   "errors": {
