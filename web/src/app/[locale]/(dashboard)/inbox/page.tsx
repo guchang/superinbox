@@ -5,7 +5,7 @@ import { useInfiniteQuery, useMutation, useQueryClient, useQuery } from '@tansta
 import { categoriesApi } from '@/lib/api/categories'
 import { inboxApi } from '@/lib/api/inbox'
 import { Button } from '@/components/ui/button'
-import { CategoryType } from '@/types'
+import { CategoryType, ContentType, Item } from '@/types'
 import {
   Loader2,
   LayoutGrid,
@@ -20,11 +20,14 @@ import { Link } from '@/i18n/navigation'
 import { useToast } from '@/hooks/use-toast'
 import { useState, useMemo, useEffect, useRef } from 'react'
 import { MemoryCard } from '@/components/inbox/memory-card'
-import { CommandSearch, SearchFilters } from '@/components/shared/command-search'
+import { ExpandableInput } from '@/components/inbox/expandable-input'
+import { DetailModal } from '@/components/inbox/detail-modal'
+import { SearchDialog, SearchFilters } from '@/components/shared/search-dialog'
 import { useAutoRefetch } from '@/hooks/use-auto-refetch'
 import { getApiErrorMessage } from '@/lib/i18n/api-errors'
 import { cn } from '@/lib/utils'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useSearchParams } from 'next/navigation'
 
 // 媒体类型配置
 const contentTypeFilters = [
@@ -43,11 +46,29 @@ export default function InboxPage() {
   const errors = useTranslations('errors')
   const queryClient = useQueryClient()
   const { toast } = useToast()
+  const searchParams = useSearchParams()
+
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [retryingId, setRetryingId] = useState<string | null>(null)
   const [searchFilters, setSearchFilters] = useState<SearchFilters>({ query: '' })
   const [activeType, setActiveType] = useState<string>('all')
+  const [selectedItem, setSelectedItem] = useState<Item | null>(null)
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
+  const [editingItem, setEditingItem] = useState<Item | null>(null)
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [createdItemId, setCreatedItemId] = useState<string | null>(null)
+  const [isSearchOpen, setIsSearchOpen] = useState(false)
   const loadMoreRef = useRef<HTMLDivElement>(null)
+
+  // 监听 URL 参数控制搜索对话框
+  useEffect(() => {
+    const searchParam = searchParams.get('search')
+    if (searchParam === 'true') {
+      setIsSearchOpen(true)
+      // 清除 URL 参数但保持对话框打开
+      window.history.replaceState({}, '', '/inbox')
+    }
+  }, [searchParams])
 
   const { data: categoriesData } = useQuery({
     queryKey: ['categories'],
@@ -214,6 +235,111 @@ export default function InboxPage() {
     await retryMutation.mutateAsync(id)
   }
 
+  // 查看详情
+  const handleViewDetail = (item: Item) => {
+    setSelectedItem(item)
+    setIsDetailModalOpen(true)
+  }
+
+  // 编辑条目
+  const handleEdit = (item: Item) => {
+    setEditingItem(item)
+    setIsEditDialogOpen(true)
+  }
+
+  // 重分类 mutation
+  const reclassifyMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await inboxApi.reclassifyItem(id)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['inbox'] })
+      toast({
+        title: t('toast.reclassifySuccess.title'),
+        description: t('toast.reclassifySuccess.description'),
+      })
+    },
+    onError: (error) => {
+      toast({
+        title: t('toast.reclassifyFailure.title'),
+        description: getApiErrorMessage(error, errors, common('unknownError')),
+        variant: 'destructive',
+      })
+    },
+  })
+
+  // 重新分发 mutation
+  const redistributeMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await inboxApi.distributeItem(id)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['inbox'] })
+      toast({
+        title: t('toast.redistributeSuccess.title'),
+        description: t('toast.redistributeSuccess.description'),
+      })
+    },
+    onError: (error) => {
+      toast({
+        title: t('toast.redistributeFailure.title'),
+        description: getApiErrorMessage(error, errors, common('unknownError')),
+        variant: 'destructive',
+      })
+    },
+  })
+
+  // 创建条目 mutation
+  const createMutation = useMutation({
+    mutationFn: async ({ content, files }: { content: string; files?: File[] }) => {
+      if (files && files.length > 0) {
+        // 上传文件
+        const formData = new FormData()
+        files.forEach((file) => formData.append('files', file))
+        if (content.trim()) {
+          formData.append('content', content)
+        }
+        return inboxApi.uploadMultipleFiles(formData)
+      } else {
+        // 纯文本
+        return inboxApi.createItem({
+          content,
+          contentType: ContentType.TEXT,
+          source: 'web',
+        })
+      }
+    },
+    onSuccess: (response) => {
+      queryClient.invalidateQueries({ queryKey: ['inbox'] })
+      toast({
+        title: t('toast.createSuccess.title'),
+        description: t('toast.createSuccess.description'),
+      })
+      if (response?.success && response.data?.id) {
+        setCreatedItemId(response.data.id)
+      }
+    },
+    onError: (error) => {
+      toast({
+        title: t('toast.createFailure.title'),
+        description: getApiErrorMessage(error, errors, common('unknownError')),
+        variant: 'destructive',
+      })
+    },
+  })
+
+  const handleCreate = async (content: string, files?: File[]) => {
+    await createMutation.mutateAsync({ content, files })
+  }
+
+  useEffect(() => {
+    if (!createdItemId) return
+    const hasItem = items.some((item) => item.id === createdItemId)
+    if (!hasItem) return
+    const timeout = setTimeout(() => setCreatedItemId(null), 800)
+    return () => clearTimeout(timeout)
+  }, [createdItemId, items])
+
   // 获取当前分类标签
   const currentCategoryLabel = useMemo(() => {
     if (searchFilters.category) {
@@ -223,53 +349,61 @@ export default function InboxPage() {
   }, [searchFilters.category, categoryLabelMap, t])
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="h-full flex flex-col bg-[#f5f5f7] dark:bg-[#0b0b0f]">
       {/* 顶部区域：标题、搜索、类型筛选 */}
-      <div className="shrink-0 px-4 md:px-6 pt-6 pb-4 space-y-4 border-b border-border/40 bg-background/50">
-        {/* 标题和搜索 */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold tracking-tight">{currentCategoryLabel}</h1>
+      {/* playground 风格：移除固定容器限制，让输入框可以自由定位 */}
+      <div className="shrink-0 px-4 md:px-6 pt-6 pb-4 border-b border-black/[0.03] dark:border-white/[0.03] bg-white/50 dark:bg-[#0b0b0f]/50 backdrop-blur-xl relative">
+        <ExpandableInput
+          onSubmit={handleCreate}
+          isSubmitting={createMutation.isPending}
+        />
+      </div>
+
+      {/* 搜索对话框 */}
+      <SearchDialog
+        filters={searchFilters}
+        onFiltersChange={setSearchFilters}
+        availableSources={availableSources}
+        availableCategories={activeCategories.map((category) => ({
+          key: category.key,
+          name: category.name,
+        }))}
+        open={isSearchOpen}
+        onOpenChange={setIsSearchOpen}
+      />
+
+      {/* 结果区域 */}
+      <div className="flex-1 overflow-y-auto p-4 md:p-6 bg-black/[0.01] dark:bg-[#0b0b0f]/40">
+        <div className="flex flex-col gap-3 pb-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="text-2xl font-bold tracking-tight">
+              {currentCategoryLabel}
+            </span>
             {totalCount > 0 && (
-              <span className="px-2 py-0.5 rounded-md text-xs font-black bg-muted">
+              <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-muted">
                 {totalCount}
               </span>
             )}
+            {/* 媒体类型筛选 Pills */}
+            <div className="flex flex-wrap items-center gap-2">
+              {contentTypeFilters.map((type) => (
+                <button
+                  key={type.id}
+                  onClick={() => setActiveType(type.id)}
+                  className={cn(
+                    "whitespace-nowrap px-4 py-2 rounded-xl text-[11px] font-black uppercase flex items-center gap-2 transition-all shrink-0",
+                    activeType === type.id
+                      ? "bg-black text-white dark:bg-white dark:text-black"
+                      : "bg-black/5 opacity-40 hover:opacity-100 dark:bg-white/5"
+                  )}
+                >
+                  <type.icon size={11} />
+                  <span>{type.label}</span>
+                </button>
+              ))}
+            </div>
           </div>
-
-          <CommandSearch
-            filters={searchFilters}
-            onFiltersChange={setSearchFilters}
-            availableSources={availableSources}
-            availableCategories={activeCategories.map((category) => ({
-              key: category.key,
-              name: category.name,
-            }))}
-          />
         </div>
-
-        {/* 媒体类型筛选 Pills - 紧凑设计 */}
-        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
-          {contentTypeFilters.map((type) => (
-            <button
-              key={type.id}
-              onClick={() => setActiveType(type.id)}
-              className={cn(
-                "whitespace-nowrap px-3 py-1.5 rounded-lg text-[11px] font-semibold flex items-center gap-1.5 transition-all shrink-0",
-                activeType === type.id
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground"
-              )}
-            >
-              <type.icon size={14} />
-              <span>{type.label}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* 结果区域 */}
-      <div className="flex-1 overflow-y-auto p-4 md:p-6">
         {isLoading ? (
           <div className="flex items-center justify-center py-20">
             <div className="flex items-center gap-2 text-muted-foreground">
@@ -304,10 +438,27 @@ export default function InboxPage() {
                     categoryLabelMap={categoryLabelMap}
                     onDelete={handleDelete}
                     onRetry={handleRetry}
+                    onEdit={handleEdit}
+                    onReclassify={(id) => reclassifyMutation.mutate(id)}
+                    onRedistribute={(id) => redistributeMutation.mutate(id)}
+                    onViewDetail={handleViewDetail}
                     deletingId={deletingId}
                     retryingId={retryingId}
+                    animationVariant={item.id === createdItemId ? 'elastic' : 'fade'}
                   />
                 ))}
+
+            {/* Detail Modal */}
+            <DetailModal
+              item={selectedItem}
+              isOpen={isDetailModalOpen}
+              onClose={() => setIsDetailModalOpen(false)}
+              onEdit={handleEdit}
+              onReclassify={(id) => reclassifyMutation.mutate(id)}
+              onRedistribute={(id) => redistributeMutation.mutate(id)}
+              reclassifying={reclassifyMutation.isPending}
+              redistributing={redistributeMutation.isPending}
+            />
               </AnimatePresence>
             </div>
 

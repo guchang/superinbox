@@ -1,7 +1,7 @@
 "use client"
 
 import { useTranslations } from 'next-intl'
-import { Link, usePathname } from '@/i18n/navigation'
+import { Link, usePathname, useRouter } from '@/i18n/navigation'
 import { useQuery } from '@tanstack/react-query'
 import { categoriesApi } from '@/lib/api/categories'
 import {
@@ -35,7 +35,11 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from '@/components/ui/sidebar'
-import { useMemo } from 'react'
+import { useMemo, useState, useEffect } from 'react'
+import { cn } from '@/lib/utils'
+import { Button } from '@/components/ui/button'
+import { PanelLeft, Menu } from 'lucide-react'
+import { SearchTrigger } from '@/components/shared/search-dialog'
 
 // Gmail 风格的导航项组件
 interface NavItemProps {
@@ -46,27 +50,40 @@ interface NavItemProps {
   color?: string
   isActive: boolean
   count?: number
+  collapsed?: boolean
 }
 
-function NavItem({ label, icon: Icon, href, color, isActive, count }: NavItemProps) {
+function NavItem({ label, icon: Icon, href, color, isActive, count, collapsed }: NavItemProps) {
   return (
     <SidebarMenuItem>
-      <SidebarMenuButton asChild isActive={isActive} className="group">
-        <Link href={href} className="flex items-center justify-between w-full">
-          <div className="flex items-center gap-3">
-            <div className={`p-1.5 rounded-lg transition-colors ${isActive ? color || 'bg-primary/10' : 'group-hover:bg-muted'}`}>
+      <Link
+        href={href}
+        className={`flex items-center justify-between w-full px-3 py-2 rounded-xl transition-all group ${
+          isActive
+            ? 'font-bold text-foreground bg-black/5 dark:bg-white/10'
+            : 'text-foreground/80 opacity-40 hover:opacity-100 hover:bg-current/5'
+        } ${collapsed ? 'justify-center px-2' : ''}`}
+        title={collapsed ? label : undefined}
+      >
+          <div className={`flex items-center gap-3 ${collapsed ? '' : ''}`}>
+            <div
+              className={`p-1.5 rounded-lg transition-colors ${
+                isActive ? color || 'bg-current/10' : ''
+              }`}
+            >
               <Icon className={`h-4 w-4 ${isActive ? 'stroke-[2.5]' : 'stroke-2'}`} />
             </div>
-            <span className="text-sm tracking-tight">{label}</span>
+            {!collapsed && <span className="text-sm tracking-tight">{label}</span>}
           </div>
-          <div className="flex items-center gap-2">
-            {count !== undefined && count > 0 && (
-              <span className="text-xs font-medium text-muted-foreground">{count}</span>
-            )}
-            {isActive && <div className="w-1.5 h-1.5 rounded-full bg-primary" />}
-          </div>
-        </Link>
-      </SidebarMenuButton>
+          {!collapsed && (
+            <div className="flex items-center gap-2">
+              {count !== undefined && count > 0 && (
+                <span className="text-xs font-medium text-muted-foreground">{count}</span>
+              )}
+              {isActive && <div className="w-1.5 h-1.5 rounded-full bg-primary" />}
+            </div>
+          )}
+      </Link>
     </SidebarMenuItem>
   )
 }
@@ -81,9 +98,48 @@ const categoryConfig: Record<string, { icon: typeof CheckCircle2; color?: string
   schedule: { icon: Sparkles, color: 'text-purple-500 bg-purple-500/10' },
 }
 
-export function AppSidebar() {
+interface AppSidebarProps {
+  className?: string
+}
+
+export function AppSidebar({ className }: AppSidebarProps) {
   const t = useTranslations('sidebar')
   const pathname = usePathname()
+  const router = useRouter()
+  const [isCollapsed, setIsCollapsed] = useState(false)
+  const [isMobileOpen, setIsMobileOpen] = useState(false)
+
+  // 处理搜索按钮点击
+  const handleSearchClick = () => {
+    // 如果在 inbox 页面，通过 URL 参数触发搜索对话框
+    if (pathname?.startsWith('/inbox')) {
+      router.push('/inbox?search=true')
+    } else {
+      // 否则导航到 inbox 并打开搜索
+      router.push('/inbox?search=true')
+    }
+    // 移动端：关闭抽屉
+    if (window.innerWidth < 768) {
+      setIsMobileOpen(false)
+    }
+  }
+
+  // 响应式检测：md 屏幕时自动折叠
+  useEffect(() => {
+    const checkScreenSize = () => {
+      const width = window.innerWidth
+      // md: 768px - lg: 1024px 之间折叠
+      setIsCollapsed(width >= 768 && width < 1024)
+      // sm 以下关闭移动端抽屉
+      if (width >= 768) {
+        setIsMobileOpen(false)
+      }
+    }
+
+    checkScreenSize()
+    window.addEventListener('resize', checkScreenSize)
+    return () => window.removeEventListener('resize', checkScreenSize)
+  }, [])
 
   // 从 API 获取 categories
   const { data: categoriesData } = useQuery({
@@ -152,106 +208,167 @@ export function AppSidebar() {
   ]
 
   return (
-    <Sidebar className="border-r border-border/60">
-      <SidebarHeader className="px-4 py-4">
-        <Link href="/" className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-lg">
-            <Inbox className="h-4 w-4" />
-          </div>
-          <span className="font-bold text-sm tracking-tight">SuperInbox</span>
-        </Link>
-      </SidebarHeader>
+    <>
+      {/* 移动端菜单按钮 - sm 以下显示 */}
+      <Button
+        variant="ghost"
+        size="icon"
+        className="fixed top-4 left-4 z-50 md:hidden h-10 w-10 rounded-xl bg-background/80 backdrop-blur-xl border border-black/[0.03] dark:border-white/[0.03]"
+        onClick={() => setIsMobileOpen(true)}
+      >
+        <Menu className="h-5 w-5" />
+      </Button>
 
-      <SidebarContent className="px-2">
-        {/* Mailbox Section */}
-        <SidebarGroup>
-          <SidebarGroupLabel className="text-[10px] font-black uppercase tracking-widest opacity-40">
-            {t('sections.mailbox')}
-          </SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu className="space-y-0.5">
-              {mailboxItems.map((item) => (
-                <NavItem
-                  key={item.id}
-                  id={item.id}
-                  label={item.label}
-                  href={item.href}
-                  icon={item.icon}
-                  isActive={isActive(item.href)}
-                />
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+      {/* 移动端抽屉遮罩 */}
+      {isMobileOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm md:hidden"
+          onClick={() => setIsMobileOpen(false)}
+        />
+      )}
 
-        {/* Intents Section */}
-        <SidebarGroup>
-          <SidebarGroupLabel className="text-[10px] font-black uppercase tracking-widest opacity-40">
-            {t('sections.intents')}
-          </SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu className="space-y-0.5">
-              {intentItems.map((item) => (
-                <NavItem
-                  key={item.id}
-                  id={item.id}
-                  label={item.label}
-                  href={item.href}
-                  icon={item.icon}
-                  color={item.color}
-                  isActive={isActive(item.href)}
-                />
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+      {/* 主侧边栏 */}
+      <Sidebar
+        className={cn(
+          "border-r border-black/[0.03] dark:border-white/[0.03] bg-[#f5f5f7] dark:bg-[#0b0b0f]",
+          "[&_[data-sidebar=sidebar]]:bg-[#f5f5f7] dark:[&_[data-sidebar=sidebar]]:bg-[#0b0b0f]",
+          // 三阶段响应式
+          "hidden md:block",
+          // md 到 lg 之间：图标栏模式 (w-16)
+          isCollapsed && "w-16 min-w-16 max-w-16",
+          // lg 以上：完整侧边栏
+          !isCollapsed && "w-64 min-w-64 max-w-64",
+          // 移动端抽屉模式
+          isMobileOpen && "fixed inset-y-0 left-0 z-50 w-64 min-w-64 max-w-64 block md:hidden",
+          className
+        )}
+      >
+        {/* 移动端关闭按钮 */}
+        {isMobileOpen && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="absolute top-4 right-4 h-8 w-8 rounded-lg md:hidden"
+            onClick={() => setIsMobileOpen(false)}
+          >
+            <PanelLeft className="h-4 w-4" />
+          </Button>
+        )}
 
-        {/* Management Section */}
-        <SidebarGroup>
-          <SidebarGroupLabel className="text-[10px] font-black uppercase tracking-widest opacity-40">
-            {t('sections.management')}
-          </SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu className="space-y-0.5">
-              {managementItems.map((item) => (
-                <NavItem
-                  key={item.id}
-                  id={item.id}
-                  label={item.label}
-                  href={item.href}
-                  icon={item.icon}
-                  isActive={isActive(item.href)}
-                />
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        <SidebarContent className={cn("px-2 pt-4", isCollapsed && "px-1")}>
+          {/* Mailbox Section */}
+          <SidebarGroup className="p-0">
+            {!isCollapsed && (
+              <SidebarGroupLabel className="px-3 mb-2 opacity-20 font-black uppercase text-[10px] tracking-widest">
+                {t('sections.mailbox')}
+              </SidebarGroupLabel>
+            )}
+            <SidebarGroupContent>
+              <SidebarMenu className="space-y-0.5">
+                {/* 搜索按钮 */}
+                <SearchTrigger onClick={handleSearchClick} collapsed={isCollapsed} />
+                {mailboxItems.map((item) => (
+                  <NavItem
+                    key={item.id}
+                    id={item.id}
+                    label={item.label}
+                    href={item.href}
+                    icon={item.icon}
+                    isActive={isActive(item.href)}
+                    collapsed={isCollapsed}
+                  />
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
 
-        {/* Settings Section */}
-        <SidebarGroup className="mt-auto">
-          <SidebarGroupContent>
-            <SidebarMenu className="space-y-0.5">
-              {settingsItems.map((item) => (
-                <NavItem
-                  key={item.id}
-                  id={item.id}
-                  label={item.label}
-                  href={item.href}
-                  icon={item.icon}
-                  isActive={isActive(item.href)}
-                />
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-      </SidebarContent>
+          {/* Intents Section */}
+          <SidebarGroup className="p-0">
+            {!isCollapsed && (
+              <SidebarGroupLabel className="px-3 mb-2 opacity-20 font-black uppercase text-[10px] tracking-widest">
+                {t('sections.intents')}
+              </SidebarGroupLabel>
+            )}
+            <SidebarGroupContent>
+              <SidebarMenu className="space-y-0.5">
+                {intentItems.map((item) => (
+                  <NavItem
+                    key={item.id}
+                    id={item.id}
+                    label={item.label}
+                    href={item.href}
+                    icon={item.icon}
+                    color={item.color}
+                    isActive={isActive(item.href)}
+                    collapsed={isCollapsed}
+                  />
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
 
-      <SidebarFooter className="px-4 py-3 border-t border-border/60">
-        <div className="text-[10px] text-muted-foreground">
-          <p className="font-medium">{t('footer.version')}</p>
-          <p className="mt-0.5 opacity-60">{t('footer.copyright')}</p>
-        </div>
-      </SidebarFooter>
-    </Sidebar>
+          {/* Management Section */}
+          <SidebarGroup className="p-0">
+            {!isCollapsed && (
+              <SidebarGroupLabel className="px-3 mb-2 opacity-20 font-black uppercase text-[10px] tracking-widest">
+                {t('sections.management')}
+              </SidebarGroupLabel>
+            )}
+            <SidebarGroupContent>
+              <SidebarMenu className="space-y-0.5">
+                {managementItems.map((item) => (
+                  <NavItem
+                    key={item.id}
+                    id={item.id}
+                    label={item.label}
+                    href={item.href}
+                    icon={item.icon}
+                    isActive={isActive(item.href)}
+                    collapsed={isCollapsed}
+                  />
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+
+          {/* Settings Section */}
+          <SidebarGroup className="mt-auto p-0">
+            <SidebarGroupContent>
+              <SidebarMenu className="space-y-0.5">
+                {settingsItems.map((item) => (
+                  <NavItem
+                    key={item.id}
+                    id={item.id}
+                    label={item.label}
+                    href={item.href}
+                    icon={item.icon}
+                    isActive={isActive(item.href)}
+                    collapsed={isCollapsed}
+                  />
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        </SidebarContent>
+
+        <SidebarFooter
+          className={cn(
+            "border-t border-black/[0.03] dark:border-white/[0.03]",
+            isCollapsed ? "px-2 py-3" : "px-4 py-3"
+          )}
+        >
+          {isCollapsed ? (
+            <div className="flex justify-center">
+              <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground/40" />
+            </div>
+          ) : (
+            <div className="text-[10px] text-muted-foreground">
+              <p className="font-medium">{t('footer.version')}</p>
+              <p className="mt-0.5 opacity-60">{t('footer.copyright')}</p>
+            </div>
+          )}
+        </SidebarFooter>
+      </Sidebar>
+    </>
   )
 }
