@@ -240,7 +240,7 @@ export default function DashboardPage() {
                                   : 'secondary'
                             }
                           >
-                            {getIntentLabel(item.analysis?.category ?? 'unknown', categoryLabelMap)}
+                            {getIntentLabel(item.analysis?.category ?? 'unknown', categoryLabelMap, fallbackLabels)}
                           </Badge>
                           <Badge variant="outline" className="text-xs">
                             {item.source}

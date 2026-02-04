@@ -238,12 +238,13 @@ export function useRoutingProgress(itemId: string | null, options?: { disabled?:
       setState(prev => ({ ...prev, isConnected: false }))
 
       // 直接连接后端（绕过 Next.js 代理，因为代理不支持 SSE）
-      // 使用 fetch + ReadableStream 替代 EventSource，并依赖 cookie 进行认证
+      // 使用 fetch + ReadableStream 替代 EventSource
       const backendUrl = getBackendDirectUrl()
       const response = await fetch(`${backendUrl}/v1/inbox/${itemId}/routing-progress`, {
         method: 'GET',
         headers: {
           'Accept': 'text/event-stream',
+          'Authorization': `Bearer ${token}`,
         },
         credentials: 'include',
         signal: abortControllerRef.current?.signal,

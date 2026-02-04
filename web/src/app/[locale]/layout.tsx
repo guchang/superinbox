@@ -5,7 +5,7 @@ import { Providers } from '@/components/providers/providers'
 import { routing } from '@/i18n/routing'
 
 const resolveLocale = (locale: string | undefined) =>
-  locale && routing.locales.includes(locale) ? locale : routing.defaultLocale
+  locale && routing.locales.includes(locale as "zh-CN" | "en") ? locale : routing.defaultLocale
 
 export function generateStaticParams() {
   return routing.locales.map((locale) => ({ locale }))

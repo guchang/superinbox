@@ -641,7 +641,7 @@ function RuleEditDialog({
       rule.actions && rule.actions.length > 0 ? rule.actions[0].config || {} : {}
     const nextActions: RuleAction[] = [
       {
-        type: 'distribute_mcp',
+        type: 'mcp',
         config: {
           ...existingConfig,
           connectorName,
@@ -1393,7 +1393,7 @@ function CreateRuleDialog({
     ]
     const nextActions: RuleAction[] = [
       {
-        type: 'distribute_mcp',
+        type: 'mcp',
         config: {
           connectorName,
         },

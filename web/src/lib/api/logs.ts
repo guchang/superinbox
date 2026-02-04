@@ -66,11 +66,13 @@ export async function getAccessLogs(filters: LogFilters): Promise<LogsResponse> 
   }
 
   // Transform backend response to match LogsResponse type: { data, total, page, limit }
+  // ApiResponse<T> has structure: { code, message, data: T }
+  const responseData = backendResponse.data
   return {
-    data: backendResponse.logs ?? [],
-    total: backendResponse.total ?? 0,
-    page: backendResponse.page ?? 1,
-    limit: backendResponse.limit ?? 20,
+    data: responseData?.logs ?? [],
+    total: responseData?.total ?? 0,
+    page: responseData?.page ?? 1,
+    limit: responseData?.limit ?? 20,
   }
 }
 
@@ -112,11 +114,13 @@ export async function getApiKeyLogs(
   }
 
   // Transform backend response to match LogsResponse type
+  // ApiResponse<T> has structure: { code, message, data: T }
+  const responseData = backendResponse.data
   return {
-    data: backendResponse.logs ?? [],
-    total: backendResponse.total ?? 0,
-    page: backendResponse.page ?? 1,
-    limit: backendResponse.limit ?? 20,
+    data: responseData?.logs ?? [],
+    total: responseData?.total ?? 0,
+    page: responseData?.page ?? 1,
+    limit: responseData?.limit ?? 20,
   }
 }
 
@@ -222,5 +226,6 @@ export async function getStatistics(query: StatisticsQuery): Promise<StatisticsR
     throw new Error('No data received from statistics API')
   }
 
-  return statistics
+  // ApiResponse<T> has structure: { code, message, data: T }
+  return statistics.data!
 }

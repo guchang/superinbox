@@ -51,7 +51,7 @@ export function useAutoRefetch({
 
     // Check if there are items with routing in progress
     const hasRoutingInProgress = items.some(
-      (item) => item.routingStatus === 'processing'
+      (item: any) => item.routingStatus === 'processing'
     )
 
     const shouldPoll = hasProcessingItems || hasRoutingInProgress

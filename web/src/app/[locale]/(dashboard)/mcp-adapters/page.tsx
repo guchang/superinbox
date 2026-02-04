@@ -477,7 +477,7 @@ function EditConnectorDialog({ open, connector, onClose, onUpdated }: { open: bo
       } else {
         if (connector.serverUrl) (serverConfig as any).url = connector.serverUrl
       }
-      mcpJson.mcpServers[connector.name] = serverConfig
+      ;(mcpJson.mcpServers as Record<string, unknown>)[connector.name] = serverConfig
       setJsonConfig(JSON.stringify(mcpJson, null, 2))
       setJsonError(null)
     }

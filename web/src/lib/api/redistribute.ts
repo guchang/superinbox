@@ -29,16 +29,16 @@ export interface BatchRedistributeStatus {
 export async function batchRedistribute(
   options: BatchRedistributeOptions
 ): Promise<BatchRedistributeResponse> {
-  const { data } = await apiClient.post<BatchRedistributeResponse>(
+  const response = await apiClient.post<BatchRedistributeResponse>(
     '/inbox/batch-redistribute',
     options
   );
-  return data;
+  return response.data!;
 }
 
 export async function getBatchRedistributeStatus(): Promise<BatchRedistributeStatus> {
-  const { data } = await apiClient.get<BatchRedistributeStatus>(
+  const response = await apiClient.get<BatchRedistributeStatus>(
     '/inbox/batch-redistribute/status'
   );
-  return data;
+  return response.data!;
 }

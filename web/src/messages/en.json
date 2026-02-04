@@ -42,11 +42,16 @@
     "sections": {
       "main": "Main",
       "ai": "AI Engine",
-      "settings": "Settings"
+      "settings": "Settings",
+      "mailbox": "Mailbox",
+      "intents": "Intents (AI Labels)",
+      "management": "Management"
     },
     "items": {
       "dashboard": "Dashboard",
       "inbox": "Inbox",
+      "starred": "Starred",
+      "archive": "Archive",
       "categories": "Categories",
       "routing": "Routing",
       "settings": "General",

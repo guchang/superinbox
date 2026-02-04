@@ -42,11 +42,16 @@
     "sections": {
       "main": "主导航",
       "ai": "AI 引擎",
-      "settings": "系统设置"
+      "settings": "系统设置",
+      "mailbox": "Mailbox",
+      "intents": "Intents (AI Labels)",
+      "management": "Management"
     },
     "items": {
       "dashboard": "仪表板",
       "inbox": "收件箱",
+      "starred": "星标",
+      "archive": "归档",
       "categories": "分类管理",
       "routing": "分发规则",
       "settings": "通用设置",

@@ -5,7 +5,7 @@
 
 import { Badge } from '@/components/ui/badge'
 import { Loader2, CheckCircle, XCircle, Clock, Zap, MinusCircle } from 'lucide-react'
-import { useRoutingProgress, type RoutingStatus } from '@/hooks/use-routing-progress'
+import { useRoutingProgress, type RoutingStatus as RoutingProgressStatus } from '@/hooks/use-routing-progress'
 import { useTranslations } from 'next-intl'
 
 interface RoutingStatusProps {
@@ -30,7 +30,7 @@ export function RoutingStatus({ itemId, initialDistributedTargets = [], initialR
   const useStatic = disabled
 
   const effectiveStatus = useStatic 
-    ? (routingStatus as RoutingStatus || 'pending')  // 使用数据库中的状态
+    ? (routingStatus as RoutingProgressStatus || 'pending')  // 使用数据库中的状态
     : progress.status
   const effectiveTargets = useStatic ? initialDistributedTargets : progress.distributedTargets
   const effectiveRuleNames = useStatic ? initialRuleNames : (progress.ruleNames || [])
@@ -69,7 +69,8 @@ export function RoutingStatus({ itemId, initialDistributedTargets = [], initialR
 }
 
 interface RoutingStatusBadgeProps {
-  status: RoutingStatus
+  className?: string
+  status: RoutingProgressStatus
   message: string
   distributedTargets: string[]
   ruleNames: string[]
@@ -173,4 +174,4 @@ function RoutingStatusBadge({
 }
 
 // 导出类型供其他组件使用
-export type { RoutingStatus }
+export type { RoutingProgressStatus }
