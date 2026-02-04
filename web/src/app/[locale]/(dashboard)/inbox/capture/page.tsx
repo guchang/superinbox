@@ -493,7 +493,7 @@ export default function InboxCapturePage() {
   }
 
   return (
-    <div className="relative mx-auto flex w-full max-w-4xl flex-col gap-6 px-2 pb-4 sm:px-4">
+    <div className="relative flex w-full flex-col gap-6 px-6 pb-4 sm:px-8">
       <div className="pointer-events-none fixed inset-0 z-0">
         <div className="absolute inset-0 capture-grid" />
         <div className="absolute inset-0 capture-grid-fade" />

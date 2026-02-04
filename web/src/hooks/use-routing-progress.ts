@@ -1,12 +1,15 @@
 /**
- * 路由进度 SSE Hook
- * 监听收件箱条目的路由分发实时进度
- * 使用 Intersection Observer 懒加载连接
+ * 路由进度轮询 Hook
+ * 使用轮询方式监听收件箱条目的路由分发状态
+ *
+ * 实现方式：每 3 秒通过 API 获取条目最新状态
+ * 不使用 SSE，避免连接管理复杂性和浏览器兼容性 issues
  */
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useTranslations } from 'next-intl'
-import { getBackendDirectUrl } from '@/lib/api/base-url'
+import { inboxApi } from '@/lib/api/inbox'
+import { ItemStatus } from '@/types'
 
 // 路由进度状态
 export type RoutingStatus =
@@ -24,7 +27,7 @@ export interface RoutingProgressState {
   ruleNames: string[]
   totalSuccess: number
   totalFailed: number
-  isConnected: boolean
+  isPolling: boolean  // 是否正在轮询中
   error: string | null
 }
 
@@ -34,341 +37,134 @@ export function useRoutingProgress(itemId: string | null, options?: { disabled?:
 
   const [state, setState] = useState<RoutingProgressState>({
     status: 'pending',
-    message: (itemId && !disabled) ? t('routingProgress.connecting') : t('routePending'),
+    message: t('routePending'),
     distributedTargets: [],
     ruleNames: [],
     totalSuccess: 0,
     totalFailed: 0,
-    isConnected: false,
+    isPolling: false,
     error: null
   })
 
-  const abortControllerRef = useRef<AbortController | null>(null)
-  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-  const connectionIdRef = useRef<string | null>(null)
-
-  // 断开连接
-  const disconnect = useCallback(() => {
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort()
-      abortControllerRef.current = null
-    }
-
-    if (reconnectTimeoutRef.current) {
-      clearTimeout(reconnectTimeoutRef.current)
-      reconnectTimeoutRef.current = null
-    }
-
-    setState(prev => ({
-      ...prev,
-      isConnected: false
-    }))
-  }, [])
-
-  // 处理 SSE 事件
-  const handleEvent = useCallback((event: MessageEvent) => {
-    try {
-      const data = JSON.parse(event.data)
-      const eventType = event.type
-
-      console.log(`[SSE] Received event: ${eventType}`, data)
-
-      switch (eventType) {
-        case 'connected':
-          setState(prev => ({
-            ...prev,
-            isConnected: true,
-            error: null
-          }))
-          break
-
-        case 'routing:start':
-          setState(prev => ({
-            ...prev,
-            status: 'processing',
-            message: typeof data?.totalRules === 'number'
-              ? t('routingProgress.startWithRules', { count: data.totalRules })
-              : t('routingProgress.start'),
-            error: null
-          }))
-          break
-
-        case 'routing:skipped':
-          setState(prev => ({
-            ...prev,
-            status: 'skipped',
-            message: t('routingProgress.skipped'),
-            error: null
-          }))
-          // Auto-disconnect on skipped
-          disconnect()
-          break
-
-        case 'routing:rule_match':
-          setState(prev => ({
-            ...prev,
-            status: 'processing',
-            message: t('routingProgress.ruleMatch', { ruleName: data.ruleName || '' })
-          }))
-          break
-
-        case 'step:start':
-          setState(prev => ({
-            ...prev,
-            status: 'processing',
-            message: t('routingProgress.stepStart', { step: data.step ?? '-' })
-          }))
-          break
-
-        case 'step:planned':
-          setState(prev => ({
-            ...prev,
-            status: 'processing',
-            message: t('routingProgress.stepPlanned', { step: data.step ?? '-' })
-          }))
-          break
-
-        case 'step:executing':
-          setState(prev => ({
-            ...prev,
-            status: 'processing',
-            message: t('routingProgress.stepExecuting', {
-              step: data.step ?? '-',
-              toolName: data.toolName || t('routingProgress.unknownTool')
-            })
-          }))
-          break
-
-        case 'step:complete':
-          const toolName = data.toolName || t('routingProgress.unknownTool')
-          setState(prev => ({
-            ...prev,
-            status: 'processing',
-            message: t('routingProgress.stepComplete', {
-              step: data.step ?? '-',
-              toolName
-            })
-          }))
-          break
-
-        case 'step:error':
-          setState(prev => ({
-            ...prev,
-            status: 'processing',
-            message: t('routingProgress.stepError', {
-              step: data.step ?? '-',
-              toolName: data.toolName || t('routingProgress.unknownTool'),
-              error: data.error ? `: ${data.error}` : ''
-            })
-          }))
-          break
-
-        case 'complete':
-          // All steps completed
-          setState(prev => ({
-            ...prev,
-            status: 'completed',
-            message: t('routingProgress.completed'),
-            distributedTargets: data.distributedTargets || [],
-            ruleNames: data.ruleNames || [],
-            totalSuccess: data.totalSuccess || 0,
-            totalFailed: data.totalFailed || 0
-          }))
-          // Auto-disconnect on completion
-          disconnect()
-          break
-
-        case 'routing:complete':
-          setState(prev => ({
-            ...prev,
-            status: 'completed',
-            message: t('routingProgress.completed'),
-            distributedTargets: data.distributedTargets || [],
-            ruleNames: data.ruleNames || [],
-            totalSuccess: data.totalSuccess || 0,
-            totalFailed: data.totalFailed || 0
-          }))
-          // Auto-disconnect on completion
-          disconnect()
-          break
-
-        case 'routing:error':
-          setState(prev => ({
-            ...prev,
-            status: 'error',
-            message: t('routingProgress.error'),
-            error: data.error
-          }))
-          // Auto-disconnect on error
-          disconnect()
-          break
-
-        default:
-          console.log(`[SSE] Unknown event type: ${eventType}`)
-      }
-    } catch (error) {
-      console.error('[SSE] Failed to parse event data:', error)
-    }
-  }, [t, disconnect])
-
-  // 使用 fetch + ReadableStream 替代 EventSource（支持自定义 headers 和代理）
-  const connect = useCallback(async (currentConnectionId: string) => {
+  // 获取条目状态
+  const fetchItemStatus = useCallback(async () => {
     if (!itemId || disabled) return
 
-    // 创建新的 AbortController（不中止旧连接，让它通过检查 connectionId 自然退出）
-    const abortController = new AbortController()
-    abortControllerRef.current = abortController
-    connectionIdRef.current = currentConnectionId
-
     try {
-      const token = localStorage.getItem('superinbox_auth_token') || localStorage.getItem('token')
+      const response = await inboxApi.getItem(itemId)
+      const item = response.data
 
-      if (!token) {
-        console.warn('[useRoutingProgress] No authentication token found')
+      if (!item) return
+
+      // 根据条目状态更新
+      if (item.status === ItemStatus.PROCESSING) {
+        setState(prev => ({
+          ...prev,
+          status: 'processing',
+          message: t('routingStatus.processing'),
+          isPolling: true
+        }))
+      } else if (item.status === ItemStatus.FAILED) {
+        setState(prev => ({
+          ...prev,
+          status: 'error',
+          message: t('routingStatus.failed'),
+          isPolling: false
+        }))
+      } else if (item.status === ItemStatus.COMPLETED) {
+        // 已完成，检查分发结果
+        const distributedTargets = item.distributedTargets || []
+        const ruleNames = item.distributedRuleNames || []
+
+        setState(prev => ({
+          ...prev,
+          status: distributedTargets.length > 0 ? 'completed' : 'skipped',
+          message: distributedTargets.length > 0
+            ? t('routingStatus.completed')
+            : t('routingStatus.skipped'),
+          distributedTargets,
+          ruleNames,
+          totalSuccess: item.distributionResults?.filter((r: any) => r.success).length || 0,
+          totalFailed: item.distributionResults?.filter((r: any) => !r.success).length || 0,
+          isPolling: false
+        }))
+      } else {
+        // 其他状态（如 PENDING）
+        setState(prev => ({
+          ...prev,
+          status: 'pending',
+          message: t('routingStatus.pending'),
+          isPolling: true
+        }))
+      }
+    } catch (error) {
+      const typedError = error as Error & { status?: number; code?: string }
+      if (typedError?.status === 404 || typedError?.code === 'INBOX.NOT_FOUND') {
+        setState(prev => ({
+          ...prev,
+          status: 'skipped',
+          message: t('routingStatus.skipped'),
+          isPolling: false,
+          error: null
+        }))
         return
       }
 
-      // 将 token 同步到 cookie，确保后台可以通过 cookie 进行校验（避免使用触发预检的自定义头）
-      if (typeof document !== 'undefined') {
-        const cookieName = 'superinbox_auth_token'
-        const secureFlag = typeof window !== 'undefined' && window.location.protocol === 'https:' ? '; Secure' : ''
-        document.cookie = `${cookieName}=${encodeURIComponent(token)}; Path=/; SameSite=Lax${secureFlag}`
-      }
-
-      setState(prev => ({ ...prev, isConnected: false }))
-
-      // 直接连接后端（绕过 Next.js 代理，因为代理不支持 SSE）
-      // 使用 fetch + ReadableStream 替代 EventSource
-      const backendUrl = getBackendDirectUrl()
-      const response = await fetch(`${backendUrl}/v1/inbox/${itemId}/routing-progress`, {
-        method: 'GET',
-        headers: {
-          'Accept': 'text/event-stream',
-          'Authorization': `Bearer ${token}`,
-        },
-        credentials: 'include',
-        signal: abortControllerRef.current?.signal,
-      })
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
-      }
-
-      setState(prev => ({ ...prev, isConnected: true }))
-      console.log(`[SSE] Connected for item: ${itemId}`)
-
-      // 读取 SSE 流
-      const reader = response.body?.getReader()
-      const decoder = new TextDecoder()
-
-      if (!reader) {
-        throw new Error('Response body is null')
-      }
-
-      let buffer = ''
-
-      while (true) {
-        // 检查是否仍然是当前连接实例
-        if (connectionIdRef.current !== currentConnectionId) {
-          console.log(`[SSE] Connection instance changed, aborting old connection for item: ${itemId}`)
-          break
-        }
-
-        const { done, value } = await reader.read()
-
-        if (done) {
-          setState(prev => ({ ...prev, isConnected: false }))
-          console.log(`[SSE] Connection closed for item: ${itemId}`)
-          break
-        }
-
-        // 解码并处理数据
-        buffer += decoder.decode(value, { stream: true })
-
-        // 分割 SSE 消息（每个消息以 \n\n 分隔）
-        const messages = buffer.split('\n\n')
-        buffer = messages.pop() || '' // 保留最后一个不完整的消息
-
-        for (const message of messages) {
-          if (!message.trim()) continue
-
-          // 再次检查连接实例（在处理每条消息前）
-          if (connectionIdRef.current !== currentConnectionId) {
-            console.log(`[SSE] Connection instance changed, stopping event processing for item: ${itemId}`)
-            break
-          }
-
-          // 解析 SSE 格式
-          let eventType = 'message'
-          let eventData = ''
-
-          for (const line of message.split('\n')) {
-            if (line.startsWith('event: ')) {
-              eventType = line.substring(7).trim()
-            } else if (line.startsWith('data: ')) {
-              eventData = line.substring(6).trim()
-            }
-          }
-
-          if (eventData) {
-            // 模拟 MessageEvent 对象
-            const msgEvent = new MessageEvent(eventType, { data: eventData })
-            handleEvent(msgEvent)
-          }
-        }
-      }
-    } catch (error) {
-      if (error instanceof Error && error.name === 'AbortError') {
-        console.log(`[SSE] Connection aborted for item: ${itemId}`)
-      } else {
-        console.error(`[SSE] Connection error for item ${itemId}:`, error)
-        setState(prev => ({
-          ...prev,
-          isConnected: false,
-          error: error instanceof Error ? error.message : 'Connection error'
-        }))
-      }
+      console.error(`[useRoutingProgress] Failed to fetch item ${itemId}:`, error)
+      setState(prev => ({
+        ...prev,
+        isPolling: false,
+        error: error instanceof Error ? error.message : 'Fetch error'
+      }))
     }
-  }, [itemId, handleEvent, disabled, getBackendDirectUrl])
+  }, [itemId, disabled, t])
 
-  // 手动重连
+  // 手动刷新
   const reconnect = useCallback(() => {
-    // 生成新的连接 ID 并重新连接
-    const newConnectionId = `${itemId}-${Date.now()}-${Math.random()}`
-    disconnect()
-    connect(newConnectionId)
-  }, [disconnect, connect, itemId])
+    fetchItemStatus()
+  }, [fetchItemStatus])
 
-  // 监听 disabled 参数变化，立即断开连接并重置状态
+  // 轮询逻辑
   useEffect(() => {
-    if (disabled) {
-      disconnect()
+    if (!itemId || disabled) {
       setState(prev => ({
         ...prev,
         status: 'pending',
         message: t('routePending'),
-        isConnected: false,
+        isPolling: false
+      }))
+      return
+    }
+
+    // 初始获取
+    fetchItemStatus()
+
+    // 如果状态是 processing 或 pending，启动轮询
+    const shouldPoll = state.status === 'processing' || state.status === 'pending'
+    if (!shouldPoll) return
+
+    // 每 3 秒轮询一次
+    const intervalId = setInterval(() => {
+      fetchItemStatus()
+    }, 3000)
+
+    return () => {
+      clearInterval(intervalId)
+    }
+  }, [itemId, disabled, fetchItemStatus, t, state.status])
+
+  // 监听 disabled 参数变化
+  useEffect(() => {
+    if (disabled) {
+      setState(prev => ({
+        ...prev,
+        status: 'pending',
+        message: t('routePending'),
+        isPolling: false,
         error: null
       }))
     }
-  }, [disabled, disconnect, t])
-
-  // 自动连接和清理
-  useEffect(() => {
-    // 为每次挂载生成唯一的连接 ID
-    const currentConnectionId = `${itemId}-${Date.now()}-${Math.random()}`
-
-    if (itemId && !disabled) {
-      connect(currentConnectionId)
-    } else {
-      console.log(`[useRoutingProgress] No itemId provided or disabled`)
-    }
-
-    return () => {
-      console.log(`[useRoutingProgress] Cleanup for item: ${itemId}`)
-      disconnect()
-    }
-  }, [itemId, disabled, connect, disconnect])
+  }, [disabled, t])
 
   return {
     ...state,

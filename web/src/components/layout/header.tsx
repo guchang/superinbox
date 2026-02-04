@@ -46,16 +46,24 @@ export function Header() {
   }
 
   return (
-    <div className="flex items-center gap-2 ml-auto">
+    <div className="flex items-center gap-3">
       <ThemeSwitcher />
-      <Button variant="ghost" size="icon">
-        <Bell className="h-5 w-5" />
+      <Button
+        variant="ghost"
+        size="icon"
+        className="h-8 w-8 rounded-full border border-black/10 bg-black/5 text-black/40 dark:border-white/10 dark:bg-white/5 dark:text-white/40"
+      >
+        <Bell className="h-4 w-4" />
       </Button>
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon">
-            <Languages className="h-5 w-5" />
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 rounded-full border border-black/10 bg-black/5 text-black/40 dark:border-white/10 dark:bg-white/5 dark:text-white/40"
+          >
+            <Languages className="h-4 w-4" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-44">
@@ -80,8 +88,12 @@ export function Header() {
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon">
-            <User className="h-5 w-5" />
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 rounded-full border border-black/10 bg-black/5 text-black/40 dark:border-white/10 dark:bg-white/5 dark:text-white/40"
+          >
+            <User className="h-4 w-4" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56">

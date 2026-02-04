@@ -5,10 +5,10 @@
 @layer base {
   :root {
     /* Anytype UI 风格 - 浅色模式: #f5f5f7 (冷灰白) */
-    --background: 240 7% 97%;
+    --background: 0 0% 96%;
     --foreground: 222.2 84% 4.9%;
-    /* 卡片: 极低透明度 + 细边框效果 */
-    --card: 0 0% 100% / 0.8;
+    /* 卡片: 纯白 + 细边框 + 阴影效果 */
+    --card: 0 0% 100%;
     --card-foreground: 222.2 84% 4.9%;
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
@@ -45,7 +45,7 @@
 
   .dark {
     /* Anytype UI 风格 - 深色模式: #0b0b0f (极深紫黑) */
-    --background: 240 17% 4%;
+    --background: 240 20% 4%;
     --foreground: 210 40% 98%;
     /* 卡片: 极低透明度 (0.02) + 细边框 */
     --card: 240 5% 100% / 0.02;

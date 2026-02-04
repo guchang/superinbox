@@ -17,8 +17,13 @@ export function ThemeSwitcher() {
 
   if (!mounted) {
     return (
-      <Button variant="ghost" size="icon" disabled>
-        <Sun className="h-5 w-5" />
+      <Button
+        variant="ghost"
+        size="icon"
+        disabled
+        className="h-8 w-8 rounded-full border border-black/10 bg-black/5 text-black/40 dark:border-white/10 dark:bg-white/5 dark:text-white/40"
+      >
+        <Sun className="h-4 w-4" />
       </Button>
     )
   }
@@ -31,11 +36,14 @@ export function ThemeSwitcher() {
       size="icon"
       onClick={() => setTheme(isDark ? "light" : "dark")}
       aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
+      className={`h-8 w-8 rounded-full ${
+        isDark ? 'bg-white/5 text-yellow-400' : 'bg-black/5 text-indigo-600'
+      }`}
     >
       {isDark ? (
-        <Sun className="h-5 w-5 transition-all" />
+        <Sun className="h-4 w-4 transition-all" />
       ) : (
-        <Moon className="h-5 w-5 transition-all" />
+        <Moon className="h-4 w-4 transition-all" />
       )}
       <span className="sr-only">
         {isDark ? "Switch to light mode" : "Switch to dark mode"}
