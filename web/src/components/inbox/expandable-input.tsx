@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Image, Paperclip, Mic, X, Loader2, Plus, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
+import { useIsMobile } from '@/hooks/use-is-mobile'
 
 interface ExpandableInputProps {
   onSubmit: (content: string, files?: File[]) => void
@@ -39,6 +40,10 @@ export function ExpandableInput({ onSubmit, isSubmitting = false }: ExpandableIn
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const imageInputRef = useRef<HTMLInputElement>(null)
+  const isMobile = useIsMobile()
+  const [showFloatingButton, setShowFloatingButton] = useState(!isExpanded)
+  const closeTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const previousExpanded = useRef(isExpanded)
 
   // 吸收动效提交 - 三阶段：absorbing -> collapsing -> diving
   const handleSubmit = useCallback(async () => {
@@ -103,6 +108,62 @@ export function ExpandableInput({ onSubmit, isSubmitting = false }: ExpandableIn
   const isAnimating = animationPhase !== 'idle'
   const isCollapsing = animationPhase === 'collapsing'
 
+  useEffect(() => {
+    if (closeTimerRef.current) {
+      clearTimeout(closeTimerRef.current)
+      closeTimerRef.current = null
+    }
+
+    if (!isMobile) {
+      setShowFloatingButton(false)
+      previousExpanded.current = isExpanded
+      return
+    }
+
+    if (isExpanded) {
+      setShowFloatingButton(false)
+      previousExpanded.current = true
+      return
+    }
+
+    if (previousExpanded.current) {
+      setShowFloatingButton(false)
+      closeTimerRef.current = setTimeout(() => {
+        setShowFloatingButton(true)
+      }, 180)
+    } else {
+      setShowFloatingButton(true)
+    }
+
+    previousExpanded.current = isExpanded
+  }, [isExpanded, isMobile])
+
+  useEffect(() => {
+    if (!isExpanded) return
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsFocused(false)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [isExpanded])
+
+  const panelHeight = isExpanded ? 220 : 56
+  const panelRadius = isExpanded ? 32 : 28
+  const panelMotionProps = isMobile
+    ? {
+        initial: { opacity: 0, scale: 0.96, y: 12, height: 56, borderRadius: 28 },
+        animate: { opacity: 1, scale: 1, y: 0, height: 220, borderRadius: 32 },
+        exit: { opacity: 0, scale: 0.98, y: 12, transition: { duration: 0.18, ease: 'easeOut' } },
+        transition: { type: 'spring' as const, stiffness: 400, damping: 30 },
+      }
+    : {
+        initial: false,
+        animate: { height: panelHeight, borderRadius: panelRadius },
+        transition: { type: 'spring' as const, stiffness: 400, damping: 30 },
+      }
+
   return (
     <div className="relative w-full">
       {/* 移动端展开时的遮罩背景 */}
@@ -151,42 +212,56 @@ export function ExpandableInput({ onSubmit, isSubmitting = false }: ExpandableIn
         )}
       </AnimatePresence>
 
-      {/* 主输入框容器 */}
-      {/* playground 风格：移动端收起时固定在右下角，展开时固定在底部 */}
-      <div
-        className={cn(
-          "relative transition-all duration-500 z-10",
-          // 展开时：移动端全屏遮罩 + 固定底部，桌面端正常（有最大宽度）
-          isExpanded
-            ? 'md:max-w-2xl md:mx-auto w-full fixed inset-0 bg-black/20 backdrop-blur-sm md:relative md:bg-transparent md:backdrop-blur-none p-4 md:p-0'
-            : 'md:max-w-2xl md:mx-auto md:p-0 w-auto',
-          // 收起时：移动端固定在右下角（使用 CSS media query）
-          !isExpanded && 'fixed bottom-8 right-8 md:static md:bottom-auto md:right-auto'
+      {/* 移动端悬浮按钮 */}
+      <AnimatePresence>
+        {showFloatingButton && (
+          <motion.button
+            type="button"
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            transition={{ duration: 0.18, ease: 'easeOut' }}
+            onClick={() => setIsFocused(true)}
+            className={cn(
+              "fixed bottom-8 right-8 z-[60] h-14 w-14 rounded-full shadow-2xl flex items-center justify-center md:hidden",
+              isDark ? 'bg-[#12121a] text-white' : 'bg-white text-black'
+            )}
+          >
+            <Plus size={24} />
+          </motion.button>
         )}
-      >
-        <motion.div
-          animate={{
-            height: isExpanded ? 220 : 56,
-            width: isExpanded ? '100%' : '100%',
-            borderRadius: isExpanded ? 32 : 28,
-          }}
-          transition={{
-            type: 'spring',
-            stiffness: 400,
-            damping: 30
-          }}
-          className={cn(
-            'relative border overflow-hidden shadow-2xl cursor-text transition-colors flex flex-col mx-auto',
-            isDark ? 'bg-[#12121a] border-white/[0.1]' : 'bg-white border-black/[0.08]',
-            // 收起时：移动端圆形按钮（使用 CSS media query）
-            !isExpanded && 'w-14 h-14 md:w-full md:h-auto'
-          )}
-          onClick={() => !isExpanded && setIsFocused(true)}
-        >
-          {/* 移动端收起状态：显示 + 图标 */}
-          <div className="absolute inset-0 flex items-center justify-center md:hidden pointer-events-none">
-            {!isExpanded && <Plus size={24} className="text-foreground" />}
-          </div>
+      </AnimatePresence>
+
+      {/* 主输入框容器 */}
+      <AnimatePresence>
+        {(!isMobile || isExpanded) && (
+          <div
+            className={cn(
+              "relative transition-all duration-500 z-[60] md:z-10",
+              isMobile
+                ? 'fixed inset-0 w-full p-4 md:relative md:max-w-2xl md:mx-auto md:p-0'
+                : 'md:max-w-2xl md:mx-auto md:p-0'
+            )}
+            onClick={() => {
+              if (isMobile) {
+                setIsFocused(false)
+              }
+            }}
+          >
+            <motion.div
+              {...panelMotionProps}
+              className={cn(
+                'relative border overflow-hidden shadow-2xl cursor-text transition-colors flex flex-col mx-auto w-full',
+                isDark ? 'bg-[#12121a] border-white/[0.1]' : 'bg-white border-black/[0.08]'
+              )}
+              onClick={(event) => {
+                if (isExpanded) {
+                  event.stopPropagation()
+                  return
+                }
+                setIsFocused(true)
+              }}
+            >
 
           {/* 输入区域 */}
           <div
@@ -317,7 +392,9 @@ export function ExpandableInput({ onSubmit, isSubmitting = false }: ExpandableIn
             onChange={(e) => handleFileSelect(e, 'file')}
           />
         </motion.div>
-      </div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* 提示文字 - playground 风格：仅展开时显示 */}
       {isExpanded && (

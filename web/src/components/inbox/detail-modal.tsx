@@ -68,14 +68,14 @@ export function DetailModal({
     }
   }, [isOpen, handleKeyDown])
 
+  const { resolvedTheme } = useTheme()
+  const isDark = resolvedTheme === 'dark'
+
   if (!item) return null
 
   const config = getIntentConfig(item.analysis?.category ?? 'unknown')
   const isAnalyzing = item.status === ItemStatus.PROCESSING
   const isFailed = item.status === ItemStatus.FAILED
-
-  const { resolvedTheme } = useTheme()
-  const isDark = resolvedTheme === 'dark'
 
   return (
     <AnimatePresence>

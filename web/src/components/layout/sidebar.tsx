@@ -15,6 +15,16 @@ import {
   Link2,
   Cpu,
   Type,
+  User,
+  LogOut,
+  Languages,
+  Moon,
+  Sun,
+  LayoutDashboard,
+  Settings,
+  Key,
+  Shield,
+  BarChart3,
 } from 'lucide-react'
 import {
   Sidebar,
@@ -32,8 +42,18 @@ import { useMemo, useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { PanelLeft, Menu } from 'lucide-react'
-import { SearchTrigger } from '@/components/shared/search-dialog'
-import { INBOX_OPEN_SEARCH_EVENT } from '@/lib/constants/ui-events'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { useAuth } from '@/lib/hooks/use-auth'
+import { useToast } from '@/hooks/use-toast'
+import { useTheme } from 'next-themes'
+import { routing } from '@/i18n/routing'
 
 // Gmail 风格的导航项组件
 interface NavItemProps {
@@ -99,24 +119,45 @@ interface AppSidebarProps {
 
 export function AppSidebar({ className }: AppSidebarProps) {
   const t = useTranslations('sidebar')
+  const headerT = useTranslations('header')
   const pathname = usePathname()
   const router = useRouter()
   const [isMobileOpen, setIsMobileOpen] = useState(false)
+  const { authState, logout } = useAuth()
+  const { toast } = useToast()
+  const { theme, setTheme } = useTheme()
+  const [mounted, setMounted] = useState(false)
 
-  // 处理搜索按钮点击
-  const handleSearchClick = () => {
-    // 如果在 inbox 页面，通过 URL 参数触发搜索对话框
-    if (pathname?.startsWith('/inbox')) {
-      window.dispatchEvent(new CustomEvent(INBOX_OPEN_SEARCH_EVENT))
-    } else {
-      // 否则导航到 inbox 并打开搜索
-      router.push('/inbox?search=true')
-    }
-    // 移动端：关闭抽屉
-    if (window.innerWidth < 768) {
-      setIsMobileOpen(false)
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  const handleLogout = async () => {
+    try {
+      await logout()
+      toast({
+        title: headerT('logout.success'),
+      })
+    } catch (error) {
+      toast({
+        title: headerT('logout.failure'),
+        variant: "destructive",
+      })
     }
   }
+
+  const handleLocaleChange = (nextLocale: string) => {
+    if (nextLocale === pathname.split('/')[1]) return
+    const localePattern = new RegExp(`^/(${['zh-CN', 'en'].join('|')})(?=/|$)`)
+    const currentPath = window.location.pathname.replace(localePattern, '') || '/'
+    window.location.href = `/${nextLocale}${currentPath}`
+  }
+
+  const handleNavigate = (path: string) => {
+    router.push(path)
+  }
+
+  const isDark = mounted && theme === "dark"
 
   // 响应式检测：sm 以下关闭移动端抽屉
   useEffect(() => {
@@ -250,8 +291,6 @@ export function AppSidebar({ className }: AppSidebarProps) {
           <SidebarGroup className="p-0">
             <SidebarGroupContent>
               <SidebarMenu className="space-y-0.5">
-                {/* 搜索按钮 */}
-                <SearchTrigger onClick={handleSearchClick} />
                 {mailboxItems.map((item) => (
                   <NavItem
                     key={item.id}
@@ -313,9 +352,119 @@ export function AppSidebar({ className }: AppSidebarProps) {
         </SidebarContent>
 
         <SidebarFooter className="border-t border-black/[0.03] dark:border-white/[0.03] px-4 py-3">
-          <div className="text-[10px] text-muted-foreground">
-            <p className="font-medium">{t('footer.version')}</p>
-            <p className="mt-0.5 opacity-60">{t('footer.copyright')}</p>
+          <div className="flex items-center justify-between gap-3">
+            {/* User Avatar Menu */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 rounded-full border border-black/10 bg-black/5 text-black/40 dark:border-white/10 dark:bg-white/5 dark:text-white/40 px-0"
+                >
+                  <User className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel>
+                  <div className="flex flex-col space-y-1">
+                    <p className="text-sm font-medium leading-none">
+                      {authState.user?.username || headerT('userFallback')}
+                    </p>
+                    <p className="text-xs leading-none text-muted-foreground">
+                      {authState.user?.email || ""}
+                    </p>
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+
+                {/* Navigation Menu */}
+                <DropdownMenuItem
+                  onClick={() => handleNavigate('/')}
+                  className={cn("cursor-pointer", isActive('/') && "bg-accent")}
+                >
+                  <LayoutDashboard className="mr-2 h-4 w-4" />
+                  <span>{t('items.dashboard')}</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => handleNavigate('/settings')}
+                  className={cn("cursor-pointer", isActive('/settings') && "bg-accent")}
+                >
+                  <Settings className="mr-2 h-4 w-4" />
+                  <span>{t('items.settings')}</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => handleNavigate('/settings/api-keys')}
+                  className={cn("cursor-pointer", isActive('/settings/api-keys') && "bg-accent")}
+                >
+                  <Key className="mr-2 h-4 w-4" />
+                  <span>{t('items.apiKeys')}</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => handleNavigate('/settings/logs')}
+                  className={cn("cursor-pointer", isActive('/settings/logs') && "bg-accent")}
+                >
+                  <Shield className="mr-2 h-4 w-4" />
+                  <span>{t('items.logs')}</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => handleNavigate('/settings/statistics')}
+                  className={cn("cursor-pointer", isActive('/settings/statistics') && "bg-accent")}
+                >
+                  <BarChart3 className="mr-2 h-4 w-4" />
+                  <span>{t('items.statistics')}</span>
+                </DropdownMenuItem>
+
+                <DropdownMenuSeparator />
+
+                {/* Theme Toggle */}
+                <DropdownMenuItem
+                  onClick={() => setTheme(isDark ? "light" : "dark")}
+                  className="cursor-pointer"
+                >
+                  {isDark ? (
+                    <Sun className="mr-2 h-4 w-4" />
+                  ) : (
+                    <Moon className="mr-2 h-4 w-4" />
+                  )}
+                  <span>{isDark ? headerT('theme.light') : headerT('theme.dark')}</span>
+                </DropdownMenuItem>
+
+                <DropdownMenuSeparator />
+
+                {/* Language Selection */}
+                <DropdownMenuLabel>{headerT('language.label')}</DropdownMenuLabel>
+                <DropdownMenuItem
+                  onClick={() => handleLocaleChange('zh-CN')}
+                  className="cursor-pointer"
+                  disabled={pathname.split('/')[1] === 'zh-CN'}
+                >
+                  <Languages className="mr-2 h-4 w-4" />
+                  <span>{headerT('language.zh')}</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => handleLocaleChange('en')}
+                  className="cursor-pointer"
+                  disabled={pathname.split('/')[1] === 'en'}
+                >
+                  <Languages className="mr-2 h-4 w-4" />
+                  <span>{headerT('language.en')}</span>
+                </DropdownMenuItem>
+
+                <DropdownMenuSeparator />
+
+                {/* Logout */}
+                <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
+                  <LogOut className="mr-2 h-4 w-4" />
+                  <span>{headerT('logout.action')}</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            {/* Footer info */}
+            <div className="text-[10px] text-muted-foreground text-right">
+              <p className="font-medium">{t('footer.version')}</p>
+              <p className="mt-0.5 opacity-60">{t('footer.copyright')}</p>
+            </div>
           </div>
         </SidebarFooter>
       </Sidebar>
