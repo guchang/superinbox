@@ -64,6 +64,7 @@ export default function InboxPage() {
   const [createdItemId, setCreatedItemId] = useState<string | null>(null)
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const loadMoreRef = useRef<HTMLDivElement>(null)
+  const [columnCount, setColumnCount] = useState(1)
 
   // 监听 URL 参数控制搜索对话框与筛选
   useEffect(() => {
@@ -91,6 +92,24 @@ export default function InboxPage() {
       setActiveType('all')
     }
   }, [searchParams])
+
+  useEffect(() => {
+    const getColumnCount = () => {
+      const width = window.innerWidth
+      if (width >= 1280) return 3
+      if (width >= 768) return 2
+      return 1
+    }
+
+    const updateColumnCount = () => {
+      const nextCount = getColumnCount()
+      setColumnCount((current) => (current === nextCount ? current : nextCount))
+    }
+
+    updateColumnCount()
+    window.addEventListener('resize', updateColumnCount)
+    return () => window.removeEventListener('resize', updateColumnCount)
+  }, [])
 
 
   const { data: categoriesData } = useQuery({
@@ -158,6 +177,14 @@ export default function InboxPage() {
   const items = useMemo(() => {
     return itemsData?.pages.flatMap((page) => page.data?.items || []) || []
   }, [itemsData])
+
+  const columns = useMemo(() => {
+    const columnItems: Item[][] = Array.from({ length: columnCount }, () => [])
+    items.forEach((item, index) => {
+      columnItems[index % columnCount].push(item)
+    })
+    return columnItems
+  }, [items, columnCount])
 
   // 获取总数
   const totalCount = itemsData?.pages[0]?.data?.total || 0
@@ -468,25 +495,31 @@ export default function InboxPage() {
           </motion.div>
         ) : (
           <>
-            {/* 瀑布流布局 - 数据已重新排序以适配按列填充 */}
-            <div className="columns-1 md:columns-2 xl:columns-3 gap-4">
-              <AnimatePresence mode="popLayout">
-                {items.map((item) => (
-                  <MemoryCard
-                    key={item.id}
-                    item={item}
-                    categoryLabelMap={categoryLabelMap}
-                    onDelete={handleDelete}
-                    onRetry={handleRetry}
-                    onEdit={handleEdit}
-                    onReclassify={(id) => reclassifyMutation.mutate(id)}
-                    onRedistribute={(id) => redistributeMutation.mutate(id)}
-                    onViewDetail={handleViewDetail}
-                    deletingId={deletingId}
-                    retryingId={retryingId}
-                    animationVariant={item.id === createdItemId ? 'elastic' : 'fade'}
-                  />
-                ))}
+            {/* 瀑布流布局 - 按列分配数据避免新旧混排 */}
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-x-4">
+              {columns.map((columnItems, columnIndex) => (
+                <div key={`column-${columnIndex}`} className="flex flex-col">
+                  <AnimatePresence mode="popLayout">
+                    {columnItems.map((item) => (
+                      <MemoryCard
+                        key={item.id}
+                        item={item}
+                        categoryLabelMap={categoryLabelMap}
+                        onDelete={handleDelete}
+                        onRetry={handleRetry}
+                        onEdit={handleEdit}
+                        onReclassify={(id) => reclassifyMutation.mutate(id)}
+                        onRedistribute={(id) => redistributeMutation.mutate(id)}
+                        onViewDetail={handleViewDetail}
+                        deletingId={deletingId}
+                        retryingId={retryingId}
+                        animationVariant={item.id === createdItemId ? 'elastic' : 'fade'}
+                      />
+                    ))}
+                  </AnimatePresence>
+                </div>
+              ))}
+            </div>
 
             {/* Detail Modal */}
             <DetailModal
@@ -499,8 +532,6 @@ export default function InboxPage() {
               reclassifying={reclassifyMutation.isPending}
               redistributing={redistributeMutation.isPending}
             />
-              </AnimatePresence>
-            </div>
 
             {/* Load More Trigger */}
             {hasNextPage && (
