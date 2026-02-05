@@ -4,6 +4,7 @@ export enum ContentType {
   IMAGE = 'image',
   URL = 'url',
   AUDIO = 'audio',
+  VIDEO = 'video',
   FILE = 'file',
 }
 
@@ -131,7 +132,7 @@ export interface FilterParams extends PaginationParams {
   status?: ItemStatus
   source?: string
   search?: string
-  hasType?: 'text' | 'url' | 'image' | 'audio' | 'file'
+  hasType?: 'text' | 'url' | 'image' | 'audio' | 'video' | 'file'
   sortBy?: 'createdAt' | 'updatedAt'
   sortOrder?: 'asc' | 'desc'
 }

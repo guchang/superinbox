@@ -209,9 +209,11 @@ export function ExpandableInput({ onSubmit, isSubmitting = false }: ExpandableIn
               }}
               placeholder={t('inputPlaceholderExpanded') || "捕捉此时此刻的灵感..."}
               className={cn(
-                'w-full h-full bg-transparent border-none outline-none resize-none no-scrollbar',
-                'px-6 py-5 text-sm md:text-base',
-                'text-foreground placeholder:opacity-30'
+                'w-full h-full bg-transparent border-none outline-none resize-none no-scrollbar block',
+                'px-6 text-sm md:text-base',
+                'text-foreground placeholder:opacity-40',
+                // 单行时垂直居中，多行时正常
+                'py-[15px] leading-[22px] placeholder:leading-[22px]'
               )}
             />
           </div>

@@ -13,6 +13,7 @@ import {
   Image as ImageIcon,
   Mic,
   Paperclip,
+  Video,
   Inbox,
   ChevronRight,
 } from 'lucide-react'
@@ -31,16 +32,18 @@ import { useSearchParams } from 'next/navigation'
 
 // 媒体类型配置
 const contentTypeFilters = [
-  { id: 'all', label: 'All Types', icon: LayoutGrid },
-  { id: 'text', label: 'Text', icon: Type },
-  { id: 'image', label: 'Images', icon: ImageIcon },
-  { id: 'audio', label: 'Audios', icon: Mic },
-  { id: 'file', label: 'Docs', icon: Paperclip },
+  { id: 'all', icon: LayoutGrid },
+  { id: 'text', icon: Type },
+  { id: 'image', icon: ImageIcon },
+  { id: 'audio', icon: Mic },
+  { id: 'video', icon: Video },
+  { id: 'file', icon: Paperclip },
 ] as const
 
 
 export default function InboxPage() {
   const t = useTranslations('inbox')
+  const filtersT = useTranslations('inbox.contentTypeFilters')
   const common = useTranslations('common')
   const time = useTranslations('time')
   const errors = useTranslations('errors')
@@ -60,15 +63,33 @@ export default function InboxPage() {
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const loadMoreRef = useRef<HTMLDivElement>(null)
 
-  // 监听 URL 参数控制搜索对话框
+  // 监听 URL 参数控制搜索对话框与筛选
   useEffect(() => {
     const searchParam = searchParams.get('search')
     if (searchParam === 'true') {
       setIsSearchOpen(true)
       // 清除 URL 参数但保持对话框打开
-      window.history.replaceState({}, '', '/inbox')
+      window.history.replaceState({}, '', window.location.pathname)
+    }
+
+    const nextFilters: SearchFilters = {
+      query: searchParams.get('query') || '',
+      category: (searchParams.get('category') || undefined) as SearchFilters['category'],
+      status: (searchParams.get('status') || undefined) as SearchFilters['status'],
+      source: searchParams.get('source') || undefined,
+      hasType: (searchParams.get('hastype') || undefined) as SearchFilters['hasType'],
+    }
+
+    setSearchFilters(nextFilters)
+
+    const urlType = searchParams.get('hastype')
+    if (urlType) {
+      setActiveType(urlType)
+    } else {
+      setActiveType('all')
     }
   }, [searchParams])
+
 
   const { data: categoriesData } = useQuery({
     queryKey: ['categories'],
@@ -131,7 +152,7 @@ export default function InboxPage() {
     initialPageParam: 1,
   })
 
-  // 合并所有页面的数据
+  // 合并所有页面的数据（后端已按时间从新到旧排序）
   const items = useMemo(() => {
     return itemsData?.pages.flatMap((page) => page.data?.items || []) || []
   }, [itemsData])
@@ -375,15 +396,17 @@ export default function InboxPage() {
       {/* 结果区域 */}
       <div className="flex-1 overflow-y-auto p-4 md:p-6 bg-black/[0.01] dark:bg-[#0b0b0f]/40">
         <div className="flex flex-col gap-3 pb-4">
-          <div className="flex flex-wrap items-center gap-3">
-            <span className="text-2xl font-bold tracking-tight">
-              {currentCategoryLabel}
-            </span>
-            {totalCount > 0 && (
-              <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-muted">
-                {totalCount}
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <span className="text-2xl font-bold tracking-tight">
+                {currentCategoryLabel}
               </span>
-            )}
+              {totalCount > 0 && (
+                <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-muted">
+                  {totalCount}
+                </span>
+              )}
+            </div>
             {/* 媒体类型筛选 Pills */}
             <div className="flex flex-wrap items-center gap-2">
               {contentTypeFilters.map((type) => (
@@ -398,7 +421,7 @@ export default function InboxPage() {
                   )}
                 >
                   <type.icon size={11} />
-                  <span>{type.label}</span>
+                  <span>{filtersT(type.id)}</span>
                 </button>
               ))}
             </div>
@@ -428,8 +451,8 @@ export default function InboxPage() {
           </motion.div>
         ) : (
           <>
-            {/* 瀑布流布局 */}
-            <div className="columns-1 md:columns-2 xl:columns-3 gap-4 space-y-4">
+            {/* 瀑布流布局 - 数据已重新排序以适配按列填充 */}
+            <div className="columns-1 md:columns-2 xl:columns-3 gap-4">
               <AnimatePresence mode="popLayout">
                 {items.map((item) => (
                   <MemoryCard

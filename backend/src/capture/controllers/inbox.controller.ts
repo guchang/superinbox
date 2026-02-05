@@ -962,6 +962,8 @@ export class InboxController {
         contentType = ContentType.IMAGE;
       } else if (file.mimetype.startsWith('audio/')) {
         contentType = ContentType.AUDIO;
+      } else if (file.mimetype.startsWith('video/')) {
+        contentType = ContentType.VIDEO;
       }
 
       // Create item object with file path
@@ -993,7 +995,9 @@ export class InboxController {
         ? 'image'
         : file.mimetype.startsWith('audio/')
           ? 'audio'
-          : 'file';
+          : file.mimetype.startsWith('video/')
+            ? 'video'
+            : 'file';
 
       this.db.addItemFiles([{
         id: uuidv4(),

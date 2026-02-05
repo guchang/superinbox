@@ -1,17 +1,12 @@
 /**
  * 路由状态组件
  * 显示收件箱条目的实时路由分发状态
- *
- * 使用轮询方式：通过 useRoutingProgress Hook 每 3 秒查询一次状态
- * 不使用 SSE，简化连接管理并避免浏览器兼容性问题
  */
 
-import { CheckCircle2, XCircle, Clock, MinusCircle } from 'lucide-react'
-import { useRoutingProgress, type RoutingStatus as RoutingProgressStatus } from '@/hooks/use-routing-progress'
+import { Badge } from '@/components/ui/badge'
+import { Loader2, CheckCircle, XCircle, Clock, Zap, MinusCircle } from 'lucide-react'
+import { useRoutingProgress, type RoutingStatus } from '@/hooks/use-routing-progress'
 import { useTranslations } from 'next-intl'
-import { motion } from 'framer-motion'
-import { useTheme } from 'next-themes'
-import { cn } from '@/lib/utils'
 
 interface RoutingStatusProps {
   itemId: string
@@ -19,29 +14,30 @@ interface RoutingStatusProps {
   initialRuleNames?: string[]
   routingStatus?: string  // 从数据库获取的路由状态
   className?: string
-  disabled?: boolean  // 禁用轮询
+  disabled?: boolean  // 禁用 SSE 连接
   showAnimation?: boolean  // 是否显示动画效果
 }
 
 export function RoutingStatus({ itemId, initialDistributedTargets = [], initialRuleNames = [], routingStatus, className, disabled = false, showAnimation = true }: RoutingStatusProps) {
   const t = useTranslations('inbox')
-  const { resolvedTheme } = useTheme()
-  const isDark = resolvedTheme === 'dark'
   const progress = useRoutingProgress(itemId, { disabled })
 
-  // 禁用时使用数据库中的静态状态（通过 useAutoRefetch 定期更新）
+  // 对于禁用 SSE 的条目，使用数据库中的 routingStatus
+  // 这些数据会通过 useAutoRefetch 定期更新
   const hasStaticData = initialDistributedTargets && initialDistributedTargets.length > 0
+
+  // 如果禁用了 SSE，使用数据库状态
   const useStatic = disabled
 
-  const effectiveStatus = useStatic
-    ? (routingStatus as RoutingProgressStatus || 'pending')  // 使用数据库中的状态
+  const effectiveStatus = useStatic 
+    ? (routingStatus as RoutingStatus || 'pending')  // 使用数据库中的状态
     : progress.status
   const effectiveTargets = useStatic ? initialDistributedTargets : progress.distributedTargets
   const effectiveRuleNames = useStatic ? initialRuleNames : (progress.ruleNames || [])
   const effectiveMessage = useStatic
-    ? (initialRuleNames.length > 0
+    ? (initialRuleNames.length > 0 
         ? t('routingStatus.distributedWithRules', { rules: initialRuleNames.join(', ') })
-        : hasStaticData
+        : hasStaticData 
           ? t('routeDistributed', { count: initialDistributedTargets.length })
           : routingStatus === 'skipped'
             ? t('routingStatus.skipped')
@@ -54,8 +50,8 @@ export function RoutingStatus({ itemId, initialDistributedTargets = [], initialR
     console.log(`[RoutingStatus] itemId: ${itemId}, disabled: ${disabled}, routingStatus: ${routingStatus}, ruleNames:`, initialRuleNames)
   }
 
-  // 只在允许动画且正在轮询时显示状态指示器
-  const showIndicator = showAnimation && !disabled && progress.isPolling
+  // 只在允许动画且 SSE 活跃连接时显示状态指示器（正在处理中）
+  const showIndicator = showAnimation && !disabled && progress.status === 'processing'
 
   return (
     <RoutingStatusBadge
@@ -64,26 +60,23 @@ export function RoutingStatus({ itemId, initialDistributedTargets = [], initialR
       message={effectiveMessage}
       distributedTargets={effectiveTargets}
       ruleNames={effectiveRuleNames}
-      isPolling={progress.isPolling}
+      isConnected={progress.isConnected}
       error={progress.error}
       showIndicator={showIndicator}
       showAnimation={showAnimation}
-      isDark={isDark}
     />
   )
 }
 
 interface RoutingStatusBadgeProps {
-  className?: string
-  status: RoutingProgressStatus
+  status: RoutingStatus
   message: string
   distributedTargets: string[]
   ruleNames: string[]
-  isPolling: boolean
+  isConnected: boolean
   error: string | null
   showIndicator?: boolean
-  showAnimation?: boolean
-  isDark: boolean
+  showAnimation?: boolean  // 是否显示动画效果
 }
 
 function RoutingStatusBadge({
@@ -91,58 +84,64 @@ function RoutingStatusBadge({
   message,
   distributedTargets,
   ruleNames,
-  isPolling,
+  isConnected,
   error,
   showIndicator = false,
-  showAnimation = true,
-  isDark
+  showAnimation = true
 }: RoutingStatusBadgeProps) {
   const t = useTranslations('inbox')
-
+  
   // 根据状态返回不同的徽章样式和图标
   const getStatusConfig = () => {
     switch (status) {
-      case 'completed':
+      case 'pending':
         return {
-          wrapper: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20',
-          icon: <CheckCircle2 size={12} className="shrink-0" />,
-          text: ruleNames.length > 0
-            ? t('routingStatus.distributedWithRules', { rules: ruleNames.join(', ') })
-            : t('routingStatus.completed'),
-          showDots: false
-        }
-
-      case 'processing':
-        return {
-          wrapper: isDark ? 'bg-white/5 border-white/10 text-white/30' : 'bg-black/5 border-black/5 text-black/30',
-          icon: null,
-          text: message || t('routingStatus.processing'),
-          showDots: showAnimation
+          variant: 'outline' as const,
+          className: 'text-xs border-gray-200 text-gray-600 bg-gray-50',
+          icon: <Clock className="h-3 w-3 mr-1" />,
+          text: message || t('routingStatus.pending')
         }
 
       case 'skipped':
         return {
-          wrapper: isDark ? 'bg-white/5 border-white/10 text-white/30' : 'bg-black/5 border-black/5 text-black/30',
-          icon: <MinusCircle size={12} className="shrink-0" />,
-          text: message || t('routingStatus.skipped'),
-          showDots: false
+          variant: 'outline' as const,
+          className: 'text-xs border-gray-300 text-gray-500 bg-gray-50',
+          icon: <MinusCircle className="h-3 w-3 mr-1" />,
+          text: message || t('routingStatus.skipped')
+        }
+
+      case 'processing':
+        return {
+          variant: 'outline' as const,
+          className: `text-xs border-blue-200 text-blue-700 bg-blue-50 ${showAnimation ? 'animate-pulse' : ''}`,
+          icon: <Loader2 className={`h-3 w-3 mr-1 ${showAnimation ? 'animate-spin' : ''}`} />,
+          text: message || t('routingStatus.processing')
+        }
+
+      case 'completed':
+        return {
+          variant: 'outline' as const,
+          className: 'text-xs border-green-200 text-green-700 bg-green-50 hover:bg-green-100 hover:border-green-300',
+          icon: <CheckCircle className="h-3 w-3 mr-1" />,
+          text: ruleNames.length > 0
+            ? t('routingStatus.distributedWithRules', { rules: ruleNames.join(', ') })
+            : t('routingStatus.completed')
         }
 
       case 'error':
         return {
-          wrapper: 'bg-rose-500/10 text-rose-500 border-rose-500/20',
-          icon: <XCircle size={12} className="shrink-0" />,
-          text: message || t('routingStatus.failed'),
-          showDots: false
+          variant: 'outline' as const,
+          className: 'text-xs border-red-200 text-red-700 bg-red-50',
+          icon: <XCircle className="h-3 w-3 mr-1" />,
+          text: message || t('routingStatus.failed')
         }
 
-      case 'pending':
       default:
         return {
-          wrapper: isDark ? 'bg-white/5 border-white/10 text-white/30' : 'bg-black/5 border-black/5 text-black/30',
-          icon: <Clock size={12} className="shrink-0" />,
-          text: message || t('routingStatus.pending'),
-          showDots: false
+          variant: 'outline' as const,
+          className: 'text-xs border-gray-200 text-gray-600 bg-gray-50',
+          icon: <Clock className="h-3 w-3 mr-1" />,
+          text: '未知状态'
         }
     }
   }
@@ -151,36 +150,22 @@ function RoutingStatusBadge({
 
   return (
     <div className={`flex items-center gap-2 ${showIndicator ? 'pr-1' : ''}`}>
-      <div
-        className={cn(
-          "flex items-center gap-2 px-3 py-1.5 rounded-full text-[10px] font-black border truncate transition-colors",
-          config.wrapper
-        )}
+      <Badge
+        variant={config.variant}
+        className={`${config.className} max-w-[200px] sm:max-w-none truncate`}
         title={error ? `错误: ${error}` : message}
       >
         {config.icon}
-        <span className="truncate whitespace-nowrap">{config.text}</span>
-        {config.showDots && (
-          <div className="flex gap-1 shrink-0">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <motion.div
-                key={i}
-                animate={{ opacity: [0.2, 0.8, 0.2], scale: [1, 1.2, 1] }}
-                transition={{ duration: 1, repeat: Infinity, delay: i * 0.15 }}
-                className="w-1.5 h-1.5 rounded-[2px] bg-current"
-              />
-            ))}
-          </div>
-        )}
-      </div>
+        <span className="truncate">{config.text}</span>
+      </Badge>
 
-      {/* 轮询状态指示器（仅开发模式显示） */}
+      {/* 连接状态指示器（仅开发模式 + SSE 活跃时显示） */}
       {process.env.NODE_ENV === 'development' && showIndicator && (
         <div
           className={`w-2 h-2 rounded-full flex-shrink-0 ${
-            isPolling ? 'bg-green-400' : 'bg-gray-400'
+            isConnected ? 'bg-green-400' : 'bg-gray-400'
           }`}
-          title={isPolling ? '轮询中' : '轮询暂停'}
+          title={isConnected ? 'SSE 已连接' : 'SSE 连接中'}
         />
       )}
     </div>
@@ -188,4 +173,4 @@ function RoutingStatusBadge({
 }
 
 // 导出类型供其他组件使用
-export type { RoutingProgressStatus }
+export type { RoutingStatus }

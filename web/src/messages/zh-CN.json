@@ -37,6 +37,10 @@
       "zh": "中文",
       "en": "English"
     },
+    "theme": {
+      "light": "浅色模式",
+      "dark": "深色模式"
+    },
     "userFallback": "用户"
   },
   "sidebar": {
@@ -44,9 +48,9 @@
       "main": "主导航",
       "ai": "AI 引擎",
       "settings": "系统设置",
-      "mailbox": "Mailbox",
-      "intents": "Intents (AI Labels)",
-      "management": "Management"
+      "mailbox": "邮箱",
+      "intents": "智能分类",
+      "management": "管理"
     },
     "items": {
       "dashboard": "仪表板",
@@ -205,6 +209,14 @@
   },
   "inbox": {
     "title": "收件箱",
+    "contentTypeFilters": {
+      "all": "全部",
+      "text": "文本",
+      "image": "图片",
+      "audio": "音频",
+      "video": "视频",
+      "file": "文件"
+    },
     "resultsCount": "找到 {count} 条结果",
     "showing": "显示",
     "loadMore": "加载更多",
@@ -235,12 +247,14 @@
       "unknownTool": "未知工具"
     },
     "actions": {
+      "copy": "复制",
       "viewDetails": "查看详情",
       "edit": "编辑",
       "detail": "详情",
       "reclassify": "重新识别",
       "redistribute": "重新分发",
-      "editContent": "编辑内容"
+      "editContent": "编辑内容",
+      "more": "更多"
     },
     "badge": {
       "analyzing": "后台解析中，可关闭页面",
@@ -458,7 +472,7 @@
       "history": "最近搜索",
       "suggestions": "建议"
     },
-    "hint": "按 / 打开 · Tab 确认 · ESC 关闭"
+    "hint": "按 / 唤起搜索框"
   },
   "filePreview": {
     "sections": {

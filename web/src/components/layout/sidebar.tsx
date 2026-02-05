@@ -4,18 +4,11 @@ import { useTranslations } from 'next-intl'
 import { Link, usePathname, useRouter } from '@/i18n/navigation'
 import { useQuery } from '@tanstack/react-query'
 import { categoriesApi } from '@/lib/api/categories'
+import { inboxApi } from '@/lib/api/inbox'
 import {
   Inbox,
-  BrainCircuit,
   GitBranch,
-  Settings,
-  Home,
-  Key,
-  Activity,
-  BarChart3,
   Plug,
-  Sparkles,
-  HardDrive,
   CheckCircle2,
   Wallet,
   Lightbulb,
@@ -40,6 +33,7 @@ import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { PanelLeft, Menu } from 'lucide-react'
 import { SearchTrigger } from '@/components/shared/search-dialog'
+import { INBOX_OPEN_SEARCH_EVENT } from '@/lib/constants/ui-events'
 
 // Gmail 风格的导航项组件
 interface NavItemProps {
@@ -61,7 +55,7 @@ function NavItem({ label, icon: Icon, href, color, isActive, count, collapsed }:
         className={`flex items-center justify-between w-full px-3 py-2 rounded-xl transition-all group ${
           isActive
             ? 'font-bold text-foreground bg-black/5 dark:bg-white/10'
-            : 'text-foreground/80 opacity-40 hover:opacity-100 hover:bg-current/5'
+            : 'text-foreground/80 opacity-60 hover:opacity-100 hover:bg-current/5'
         } ${collapsed ? 'justify-center px-2' : ''}`}
         title={collapsed ? label : undefined}
       >
@@ -77,10 +71,11 @@ function NavItem({ label, icon: Icon, href, color, isActive, count, collapsed }:
           </div>
           {!collapsed && (
             <div className="flex items-center gap-2">
-              {count !== undefined && count > 0 && (
-                <span className="text-xs font-medium text-muted-foreground">{count}</span>
+              {count !== undefined && (
+                <span className="px-2 py-0.5 rounded-md text-[11px] font-bold bg-muted text-foreground/70 dark:bg-white/10">
+                  {count}
+                </span>
               )}
-              {isActive && <div className="w-1.5 h-1.5 rounded-full bg-primary" />}
             </div>
           )}
       </Link>
@@ -95,7 +90,7 @@ const categoryConfig: Record<string, { icon: typeof CheckCircle2; color?: string
   idea: { icon: Lightbulb, color: 'text-yellow-500 bg-yellow-500/10' },
   note: { icon: Type },
   bookmark: { icon: Link2, color: 'text-indigo-500 bg-indigo-500/10' },
-  schedule: { icon: Sparkles, color: 'text-purple-500 bg-purple-500/10' },
+  schedule: { icon: Link2, color: 'text-purple-500 bg-purple-500/10' },
 }
 
 interface AppSidebarProps {
@@ -106,14 +101,13 @@ export function AppSidebar({ className }: AppSidebarProps) {
   const t = useTranslations('sidebar')
   const pathname = usePathname()
   const router = useRouter()
-  const [isCollapsed, setIsCollapsed] = useState(false)
   const [isMobileOpen, setIsMobileOpen] = useState(false)
 
   // 处理搜索按钮点击
   const handleSearchClick = () => {
     // 如果在 inbox 页面，通过 URL 参数触发搜索对话框
     if (pathname?.startsWith('/inbox')) {
-      router.push('/inbox?search=true')
+      window.dispatchEvent(new CustomEvent(INBOX_OPEN_SEARCH_EVENT))
     } else {
       // 否则导航到 inbox 并打开搜索
       router.push('/inbox?search=true')
@@ -124,14 +118,10 @@ export function AppSidebar({ className }: AppSidebarProps) {
     }
   }
 
-  // 响应式检测：md 屏幕时自动折叠
+  // 响应式检测：sm 以下关闭移动端抽屉
   useEffect(() => {
     const checkScreenSize = () => {
-      const width = window.innerWidth
-      // md: 768px - lg: 1024px 之间折叠
-      setIsCollapsed(width >= 768 && width < 1024)
-      // sm 以下关闭移动端抽屉
-      if (width >= 768) {
+      if (window.innerWidth >= 768) {
         setIsMobileOpen(false)
       }
     }
@@ -150,6 +140,29 @@ export function AppSidebar({ className }: AppSidebarProps) {
 
   const categories = categoriesData?.data || []
 
+  const { data: countData } = useQuery({
+    queryKey: ['inbox-counts', categories.map((category) => category.key).join(',')],
+    queryFn: async () => {
+      const inboxResponse = await inboxApi.getItems({ limit: 1 })
+      const inboxTotal = inboxResponse.data?.total ?? 0
+
+      const categoryTotals = new Map<string, number>()
+      await Promise.all(
+        categories.map(async (category) => {
+          const response = await inboxApi.getItems({ category: category.key, limit: 1 })
+          categoryTotals.set(category.key, response.data?.total ?? 0)
+        })
+      )
+
+      return {
+        inboxTotal,
+        categoryTotals,
+      }
+    },
+    enabled: categories.length > 0,
+    staleTime: 60 * 1000,
+  })
+
   const isActive = (href: string) => {
     if (href === '/') return pathname === '/'
     if (href === '/settings') return pathname === '/settings'
@@ -158,10 +171,7 @@ export function AppSidebar({ className }: AppSidebarProps) {
 
   // Mailbox 分组
   const mailboxItems = [
-    { id: 'dashboard', label: t('items.dashboard') || 'Dashboard', href: '/', icon: Home },
-    { id: 'inbox', label: t('items.inbox') || 'All Memories', href: '/inbox', icon: Inbox },
-    { id: 'starred', label: t('items.starred') || 'Starred', href: '/inbox?starred=true', icon: Sparkles },
-    { id: 'archive', label: t('items.archive') || 'Archive', href: '/inbox?archived=true', icon: HardDrive },
+    { id: 'inbox', label: t('items.inbox') || 'All Memories', href: '/inbox', icon: Inbox, count: countData?.inboxTotal ?? 0 },
   ]
 
   // Intents (AI Labels) 分组 - 基于 API 返回的 categories
@@ -171,11 +181,11 @@ export function AppSidebar({ className }: AppSidebarProps) {
     // 如果没有获取到 categories，使用默认配置
     if (activeCategories.length === 0) {
       return [
-        { id: 'todo', label: 'Todo & Tasks', href: '/inbox?category=todo', icon: CheckCircle2, color: 'text-blue-500 bg-blue-500/10' },
-        { id: 'expense', label: 'Finance', href: '/inbox?category=expense', icon: Wallet, color: 'text-orange-500 bg-orange-500/10' },
-        { id: 'idea', label: 'Insights & Ideas', href: '/inbox?category=idea', icon: Lightbulb, color: 'text-yellow-500 bg-yellow-500/10' },
-        { id: 'note', label: 'Daily Logs', href: '/inbox?category=note', icon: Type },
-        { id: 'bookmark', label: 'Reading List', href: '/inbox?category=bookmark', icon: Link2, color: 'text-indigo-500 bg-indigo-500/10' },
+        { id: 'todo', label: 'Todo & Tasks', href: '/inbox?category=todo', icon: CheckCircle2, color: 'text-blue-500 bg-blue-500/10', count: 0 },
+        { id: 'expense', label: 'Finance', href: '/inbox?category=expense', icon: Wallet, color: 'text-orange-500 bg-orange-500/10', count: 0 },
+        { id: 'idea', label: 'Insights & Ideas', href: '/inbox?category=idea', icon: Lightbulb, color: 'text-yellow-500 bg-yellow-500/10', count: 0 },
+        { id: 'note', label: 'Daily Logs', href: '/inbox?category=note', icon: Type, count: 0 },
+        { id: 'bookmark', label: 'Reading List', href: '/inbox?category=bookmark', icon: Link2, color: 'text-indigo-500 bg-indigo-500/10', count: 0 },
       ]
     }
 
@@ -188,9 +198,10 @@ export function AppSidebar({ className }: AppSidebarProps) {
         href: `/inbox?category=${category.key}`,
         icon: config.icon,
         color: config.color,
+        count: countData?.categoryTotals?.get(category.key) ?? 0,
       }
     })
-  }, [categories])
+  }, [categories, countData])
 
   // Management 分组
   const managementItems = [
@@ -199,26 +210,8 @@ export function AppSidebar({ className }: AppSidebarProps) {
     { id: 'connections', label: t('items.connections') || 'Connections', href: '/mcp-adapters', icon: Plug },
   ]
 
-  // Settings 分组
-  const settingsItems = [
-    { id: 'settings', label: t('items.settings') || 'Settings', href: '/settings', icon: Settings },
-    { id: 'apiKeys', label: t('items.apiKeys') || 'API Keys', href: '/settings/api-keys', icon: Key },
-    { id: 'logs', label: t('items.logs') || 'Logs', href: '/settings/logs', icon: Activity },
-    { id: 'statistics', label: t('items.statistics') || 'Statistics', href: '/settings/statistics', icon: BarChart3 },
-  ]
-
   return (
     <>
-      {/* 移动端菜单按钮 - sm 以下显示 */}
-      <Button
-        variant="ghost"
-        size="icon"
-        className="fixed top-4 left-4 z-50 md:hidden h-10 w-10 rounded-xl bg-background/80 backdrop-blur-xl border border-black/[0.03] dark:border-white/[0.03]"
-        onClick={() => setIsMobileOpen(true)}
-      >
-        <Menu className="h-5 w-5" />
-      </Button>
-
       {/* 移动端抽屉遮罩 */}
       {isMobileOpen && (
         <div
@@ -234,10 +227,7 @@ export function AppSidebar({ className }: AppSidebarProps) {
           "[&_[data-sidebar=sidebar]]:bg-[#f5f5f7] dark:[&_[data-sidebar=sidebar]]:bg-[#0b0b0f]",
           // 三阶段响应式
           "hidden md:block",
-          // md 到 lg 之间：图标栏模式 (w-16)
-          isCollapsed && "w-16 min-w-16 max-w-16",
-          // lg 以上：完整侧边栏
-          !isCollapsed && "w-64 min-w-64 max-w-64",
+          "w-64 min-w-64 max-w-64",
           // 移动端抽屉模式
           isMobileOpen && "fixed inset-y-0 left-0 z-50 w-64 min-w-64 max-w-64 block md:hidden",
           className
@@ -255,18 +245,13 @@ export function AppSidebar({ className }: AppSidebarProps) {
           </Button>
         )}
 
-        <SidebarContent className={cn("px-2 pt-4", isCollapsed && "px-1")}>
+        <SidebarContent className="px-2 pt-4">
           {/* Mailbox Section */}
           <SidebarGroup className="p-0">
-            {!isCollapsed && (
-              <SidebarGroupLabel className="px-3 mb-2 opacity-20 font-black uppercase text-[10px] tracking-widest">
-                {t('sections.mailbox')}
-              </SidebarGroupLabel>
-            )}
             <SidebarGroupContent>
               <SidebarMenu className="space-y-0.5">
                 {/* 搜索按钮 */}
-                <SearchTrigger onClick={handleSearchClick} collapsed={isCollapsed} />
+                <SearchTrigger onClick={handleSearchClick} />
                 {mailboxItems.map((item) => (
                   <NavItem
                     key={item.id}
@@ -275,7 +260,7 @@ export function AppSidebar({ className }: AppSidebarProps) {
                     href={item.href}
                     icon={item.icon}
                     isActive={isActive(item.href)}
-                    collapsed={isCollapsed}
+                    count={item.count}
                   />
                 ))}
               </SidebarMenu>
@@ -284,11 +269,9 @@ export function AppSidebar({ className }: AppSidebarProps) {
 
           {/* Intents Section */}
           <SidebarGroup className="p-0">
-            {!isCollapsed && (
-              <SidebarGroupLabel className="px-3 mb-2 opacity-20 font-black uppercase text-[10px] tracking-widest">
-                {t('sections.intents')}
-              </SidebarGroupLabel>
-            )}
+            <SidebarGroupLabel className="px-3 mb-2 opacity-20 font-black uppercase text-[10px] tracking-widest">
+              {t('sections.intents')}
+            </SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu className="space-y-0.5">
                 {intentItems.map((item) => (
@@ -300,7 +283,7 @@ export function AppSidebar({ className }: AppSidebarProps) {
                     icon={item.icon}
                     color={item.color}
                     isActive={isActive(item.href)}
-                    collapsed={isCollapsed}
+                    count={item.count}
                   />
                 ))}
               </SidebarMenu>
@@ -309,11 +292,9 @@ export function AppSidebar({ className }: AppSidebarProps) {
 
           {/* Management Section */}
           <SidebarGroup className="p-0">
-            {!isCollapsed && (
-              <SidebarGroupLabel className="px-3 mb-2 opacity-20 font-black uppercase text-[10px] tracking-widest">
-                {t('sections.management')}
-              </SidebarGroupLabel>
-            )}
+            <SidebarGroupLabel className="px-3 mb-2 opacity-20 font-black uppercase text-[10px] tracking-widest">
+              {t('sections.management')}
+            </SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu className="space-y-0.5">
                 {managementItems.map((item) => (
@@ -324,26 +305,6 @@ export function AppSidebar({ className }: AppSidebarProps) {
                     href={item.href}
                     icon={item.icon}
                     isActive={isActive(item.href)}
-                    collapsed={isCollapsed}
-                  />
-                ))}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-
-          {/* Settings Section */}
-          <SidebarGroup className="mt-auto p-0">
-            <SidebarGroupContent>
-              <SidebarMenu className="space-y-0.5">
-                {settingsItems.map((item) => (
-                  <NavItem
-                    key={item.id}
-                    id={item.id}
-                    label={item.label}
-                    href={item.href}
-                    icon={item.icon}
-                    isActive={isActive(item.href)}
-                    collapsed={isCollapsed}
                   />
                 ))}
               </SidebarMenu>
@@ -351,22 +312,11 @@ export function AppSidebar({ className }: AppSidebarProps) {
           </SidebarGroup>
         </SidebarContent>
 
-        <SidebarFooter
-          className={cn(
-            "border-t border-black/[0.03] dark:border-white/[0.03]",
-            isCollapsed ? "px-2 py-3" : "px-4 py-3"
-          )}
-        >
-          {isCollapsed ? (
-            <div className="flex justify-center">
-              <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground/40" />
-            </div>
-          ) : (
-            <div className="text-[10px] text-muted-foreground">
-              <p className="font-medium">{t('footer.version')}</p>
-              <p className="mt-0.5 opacity-60">{t('footer.copyright')}</p>
-            </div>
-          )}
+        <SidebarFooter className="border-t border-black/[0.03] dark:border-white/[0.03] px-4 py-3">
+          <div className="text-[10px] text-muted-foreground">
+            <p className="font-medium">{t('footer.version')}</p>
+            <p className="mt-0.5 opacity-60">{t('footer.copyright')}</p>
+          </div>
         </SidebarFooter>
       </Sidebar>
     </>

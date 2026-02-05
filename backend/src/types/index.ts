@@ -14,6 +14,7 @@ export enum ContentType {
   IMAGE = 'image',
   URL = 'url',
   AUDIO = 'audio',
+  VIDEO = 'video',
   FILE = 'file',
   MIXED = 'mixed'
 }
@@ -153,7 +154,7 @@ export interface Item {
   processedAt?: Date;
 }
 
-export type ItemFileType = 'image' | 'audio' | 'file';
+export type ItemFileType = 'image' | 'audio' | 'video' | 'file';
 
 export interface ItemFile {
   id: string;
@@ -283,7 +284,7 @@ export interface QueryFilter {
   category?: CategoryKey;
   source?: string;
   query?: string; // Full-text search
-  hasType?: 'image' | 'audio' | 'file' | 'text' | 'url';
+  hasType?: 'image' | 'audio' | 'video' | 'file' | 'text' | 'url';
   since?: Date; // Incremental sync filter - return items updated after this timestamp
   startDate?: Date;
   endDate?: Date;

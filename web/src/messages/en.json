@@ -36,6 +36,10 @@
       "zh": "中文",
       "en": "English"
     },
+    "theme": {
+      "light": "Light mode",
+      "dark": "Dark mode"
+    },
     "userFallback": "User"
   },
   "sidebar": {
@@ -44,7 +48,7 @@
       "ai": "AI Engine",
       "settings": "Settings",
       "mailbox": "Mailbox",
-      "intents": "Intents (AI Labels)",
+      "intents": "Smart Categories",
       "management": "Management"
     },
     "items": {
@@ -204,6 +208,14 @@
   },
   "inbox": {
     "title": "Inbox",
+    "contentTypeFilters": {
+      "all": "All",
+      "text": "Text",
+      "image": "Images",
+      "audio": "Audio",
+      "video": "Video",
+      "file": "Files"
+    },
     "resultsCount": "Found {count} results",
     "showing": "Showing",
     "loadMore": "Load More",
@@ -234,12 +246,14 @@
       "unknownTool": "unknown"
     },
     "actions": {
+      "copy": "Copy",
       "viewDetails": "View details",
       "edit": "Edit",
       "detail": "Detail",
       "reclassify": "Reclassify",
       "redistribute": "Redistribute",
-      "editContent": "Edit content"
+      "editContent": "Edit content",
+      "more": "More"
     },
     "badge": {
       "analyzing": "Background processing, feel free to close",
@@ -456,7 +470,7 @@
       "history": "Recent searches",
       "suggestions": "Suggestions"
     },
-    "hint": "Press / to open · Tab to select · Esc to close"
+    "hint": "Press / to open search"
   },
   "filePreview": {
     "sections": {

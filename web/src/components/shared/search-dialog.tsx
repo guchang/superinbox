@@ -5,14 +5,12 @@ import { Search } from "lucide-react"
 import { useTranslations } from 'next-intl'
 import { cn } from "@/lib/utils"
 import { CommandSearch, type SearchFilters } from "./command-search"
+import { INBOX_OPEN_SEARCH_EVENT } from '@/lib/constants/ui-events'
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
 
 interface SearchDialogProps {
   filters: SearchFilters
@@ -52,43 +50,26 @@ export function SearchDialog({
     return () => document.removeEventListener("keydown", down)
   }, [open, setOpen])
 
+  React.useEffect(() => {
+    const handleOpenSearch = () => setOpen(true)
+    window.addEventListener(INBOX_OPEN_SEARCH_EVENT, handleOpenSearch)
+    return () => window.removeEventListener(INBOX_OPEN_SEARCH_EVENT, handleOpenSearch)
+  }, [setOpen])
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="max-w-2xl p-0">
-        <DialogHeader className="px-6 pt-6 pb-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-muted">
-                <Search className="h-5 w-5" />
-              </div>
-              <div>
-                <DialogTitle className="text-lg font-semibold">
-                  {t('title') || 'Search'}
-                </DialogTitle>
-                <DialogDescription className="text-sm text-muted-foreground">
-                  {t('description') || 'Search your memories by keywords, category, status, and more.'}
-                </DialogDescription>
-              </div>
-            </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setOpen(false)}
-              className="h-8 w-8"
-            >
-              ✕
-            </Button>
-          </div>
-        </DialogHeader>
-
-        <div className="px-6 pb-6">
-          <CommandSearch
-            filters={filters}
-            onFiltersChange={onFiltersChange}
-            availableSources={availableSources}
-            availableCategories={availableCategories}
-          />
-        </div>
+      <DialogContent
+        overlayClassName="bg-transparent"
+        className="max-w-3xl w-[92vw] p-0 overflow-hidden rounded-[28px] sm:rounded-[28px] border border-black/[0.08] bg-white text-slate-900 shadow-2xl dark:border-white/[0.1] dark:bg-[#12121a] dark:text-white [&>button]:hidden"
+      >
+        <DialogTitle className="sr-only">{t('title') || 'Search'}</DialogTitle>
+        <CommandSearch
+          filters={filters}
+          onFiltersChange={onFiltersChange}
+          availableSources={availableSources}
+          availableCategories={availableCategories}
+          variant="dialog"
+        />
       </DialogContent>
     </Dialog>
   )

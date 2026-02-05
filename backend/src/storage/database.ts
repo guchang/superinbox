@@ -322,6 +322,10 @@ export class DatabaseManager {
       } else if (filter.hasType === 'url') {
         query += ' AND content_type = ?';
         params.push('url');
+      } else if (filter.hasType === 'video') {
+        // For video: check content_type = 'video' OR has video file attachment
+        query += ' AND (content_type = ? OR EXISTS (SELECT 1 FROM item_files WHERE item_files.item_id = items.id AND item_files.file_type = ?))';
+        params.push('video', 'video');
       } else if (['image', 'audio', 'file'].includes(filter.hasType)) {
         query += ' AND EXISTS (SELECT 1 FROM item_files WHERE item_files.item_id = items.id AND item_files.file_type = ?)';
         params.push(filter.hasType);
@@ -385,6 +389,10 @@ export class DatabaseManager {
       } else if (filter.hasType === 'url') {
         query += ' AND content_type = ?';
         params.push('url');
+      } else if (filter.hasType === 'video') {
+        // For video: check content_type = 'video' OR has video file attachment
+        query += ' AND (content_type = ? OR EXISTS (SELECT 1 FROM item_files WHERE item_files.item_id = items.id AND item_files.file_type = ?))';
+        params.push('video', 'video');
       } else if (['image', 'audio', 'file'].includes(filter.hasType)) {
         query += ' AND EXISTS (SELECT 1 FROM item_files WHERE item_files.item_id = items.id AND item_files.file_type = ?)';
         params.push(filter.hasType);

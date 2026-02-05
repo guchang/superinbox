@@ -30,7 +30,7 @@ import {
   Pencil,
   Sparkles,
   Send,
-  MoreHorizontal,
+  MoreVertical,
   Copy,
   Check,
   Play,
@@ -90,7 +90,6 @@ function MemoryCardComponent({
 
   // Hover 菜单状态
   const [isMenuOpen, setIsMenuOpen] = useState(false)
-  const longPressTimer = useRef<NodeJS.Timeout | null>(null)
   const [imageObjectUrl, setImageObjectUrl] = useState<string | null>(null)
   const [isImageLoading, setIsImageLoading] = useState(false)
   const [hasImageRetried, setHasImageRetried] = useState(false)
@@ -107,20 +106,6 @@ function MemoryCardComponent({
     () => Array.from({ length: 15 }, () => Math.floor(Math.random() * 70) + 20),
     [item.id]
   )
-
-  // 长按处理（移动端）
-  const handleTouchStart = useCallback(() => {
-    longPressTimer.current = setTimeout(() => {
-      setIsMenuOpen(true)
-    }, 600)
-  }, [])
-
-  const handleTouchEnd = useCallback(() => {
-    if (longPressTimer.current) {
-      clearTimeout(longPressTimer.current)
-      longPressTimer.current = null
-    }
-  }, [])
 
   useEffect(() => {
     return () => {
@@ -227,8 +212,6 @@ function MemoryCardComponent({
       animate={animationConfig.animate}
       transition={animationConfig.transition}
       exit={{ opacity: 0, scale: 0.95 }}
-      onTouchStart={handleTouchStart}
-      onTouchEnd={handleTouchEnd}
       className={cn(
         "group rounded-[24px] p-5 relative transition-all break-inside-avoid mb-4 overflow-hidden min-h-[180px]",
         // 浅色模式: 纯白 + 极淡边框 + 阴影
@@ -256,123 +239,8 @@ function MemoryCardComponent({
         </div>
       )}
 
-      <div
-        className={cn(
-          "absolute top-4 right-4 z-20 flex items-center gap-1 rounded-full border px-1.5 py-1 backdrop-blur-md transition-opacity",
-          "bg-white border-black/10 text-slate-600 dark:bg-[#272729] dark:border-white/10 dark:text-white/70",
-          isMenuOpen
-            ? "opacity-100 pointer-events-auto"
-            : "opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto"
-        )}
-      >
-        {!isMenuOpen && (
-          <>
-            <button
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation()
-                handleCopyContent()
-              }}
-              className={cn(
-                "flex items-center gap-1 rounded-full px-2 py-1 text-[11px] font-semibold transition-colors",
-                isDark ? "hover:bg-white/10" : "hover:bg-black/5"
-              )}
-            >
-              {copied ? (
-                <Check className="h-3.5 w-3.5" />
-              ) : (
-                <Copy className="h-3.5 w-3.5" />
-              )}
-              <span>复制文字</span>
-            </button>
-            <button
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation()
-                onViewDetail?.(item)
-              }}
-              className={cn(
-                "flex items-center gap-1 rounded-full px-2 py-1 text-[11px] font-semibold transition-colors",
-                isDark ? "hover:bg-white/10" : "hover:bg-black/5"
-              )}
-            >
-              <Eye className="h-3.5 w-3.5" />
-              <span>{t('actions.viewDetails')}</span>
-            </button>
-          </>
-        )}
-        <DropdownMenu open={isMenuOpen} onOpenChange={setIsMenuOpen}>
-          <DropdownMenuTrigger asChild>
-            <button
-              type="button"
-              aria-label="更多操作"
-              className={cn(
-                "h-7 w-7 rounded-full flex items-center justify-center transition-colors",
-                isDark ? "hover:bg-white/10" : "hover:bg-black/5"
-              )}
-            >
-              <MoreHorizontal className="h-4 w-4" />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent
-            align="end"
-            className="w-40 border border-black/10 bg-white text-[11px] font-semibold text-slate-700 dark:border-white/10 dark:bg-[#272729] dark:text-white/70"
-          >
-            <DropdownMenuItem
-              onClick={() => handleCopyContent()}
-              className="cursor-pointer gap-2 text-[11px] font-semibold text-slate-700 focus:bg-black/5 dark:text-white/70 dark:focus:bg-white/10"
-            >
-              {copied ? (
-                <Check className="h-3.5 w-3.5" />
-              ) : (
-                <Copy className="h-3.5 w-3.5" />
-              )}
-              <span>复制文字</span>
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() => onViewDetail?.(item)}
-              className="cursor-pointer gap-2 text-[11px] font-semibold text-slate-700 focus:bg-black/5 dark:text-white/70 dark:focus:bg-white/10"
-            >
-              <Eye className="h-3.5 w-3.5" />
-              <span>{t('actions.viewDetails')}</span>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onClick={() => onEdit?.(item)}
-              className="cursor-pointer gap-2 text-[11px] font-semibold text-slate-700 focus:bg-black/5 dark:text-white/70 dark:focus:bg-white/10"
-            >
-              <Pencil className="h-3.5 w-3.5" />
-              <span>{t('actions.edit')}</span>
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() => onReclassify?.(item.id)}
-              className="cursor-pointer gap-2 text-[11px] font-semibold text-slate-700 focus:bg-black/5 dark:text-white/70 dark:focus:bg-white/10"
-            >
-              <Sparkles className="h-3.5 w-3.5" />
-              <span>{t('actions.reclassify')}</span>
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() => onRedistribute?.(item.id)}
-              className="cursor-pointer gap-2 text-[11px] font-semibold text-slate-700 focus:bg-black/5 dark:text-white/70 dark:focus:bg-white/10"
-            >
-              <Send className="h-3.5 w-3.5" />
-              <span>{t('actions.redistribute')}</span>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onClick={() => onDelete(item.id)}
-              className="cursor-pointer gap-2 text-[11px] font-semibold text-rose-500 focus:bg-black/5 focus:text-rose-500 dark:focus:bg-white/10"
-              disabled={deletingId === item.id}
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-              <span>{common('delete')}</span>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-
       <div className="relative z-10 flex flex-col">
-        {/* 顶部：标签和时间 */}
+        {/* 顶部：标签和操作区 */}
         <div className="flex justify-between items-center mb-4">
           <div className="flex items-center gap-2">
             <Badge
@@ -408,9 +276,89 @@ function MemoryCardComponent({
             )}
           </div>
 
-          <div className="flex items-center gap-1 text-[10px] font-bold opacity-30 uppercase tracking-wider">
+          {/* 右侧：时间 + 来源 + 更多按钮 */}
+          <div className="flex items-center gap-2 text-[10px] font-bold opacity-40 uppercase tracking-wider">
             <Clock className="h-3 w-3" />
-            <span>{formatRelativeTime(item.createdAtLocal ?? item.createdAt, time)} · {item.source?.toUpperCase()}</span>
+            <span>{formatRelativeTime(item.createdAtLocal ?? item.createdAt, time)}</span>
+            <span className="opacity-50">·</span>
+            <span>{item.source?.toUpperCase()}</span>
+
+            {/* 更多操作按钮 */}
+            <DropdownMenu open={isMenuOpen} onOpenChange={setIsMenuOpen}>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  onClick={(e) => e.stopPropagation()}
+                  className={cn(
+                    "ml-1 h-6 w-6 rounded flex items-center justify-center transition-all duration-200",
+                    "hover:bg-black/5 dark:hover:bg-white/10",
+                    "opacity-80 hover:opacity-100"
+                  )}
+                >
+                  <MoreVertical className="h-3.5 w-3.5" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                align="end"
+                className="w-36 border border-black/10 bg-white text-[11px] font-semibold text-slate-700 dark:border-white/10 dark:bg-[#272729] dark:text-white/70"
+              >
+                <DropdownMenuItem
+                  onClick={() => handleCopyContent()}
+                  className="cursor-pointer gap-2 text-[11px] font-semibold text-slate-700 focus:bg-black/5 dark:text-white/70 dark:focus:bg-white/10"
+                >
+                  {copied ? (
+                    <Check className="h-3.5 w-3.5" />
+                  ) : (
+                    <Copy className="h-3.5 w-3.5" />
+                  )}
+                  <span>{t('actions.copy')}</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => onViewDetail?.(item)}
+                  className="cursor-pointer gap-2 text-[11px] font-semibold text-slate-700 focus:bg-black/5 dark:text-white/70 dark:focus:bg-white/10"
+                >
+                  <Eye className="h-3.5 w-3.5" />
+                  <span>{t('actions.viewDetails')}</span>
+                </DropdownMenuItem>
+                {onEdit && (
+                  <DropdownMenuItem
+                    onClick={() => onEdit(item)}
+                    className="cursor-pointer gap-2 text-[11px] font-semibold text-slate-700 focus:bg-black/5 dark:text-white/70 dark:focus:bg-white/10"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                    <span>{t('actions.edit')}</span>
+                  </DropdownMenuItem>
+                )}
+                {onReclassify && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={() => onReclassify(item.id)}
+                      className="cursor-pointer gap-2 text-[11px] font-semibold text-slate-700 focus:bg-black/5 dark:text-white/70 dark:focus:bg-white/10"
+                    >
+                      <Sparkles className="h-3.5 w-3.5" />
+                      <span>{t('actions.reclassify')}</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => onRedistribute?.(item.id)}
+                      className="cursor-pointer gap-2 text-[11px] font-semibold text-slate-700 focus:bg-black/5 dark:text-white/70 dark:focus:bg-white/10"
+                    >
+                      <Send className="h-3.5 w-3.5" />
+                      <span>{t('actions.redistribute')}</span>
+                    </DropdownMenuItem>
+                  </>
+                )}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => onDelete(item.id)}
+                  className="cursor-pointer gap-2 text-[11px] font-semibold text-rose-500 focus:bg-black/5 focus:text-rose-500 dark:focus:bg-white/10"
+                  disabled={deletingId === item.id}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  <span>{common('delete')}</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
 
@@ -525,14 +473,6 @@ function MemoryCardComponent({
               )}
             </div>
           )}
-
-          {/* 匹配的路由规则 */}
-          {item.distributedRuleNames && item.distributedRuleNames.length > 0 && (
-            <div className="mt-3 text-xs text-muted-foreground">
-              <span className="font-medium">Rules: </span>
-              <span>{item.distributedRuleNames.join(', ')}</span>
-            </div>
-          )}
         </div>
 
         {/* 底部：路由状态和操作 */}
@@ -543,8 +483,8 @@ function MemoryCardComponent({
               initialDistributedTargets={item.distributedTargets}
               initialRuleNames={item.distributedRuleNames}
               routingStatus={item.routingStatus}
-              disabled={false}
-              showAnimation={true}
+              disabled={true}
+              showAnimation={false}
             />
           </div>
         </div>

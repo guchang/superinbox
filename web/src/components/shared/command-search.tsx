@@ -18,7 +18,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 
 // 搜索选项类型
 type SearchOptionType = 'category' | 'status' | 'source' | 'hastype'
-type HasType = 'text' | 'url' | 'image' | 'audio' | 'file'
+type HasType = 'text' | 'url' | 'image' | 'audio' | 'video' | 'file'
 
 interface SearchOption {
   id: SearchOptionType
@@ -42,6 +42,7 @@ interface CommandSearchProps {
   onFiltersChange: (filters: SearchFilters) => void
   availableSources?: string[]
   availableCategories?: Array<{ key: string; name: string }>
+  variant?: 'inline' | 'dialog'
 }
 
 export interface SearchFilters {
@@ -110,9 +111,11 @@ export function CommandSearch({
   filters,
   onFiltersChange,
   availableSources = [],
-  availableCategories = []
+  availableCategories = [],
+  variant = 'inline'
 }: CommandSearchProps) {
   const t = useTranslations('commandSearch')
+  const isDialog = variant === 'dialog'
   const [open, setOpen] = React.useState(false)
   const [inputValue, setInputValue] = React.useState("")
   const [selectedIndex, setSelectedIndex] = React.useState(-1)
@@ -173,6 +176,12 @@ export function CommandSearch({
     t('history.meeting'),
     'status:failed',
   ]), [t])
+
+  React.useEffect(() => {
+    if (!isDialog) return
+    setOpen(true)
+    setSelectedIndex(0)
+  }, [isDialog])
 
   // 初始化输入值和选中索引
   React.useEffect(() => {
@@ -517,192 +526,243 @@ export function CommandSearch({
   const suggestions = getSuggestions
   const shouldShowDropdown = open && suggestions.length > 0
 
-  return (
-    <Popover open={shouldShowDropdown} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <div
-          className={cn(
-            "flex items-center gap-2 px-3 py-2 text-sm bg-background border border-input rounded-md cursor-text hover:bg-accent transition-all duration-200 h-[40px]",
-            open ? "ring-2 ring-ring ring-offset-2 w-full md:w-[500px]" : "w-full md:w-[280px]",
-            "ml-auto" // 右对齐
+  const dialogItemClass = "rounded-none px-6 py-3 text-[13px] font-medium text-slate-700 dark:text-white/80"
+  const dialogActiveClass = "bg-black/5 text-slate-900 dark:bg-white/10 dark:text-white"
+  const dialogHintClass = "text-[11px] text-slate-500 dark:text-white/40"
+
+  const dropdownContent = (
+    <div className={cn("max-h-[420px] overflow-auto", isDialog && "max-h-[520px]")}>
+      <Command
+        className={cn(
+          "bg-transparent text-foreground",
+          isDialog &&
+            "bg-transparent text-slate-700 dark:text-white/80 [&_[cmdk-group-heading]]:px-6 [&_[cmdk-group-heading]]:py-3 [&_[cmdk-group-heading]]:text-[11px] [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wide [&_[cmdk-group-heading]]:text-slate-500 dark:[&_[cmdk-group-heading]]:text-white/40 [&_[cmdk-item]]:px-6 [&_[cmdk-item]]:py-3 [&_[cmdk-item]]:rounded-none"
+        )}
+      >
+        <CommandList>
+          {!inputValue && (
+            <CommandGroup>
+              {getSuggestions.filter(s => s.type === 'tip').map((suggestion, index) => (
+                <CommandItem
+                  key={index}
+                  onSelect={() => {
+                    inputRef.current?.focus()
+                  }}
+                  className={cn(
+                    "cursor-default opacity-70 hover:opacity-100",
+                    isDialog && "px-6 py-3 text-xs"
+                  )}
+                >
+                  <div className={cn("flex items-center gap-2 text-sm text-muted-foreground", isDialog && "text-xs text-slate-500 dark:text-white/40")}>
+                    <span>{suggestion.text}</span>
+                  </div>
+                </CommandItem>
+              ))}
+            </CommandGroup>
           )}
-          onClick={() => {
-            if (!open) {
-              setOpen(true)
-              // 打开时标记，并立即设置选中索引
-              isJustOpened.current = true
-              setSelectedIndex(0)
-            }
-            setTimeout(() => inputRef.current?.focus(), 0)
+
+          {!inputValue && (
+            <CommandGroup heading={t('sections.options')}>
+              {searchOptionsWithSources.map((option, index) => (
+                <CommandItem
+                  key={option.id}
+                  onSelect={() => {
+                    const parts = inputValue.trim().split(/\s+/)
+                    parts[parts.length - 1] = option.prefix
+                    const newValue = parts.join(' ')
+                    setInputValue(newValue)
+                    applySearch(newValue)
+                    inputRef.current?.focus()
+                  }}
+                  className={cn(
+                    "cursor-pointer",
+                    isDialog && dialogItemClass,
+                    selectedIndex === index + 1 && (isDialog ? dialogActiveClass : "bg-accent text-accent-foreground")
+                  )}
+                >
+                  <div className="flex items-center justify-between w-full">
+                    <div className="flex items-center gap-2">
+                      <span className={cn("text-sm", isDialog && "text-[13px]")}>{option.label}</span>
+                      <Badge
+                        variant="outline"
+                        className={cn("text-xs", isDialog && "border-black/10 bg-black/5 text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-white/60")}
+                      >
+                        {option.prefix}
+                      </Badge>
+                    </div>
+                  </div>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          )}
+
+          {!inputValue && (
+            <CommandGroup heading={t('sections.history')}>
+              {mockSearchHistory.map((item, index) => (
+                <CommandItem
+                  key={index}
+                  onSelect={() => {
+                    setInputValue(item)
+                    applySearch(item)
+                    setOpen(false)
+                  }}
+                  className={cn(
+                    "cursor-pointer",
+                    isDialog && dialogItemClass,
+                    selectedIndex === searchOptionsWithSources.length + 1 + index &&
+                      (isDialog ? dialogActiveClass : "bg-accent text-accent-foreground")
+                  )}
+                >
+                  <div className="flex items-center justify-between w-full">
+                    <div className="flex items-center gap-2">
+                      <Clock className={cn("h-3 w-3 opacity-50", isDialog && "h-4 w-4 opacity-60")} />
+                      <span className={cn("text-sm", isDialog && "text-[13px]")}>{item}</span>
+                    </div>
+                  </div>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          )}
+
+          {inputValue && getSuggestions.length > 0 && (
+            <CommandGroup heading={t('sections.suggestions')}>
+              {getSuggestions.map((suggestion, index) => (
+                <CommandItem
+                  key={index}
+                  onSelect={() => {
+                    insertSuggestion(suggestion)
+                  }}
+                  className={cn(
+                    "cursor-pointer",
+                    isDialog && dialogItemClass,
+                    selectedIndex === index && (isDialog ? dialogActiveClass : "bg-accent text-accent-foreground")
+                  )}
+                >
+                  <div className="flex items-center justify-between w-full">
+                    <div className="flex items-center gap-2">
+                      {suggestion.type === 'history' && (
+                        <>
+                          <Clock className={cn("h-3 w-3 opacity-50", isDialog && "h-4 w-4 opacity-60")} />
+                          <span className={cn("text-sm", isDialog && "text-[13px]")}>{suggestion.text}</span>
+                        </>
+                      )}
+                      {suggestion.type === 'option' && (
+                        <>
+                          <span className={cn("text-sm", isDialog && "text-[13px]")}>{suggestion.description}</span>
+                          <Badge
+                            variant="outline"
+                            className={cn("text-xs", isDialog && "border-black/10 bg-black/5 text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-white/60")}
+                          >
+                            {suggestion.text}
+                          </Badge>
+                        </>
+                      )}
+                      {suggestion.type === 'value' && suggestion.option && (
+                        <>
+                          <Badge
+                            variant="outline"
+                            className={cn("text-xs", isDialog && "border-black/10 bg-black/5 text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-white/60")}
+                          >
+                            {suggestion.option.label}
+                          </Badge>
+                          <span className={cn("text-sm", isDialog && "text-[13px]")}>
+                            {suggestion.text.replace(suggestion.option.prefix, '')}
+                          </span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          )}
+        </CommandList>
+      </Command>
+    </div>
+  )
+
+  const inputContent = (
+    <div
+      className={cn(
+        "flex items-center gap-2 cursor-text transition-all duration-200",
+        isDialog
+          ? "h-[56px] w-full px-6 py-3 gap-4 rounded-[28px] sm:rounded-[28px] bg-white dark:bg-[#12121a]"
+          : "px-3 py-2 text-sm bg-background border border-input rounded-md hover:bg-accent h-[40px]",
+        !isDialog && (open ? "ring-2 ring-ring ring-offset-2 w-full md:w-[500px]" : "w-full md:w-[280px]"),
+        !isDialog && "ml-auto"
+      )}
+      onClick={() => {
+        if (!open) {
+          setOpen(true)
+          isJustOpened.current = true
+          setSelectedIndex(0)
+        }
+        setTimeout(() => inputRef.current?.focus(), 0)
+      }}
+    >
+      {isDialog ? (
+        <Search className="h-5 w-5 opacity-80" />
+      ) : (
+        <Search className="h-4 w-4 shrink-0 opacity-50 pointer-events-none" />
+      )}
+      <input
+        ref={inputRef}
+        type="text"
+        value={inputValue}
+        onChange={handleInputChange}
+        onKeyDown={handleKeyDown}
+        placeholder={t('placeholder')}
+        className={cn(
+          "flex-1 bg-transparent border-0 outline-none text-sm placeholder:text-muted-foreground",
+          isDialog && "text-base text-slate-900 placeholder:text-slate-500 dark:text-white dark:placeholder:text-white/40"
+        )}
+      />
+      {!inputValue && (
+        isDialog ? (
+          <span className="hidden sm:flex text-[14px] font-normal text-muted-foreground/60">
+            {t('hint')}
+          </span>
+        ) : (
+          <kbd className="pointer-events-none shrink-0 h-5 select-none items-center gap-1 rounded border bg-background px-1.5 font-mono text-[10px] font-medium opacity-100 shadow-sm hidden sm:flex">
+            /
+          </kbd>
+        )
+      )}
+      {inputValue && (
+        <Button
+          variant="ghost"
+          size="sm"
+          className={cn("h-6 w-6 p-0 shrink-0", isDialog && "h-8 w-8")}
+          onClick={(e) => {
+            e.stopPropagation()
+            clearAll()
           }}
         >
-          <Search className="h-4 w-4 shrink-0 opacity-50 pointer-events-none" />
-          <input
-            ref={inputRef}
-            type="text"
-            value={inputValue}
-            onChange={handleInputChange}
-            onKeyDown={handleKeyDown}
-            placeholder={t('placeholder')}
-            className="flex-1 bg-transparent border-0 outline-none text-sm placeholder:text-muted-foreground"
-          />
-          {!inputValue && (
-            <kbd className="pointer-events-none shrink-0 h-5 select-none items-center gap-1 rounded border bg-background px-1.5 font-mono text-[10px] font-medium opacity-100 shadow-sm hidden sm:flex">
-              /
-            </kbd>
-          )}
-          {inputValue && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-6 w-6 p-0 shrink-0"
-              onClick={(e) => {
-                e.stopPropagation()
-                clearAll()
-              }}
-            >
-              <X className="h-3 w-3" />
-            </Button>
-          )}
-        </div>
-      </PopoverTrigger>
+          <X className={cn("h-3 w-3", isDialog && "h-4 w-4")} />
+        </Button>
+      )}
+    </div>
+  )
+
+  if (isDialog) {
+    return (
+      <div className="flex flex-col">
+        <div>{inputContent}</div>
+        {shouldShowDropdown && <div className="py-2">{dropdownContent}</div>}
+      </div>
+    )
+  }
+
+  return (
+    <Popover open={shouldShowDropdown} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>{inputContent}</PopoverTrigger>
       <PopoverContent
         className="p-0 border shadow-lg"
         align="end"
         style={{ width: open ? '500px' : '400px' }}
         onOpenAutoFocus={(e: Event) => e.preventDefault()}
       >
-        <div className="max-h-[400px] overflow-auto">
-          <Command>
-            <CommandList>
-              {/* 使用提示 */}
-              {!inputValue && (
-                <CommandGroup>
-                  {getSuggestions.filter(s => s.type === 'tip').map((suggestion, index) => (
-                    <CommandItem
-                      key={index}
-                      onSelect={() => {
-                        inputRef.current?.focus()
-                      }}
-                      className="cursor-default opacity-70 hover:opacity-100"
-                    >
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <span>{suggestion.text}</span>
-                      </div>
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              )}
-
-              {/* 搜索选项 */}
-              {!inputValue && (
-                <CommandGroup heading={t('sections.options')}>
-                  {searchOptionsWithSources.map((option, index) => (
-                    <CommandItem
-                      key={option.id}
-                      onSelect={() => {
-                        const parts = inputValue.trim().split(/\s+/)
-                        parts[parts.length - 1] = option.prefix
-                        const newValue = parts.join(' ')
-                        setInputValue(newValue)
-                        applySearch(newValue)
-                        inputRef.current?.focus()
-                      }}
-                      className={cn(
-                        "cursor-pointer",
-                        selectedIndex === index + 1 && "bg-accent text-accent-foreground"
-                      )}
-                    >
-                      <div className="flex items-center justify-between w-full">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm">{option.label}</span>
-                          <Badge variant="outline" className="text-xs">{option.prefix}</Badge>
-                        </div>
-                        {selectedIndex === index + 1 && (
-                          <span className="text-xs text-muted-foreground">{t('hint')}</span>
-                        )}
-                      </div>
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              )}
-
-              {/* 搜索历史 */}
-              {!inputValue && (
-                <CommandGroup heading={t('sections.history')}>
-                  {mockSearchHistory.map((item, index) => (
-                    <CommandItem
-                      key={index}
-                      onSelect={() => {
-                        setInputValue(item)
-                        applySearch(item)
-                        setOpen(false)
-                      }}
-                      className={cn(
-                        "cursor-pointer",
-                        selectedIndex === searchOptionsWithSources.length + 1 + index && "bg-accent text-accent-foreground"
-                      )}
-                    >
-                      <div className="flex items-center justify-between w-full">
-                        <div className="flex items-center gap-2">
-                          <Clock className="h-3 w-3 opacity-50" />
-                          <span className="text-sm">{item}</span>
-                        </div>
-                        {selectedIndex === searchOptionsWithSources.length + 1 + index && (
-                          <span className="text-xs text-muted-foreground">{t('hint')}</span>
-                        )}
-                      </div>
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              )}
-
-              {/* 值建议 */}
-              {inputValue && getSuggestions.length > 0 && (
-                <CommandGroup heading={t('sections.suggestions')}>
-                  {getSuggestions.map((suggestion, index) => (
-                    <CommandItem
-                      key={index}
-                      onSelect={() => {
-                        insertSuggestion(suggestion)
-                      }}
-                      className={cn(
-                        "cursor-pointer",
-                        selectedIndex === index && "bg-accent text-accent-foreground"
-                      )}
-                    >
-                      <div className="flex items-center justify-between w-full">
-                        <div className="flex items-center gap-2">
-                          {suggestion.type === 'history' && (
-                            <>
-                              <Clock className="h-3 w-3 opacity-50" />
-                              <span className="text-sm">{suggestion.text}</span>
-                            </>
-                          )}
-                          {suggestion.type === 'option' && (
-                            <>
-                              <span className="text-sm">{suggestion.description}</span>
-                              <Badge variant="outline" className="text-xs">{suggestion.text}</Badge>
-                            </>
-                          )}
-                          {suggestion.type === 'value' && suggestion.option && (
-                            <>
-                              <Badge variant="outline" className="text-xs">{suggestion.option.label}</Badge>
-                              <span className="text-sm">{suggestion.text.replace(suggestion.option.prefix, '')}</span>
-                            </>
-                          )}
-                        </div>
-                        {selectedIndex === index && (
-                          <span className="text-xs text-muted-foreground">{t('hint')}</span>
-                        )}
-                      </div>
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              )}
-            </CommandList>
-          </Command>
-        </div>
+        {dropdownContent}
       </PopoverContent>
     </Popover>
   )
