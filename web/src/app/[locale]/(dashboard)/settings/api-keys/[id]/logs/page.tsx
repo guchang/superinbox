@@ -79,9 +79,9 @@ export default function ApiKeyLogsPage() {
           <ArrowLeft className="h-4 w-4" />
           {t('back')}
         </Link>
-        <h1 className="text-2xl font-bold mb-2">
+        <div className="text-2xl font-bold mb-2">
           {apiKey?.name || t('unnamed')}
-        </h1>
+        </div>
         <div className="flex gap-6 text-sm opacity-90">
           <span>{t('keyLabel', { key: apiKey?.keyPreview || 'N/A' })}</span>
           <span>•</span>

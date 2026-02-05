@@ -69,6 +69,7 @@ export function SearchDialog({
           availableSources={availableSources}
           availableCategories={availableCategories}
           variant="dialog"
+          onConfirm={() => setOpen(false)}
         />
       </DialogContent>
     </Dialog>

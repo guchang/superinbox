@@ -84,20 +84,15 @@ function GlobalLogsPageContent() {
   return (
     <div className="space-y-6">
       {/* Page header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">{t('title')}</h1>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button onClick={() => setStatisticsDialogOpen(true)} size="default" variant="outline">
-            <BarChart3 className="mr-2 h-4 w-4" />
-            {t('actions.statistics')}
-          </Button>
-          <Button onClick={() => setExportDialogOpen(true)} size="default">
-            <Download className="mr-2 h-4 w-4" />
-            {t('actions.export')}
-          </Button>
-        </div>
+      <div className="flex items-center justify-end gap-2">
+        <Button onClick={() => setStatisticsDialogOpen(true)} size="default" variant="outline">
+          <BarChart3 className="mr-2 h-4 w-4" />
+          {t('actions.statistics')}
+        </Button>
+        <Button onClick={() => setExportDialogOpen(true)} size="default">
+          <Download className="mr-2 h-4 w-4" />
+          {t('actions.export')}
+        </Button>
       </div>
 
       {/* Error display */}

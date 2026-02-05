@@ -43,6 +43,7 @@ interface CommandSearchProps {
   availableSources?: string[]
   availableCategories?: Array<{ key: string; name: string }>
   variant?: 'inline' | 'dialog'
+  onConfirm?: () => void
 }
 
 export interface SearchFilters {
@@ -112,7 +113,8 @@ export function CommandSearch({
   onFiltersChange,
   availableSources = [],
   availableCategories = [],
-  variant = 'inline'
+  variant = 'inline',
+  onConfirm,
 }: CommandSearchProps) {
   const t = useTranslations('commandSearch')
   const isDialog = variant === 'dialog'
@@ -476,6 +478,11 @@ export function CommandSearch({
       setOpen(false)
       return
     }
+
+    if (e.key === 'Enter') {
+      applySearch(inputValue)
+      onConfirm?.()
+    }
   }
 
   // 插入建议
@@ -625,7 +632,7 @@ export function CommandSearch({
           )}
 
           {inputValue && getSuggestions.length > 0 && (
-            <CommandGroup heading={t('sections.suggestions')}>
+            <CommandGroup heading={`${t('sections.suggestions')} · ${t('tabHint')}`}>
               {getSuggestions.map((suggestion, index) => (
                 <CommandItem
                   key={index}

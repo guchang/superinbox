@@ -15,7 +15,6 @@ import {
   Link2,
   Cpu,
   Type,
-  User,
   LogOut,
   Languages,
   Moon,
@@ -25,7 +24,7 @@ import {
   Key,
   Shield,
   BarChart3,
-  ChevronDown,
+  MoreVertical,
 } from 'lucide-react'
 import {
   Sidebar,
@@ -42,7 +41,7 @@ import {
 import { useMemo, useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import { PanelLeft, Menu } from 'lucide-react'
+import { PanelLeft } from 'lucide-react'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -159,6 +158,9 @@ export function AppSidebar({ className }: AppSidebarProps) {
   }
 
   const isDark = mounted && theme === "dark"
+  const userName = authState.user?.username || headerT('userFallback')
+  const userEmail = authState.user?.email || headerT('userFallback')
+  const userInitials = userName.slice(0, 2).toUpperCase()
 
   // 响应式检测：sm 以下关闭移动端抽屉
   useEffect(() => {
@@ -287,118 +289,22 @@ export function AppSidebar({ className }: AppSidebarProps) {
           </Button>
         )}
 
-        <SidebarContent className="px-2 pt-4">
-          <SidebarHeader className="p-0 pb-2">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-foreground hover:bg-black/5 dark:hover:bg-white/10"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="p-1.5 rounded-lg bg-black/5 text-black/40 dark:bg-white/5 dark:text-white/40 flex items-center justify-center">
-                      <User className="h-4 w-4" />
-                    </div>
-                    <span className="text-sm tracking-tight">
-                      {authState.user?.username || headerT('userFallback')}
-                    </span>
+        <SidebarHeader className="px-2 pt-3">
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild className="h-9 gap-2">
+                <Link href="/">
+                  <div className="flex h-6 w-6 items-center justify-center rounded bg-primary text-primary-foreground shadow-lg">
+                    <Inbox className="h-4 w-4" />
                   </div>
-                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-56">
-                <DropdownMenuLabel>
-                  <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium leading-none">
-                      {authState.user?.username || headerT('userFallback')}
-                    </p>
-                  </div>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
+                  <span className="text-base font-black tracking-tight uppercase">SuperInbox</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarHeader>
 
-                {/* Navigation Menu */}
-                <DropdownMenuItem
-                  onClick={() => handleNavigate('/')}
-                  className={cn("cursor-pointer", isActive('/') && "bg-accent")}
-                >
-                  <LayoutDashboard className="mr-2 h-4 w-4" />
-                  <span>{t('items.dashboard')}</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => handleNavigate('/settings')}
-                  className={cn("cursor-pointer", isActive('/settings') && "bg-accent")}
-                >
-                  <Settings className="mr-2 h-4 w-4" />
-                  <span>{t('items.settings')}</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => handleNavigate('/settings/api-keys')}
-                  className={cn("cursor-pointer", isActive('/settings/api-keys') && "bg-accent")}
-                >
-                  <Key className="mr-2 h-4 w-4" />
-                  <span>{t('items.apiKeys')}</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => handleNavigate('/settings/logs')}
-                  className={cn("cursor-pointer", isActive('/settings/logs') && "bg-accent")}
-                >
-                  <Shield className="mr-2 h-4 w-4" />
-                  <span>{t('items.logs')}</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => handleNavigate('/settings/statistics')}
-                  className={cn("cursor-pointer", isActive('/settings/statistics') && "bg-accent")}
-                >
-                  <BarChart3 className="mr-2 h-4 w-4" />
-                  <span>{t('items.statistics')}</span>
-                </DropdownMenuItem>
-
-                <DropdownMenuSeparator />
-
-                {/* Theme Toggle */}
-                <DropdownMenuItem
-                  onClick={() => setTheme(isDark ? "light" : "dark")}
-                  className="cursor-pointer"
-                >
-                  {isDark ? (
-                    <Sun className="mr-2 h-4 w-4" />
-                  ) : (
-                    <Moon className="mr-2 h-4 w-4" />
-                  )}
-                  <span>{isDark ? headerT('theme.light') : headerT('theme.dark')}</span>
-                </DropdownMenuItem>
-
-                <DropdownMenuSeparator />
-
-                {/* Language Selection */}
-                <DropdownMenuLabel>{headerT('language.label')}</DropdownMenuLabel>
-                <DropdownMenuItem
-                  onClick={() => handleLocaleChange('zh-CN')}
-                  className="cursor-pointer"
-                  disabled={pathname.split('/')[1] === 'zh-CN'}
-                >
-                  <Languages className="mr-2 h-4 w-4" />
-                  <span>{headerT('language.zh')}</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => handleLocaleChange('en')}
-                  className="cursor-pointer"
-                  disabled={pathname.split('/')[1] === 'en'}
-                >
-                  <Languages className="mr-2 h-4 w-4" />
-                  <span>{headerT('language.en')}</span>
-                </DropdownMenuItem>
-
-                <DropdownMenuSeparator />
-
-                {/* Logout */}
-                <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
-                  <LogOut className="mr-2 h-4 w-4" />
-                  <span>{headerT('logout.action')}</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </SidebarHeader>
+        <SidebarContent className="px-2 pt-2">
           {/* Mailbox Section */}
           <SidebarGroup className="p-0">
             <SidebarGroupContent>
@@ -464,10 +370,120 @@ export function AppSidebar({ className }: AppSidebarProps) {
         </SidebarContent>
 
         <SidebarFooter className="border-t border-black/[0.03] dark:border-white/[0.03] px-4 py-3">
-          <div className="text-[10px] text-muted-foreground text-right">
-            <p className="font-medium">{t('footer.version')}</p>
-            <p className="mt-0.5 opacity-60">{t('footer.copyright')}</p>
-          </div>
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <SidebarMenuButton
+                    size="lg"
+                    className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+                  >
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted text-xs font-semibold text-muted-foreground">
+                      {userInitials}
+                    </div>
+                    <div className="grid flex-1 text-left text-sm leading-tight">
+                      <span className="truncate font-medium">{userName}</span>
+                      <span className="truncate text-xs text-muted-foreground">{userEmail}</span>
+                    </div>
+                    <MoreVertical className="ml-auto size-4 text-muted-foreground" />
+                  </SidebarMenuButton>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  className="w-56"
+                  side="right"
+                  align="end"
+                  sideOffset={4}
+                >
+                  <DropdownMenuLabel>
+                    <div className="flex flex-col space-y-1">
+                      <p className="text-sm font-medium leading-none">{userName}</p>
+                      <p className="text-xs leading-none text-muted-foreground">
+                        {userEmail}
+                      </p>
+                    </div>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+
+                  <DropdownMenuItem
+                    onClick={() => handleNavigate('/')}
+                    className={cn("cursor-pointer", isActive('/') && "bg-accent")}
+                  >
+                    <LayoutDashboard className="mr-2 h-4 w-4" />
+                    <span>{t('items.dashboard')}</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => handleNavigate('/settings')}
+                    className={cn("cursor-pointer", isActive('/settings') && "bg-accent")}
+                  >
+                    <Settings className="mr-2 h-4 w-4" />
+                    <span>{t('items.settings')}</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => handleNavigate('/settings/api-keys')}
+                    className={cn("cursor-pointer", isActive('/settings/api-keys') && "bg-accent")}
+                  >
+                    <Key className="mr-2 h-4 w-4" />
+                    <span>{t('items.apiKeys')}</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => handleNavigate('/settings/logs')}
+                    className={cn("cursor-pointer", isActive('/settings/logs') && "bg-accent")}
+                  >
+                    <Shield className="mr-2 h-4 w-4" />
+                    <span>{t('items.logs')}</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => handleNavigate('/settings/statistics')}
+                    className={cn("cursor-pointer", isActive('/settings/statistics') && "bg-accent")}
+                  >
+                    <BarChart3 className="mr-2 h-4 w-4" />
+                    <span>{t('items.statistics')}</span>
+                  </DropdownMenuItem>
+
+                  <DropdownMenuSeparator />
+
+                  <DropdownMenuItem
+                    onClick={() => setTheme(isDark ? "light" : "dark")}
+                    className="cursor-pointer"
+                  >
+                    {isDark ? (
+                      <Sun className="mr-2 h-4 w-4" />
+                    ) : (
+                      <Moon className="mr-2 h-4 w-4" />
+                    )}
+                    <span>{isDark ? headerT('theme.light') : headerT('theme.dark')}</span>
+                  </DropdownMenuItem>
+
+                  <DropdownMenuSeparator />
+
+                  <DropdownMenuLabel>{headerT('language.label')}</DropdownMenuLabel>
+                  <DropdownMenuItem
+                    onClick={() => handleLocaleChange('zh-CN')}
+                    className="cursor-pointer"
+                    disabled={pathname.split('/')[1] === 'zh-CN'}
+                  >
+                    <Languages className="mr-2 h-4 w-4" />
+                    <span>{headerT('language.zh')}</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => handleLocaleChange('en')}
+                    className="cursor-pointer"
+                    disabled={pathname.split('/')[1] === 'en'}
+                  >
+                    <Languages className="mr-2 h-4 w-4" />
+                    <span>{headerT('language.en')}</span>
+                  </DropdownMenuItem>
+
+                  <DropdownMenuSeparator />
+
+                  <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
+                    <LogOut className="mr-2 h-4 w-4" />
+                    <span>{headerT('logout.action')}</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </SidebarMenuItem>
+          </SidebarMenu>
         </SidebarFooter>
       </Sidebar>
     </>

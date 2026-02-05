@@ -192,10 +192,6 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">{t('title')}</h1>
-      </div>
-
       {/* Theme Settings */}
       <ThemeSettings />
 

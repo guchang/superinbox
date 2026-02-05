@@ -209,6 +209,7 @@
   },
   "inbox": {
     "title": "收件箱",
+    "allCategoriesTitle": "全部分类",
     "contentTypeFilters": {
       "all": "全部",
       "text": "文本",
@@ -472,6 +473,7 @@
       "history": "最近搜索",
       "suggestions": "建议"
     },
+    "tabHint": "按 Tab 选中",
     "hint": "按 / 唤起搜索框"
   },
   "filePreview": {

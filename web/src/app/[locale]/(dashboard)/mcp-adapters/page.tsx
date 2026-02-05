@@ -225,10 +225,7 @@ export default function MCPAdaptersPage() {
 
   return (
     <div className="w-full max-w-4xl mx-auto space-y-6 px-4">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">{t('title')}</h1>
-        </div>
+      <div className="flex items-center justify-end">
         <Button onClick={handleCreate}>
           <Plus className="h-4 w-4 mr-2" />
           {t('actions.add')}

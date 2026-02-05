@@ -208,6 +208,7 @@
   },
   "inbox": {
     "title": "Inbox",
+    "allCategoriesTitle": "All categories",
     "contentTypeFilters": {
       "all": "All",
       "text": "Text",
@@ -470,6 +471,7 @@
       "history": "Recent searches",
       "suggestions": "Suggestions"
     },
+    "tabHint": "Press Tab to select",
     "hint": "Press / to open search"
   },
   "filePreview": {

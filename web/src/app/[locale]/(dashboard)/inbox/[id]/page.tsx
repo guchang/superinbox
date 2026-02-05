@@ -290,8 +290,6 @@ export default function InboxDetailPage() {
             </Button>
           </Link>
 
-          {/* Title (Clean) */}
-          <h1 className="text-3xl font-bold tracking-tight text-balance">{t('title')}</h1>
         </div>
 
         {/* Global Page Actions */}

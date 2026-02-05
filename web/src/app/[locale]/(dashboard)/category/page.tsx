@@ -222,7 +222,6 @@ export default function CategoryPage() {
     <div className="w-full max-w-4xl mx-auto space-y-6 px-4">
       <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <div className="space-y-1">
-          <h1 className="text-3xl font-bold">{t('title')}</h1>
           <p className="text-sm text-muted-foreground">{t('description')}</p>
         </div>
         <div className="flex flex-wrap gap-2">

@@ -368,7 +368,7 @@ export default function InboxPage() {
     if (searchFilters.category) {
       return categoryLabelMap.get(searchFilters.category) || searchFilters.category
     }
-    return t('title') || 'All Memories'
+    return t('allCategoriesTitle') || t('title') || 'All categories'
   }, [searchFilters.category, categoryLabelMap, t])
 
   return (
