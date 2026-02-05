@@ -504,7 +504,7 @@ export default function LlmStatisticsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="w-full space-y-6 px-4 md:px-6 py-6">
       {/* Page header */}
       <div className="flex items-center justify-end">
         <Select value={timeRange} onValueChange={(v) => setTimeRange(v as TimeRange)}>

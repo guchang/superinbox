@@ -191,7 +191,7 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="w-full space-y-6 px-4 md:px-6 py-6">
       {/* Theme Settings */}
       <ThemeSettings />
 

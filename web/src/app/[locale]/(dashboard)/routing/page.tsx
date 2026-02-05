@@ -37,6 +37,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { useToast } from '@/hooks/use-toast'
+import { useIsMobile } from '@/hooks/use-is-mobile'
 import { LayoutGrid, List, MoreHorizontal, Plus, Pencil, Trash2 } from 'lucide-react'
 import { getApiErrorMessage, type ApiError } from '@/lib/i18n/api-errors'
 import { RetroactiveModeSelector } from '@/components/routing/retroactive-mode-selector'
@@ -142,6 +143,7 @@ export default function RoutingPage() {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all')
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list')
+  const isMobile = useIsMobile()
 
   // Load view mode from localStorage on mount
   useEffect(() => {
@@ -150,6 +152,12 @@ export default function RoutingPage() {
       setViewMode(saved)
     }
   }, [])
+
+  useEffect(() => {
+    if (isMobile) {
+      setViewMode('grid')
+    }
+  }, [isMobile])
 
   // Save view mode to localStorage when it changes
   useEffect(() => {
@@ -239,17 +247,18 @@ export default function RoutingPage() {
   }
 
   return (
-    <div className="w-full max-w-4xl mx-auto space-y-6 px-4">
-      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-        <div className="space-y-1">
-          <p className="text-sm text-muted-foreground">{t('description')}</p>
+    <div className="w-full space-y-6 px-4 md:px-6 py-6">
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div className="flex-1 min-w-0 md:pr-6 text-sm leading-relaxed text-muted-foreground">
+          {t('description')}
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2 shrink-0 self-end md:self-auto">
           <Button
             variant="outline"
             size="icon"
             onClick={() => setViewMode(viewMode === 'list' ? 'grid' : 'list')}
             title={t('view.toggle')}
+            className="hidden md:inline-flex"
           >
             {viewMode === 'list' ? (
               <LayoutGrid className="h-4 w-4" />

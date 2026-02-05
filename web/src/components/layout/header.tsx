@@ -19,7 +19,7 @@ export function Header() {
   const mcpT = useTranslations("mcpAdapters")
 
   const title = useMemo(() => {
-    if (pathname === "/") return dashboardT("title")
+    if (pathname === "/dashboard" || pathname === "/") return dashboardT("title")
     if (pathname.startsWith("/inbox/") && pathname !== "/inbox") {
       return inboxDetailT("title")
     }

@@ -2,6 +2,7 @@
 
 import { useTranslations } from 'next-intl'
 import { Link, usePathname, useRouter } from '@/i18n/navigation'
+import { useSearchParams } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
 import { categoriesApi } from '@/lib/api/categories'
 import { inboxApi } from '@/lib/api/inbox'
@@ -72,7 +73,7 @@ function NavItem({ label, icon: Icon, href, color, isActive, count, collapsed }:
     <SidebarMenuItem>
       <Link
         href={href}
-        className={`flex items-center justify-between w-full px-3 py-2 rounded-xl transition-all group ${
+        className={`flex items-center justify-between w-full px-3 py-1.5 rounded-xl transition-all group ${
           isActive
             ? 'font-bold text-foreground bg-black/5 dark:bg-white/10'
             : 'text-foreground/80 opacity-60 hover:opacity-100 hover:bg-current/5'
@@ -121,6 +122,7 @@ export function AppSidebar({ className }: AppSidebarProps) {
   const t = useTranslations('sidebar')
   const headerT = useTranslations('header')
   const pathname = usePathname()
+  const searchParams = useSearchParams()
   const router = useRouter()
   const [isMobileOpen, setIsMobileOpen] = useState(false)
   const { authState, logout } = useAuth()
@@ -207,9 +209,18 @@ export function AppSidebar({ className }: AppSidebarProps) {
     staleTime: 60 * 1000,
   })
 
+  const activeCategory = searchParams?.get('category')
+
   const isActive = (href: string) => {
-    if (href === '/') return pathname === '/'
+    if (href === '/dashboard') return pathname === '/dashboard'
     if (href === '/settings') return pathname === '/settings'
+    if (href.startsWith('/inbox?category=')) {
+      const targetCategory = href.split('category=')[1]
+      return pathname === '/inbox' && activeCategory === targetCategory
+    }
+    if (href === '/inbox') {
+      return pathname === '/inbox' && !activeCategory
+    }
     return pathname === href || pathname?.startsWith(href + '/')
   }
 
@@ -293,7 +304,7 @@ export function AppSidebar({ className }: AppSidebarProps) {
           <SidebarMenu>
             <SidebarMenuItem>
               <SidebarMenuButton asChild className="h-9 gap-2">
-                <Link href="/">
+                <Link href="/inbox">
                   <div className="flex h-6 w-6 items-center justify-center rounded bg-primary text-primary-foreground shadow-lg">
                     <Inbox className="h-4 w-4" />
                   </div>
@@ -405,8 +416,8 @@ export function AppSidebar({ className }: AppSidebarProps) {
                   <DropdownMenuSeparator />
 
                   <DropdownMenuItem
-                    onClick={() => handleNavigate('/')}
-                    className={cn("cursor-pointer", isActive('/') && "bg-accent")}
+                    onClick={() => handleNavigate('/dashboard')}
+                    className={cn("cursor-pointer", isActive('/dashboard') && "bg-accent")}
                   >
                     <LayoutDashboard className="mr-2 h-4 w-4" />
                     <span>{t('items.dashboard')}</span>

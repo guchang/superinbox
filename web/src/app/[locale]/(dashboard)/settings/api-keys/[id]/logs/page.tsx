@@ -70,7 +70,7 @@ export default function ApiKeyLogsPage() {
   const total = data?.total || 0
 
   return (
-    <div className="space-y-6">
+    <div className="w-full space-y-6 px-4 md:px-6 py-6">
       <div className="bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg p-6 text-white">
         <Link
           href="/settings/api-keys"

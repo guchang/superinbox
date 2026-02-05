@@ -224,9 +224,16 @@ export default function MCPAdaptersPage() {
   }
 
   return (
-    <div className="w-full max-w-4xl mx-auto space-y-6 px-4">
-      <div className="flex items-center justify-end">
-        <Button onClick={handleCreate}>
+    <div className="w-full space-y-6 px-4 md:px-6 py-6">
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        {t('subtitle') ? (
+          <div className="flex-1 min-w-0 md:pr-6 text-sm leading-relaxed text-muted-foreground">
+            {t('subtitle')}
+          </div>
+        ) : (
+          <div className="flex-1" />
+        )}
+        <Button onClick={handleCreate} className="shrink-0 self-end md:self-auto">
           <Plus className="h-4 w-4 mr-2" />
           {t('actions.add')}
         </Button>
