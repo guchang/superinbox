@@ -25,6 +25,7 @@ import {
   Key,
   Shield,
   BarChart3,
+  ChevronDown,
 } from 'lucide-react'
 import {
   Sidebar,
@@ -287,91 +288,29 @@ export function AppSidebar({ className }: AppSidebarProps) {
         )}
 
         <SidebarContent className="px-2 pt-4">
-          {/* Mailbox Section */}
-          <SidebarGroup className="p-0">
-            <SidebarGroupContent>
-              <SidebarMenu className="space-y-0.5">
-                {mailboxItems.map((item) => (
-                  <NavItem
-                    key={item.id}
-                    id={item.id}
-                    label={item.label}
-                    href={item.href}
-                    icon={item.icon}
-                    isActive={isActive(item.href)}
-                    count={item.count}
-                  />
-                ))}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-
-          {/* Intents Section */}
-          <SidebarGroup className="p-0">
-            <SidebarGroupLabel className="px-3 mb-2 opacity-20 font-black uppercase text-[10px] tracking-widest">
-              {t('sections.intents')}
-            </SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu className="space-y-0.5">
-                {intentItems.map((item) => (
-                  <NavItem
-                    key={item.id}
-                    id={item.id}
-                    label={item.label}
-                    href={item.href}
-                    icon={item.icon}
-                    color={item.color}
-                    isActive={isActive(item.href)}
-                    count={item.count}
-                  />
-                ))}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-
-          {/* Management Section */}
-          <SidebarGroup className="p-0">
-            <SidebarGroupLabel className="px-3 mb-2 opacity-20 font-black uppercase text-[10px] tracking-widest">
-              {t('sections.management')}
-            </SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu className="space-y-0.5">
-                {managementItems.map((item) => (
-                  <NavItem
-                    key={item.id}
-                    id={item.id}
-                    label={item.label}
-                    href={item.href}
-                    icon={item.icon}
-                    isActive={isActive(item.href)}
-                  />
-                ))}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        </SidebarContent>
-
-        <SidebarFooter className="border-t border-black/[0.03] dark:border-white/[0.03] px-4 py-3">
-          <div className="flex items-center justify-between gap-3">
-            {/* User Avatar Menu */}
+          <SidebarHeader className="p-0 pb-2">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 w-8 rounded-full border border-black/10 bg-black/5 text-black/40 dark:border-white/10 dark:bg-white/5 dark:text-white/40 px-0"
+                <button
+                  type="button"
+                  className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-foreground hover:bg-black/5 dark:hover:bg-white/10"
                 >
-                  <User className="h-4 w-4" />
-                </Button>
+                  <div className="flex items-center gap-3">
+                    <div className="p-1.5 rounded-lg bg-black/5 text-black/40 dark:bg-white/5 dark:text-white/40 flex items-center justify-center">
+                      <User className="h-4 w-4" />
+                    </div>
+                    <span className="text-sm tracking-tight">
+                      {authState.user?.username || headerT('userFallback')}
+                    </span>
+                  </div>
+                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuContent align="start" className="w-56">
                 <DropdownMenuLabel>
                   <div className="flex flex-col space-y-1">
                     <p className="text-sm font-medium leading-none">
                       {authState.user?.username || headerT('userFallback')}
-                    </p>
-                    <p className="text-xs leading-none text-muted-foreground">
-                      {authState.user?.email || ""}
                     </p>
                   </div>
                 </DropdownMenuLabel>
@@ -459,12 +398,75 @@ export function AppSidebar({ className }: AppSidebarProps) {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+          </SidebarHeader>
+          {/* Mailbox Section */}
+          <SidebarGroup className="p-0">
+            <SidebarGroupContent>
+              <SidebarMenu className="space-y-0.5">
+                {mailboxItems.map((item) => (
+                  <NavItem
+                    key={item.id}
+                    id={item.id}
+                    label={item.label}
+                    href={item.href}
+                    icon={item.icon}
+                    isActive={isActive(item.href)}
+                    count={item.count}
+                  />
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
 
-            {/* Footer info */}
-            <div className="text-[10px] text-muted-foreground text-right">
-              <p className="font-medium">{t('footer.version')}</p>
-              <p className="mt-0.5 opacity-60">{t('footer.copyright')}</p>
-            </div>
+          {/* Intents Section */}
+          <SidebarGroup className="p-0">
+            <SidebarGroupLabel className="px-3 mb-2 opacity-20 font-black uppercase text-[10px] tracking-widest">
+              {t('sections.intents')}
+            </SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu className="space-y-0.5">
+                {intentItems.map((item) => (
+                  <NavItem
+                    key={item.id}
+                    id={item.id}
+                    label={item.label}
+                    href={item.href}
+                    icon={item.icon}
+                    color={item.color}
+                    isActive={isActive(item.href)}
+                    count={item.count}
+                  />
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+
+          {/* Management Section */}
+          <SidebarGroup className="p-0">
+            <SidebarGroupLabel className="px-3 mb-2 opacity-20 font-black uppercase text-[10px] tracking-widest">
+              {t('sections.management')}
+            </SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu className="space-y-0.5">
+                {managementItems.map((item) => (
+                  <NavItem
+                    key={item.id}
+                    id={item.id}
+                    label={item.label}
+                    href={item.href}
+                    icon={item.icon}
+                    isActive={isActive(item.href)}
+                  />
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        </SidebarContent>
+
+        <SidebarFooter className="border-t border-black/[0.03] dark:border-white/[0.03] px-4 py-3">
+          <div className="text-[10px] text-muted-foreground text-right">
+            <p className="font-medium">{t('footer.version')}</p>
+            <p className="mt-0.5 opacity-60">{t('footer.copyright')}</p>
           </div>
         </SidebarFooter>
       </Sidebar>

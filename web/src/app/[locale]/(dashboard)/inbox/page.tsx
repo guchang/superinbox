@@ -16,6 +16,7 @@ import {
   Video,
   Inbox,
   ChevronRight,
+  Search,
 } from 'lucide-react'
 import { Link } from '@/i18n/navigation'
 import { useToast } from '@/hooks/use-toast'
@@ -44,6 +45,7 @@ const contentTypeFilters = [
 export default function InboxPage() {
   const t = useTranslations('inbox')
   const filtersT = useTranslations('inbox.contentTypeFilters')
+  const searchT = useTranslations('commandSearch')
   const common = useTranslations('common')
   const time = useTranslations('time')
   const errors = useTranslations('errors')
@@ -403,19 +405,19 @@ export default function InboxPage() {
       {/* 结果区域 */}
       <div className="flex-1 overflow-y-auto p-4 md:p-6 bg-black/[0.01] dark:bg-[#0b0b0f]/40">
         <div className="flex flex-col gap-2 pb-2 md:gap-3 md:pb-4">
-          <div className="flex flex-col items-start gap-3 md:flex-row md:items-center md:justify-between">
-            <div className="flex items-center gap-3">
-              <span className="text-2xl font-bold tracking-tight whitespace-nowrap flex-shrink-0">
-                {currentCategoryLabel}
+          <div className="flex items-center gap-3">
+            <span className="text-2xl font-bold tracking-tight whitespace-nowrap flex-shrink-0">
+              {currentCategoryLabel}
+            </span>
+            {totalCount > 0 && (
+              <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-muted">
+                {totalCount}
               </span>
-              {totalCount > 0 && (
-                <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-muted">
-                  {totalCount}
-                </span>
-              )}
-            </div>
-            {/* 媒体类型筛选 Pills */}
-            <div className="flex items-center gap-2 w-full overflow-x-auto md:w-auto md:flex-wrap md:overflow-visible">
+            )}
+          </div>
+          {/* 媒体类型筛选 Pills */}
+          <div className="flex items-center justify-between gap-3 w-full">
+            <div className="flex items-center gap-2 overflow-x-auto md:flex-wrap md:overflow-visible flex-1 min-w-0">
               {contentTypeFilters.map((type) => (
                 <button
                   key={type.id}
@@ -432,6 +434,14 @@ export default function InboxPage() {
                 </button>
               ))}
             </div>
+            <button
+              type="button"
+              onClick={() => setIsSearchOpen(true)}
+              className="h-9 w-9 shrink-0 rounded-xl text-foreground/80 opacity-60 hover:opacity-100 hover:bg-current/5"
+              aria-label={searchT('title') || 'Search'}
+            >
+              <Search className="h-4 w-4 mx-auto" />
+            </button>
           </div>
         </div>
         {isLoading ? (
