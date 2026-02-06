@@ -481,11 +481,12 @@
       "images": "图片 ({count})",
       "audio": "音频 ({count})",
       "video": "视频 ({count})",
-      "files": "文件 ({count})"
-    },
-    "dialog": {
-      "imageTitle": "图片预览 - {name}"
-    },
+    "files": "文件 ({count})"
+  },
+  "dialog": {
+      "imageTitle": "图片预览 - {name}",
+      "videoTitle": "视频预览 - {name}"
+  },
     "imageAltFallback": "上传的图片",
     "loading": "加载中...",
     "uploadedImage": "上传的图片",

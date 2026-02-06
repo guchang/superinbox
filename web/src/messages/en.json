@@ -479,11 +479,12 @@
       "images": "Images ({count})",
       "audio": "Audio ({count})",
       "video": "Video ({count})",
-      "files": "Files ({count})"
-    },
-    "dialog": {
-      "imageTitle": "Image preview - {name}"
-    },
+    "files": "Files ({count})"
+  },
+  "dialog": {
+      "imageTitle": "Image preview - {name}",
+      "videoTitle": "Video preview - {name}"
+  },
     "imageAltFallback": "Uploaded image",
     "loading": "Loading...",
     "uploadedImage": "Uploaded image",
