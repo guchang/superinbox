@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from 'react'
-import { useLocale, useTranslations } from 'next-intl'
+import { useTranslations } from 'next-intl'
 import { useQuery } from '@tanstack/react-query'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -56,6 +56,12 @@ type CategoryDraft = {
   isActive: boolean
 }
 
+const UNKNOWN_CATEGORY_KEY = 'unknown'
+
+const isUnknownCategory = (
+  category?: Pick<CategoryDraft, 'key'> | Pick<Category, 'key'> | null
+) => category?.key?.trim().toLowerCase() === UNKNOWN_CATEGORY_KEY
+
 export default function CategoryPage() {
   const { toast } = useToast()
   const t = useTranslations('aiPage')
@@ -66,6 +72,11 @@ export default function CategoryPage() {
   const [isSavingCategory, setIsSavingCategory] = useState(false)
   const [togglingCategoryId, setTogglingCategoryId] = useState<string | null>(null)
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list')
+  const [promptDraft, setPromptDraft] = useState('')
+  const [isSavingPrompt, setIsSavingPrompt] = useState(false)
+  const [isGeneratingPrompt, setIsGeneratingPrompt] = useState(false)
+  const [isRollingBackPrompt, setIsRollingBackPrompt] = useState(false)
+  const [isPreviousPromptPreviewOpen, setIsPreviousPromptPreviewOpen] = useState(false)
   const isMobile = useIsMobile()
 
   // Load view mode from localStorage on mount
@@ -90,17 +101,34 @@ export default function CategoryPage() {
   const {
     data: categoriesData,
     isLoading: categoriesLoading,
-    isFetching: categoriesFetching,
     refetch: refetchCategories,
   } = useQuery({
     queryKey: ['categories'],
     queryFn: () => categoriesApi.list(),
   })
 
+  const {
+    data: categoryPromptData,
+    isLoading: categoryPromptLoading,
+    refetch: refetchCategoryPrompt,
+  } = useQuery({
+    queryKey: ['categories-prompt'],
+    queryFn: () => categoriesApi.getPrompt(),
+  })
+
+  const categoryPrompt = categoryPromptData?.data
+
+  useEffect(() => {
+    if (categoryPrompt) {
+      setPromptDraft(categoryPrompt.prompt)
+    }
+  }, [categoryPrompt])
+
   const categories = useMemo(() => {
     return (categoriesData?.data || []).map((category) => ({
       ...category,
       examples: category.examples || [],
+      isActive: isUnknownCategory(category) ? true : category.isActive,
     }))
   }, [categoriesData])
 
@@ -115,7 +143,16 @@ export default function CategoryPage() {
   )
 
   const categoryList = useMemo(() => {
-    return [...categories].sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+    return [...categories].sort((a, b) => {
+      const aIsUnknown = isUnknownCategory(a)
+      const bIsUnknown = isUnknownCategory(b)
+
+      if (aIsUnknown !== bIsUnknown) {
+        return aIsUnknown ? 1 : -1
+      }
+
+      return a.createdAt.localeCompare(b.createdAt)
+    })
   }, [categories])
 
   const categoryKeyConflict = useMemo(() => {
@@ -132,6 +169,15 @@ export default function CategoryPage() {
     categoryDraft.key.trim().length > 0 &&
     !categoryKeyConflict
 
+  const canSavePrompt =
+    promptDraft.trim().length > 0 &&
+    promptDraft.trim() !== (categoryPrompt?.prompt || '').trim()
+  const isPromptBusy =
+    categoryPromptLoading || isSavingPrompt || isGeneratingPrompt || isRollingBackPrompt
+  const previousPrompt = categoryPrompt?.previousPrompt?.trim() || ''
+  const hasPreviousPrompt = Boolean(previousPrompt)
+  const canRollbackPrompt = Boolean(categoryPrompt?.canRollback && hasPreviousPrompt)
+
   const openCategoryDialog = (category?: Category) => {
     setCategoryDraft({
       id: category?.id,
@@ -140,7 +186,7 @@ export default function CategoryPage() {
       name: category?.name || '',
       description: category?.description || '',
       examplesText: (category?.examples || []).join('\n'),
-      isActive: category?.isActive ?? true,
+      isActive: isUnknownCategory(category) ? true : (category?.isActive ?? true),
     })
     setCategoryDialogOpen(true)
   }
@@ -159,7 +205,7 @@ export default function CategoryPage() {
       name: categoryDraft.name.trim(),
       description: categoryDraft.description.trim(),
       examples,
-      isActive: categoryDraft.isActive,
+      isActive: isUnknownCategory(categoryDraft) ? true : categoryDraft.isActive,
     }
 
     try {
@@ -190,6 +236,10 @@ export default function CategoryPage() {
   }
 
   const toggleCategoryActive = async (category: Category) => {
+    if (isUnknownCategory(category)) {
+      return
+    }
+
     setTogglingCategoryId(category.id)
     try {
       await categoriesApi.update(category.id, { isActive: !category.isActive })
@@ -206,6 +256,10 @@ export default function CategoryPage() {
   }
 
   const handleDeleteCategory = async (category: Category) => {
+    if (isUnknownCategory(category)) {
+      return
+    }
+
     if (!window.confirm(t('confirmDelete', { name: category.name }))) {
       return
     }
@@ -223,6 +277,91 @@ export default function CategoryPage() {
         description: getApiErrorMessage(error, errors, common('tryLater')),
         variant: 'destructive',
       })
+    }
+  }
+
+  const refreshPromptData = async () => {
+    await refetchCategoryPrompt()
+  }
+
+  const handleSavePrompt = async () => {
+    const trimmedPrompt = promptDraft.trim()
+    if (!trimmedPrompt) {
+      toast({
+        title: t('toasts.promptSaveFailed.title'),
+        description: t('promptEditor.emptyPromptError'),
+        variant: 'destructive',
+      })
+      return
+    }
+
+    setIsSavingPrompt(true)
+
+    try {
+      await categoriesApi.updatePrompt(trimmedPrompt)
+      await refreshPromptData()
+      toast({
+        title: t('toasts.promptSaved.title'),
+      })
+    } catch (error) {
+      toast({
+        title: t('toasts.promptSaveFailed.title'),
+        description: getApiErrorMessage(error, errors, common('tryLater')),
+        variant: 'destructive',
+      })
+    } finally {
+      setIsSavingPrompt(false)
+    }
+  }
+
+  const handleGeneratePrompt = async () => {
+    setIsGeneratingPrompt(true)
+
+    try {
+      const response = await categoriesApi.generatePrompt()
+      const generatedPrompt = response.data?.prompt?.trim()
+      if (generatedPrompt) {
+        setPromptDraft(generatedPrompt)
+      }
+      toast({
+        title: t('toasts.promptGenerated.title'),
+      })
+    } catch (error) {
+      toast({
+        title: t('toasts.promptGenerateFailed.title'),
+        description: getApiErrorMessage(error, errors, common('tryLater')),
+        variant: 'destructive',
+      })
+    } finally {
+      setIsGeneratingPrompt(false)
+    }
+  }
+
+  const handleRollbackPrompt = async () => {
+    if (!canRollbackPrompt) {
+      return
+    }
+
+    if (!window.confirm(t('promptEditor.confirmRollback'))) {
+      return
+    }
+
+    setIsRollingBackPrompt(true)
+
+    try {
+      await categoriesApi.rollbackPrompt()
+      await refreshPromptData()
+      toast({
+        title: t('toasts.promptRollback.title'),
+      })
+    } catch (error) {
+      toast({
+        title: t('toasts.promptRollbackFailed.title'),
+        description: getApiErrorMessage(error, errors, common('tryLater')),
+        variant: 'destructive',
+      })
+    } finally {
+      setIsRollingBackPrompt(false)
     }
   }
 
@@ -252,6 +391,83 @@ export default function CategoryPage() {
           </Button>
         </div>
       </div>
+
+      <Card className="border-0 shadow-none">
+        <CardHeader className="px-0 pt-0">
+          <CardTitle>{t('promptEditor.title')}</CardTitle>
+          <CardDescription>{t('promptEditor.description')}</CardDescription>
+        </CardHeader>
+        <CardContent className="px-0 space-y-3">
+          <Textarea
+            value={promptDraft}
+            onChange={(event) => setPromptDraft(event.target.value)}
+            placeholder={t('promptEditor.placeholder')}
+            className="min-h-[260px] font-mono text-xs leading-5"
+            disabled={isPromptBusy}
+          />
+          <div className="space-y-2 text-xs text-muted-foreground">
+            <p>
+              {categoryPrompt?.isCustomized
+                ? t('promptEditor.updatedAtCustom', {
+                    date: categoryPrompt.updatedAt || common('empty'),
+                  })
+                : t('promptEditor.updatedAtDefault')}
+            </p>
+            <p>
+              {canRollbackPrompt
+                ? t('promptEditor.rollbackHint')
+                : t('promptEditor.rollbackUnavailable')}
+            </p>
+          </div>
+          <div className="flex items-center justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={handleGeneratePrompt}
+              disabled={isPromptBusy}
+            >
+              {isGeneratingPrompt
+                ? t('promptEditor.actions.generating')
+                : t('promptEditor.actions.generate')}
+            </Button>
+            <Button
+              onClick={handleSavePrompt}
+              disabled={!canSavePrompt || isPromptBusy}
+            >
+              {t('promptEditor.actions.save')}
+            </Button>
+          </div>
+          <div className="rounded border bg-muted/20 p-2">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0 space-y-1">
+                <div className="text-[11px] text-muted-foreground">
+                  {categoryPrompt?.previousUpdatedAt || common('empty')}
+                </div>
+                <p className="line-clamp-2 text-xs text-foreground">
+                  {hasPreviousPrompt ? previousPrompt : t('promptEditor.rollbackUnavailable')}
+                </p>
+              </div>
+              <div className="flex items-center gap-2 self-end sm:self-auto">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsPreviousPromptPreviewOpen(true)}
+                  disabled={isPromptBusy || !canRollbackPrompt}
+                >
+                  {t('promptEditor.actions.viewFull')}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleRollbackPrompt}
+                  disabled={isPromptBusy || !canRollbackPrompt}
+                >
+                  {t('promptEditor.actions.rollback')}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       <Card className="border-0 shadow-none">
         <CardContent className="px-0">
@@ -287,7 +503,9 @@ export default function CategoryPage() {
                   const previewExamples = (category.examples || []).slice(0, 1)
                   const extraExamples =
                     (category.examples?.length || 0) - previewExamples.length
-                  const toggleDisabled = togglingCategoryId === category.id
+                  const isSystemFallbackCategory = isUnknownCategory(category)
+                  const toggleDisabled =
+                    togglingCategoryId === category.id || isSystemFallbackCategory
 
                   return (
                     <TableRow key={category.id}>
@@ -346,13 +564,15 @@ export default function CategoryPage() {
                               <Pencil className="mr-2 h-4 w-4" />
                               {t('actions.editCategory')}
                             </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => handleDeleteCategory(category)}
-                              className="text-destructive focus:text-destructive"
-                            >
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              {common('delete')}
-                            </DropdownMenuItem>
+                            {!isSystemFallbackCategory && (
+                              <DropdownMenuItem
+                                onClick={() => handleDeleteCategory(category)}
+                                className="text-destructive focus:text-destructive"
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                {common('delete')}
+                              </DropdownMenuItem>
+                            )}
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>
@@ -367,7 +587,9 @@ export default function CategoryPage() {
                 const nameLabel = category.name?.trim() || t('labels.unnamed')
                 const keyLabel = category.key?.trim() || common('empty')
                 const descriptionLabel = category.description?.trim() || common('empty')
-                const toggleDisabled = togglingCategoryId === category.id
+                const isSystemFallbackCategory = isUnknownCategory(category)
+                const toggleDisabled =
+                  togglingCategoryId === category.id || isSystemFallbackCategory
 
                 return (
                   <Card key={category.id} className="relative">
@@ -421,13 +643,15 @@ export default function CategoryPage() {
                               <Pencil className="mr-2 h-4 w-4" />
                               {t('actions.editCategory')}
                             </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => handleDeleteCategory(category)}
-                              className="text-destructive focus:text-destructive"
-                            >
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              {common('delete')}
-                            </DropdownMenuItem>
+                            {!isSystemFallbackCategory && (
+                              <DropdownMenuItem
+                                onClick={() => handleDeleteCategory(category)}
+                                className="text-destructive focus:text-destructive"
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                {common('delete')}
+                              </DropdownMenuItem>
+                            )}
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </div>
@@ -448,6 +672,34 @@ export default function CategoryPage() {
           </div>
         </CardContent>
       </Card>
+
+
+      <Dialog
+        open={isPreviousPromptPreviewOpen}
+        onOpenChange={setIsPreviousPromptPreviewOpen}
+      >
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>{t('promptEditor.preview.title')}</DialogTitle>
+            <DialogDescription>
+              {categoryPrompt?.previousUpdatedAt || common('empty')}
+            </DialogDescription>
+          </DialogHeader>
+          <Textarea
+            value={previousPrompt}
+            readOnly
+            className="min-h-[420px] font-mono text-xs leading-5"
+          />
+          <DialogFooter>
+            <Button
+              variant="ghost"
+              onClick={() => setIsPreviousPromptPreviewOpen(false)}
+            >
+              {common('close')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={categoryDialogOpen} onOpenChange={setCategoryDialogOpen}>
         <DialogContent className="max-w-xl">
@@ -490,6 +742,7 @@ export default function CategoryPage() {
                   )
                 }
                 placeholder={t('categoryDialog.fields.key.placeholder')}
+                disabled={isUnknownCategory(categoryDraft)}
               />
               <p className="text-xs text-muted-foreground">
                 {t('categoryDialog.fields.key.hint')}
@@ -534,9 +787,17 @@ export default function CategoryPage() {
               <Checkbox
                 id="category-active"
                 checked={categoryDraft?.isActive ?? true}
+                disabled={isUnknownCategory(categoryDraft)}
                 onCheckedChange={(checked) =>
                   setCategoryDraft((prev) =>
-                    prev ? { ...prev, isActive: Boolean(checked) } : prev
+                    prev
+                      ? {
+                          ...prev,
+                          isActive: isUnknownCategory(prev)
+                            ? true
+                            : Boolean(checked),
+                        }
+                      : prev
                   )
                 }
               />
@@ -544,6 +805,11 @@ export default function CategoryPage() {
                 {t('categoryDialog.fields.active.label')}
               </Label>
             </div>
+            {isUnknownCategory(categoryDraft) && (
+              <p className="text-xs text-muted-foreground">
+                {t('categoryDialog.fields.active.systemFallbackHint')}
+              </p>
+            )}
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setCategoryDialogOpen(false)}>

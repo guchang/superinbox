@@ -4,11 +4,11 @@ import { useEffect, useCallback } from 'react'
 import { useTranslations } from 'next-intl'
 import { useTheme } from 'next-themes'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Sparkles, Send, Pencil, Clock, FileText, CheckCircle2, Loader2 } from 'lucide-react'
+import { X, Sparkles, Send, Pencil, Clock, CheckCircle2, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Item, ItemStatus } from '@/types'
+import { ContentType, Item, ItemStatus } from '@/types'
 import { formatRelativeTime } from '@/lib/utils'
 import { FilePreview } from '@/components/file-preview'
 
@@ -23,17 +23,41 @@ interface DetailModalProps {
   redistributing?: boolean
 }
 
-// 获取意图配置
-const getIntentConfig = (category: string) => {
-  const map: Record<string, { color: string; bgColor: string; label: string }> = {
-    todo: { color: 'text-blue-500', bgColor: 'bg-blue-500/10', label: 'Todo' },
-    idea: { color: 'text-yellow-500', bgColor: 'bg-yellow-500/10', label: 'Idea' },
-    expense: { color: 'text-orange-500', bgColor: 'bg-orange-500/10', label: 'Expense' },
-    note: { color: 'text-slate-500', bgColor: 'bg-slate-500/10', label: 'Note' },
-    bookmark: { color: 'text-indigo-500', bgColor: 'bg-indigo-500/10', label: 'Bookmark' },
-    schedule: { color: 'text-purple-500', bgColor: 'bg-purple-500/10', label: 'Schedule' },
+const getDistributionTargetLabel = (target: unknown, index: number) => {
+  if (typeof target === 'string') return target
+
+  if (target && typeof target === 'object') {
+    const record = target as Record<string, unknown>
+    const candidates = [
+      record.name,
+      record.targetName,
+      record.ruleName,
+      record.targetId,
+      record.adapter,
+      record.id,
+      record.type,
+    ]
+
+    for (const candidate of candidates) {
+      if (typeof candidate === 'string' && candidate.trim()) {
+        return candidate
+      }
+    }
+
+    try {
+      return JSON.stringify(target)
+    } catch {
+      return `Target ${index + 1}`
+    }
   }
-  return map[category] || { color: 'text-slate-500', bgColor: 'bg-slate-500/10', label: category }
+
+  return `Target ${index + 1}`
+}
+
+const isLikelyUrl = (value: string) => /^https?:\/\/\S+/i.test(value)
+
+const isUrlEntity = (type: string, value: string) => {
+  return /url|link/i.test(type) || isLikelyUrl(value)
 }
 
 export function DetailModal({
@@ -46,8 +70,7 @@ export function DetailModal({
   reclassifying,
   redistributing,
 }: DetailModalProps) {
-  const t = useTranslations('inbox')
-  const common = useTranslations('common')
+  const detailT = useTranslations('inboxDetail')
   const time = useTranslations('time')
 
   // ESC 关闭
@@ -73,9 +96,36 @@ export function DetailModal({
 
   if (!item) return null
 
-  const config = getIntentConfig(item.analysis?.category ?? 'unknown')
+  const categoryKey = item.analysis?.category ?? 'unknown'
+  const categoryLabel = {
+    todo: detailT('categories.todo'),
+    idea: detailT('categories.idea'),
+    expense: detailT('categories.expense'),
+    note: detailT('categories.note'),
+    bookmark: detailT('categories.bookmark'),
+    schedule: detailT('categories.schedule'),
+    unknown: detailT('categories.unknown'),
+  }[categoryKey] || categoryKey
   const isAnalyzing = item.status === ItemStatus.PROCESSING
   const isFailed = item.status === ItemStatus.FAILED
+  const contentText = item.content?.trim() ?? ''
+  const hasContentText = contentText.length > 0
+  const entityBadges = (item.analysis?.entities || [])
+    .filter((entity) => entity?.type && entity?.value)
+    .map((entity) => ({
+      type: entity.type.trim(),
+      value: entity.value.trim(),
+    }))
+    .filter((entity) => {
+      if (!entity.type || !entity.value) return false
+      if (entity.type.toLowerCase() === 'customfields') return false
+      if (entity.value === '{}' || entity.value === '[]') return false
+      return true
+    })
+    .map((entity) => ({
+      ...entity,
+      isUrl: isUrlEntity(entity.type, entity.value),
+    }))
 
   return (
     <AnimatePresence>
@@ -108,67 +158,48 @@ export function DetailModal({
             )}
             onClick={e => e.stopPropagation()}
           >
-            {/* 关闭按钮 */}
-            <button
-              onClick={onClose}
-              className={cn(
-                "absolute top-4 right-4 z-10",
-                "w-10 h-10 rounded-full flex items-center justify-center",
-                "bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10",
-                "transition-colors"
-              )}
-            >
-              <X className="h-5 w-5" />
-            </button>
+            {/* 顶部操作栏 */}
+            <div className="flex h-16 items-center justify-end border-b border-black/[0.03] px-3 dark:border-white/[0.06] sm:px-4">
+              <button
+                onClick={onClose}
+                className={cn(
+                  "h-9 w-9 rounded-full flex items-center justify-center sm:h-10 sm:w-10",
+                  "bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10",
+                  "transition-colors"
+                )}
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
 
             {/* 内容区域 */}
-            <div className="overflow-y-auto max-h-[85vh]">
-              {/* 头部信息 */}
-              <div className="p-6 pb-4">
-                <div className="flex items-center gap-3 mb-4">
-                  <Badge
-                    className={cn(
-                      "h-6 text-[10px] font-black uppercase tracking-widest",
-                      config.color,
-                      config.bgColor
+            <div className="overflow-y-auto max-h-[calc(85vh-4rem)]">
+              <div className="px-5 py-5 sm:px-6 sm:py-6 space-y-4 sm:space-y-5">
+                {(isFailed || hasContentText) && (
+                  <div className="space-y-3">
+                    {isFailed && (
+                      <Badge variant="destructive" className="h-6 text-[10px]">
+                        {detailT('status.failed')}
+                      </Badge>
                     )}
-                  >
-                    {isAnalyzing && <Loader2 className="h-3 w-3 mr-1 animate-spin" />}
-                    {config.label}
-                  </Badge>
 
-                  {isFailed && (
-                    <Badge variant="destructive" className="h-6 text-[10px]">
-                      {t('badge.failed')}
-                    </Badge>
-                  )}
-
-                  <div className="flex items-center gap-1 text-[10px] font-bold opacity-40 uppercase tracking-wider ml-auto">
-                    <Clock className="h-3 w-3" />
-                    <span>{formatRelativeTime(item.createdAtLocal ?? item.createdAt, time)}</span>
+                    {hasContentText && (
+                      <h2 className={cn(
+                        item.contentType === ContentType.URL
+                          ? 'text-lg font-semibold leading-relaxed break-all'
+                          : 'text-2xl font-bold leading-relaxed break-words',
+                        isAnalyzing ? 'text-muted-foreground italic' : 'text-foreground'
+                      )}>
+                        {contentText}
+                      </h2>
+                    )}
                   </div>
-                </div>
+                )}
 
-                {/* 来源 */}
-                <div className="text-[10px] font-bold uppercase tracking-widest opacity-30 mb-2">
-                  {item.source?.toUpperCase()}
-                </div>
-
-                {/* 主内容 */}
-                <h2 className={cn(
-                  "text-2xl font-bold leading-relaxed",
-                  isAnalyzing ? 'text-muted-foreground italic' : 'text-foreground'
-                )}>
-                  {item.content}
-                </h2>
-              </div>
-
-              {/* 文件预览 */}
-              {item.hasFile && (
-                <div className="px-6 pb-4">
-                  <div className="p-4 rounded-2xl bg-black/[0.02] dark:bg-white/[0.02] border border-black/[0.03] dark:border-white/[0.03]">
+                {item.hasFile && (
+                  <section className="rounded-2xl bg-black/[0.02] dark:bg-white/[0.02] border border-black/[0.03] dark:border-white/[0.03] p-5 sm:p-6">
                     <div className="text-[10px] font-bold uppercase tracking-widest opacity-40 mb-3">
-                      {t('sections.attachments')}
+                      {detailT('sections.attachments')}
                     </div>
                     <FilePreview
                       itemId={item.id}
@@ -176,83 +207,110 @@ export function DetailModal({
                       mimeType={item.mimeType}
                       allFiles={item.allFiles}
                     />
-                  </div>
-                </div>
-              )}
+                  </section>
+                )}
 
-              {/* AI 分析结果 */}
-              <div className="px-6 pb-4">
-                <div className="p-4 rounded-2xl bg-black/[0.02] dark:bg-white/[0.02] border border-black/[0.03] dark:border-white/[0.03]">
-                  <div className="text-[10px] font-bold uppercase tracking-widest opacity-40 mb-3">
-                    {t('sections.aiAnalysis')}
+                <section className="rounded-2xl bg-black/[0.02] dark:bg-white/[0.02] border border-black/[0.03] dark:border-white/[0.03] p-5 sm:p-6">
+                  <div className="text-[10px] font-bold uppercase tracking-widest opacity-40 mb-4">
+                    {detailT('sections.aiAnalysis')}
+                  </div>
+
+                  <div className="mb-5 grid gap-3 sm:grid-cols-2">
+                    <div className="min-w-0">
+                      <div className="text-[10px] font-bold uppercase tracking-widest opacity-30">
+                        {detailT('metadata.source')}
+                      </div>
+                      <div className="text-xs font-semibold uppercase tracking-wide opacity-75 truncate">
+                        {item.source?.toUpperCase() || '-'}
+                      </div>
+                    </div>
+                    <div className="min-w-0 sm:text-right">
+                      <div className="text-[10px] font-bold uppercase tracking-widest opacity-30">
+                        {detailT('metadata.createdAt')}
+                      </div>
+                      <div className="inline-flex items-center gap-1 text-xs font-semibold opacity-75 whitespace-nowrap sm:justify-end">
+                        <Clock className="h-3 w-3" />
+                        <span>{formatRelativeTime(item.createdAtLocal ?? item.createdAt, time)}</span>
+                      </div>
+                    </div>
                   </div>
 
                   {isAnalyzing ? (
                     <div className="flex items-center gap-2 text-muted-foreground">
                       <Loader2 className="h-4 w-4 animate-spin" />
-                      <span className="text-sm">{t('analysis.analyzing')}</span>
+                      <span className="text-sm">{detailT('analysis.analyzing')}</span>
                     </div>
                   ) : (
-                    <div className="space-y-3">
-                      {/* 分类 */}
+                    <div className="space-y-4">
                       <div className="flex items-center gap-2">
-                        <span className="text-xs text-muted-foreground w-20">{t('analysis.category')}:</span>
-                        <span className="text-sm font-medium">{config.label}</span>
+                        <span className="text-xs text-muted-foreground w-20">{detailT('analysis.category')}:</span>
+                        <span className="text-sm font-medium">{categoryLabel}</span>
                       </div>
 
-                      {/* 实体 */}
-                      {item.analysis?.entities && Object.keys(item.analysis.entities).length > 0 && (
+                      {entityBadges.length > 0 && (
                         <div className="flex items-start gap-2">
-                          <span className="text-xs text-muted-foreground w-20 shrink-0">{t('analysis.entities')}:</span>
-                          <div className="flex flex-wrap gap-1">
-                            {Object.entries(item.analysis.entities).map(([key, value]) => (
-                              <Badge key={key} variant="secondary" className="text-[10px]">
-                                {key}: {String(value)}
-                              </Badge>
+                          <span className="text-xs text-muted-foreground w-20 shrink-0">{detailT('analysis.entities')}:</span>
+                          <div className="flex flex-wrap gap-1.5 max-w-full">
+                            {entityBadges.map((entity, index) => (
+                              entity.isUrl ? (
+                                <a
+                                  key={`${entity.type}-${entity.value}-${index}`}
+                                  href={entity.value}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex max-w-full items-start rounded-md border border-blue-200 bg-blue-50 px-2 py-1 text-[10px] font-medium text-blue-700 hover:underline dark:border-blue-400/30 dark:bg-blue-500/10 dark:text-blue-300"
+                                >
+                                  <span className="mr-1 shrink-0 opacity-70">{entity.type}:</span>
+                                  <span className="break-all">{entity.value}</span>
+                                </a>
+                              ) : (
+                                <Badge
+                                  key={`${entity.type}-${entity.value}-${index}`}
+                                  variant="secondary"
+                                  className="max-w-full text-[10px] whitespace-normal break-all"
+                                >
+                                  {entity.type}: {entity.value}
+                                </Badge>
+                              )
                             ))}
                           </div>
                         </div>
                       )}
 
-                      {/* 摘要 */}
                       {item.analysis?.summary && (
                         <div className="flex items-start gap-2">
-                          <span className="text-xs text-muted-foreground w-20 shrink-0">{t('analysis.summary')}:</span>
+                          <span className="text-xs text-muted-foreground w-20 shrink-0">{detailT('analysis.summary')}:</span>
                           <span className="text-sm">{item.analysis.summary}</span>
                         </div>
                       )}
                     </div>
                   )}
-                </div>
-              </div>
+                </section>
 
-              {/* 路由目的地 */}
-              {item.distributedTargets && item.distributedTargets.length > 0 && (
-                <div className="px-6 pb-4">
-                  <div className="p-4 rounded-2xl bg-black/[0.02] dark:bg-white/[0.02] border border-black/[0.03] dark:border-white/[0.03]">
+                {item.distributedTargets && item.distributedTargets.length > 0 && (
+                  <section className="rounded-2xl bg-black/[0.02] dark:bg-white/[0.02] border border-black/[0.03] dark:border-white/[0.03] p-5 sm:p-6">
                     <div className="text-[10px] font-bold uppercase tracking-widest opacity-40 mb-3">
-                      {t('sections.distributionTargets')}
+                      {detailT('sections.distributionTargets')}
                     </div>
                     <div className="flex flex-wrap gap-2">
                       {item.distributedTargets.map((target, index) => (
                         <Badge key={index} variant="outline" className="h-6 text-xs">
                           <CheckCircle2 className="h-3 w-3 mr-1 text-emerald-500" />
-                          {target}
+                          {getDistributionTargetLabel(target, index)}
                         </Badge>
                       ))}
                     </div>
                     {item.distributedRuleNames && item.distributedRuleNames.length > 0 && (
                       <div className="mt-3 text-xs text-muted-foreground">
-                        <span className="font-medium">{t('sections.rules')}: </span>
+                        <span className="font-medium">{detailT('sections.rules')}: </span>
                         {item.distributedRuleNames.join(', ')}
                       </div>
                     )}
-                  </div>
-                </div>
-              )}
+                  </section>
+                )}
+              </div>
 
-              {/* 操作按钮 */}
-              <div className="p-6 pt-2">
+              <div className="border-t border-black/[0.03] px-5 py-4 dark:border-white/[0.06] sm:px-6">
                 <div className="flex flex-wrap gap-3">
                   <Button
                     onClick={() => onEdit?.(item)}
@@ -261,7 +319,7 @@ export function DetailModal({
                     className="h-10 px-4 rounded-xl"
                   >
                     <Pencil className="h-4 w-4 mr-2" />
-                    {t('actions.editContent')}
+                    {detailT('actions.editContent')}
                   </Button>
 
                   <Button
@@ -275,7 +333,7 @@ export function DetailModal({
                     ) : (
                       <Sparkles className="h-4 w-4 mr-2" />
                     )}
-                    {t('actions.reclassify')}
+                    {detailT('actions.reclassify')}
                   </Button>
 
                   <Button
@@ -289,7 +347,7 @@ export function DetailModal({
                     ) : (
                       <Send className="h-4 w-4 mr-2" />
                     )}
-                    {t('actions.redistribute')}
+                    {detailT('actions.redistribute')}
                   </Button>
                 </div>
               </div>

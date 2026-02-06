@@ -56,10 +56,6 @@ export function useAutoRefetch({
 
     const shouldPoll = hasProcessingItems || hasRoutingInProgress
 
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`[useAutoRefetch] shouldPoll: ${shouldPoll}, hasProcessingItems: ${hasProcessingItems}, hasRoutingInProgress: ${hasRoutingInProgress}`)
-    }
-
     if (shouldPoll) {
       // Start polling if not already polling
       if (!intervalRef.current) {

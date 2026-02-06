@@ -33,6 +33,15 @@ export interface Category {
   updatedAt: string
 }
 
+export interface CategoryPrompt {
+  prompt: string
+  updatedAt: string | null
+  isCustomized: boolean
+  canRollback: boolean
+  previousPrompt: string | null
+  previousUpdatedAt: string | null
+}
+
 // 处理状态
 export enum ItemStatus {
   PENDING = 'pending',

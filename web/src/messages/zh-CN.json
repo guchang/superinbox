@@ -210,9 +210,12 @@
   "inbox": {
     "title": "收件箱",
     "allCategoriesTitle": "全部分类",
+    "searchKeywordSuffix": "“{query}”",
+    "clearSearchQuery": "清空搜索关键词",
     "contentTypeFilters": {
       "all": "全部",
       "text": "文本",
+      "url": "链接",
       "image": "图片",
       "audio": "音频",
       "video": "视频",
@@ -364,6 +367,7 @@
       "image": "图片",
       "url": "链接",
       "audio": "音频",
+      "video": "视频",
       "file": "文件"
     },
     "sections": {
@@ -445,7 +449,8 @@
       "expense": "支出",
       "note": "笔记",
       "bookmark": "书签",
-      "schedule": "日程"
+      "schedule": "日程",
+      "unknown": "未知"
     },
     "status": {
       "pending": "待处理",
@@ -458,6 +463,7 @@
       "url": "链接",
       "image": "图片",
       "audio": "音频",
+      "video": "视频",
       "file": "文件"
     },
     "history": {
@@ -465,7 +471,7 @@
     },
     "placeholder": "搜索内容、分类、状态或内容类型...",
     "tip": {
-      "text": "💡 直接输入内容搜索，或使用筛选条件：",
+      "text": "💡 直接输入内容搜索，或按Tab键选中筛选条件",
       "description": "例如: 会议、category:todo、status:completed、hastype:image"
     },
     "sections": {
@@ -481,12 +487,12 @@
       "images": "图片 ({count})",
       "audio": "音频 ({count})",
       "video": "视频 ({count})",
-    "files": "文件 ({count})"
-  },
-  "dialog": {
+      "files": "文件 ({count})"
+    },
+    "dialog": {
       "imageTitle": "图片预览 - {name}",
       "videoTitle": "视频预览 - {name}"
-  },
+    },
     "imageAltFallback": "上传的图片",
     "loading": "加载中...",
     "uploadedImage": "上传的图片",
@@ -994,6 +1000,7 @@
     "subtitle": "",
     "actions": {
       "add": "添加连接器",
+      "authorize": "去授权",
       "test": "测试连接",
       "testing": "测试中",
       "edit": "编辑",
@@ -1005,6 +1012,14 @@
     },
     "list": {
       "title": "连接器列表"
+    },
+    "filters": {
+      "all": "全部",
+      "healthy": "健康",
+      "unhealthy": "异常",
+      "pending": "未测试",
+      "resultCount": "共 {count} 个连接器",
+      "empty": "当前筛选条件下暂无连接器"
     },
     "empty": "尚未配置 MCP 连接器",
     "status": {
@@ -1026,6 +1041,12 @@
     "health": {
       "healthy": "健康",
       "unhealthy": "异常"
+    },
+    "card": {
+      "unknownAuth": "未知",
+      "neverChecked": "从未",
+      "lastChecked": "最近检查 {time}",
+      "authNeeded": "需要授权"
     },
     "toast": {
       "deleteSuccess": {
@@ -1137,6 +1158,7 @@
       "title": "配置信息",
       "type": "类型",
       "transport": "传输方式",
+      "auth": "认证",
       "command": "执行命令"
     },
     "jsonConfig": {
@@ -1219,7 +1241,10 @@
     "ai": {
       "invalidInput": "AI 请求无效",
       "categoryNotFound": "分类不存在",
-      "categoryKeyExists": "分类 key 已存在"
+      "categoryKeyExists": "分类 key 已存在",
+      "categoryPromptVersionNotFound": "提示词历史版本不存在",
+      "systemCategoryImmutable": "系统兜底分类不可重命名、停用或删除",
+      "categoryPromptPreviousNotFound": "上一次提示词不存在"
     },
     "settings": {
       "invalidTimezone": "时区无效",
@@ -1271,6 +1296,27 @@
       },
       "empty": "暂无分类"
     },
+    "promptEditor": {
+      "title": "分类提示词",
+      "description": "你可以手动编辑或智能生成分类提示词。点击“保存并应用”后会立即用于后续自动分类。",
+      "placeholder": "请输入分类系统提示词",
+      "emptyPromptError": "提示词不能为空",
+      "updatedAtDefault": "当前使用默认提示词",
+      "updatedAtCustom": "已自定义，最后更新：{date}",
+      "actions": {
+        "generate": "智能生成",
+        "generating": "生成中...",
+        "save": "保存并应用",
+        "rollback": "回滚到上一次",
+        "viewFull": "查看完整"
+      },
+      "rollbackHint": "若效果不理想，可回滚到上一次已生效提示词。",
+      "rollbackUnavailable": "暂无可回滚的上一次提示词",
+      "confirmRollback": "确认恢复到上一次提示词吗？当前未保存修改将丢失。",
+      "preview": {
+        "title": "上一次提示词完整内容"
+      }
+    },
     "status": {
       "active": "启用",
       "inactive": "停用"
@@ -1302,11 +1348,30 @@
           "placeholder": "每行一个示例"
         },
         "active": {
-          "label": "启用该分类"
+          "label": "启用该分类",
+          "systemFallbackHint": "系统兜底分类必须保持启用状态"
         }
       }
     },
     "toasts": {
+      "promptSaved": {
+        "title": "提示词已保存并应用"
+      },
+      "promptSaveFailed": {
+        "title": "保存提示词失败"
+      },
+      "promptReset": {
+        "title": "已恢复默认提示词"
+      },
+      "promptResetFailed": {
+        "title": "恢复默认提示词失败"
+      },
+      "promptRollback": {
+        "title": "已回滚到上一次提示词"
+      },
+      "promptRollbackFailed": {
+        "title": "回滚提示词失败"
+      },
       "categorySaveFailed": {
         "title": "保存分类失败"
       },
@@ -1319,6 +1384,12 @@
       },
       "categoryDeleteFailed": {
         "title": "删除分类失败"
+      },
+      "promptGenerated": {
+        "title": "已生成提示词建议"
+      },
+      "promptGenerateFailed": {
+        "title": "智能生成提示词失败"
       }
     },
     "confirmDelete": "确定删除分类\"{name}\"吗？"

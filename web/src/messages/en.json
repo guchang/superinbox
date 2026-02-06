@@ -209,9 +209,12 @@
   "inbox": {
     "title": "Inbox",
     "allCategoriesTitle": "All categories",
+    "searchKeywordSuffix": "“{query}”",
+    "clearSearchQuery": "Clear search query",
     "contentTypeFilters": {
       "all": "All",
       "text": "Text",
+      "url": "URL",
       "image": "Images",
       "audio": "Audio",
       "video": "Video",
@@ -362,6 +365,7 @@
       "image": "Image",
       "url": "URL",
       "audio": "Audio",
+      "video": "Video",
       "file": "File"
     },
     "sections": {
@@ -443,7 +447,8 @@
       "expense": "Expense",
       "note": "Note",
       "bookmark": "Bookmark",
-      "schedule": "Schedule"
+      "schedule": "Schedule",
+      "unknown": "Unknown"
     },
     "status": {
       "pending": "Pending",
@@ -456,6 +461,7 @@
       "url": "URL",
       "image": "Image",
       "audio": "Audio",
+      "video": "Video",
       "file": "File"
     },
     "history": {
@@ -463,7 +469,7 @@
     },
     "placeholder": "Search content, category, status, or content type...",
     "tip": {
-      "text": "💡 Type content directly, or use filters:",
+      "text": "💡 Type content directly, or press Tab to select a filter",
       "description": "Examples: meeting, category:todo, status:completed, hastype:image"
     },
     "sections": {
@@ -479,12 +485,12 @@
       "images": "Images ({count})",
       "audio": "Audio ({count})",
       "video": "Video ({count})",
-    "files": "Files ({count})"
-  },
-  "dialog": {
+      "files": "Files ({count})"
+    },
+    "dialog": {
       "imageTitle": "Image preview - {name}",
       "videoTitle": "Video preview - {name}"
-  },
+    },
     "imageAltFallback": "Uploaded image",
     "loading": "Loading...",
     "uploadedImage": "Uploaded image",
@@ -1086,6 +1092,7 @@
     "subtitle": "",
     "actions": {
       "add": "Add connector",
+      "authorize": "Authorize",
       "test": "Test connection",
       "testing": "Testing",
       "edit": "Edit",
@@ -1097,6 +1104,14 @@
     },
     "list": {
       "title": "Connector list"
+    },
+    "filters": {
+      "all": "All",
+      "healthy": "Healthy",
+      "unhealthy": "Unhealthy",
+      "pending": "Not tested",
+      "resultCount": "{count} connector(s)",
+      "empty": "No connectors match the current filters"
     },
     "empty": "No MCP connectors configured",
     "status": {
@@ -1118,6 +1133,12 @@
     "health": {
       "healthy": "Healthy",
       "unhealthy": "Unhealthy"
+    },
+    "card": {
+      "unknownAuth": "Unknown",
+      "neverChecked": "Never",
+      "lastChecked": "Checked {time}",
+      "authNeeded": "Authorization required"
     },
     "toast": {
       "deleteSuccess": {
@@ -1243,6 +1264,7 @@
       "title": "Configuration",
       "type": "Type",
       "transport": "Transport",
+      "auth": "Auth",
       "command": "Command"
     },
     "jsonConfig": {
@@ -1311,7 +1333,10 @@
     "ai": {
       "invalidInput": "AI request is invalid",
       "categoryNotFound": "Category not found",
-      "categoryKeyExists": "Category key already exists"
+      "categoryKeyExists": "Category key already exists",
+      "categoryPromptVersionNotFound": "Prompt history version not found",
+      "systemCategoryImmutable": "System fallback category cannot be renamed, disabled, or deleted",
+      "categoryPromptPreviousNotFound": "Previous prompt not found"
     },
     "settings": {
       "invalidTimezone": "Timezone is invalid",
@@ -1363,6 +1388,27 @@
       },
       "empty": "No categories yet"
     },
+    "promptEditor": {
+      "title": "Classification Prompt",
+      "description": "You can edit the classification prompt manually or generate one with AI. Click \"Save & Apply\" to take effect immediately for subsequent auto-classification.",
+      "placeholder": "Enter classification system prompt",
+      "emptyPromptError": "Prompt cannot be empty",
+      "updatedAtDefault": "Using default prompt",
+      "updatedAtCustom": "Customized, last updated: {date}",
+      "actions": {
+        "generate": "Generate with AI",
+        "generating": "Generating...",
+        "save": "Save & Apply",
+        "rollback": "Roll back to previous",
+        "viewFull": "View Full"
+      },
+      "rollbackHint": "If results are not ideal, roll back to the previous applied prompt.",
+      "rollbackUnavailable": "No previous prompt available to roll back",
+      "confirmRollback": "Roll back to the previous prompt? Unsaved edits will be lost.",
+      "preview": {
+        "title": "Previous Prompt Content"
+      }
+    },
     "status": {
       "active": "Active",
       "inactive": "Inactive"
@@ -1394,11 +1440,30 @@
           "placeholder": "One example per line"
         },
         "active": {
-          "label": "Enable this category"
+          "label": "Enable this category",
+          "systemFallbackHint": "System fallback category must remain enabled"
         }
       }
     },
     "toasts": {
+      "promptSaved": {
+        "title": "Prompt saved and applied"
+      },
+      "promptSaveFailed": {
+        "title": "Failed to save prompt"
+      },
+      "promptReset": {
+        "title": "Prompt reset to default"
+      },
+      "promptResetFailed": {
+        "title": "Failed to reset prompt"
+      },
+      "promptRollback": {
+        "title": "Rolled back to previous prompt"
+      },
+      "promptRollbackFailed": {
+        "title": "Failed to roll back prompt"
+      },
       "categorySaveFailed": {
         "title": "Failed to save category"
       },
@@ -1411,6 +1476,12 @@
       },
       "categoryDeleteFailed": {
         "title": "Failed to delete category"
+      },
+      "promptGenerated": {
+        "title": "Prompt suggestion generated"
+      },
+      "promptGenerateFailed": {
+        "title": "Failed to generate prompt suggestion"
       }
     },
     "confirmDelete": "Are you sure you want to delete category \"{name}\"?"

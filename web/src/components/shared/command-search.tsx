@@ -54,6 +54,9 @@ export interface SearchFilters {
   hasType?: HasType
 }
 
+const SEARCH_HISTORY_STORAGE_KEY = 'superinbox:command-search-history'
+const MAX_SEARCH_HISTORY = 8
+
 // 解析搜索字符串
 function parseSearchString(input: string): ParsedSearch {
   const result: ParsedSearch = {
@@ -93,7 +96,7 @@ function parseSearchString(input: string): ParsedSearch {
     const hasTypeMatch = part.match(/^hastype:(.+)$/i)
     if (hasTypeMatch) {
       const value = hasTypeMatch[1].trim().toLowerCase() as HasType
-      if (['text', 'url', 'image', 'audio', 'file'].includes(value)) {
+      if (['text', 'url', 'image', 'audio', 'video', 'file'].includes(value)) {
         result.hasType = value
       }
       continue
@@ -122,6 +125,7 @@ export function CommandSearch({
   const [inputValue, setInputValue] = React.useState("")
   const [selectedIndex, setSelectedIndex] = React.useState(-1)
   const inputRef = React.useRef<HTMLInputElement>(null)
+  const dropdownScrollRef = React.useRef<HTMLDivElement>(null)
   const isJustOpened = React.useRef(false)
 
   const baseSearchOptions = React.useMemo<SearchOption[]>(() => ([
@@ -168,16 +172,88 @@ export function CommandSearch({
         { value: 'url', label: t('contentTypes.url') },
         { value: 'image', label: t('contentTypes.image') },
         { value: 'audio', label: t('contentTypes.audio') },
+        { value: 'video', label: t('contentTypes.video') },
         { value: 'file', label: t('contentTypes.file') },
       ]
     }
   ]), [t])
 
-  const mockSearchHistory = React.useMemo(() => ([
+  const defaultSearchHistory = React.useMemo(() => ([
     'category:todo status:completed',
     t('history.meeting'),
     'status:failed',
   ]), [t])
+  const [searchHistory, setSearchHistory] = React.useState<string[]>(defaultSearchHistory)
+
+  React.useEffect(() => {
+    try {
+      const cachedHistory = window.localStorage.getItem(SEARCH_HISTORY_STORAGE_KEY)
+      if (!cachedHistory) {
+        setSearchHistory(defaultSearchHistory)
+        return
+      }
+
+      const parsedHistory = JSON.parse(cachedHistory)
+      if (!Array.isArray(parsedHistory)) {
+        setSearchHistory(defaultSearchHistory)
+        return
+      }
+
+      const cleanedHistory = parsedHistory
+        .filter((item): item is string => typeof item === 'string')
+        .map(item => item.trim().replace(/\s+/g, ' '))
+        .filter(Boolean)
+
+      if (cleanedHistory.length > 0) {
+        setSearchHistory(cleanedHistory.slice(0, MAX_SEARCH_HISTORY))
+      } else {
+        setSearchHistory(defaultSearchHistory)
+      }
+    } catch {
+      setSearchHistory(defaultSearchHistory)
+    }
+  }, [defaultSearchHistory])
+
+  const saveSearchHistory = React.useCallback((value: string) => {
+    const normalizedValue = value.trim().replace(/\s+/g, ' ')
+    if (!normalizedValue) return
+
+    setSearchHistory((prevHistory) => {
+      const nextHistory = [
+        normalizedValue,
+        ...prevHistory.filter(item => item !== normalizedValue),
+      ].slice(0, MAX_SEARCH_HISTORY)
+
+      try {
+        window.localStorage.setItem(SEARCH_HISTORY_STORAGE_KEY, JSON.stringify(nextHistory))
+      } catch {
+        return nextHistory
+      }
+
+      return nextHistory
+    })
+  }, [])
+
+  const getCategoryDisplayLabel = React.useCallback((categoryKey: string, fallbackLabel: string) => {
+    switch (categoryKey) {
+      case CategoryType.TODO:
+        return t('categories.todo')
+      case CategoryType.IDEA:
+        return t('categories.idea')
+      case CategoryType.EXPENSE:
+        return t('categories.expense')
+      case CategoryType.NOTE:
+        return t('categories.note')
+      case CategoryType.BOOKMARK:
+        return t('categories.bookmark')
+      case CategoryType.SCHEDULE:
+        return t('categories.schedule')
+      case 'unknown':
+        return t('categories.unknown')
+      default:
+        return fallbackLabel
+    }
+  }, [t])
 
   React.useEffect(() => {
     if (!isDialog) return
@@ -211,13 +287,16 @@ export function CommandSearch({
         return {
           ...option,
           values: availableCategories.length > 0
-            ? availableCategories.map(category => ({ value: category.key, label: category.name }))
+            ? availableCategories.map(category => ({
+                value: category.key,
+                label: getCategoryDisplayLabel(category.key, category.name),
+              }))
             : option.values
         }
       }
       return option
     })
-  }, [availableSources, availableCategories, baseSearchOptions])
+  }, [availableSources, availableCategories, baseSearchOptions, getCategoryDisplayLabel])
 
   React.useEffect(() => {
     const down = (e: KeyboardEvent) => {
@@ -263,14 +342,20 @@ export function CommandSearch({
       })
 
       // 搜索历史（在后）
-      mockSearchHistory.forEach(h => {
+      searchHistory.forEach(h => {
         suggestions.push({ type: 'history', text: h })
       })
 
       return suggestions
     }
 
-    const suggestions: Array<{ type: 'value' | 'option', text: string, option?: SearchOption, description?: string }> = []
+    const suggestions: Array<{
+      type: 'value' | 'option'
+      text: string
+      option?: SearchOption
+      description?: string
+      valueLabel?: string
+    }> = []
 
     // 检查输入是否以空格结尾（表示用户想继续添加筛选）
     if (inputValue.endsWith(' ')) {
@@ -329,7 +414,8 @@ export function CommandSearch({
           suggestions.push({
             type: 'value',
             text: `${matchedOption.prefix}${value.value}`,
-            option: matchedOption
+            option: matchedOption,
+            valueLabel: value.label,
           })
         }
       })
@@ -367,7 +453,7 @@ export function CommandSearch({
 
     // 如果没有匹配的结果，返回空数组
     return suggestions
-  }, [inputValue, searchOptionsWithSources])
+  }, [inputValue, searchOptionsWithSources, searchHistory, t])
 
   // 应用搜索
   const applySearch = (value: string) => {
@@ -437,6 +523,7 @@ export function CommandSearch({
         if (suggestion.type === 'history') {
           setInputValue(suggestion.text)
           applySearch(suggestion.text)
+          saveSearchHistory(suggestion.text)
           setOpen(false)
         } else if (suggestion.type === 'option') {
           // 替换最后一个部分为选项前缀
@@ -481,6 +568,7 @@ export function CommandSearch({
 
     if (e.key === 'Enter') {
       applySearch(inputValue)
+      saveSearchHistory(inputValue)
       onConfirm?.()
     }
   }
@@ -490,6 +578,7 @@ export function CommandSearch({
     if (suggestion.type === 'history') {
       setInputValue(suggestion.text)
       applySearch(suggestion.text)
+      saveSearchHistory(suggestion.text)
     } else if (suggestion.type === 'option') {
       // 替换最后一个部分为选项前缀
       const parts = inputValue.trim().split(/\s+/)
@@ -533,37 +622,50 @@ export function CommandSearch({
   const suggestions = getSuggestions
   const shouldShowDropdown = open && suggestions.length > 0
 
+  React.useEffect(() => {
+    if (!shouldShowDropdown) return
+    if (selectedIndex < 0 || selectedIndex >= suggestions.length) return
+
+    const container = dropdownScrollRef.current
+    if (!container) return
+
+    const selectedItem = container.querySelector<HTMLElement>(`[data-suggestion-index="${selectedIndex}"]`)
+    selectedItem?.scrollIntoView({ block: 'nearest' })
+  }, [shouldShowDropdown, selectedIndex, suggestions.length, inputValue])
+
   const dialogItemClass = "rounded-none px-6 py-1.5 md:py-2 text-[13px] font-medium text-slate-700 dark:text-white/80"
   const dialogActiveClass = "bg-black/5 text-slate-900 dark:bg-white/10 dark:text-white"
-  const dialogHintClass = "text-[11px] text-slate-500 dark:text-white/40"
+  const dialogHintClass = "text-xs font-normal text-slate-500 dark:text-white/40"
 
   const dropdownContent = (
-    <div className={cn("max-h-[420px] overflow-auto", isDialog && "max-h-[520px]")}>
+    <div ref={dropdownScrollRef} className={cn("max-h-[420px] overflow-auto", isDialog && "max-h-[520px]")}>
       <Command
         className={cn(
           "bg-transparent text-foreground",
           isDialog &&
-            "bg-transparent text-slate-700 dark:text-white/80 [&_[cmdk-group]]:p-0 [&_[cmdk-group-heading]]:px-6 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-[11px] [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wide [&_[cmdk-group-heading]]:text-slate-500 dark:[&_[cmdk-group-heading]]:text-white/40 [&_[cmdk-item]]:px-6 [&_[cmdk-item]]:py-1.5 md:[&_[cmdk-item]]:py-2 [&_[cmdk-item]]:rounded-none"
+            "bg-transparent text-slate-700 dark:text-white/80 [&_[cmdk-group]]:p-0 [&_[cmdk-group-heading]]:px-6 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-normal [&_[cmdk-group-heading]]:text-slate-500 dark:[&_[cmdk-group-heading]]:text-white/40 [&_[cmdk-item]]:px-6 [&_[cmdk-item]]:py-1.5 md:[&_[cmdk-item]]:py-2 [&_[cmdk-item]]:rounded-none"
         )}
       >
         <CommandList>
           {!inputValue && getSuggestions.filter(s => s.type === 'tip').map((suggestion, index) => (
             <div
               key={index}
+              data-suggestion-index={index}
               className={cn(
                 "h-10 flex items-center px-2 text-sm text-muted-foreground opacity-70",
-                isDialog && "h-11 px-6 text-xs text-slate-500 dark:text-white/40"
+                isDialog && "h-11 px-6"
               )}
             >
-              <span>{suggestion.text}</span>
+              <span className={cn(isDialog && dialogHintClass)}>{suggestion.text}</span>
             </div>
           ))}
 
           {!inputValue && (
-            <CommandGroup heading={t('sections.options')}>
+            <CommandGroup heading={`${t('sections.options')} · ${t('tabHint')}`}>
               {searchOptionsWithSources.map((option, index) => (
                 <CommandItem
                   key={option.id}
+                  data-suggestion-index={index + 1}
                   onSelect={() => {
                     const parts = inputValue.trim().split(/\s+/)
                     parts[parts.length - 1] = option.prefix
@@ -594,14 +696,16 @@ export function CommandSearch({
             </CommandGroup>
           )}
 
-          {!inputValue && (
+          {!inputValue && searchHistory.length > 0 && (
             <CommandGroup heading={t('sections.history')}>
-              {mockSearchHistory.map((item, index) => (
+              {searchHistory.map((item, index) => (
                 <CommandItem
                   key={index}
+                  data-suggestion-index={searchOptionsWithSources.length + 1 + index}
                   onSelect={() => {
                     setInputValue(item)
                     applySearch(item)
+                    saveSearchHistory(item)
                     setOpen(false)
                   }}
                   className={cn(
@@ -627,6 +731,7 @@ export function CommandSearch({
               {getSuggestions.map((suggestion, index) => (
                 <CommandItem
                   key={index}
+                  data-suggestion-index={index}
                   onSelect={() => {
                     insertSuggestion(suggestion)
                   }}
@@ -664,7 +769,7 @@ export function CommandSearch({
                             {suggestion.option.label}
                           </Badge>
                           <span className={cn("text-sm", isDialog && "text-[13px]")}>
-                            {suggestion.text.replace(suggestion.option.prefix, '')}
+                            {suggestion.valueLabel ?? suggestion.text.replace(suggestion.option.prefix, '')}
                           </span>
                         </>
                       )}

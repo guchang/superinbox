@@ -45,11 +45,6 @@ export function RoutingStatus({ itemId, initialDistributedTargets = [], initialR
       )
     : progress.message
 
-  // Debug logging in development
-  if (process.env.NODE_ENV === 'development' && disabled) {
-    console.log(`[RoutingStatus] itemId: ${itemId}, disabled: ${disabled}, routingStatus: ${routingStatus}, ruleNames:`, initialRuleNames)
-  }
-
   // 只在允许动画且 SSE 活跃连接时显示状态指示器（正在处理中）
   const showIndicator = showAnimation && !disabled && progress.status === 'processing'
 

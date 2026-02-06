@@ -14,13 +14,15 @@ import {
   Mic,
   Paperclip,
   Video,
+  Link2,
   Inbox,
   ChevronRight,
   Search,
+  X,
 } from 'lucide-react'
 import { Link } from '@/i18n/navigation'
 import { useToast } from '@/hooks/use-toast'
-import { useState, useMemo, useEffect, useRef } from 'react'
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import { MemoryCard } from '@/components/inbox/memory-card'
 import { ExpandableInput } from '@/components/inbox/expandable-input'
 import { DetailModal } from '@/components/inbox/detail-modal'
@@ -35,6 +37,7 @@ import { useSearchParams } from 'next/navigation'
 const contentTypeFilters = [
   { id: 'all', icon: LayoutGrid },
   { id: 'text', icon: Type },
+  { id: 'url', icon: Link2 },
   { id: 'image', icon: ImageIcon },
   { id: 'audio', icon: Mic },
   { id: 'video', icon: Video },
@@ -92,6 +95,26 @@ export default function InboxPage() {
       setActiveType('all')
     }
   }, [searchParams])
+
+  const handleSearchFiltersChange = useCallback((nextFilters: SearchFilters) => {
+    setSearchFilters(nextFilters)
+    setActiveType(nextFilters.hasType ?? 'all')
+  }, [])
+
+  const handleContentTypeFilterChange = useCallback((typeId: string) => {
+    setActiveType(typeId)
+    setSearchFilters((prev) => ({
+      ...prev,
+      hasType: typeId === 'all' ? undefined : (typeId as SearchFilters['hasType']),
+    }))
+  }, [])
+
+  const handleClearSearchQuery = useCallback(() => {
+    setSearchFilters((prev) => ({
+      ...prev,
+      query: '',
+    }))
+  }, [])
 
   useEffect(() => {
     const getColumnCount = () => {
@@ -398,6 +421,12 @@ export default function InboxPage() {
     return t('allCategoriesTitle') || t('title') || 'All categories'
   }, [searchFilters.category, categoryLabelMap, t])
 
+  const normalizedQuery = searchFilters.query?.trim() || ''
+  const hasSearchQuery = normalizedQuery.length > 0
+  const displayQuery = normalizedQuery.length > 24
+    ? `${normalizedQuery.slice(0, 24)}...`
+    : normalizedQuery
+
   return (
     <div className="h-full flex flex-col bg-[#f5f5f7] dark:bg-[#0b0b0f]">
       {/* 顶部区域：标题、搜索、类型筛选 */}
@@ -419,7 +448,7 @@ export default function InboxPage() {
       {/* 搜索对话框 */}
       <SearchDialog
         filters={searchFilters}
-        onFiltersChange={setSearchFilters}
+        onFiltersChange={handleSearchFiltersChange}
         availableSources={availableSources}
         availableCategories={activeCategories.map((category) => ({
           key: category.key,
@@ -431,44 +460,64 @@ export default function InboxPage() {
 
       {/* 结果区域 */}
       <div className="flex-1 overflow-y-auto p-4 md:p-6 bg-black/[0.01] dark:bg-[#0b0b0f]/40">
-        <div className="flex flex-col gap-2 pb-2 md:gap-3 md:pb-4">
-          <div className="flex items-center gap-3">
-            <span className="text-lg md:text-xl font-semibold tracking-tight whitespace-nowrap flex-shrink-0">
+        <div className="flex flex-col gap-2 pb-2 md:flex-row md:items-center md:justify-between md:gap-4 md:pb-4">
+          <div className="flex items-center gap-2 min-w-0 flex-wrap md:flex-nowrap md:shrink-0">
+            <span className="text-lg md:text-xl font-semibold tracking-tight shrink-0">
               {currentCategoryLabel}
             </span>
+            {hasSearchQuery ? (
+              <div className="inline-flex h-9 shrink-0 items-center overflow-hidden rounded-xl bg-black/5 opacity-50 transition-opacity hover:opacity-90 dark:bg-white/5">
+                <button
+                  type="button"
+                  onClick={() => setIsSearchOpen(true)}
+                  className="flex h-full items-center gap-2 px-3 md:px-4 text-[10px] md:text-[11px] font-black text-foreground/75 dark:text-white/75"
+                  aria-label={searchT('title') || 'Search'}
+                >
+                  <Search className="h-[11px] w-[11px] shrink-0" />
+                  <span className="max-w-[180px] truncate">{t('searchKeywordSuffix', { query: displayQuery })}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleClearSearchQuery}
+                  className="h-full w-9 shrink-0 text-foreground/55 hover:bg-black/[0.06] hover:text-foreground/75 dark:text-white/55 dark:hover:bg-white/10 dark:hover:text-white/75"
+                  aria-label={t('clearSearchQuery')}
+                >
+                  <X className="h-3.5 w-3.5 mx-auto" />
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setIsSearchOpen(true)}
+                className="h-9 w-9 shrink-0 rounded-xl text-foreground/80 opacity-70 hover:opacity-100 hover:bg-current/5"
+                aria-label={searchT('title') || 'Search'}
+              >
+                <Search className="h-4 w-4 mx-auto" />
+              </button>
+            )}
             {totalCount > 0 && (
-              <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-muted">
+              <span className="inline-flex h-9 min-w-9 items-center justify-center rounded-xl bg-black/[0.03] px-3 text-xs font-bold text-foreground/70 shrink-0 dark:bg-white/[0.04] dark:text-white/70">
                 {totalCount}
               </span>
             )}
           </div>
           {/* 媒体类型筛选 Pills */}
-          <div className="flex items-center justify-between gap-3 w-full">
-            <div className="flex items-center gap-2 overflow-x-auto md:flex-wrap md:overflow-visible flex-1 min-w-0">
-              {contentTypeFilters.map((type) => (
-                <button
-                  key={type.id}
-                  onClick={() => setActiveType(type.id)}
-                  className={cn(
-                    "whitespace-nowrap px-3 py-1.5 md:px-4 md:py-2 rounded-xl text-[10px] md:text-[11px] font-black uppercase flex items-center gap-2 transition-all shrink-0",
-                    activeType === type.id
-                      ? "bg-black text-white dark:bg-white dark:text-black"
-                      : "bg-black/5 opacity-40 hover:opacity-100 dark:bg-white/5"
-                  )}
-                >
-                  <type.icon size={11} />
-                  <span>{filtersT(type.id)}</span>
-                </button>
-              ))}
-            </div>
-            <button
-              type="button"
-              onClick={() => setIsSearchOpen(true)}
-              className="h-9 w-9 shrink-0 rounded-xl text-foreground/80 opacity-60 hover:opacity-100 hover:bg-current/5"
-              aria-label={searchT('title') || 'Search'}
-            >
-              <Search className="h-4 w-4 mx-auto" />
-            </button>
+          <div className="flex items-center gap-2 overflow-x-auto min-w-0 md:flex-1 md:justify-end">
+            {contentTypeFilters.map((type) => (
+              <button
+                key={type.id}
+                onClick={() => handleContentTypeFilterChange(type.id)}
+                className={cn(
+                  "whitespace-nowrap px-3 py-1.5 md:px-4 md:py-2 rounded-xl text-[10px] md:text-[11px] font-black uppercase flex items-center gap-2 transition-all shrink-0",
+                  activeType === type.id
+                    ? "bg-black text-white dark:bg-white dark:text-black"
+                    : "bg-black/5 opacity-40 hover:opacity-100 dark:bg-white/5"
+                )}
+              >
+                <type.icon size={11} />
+                <span>{filtersT(type.id)}</span>
+              </button>
+            ))}
           </div>
         </div>
         {isLoading ? (

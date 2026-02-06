@@ -1,13 +1,12 @@
 "use client"
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useTranslations } from 'next-intl'
+import { useSearchParams } from 'next/navigation'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { mcpConnectorsApi } from '@/lib/api/mcp-connectors'
 import type { MCPConnectorConfig, MCPConnectorListItem } from '@/types'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import {
   Dialog,
   DialogContent,
@@ -19,24 +18,91 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useToast } from '@/hooks/use-toast'
-import { Plus, Edit, Trash2, RefreshCw, CheckCircle, XCircle, Loader2 } from 'lucide-react'
+import { CheckCircle2, Clock, LayoutGrid, Plus, XCircle } from 'lucide-react'
 import { getApiErrorMessage } from '@/lib/i18n/api-errors'
 import { MCPConnectorCard } from '@/components/mcp-connectors/connector-card'
 
-const getServerTypeOptions = (t: (key: string) => string) => ([
-  { value: 'custom', label: 'Custom / API Key' },
-  { value: 'todoist', label: 'Todoist (OAuth)' },
-  { value: 'notion', label: 'Notion (OAuth)' },
-  { value: 'github', label: 'GitHub (API Key)' },
-])
+type ConnectorStatusFilter = 'all' | 'healthy' | 'unhealthy' | 'pending'
+
+const EMPTY_CONNECTORS: MCPConnectorListItem[] = []
+
+
+const MOCK_CONNECTORS: MCPConnectorListItem[] = [
+  {
+    id: 'mock-1',
+    userId: 'mock-user',
+    name: 'Todoist Workspace',
+    serverUrl: '',
+    serverType: 'todoist',
+    transportType: 'stdio',
+    command: 'npx -y @modelcontextprotocol/server-todoist',
+    authType: 'oauth',
+    hasApiKey: false,
+    hasOAuthToken: true,
+    defaultToolName: null,
+    enabled: true,
+    lastHealthCheck: '2026-02-05T08:30:00.000Z',
+    lastHealthCheckStatus: 'healthy',
+    createdAt: '2026-02-01T08:00:00.000Z',
+    updatedAt: '2026-02-05T08:30:00.000Z',
+  },
+  {
+    id: 'mock-2',
+    userId: 'mock-user',
+    name: 'Notion Notes',
+    serverUrl: '',
+    serverType: 'notion',
+    transportType: 'stdio',
+    command: 'npx -y @modelcontextprotocol/server-notion',
+    authType: 'oauth',
+    hasApiKey: false,
+    hasOAuthToken: false,
+    defaultToolName: null,
+    enabled: true,
+    lastHealthCheck: null,
+    lastHealthCheckStatus: null,
+    createdAt: '2026-02-01T08:10:00.000Z',
+    updatedAt: '2026-02-05T08:26:00.000Z',
+  },
+  {
+    id: 'mock-3',
+    userId: 'mock-user',
+    name: 'Obsidian Bridge',
+    serverUrl: '',
+    serverType: 'custom',
+    transportType: 'stdio',
+    command: 'npx -y @modelcontextprotocol/server-memory',
+    authType: 'api_key',
+    hasApiKey: true,
+    hasOAuthToken: false,
+    defaultToolName: null,
+    enabled: true,
+    lastHealthCheck: null,
+    lastHealthCheckStatus: null,
+    createdAt: '2026-02-01T08:20:00.000Z',
+    updatedAt: '2026-02-05T08:10:00.000Z',
+  },
+  {
+    id: 'mock-4',
+    userId: 'mock-user',
+    name: 'GitHub Issues',
+    serverUrl: 'https://api.github.com/mcp',
+    serverType: 'github',
+    transportType: 'http',
+    command: '',
+    authType: 'api_key',
+    hasApiKey: true,
+    hasOAuthToken: false,
+    defaultToolName: null,
+    enabled: true,
+    lastHealthCheck: '2026-02-05T08:05:00.000Z',
+    lastHealthCheckStatus: 'unhealthy',
+    createdAt: '2026-02-01T08:30:00.000Z',
+    updatedAt: '2026-02-05T08:05:00.000Z',
+  },
+]
 
 /**
  * Parse MCP JSON configuration
@@ -88,6 +154,8 @@ export default function MCPAdaptersPage() {
   const errors = useTranslations('errors')
   const { toast } = useToast()
   const queryClient = useQueryClient()
+  const searchParams = useSearchParams()
+  const isMockMode = searchParams.get('mcpMock') === '1'
 
   const { data: connectorsData, isLoading, refetch } = useQuery({
     queryKey: ['mcp-connectors'],
@@ -144,8 +212,42 @@ export default function MCPAdaptersPage() {
   const [testingId, setTestingId] = useState<string | null>(null)
   const [manualTokenDialogOpen, setManualTokenDialogOpen] = useState(false)
   const [authConnector, setAuthConnector] = useState<MCPConnectorListItem | null>(null)
+  const [statusFilter, setStatusFilter] = useState<ConnectorStatusFilter>('all')
 
-  const connectors = connectorsData?.data || []
+  const connectors = isMockMode ? MOCK_CONNECTORS : (connectorsData?.data ?? EMPTY_CONNECTORS)
+
+  const connectorStats = useMemo(() => {
+    const healthy = connectors.filter((connector) => connector.lastHealthCheckStatus === 'healthy').length
+    const unhealthy = connectors.filter((connector) => connector.lastHealthCheckStatus && connector.lastHealthCheckStatus !== 'healthy').length
+    const pending = connectors.filter((connector) => !connector.lastHealthCheckStatus).length
+    return {
+      total: connectors.length,
+      healthy,
+      unhealthy,
+      pending,
+    }
+  }, [connectors])
+
+
+  const statusPills = [
+    { value: 'all' as ConnectorStatusFilter, label: t('filters.all'), count: connectorStats.total, icon: LayoutGrid },
+    { value: 'healthy' as ConnectorStatusFilter, label: t('filters.healthy'), count: connectorStats.healthy, icon: CheckCircle2 },
+    { value: 'unhealthy' as ConnectorStatusFilter, label: t('filters.unhealthy'), count: connectorStats.unhealthy, icon: XCircle },
+    { value: 'pending' as ConnectorStatusFilter, label: t('filters.pending'), count: connectorStats.pending, icon: Clock },
+  ]
+
+  const pageLoading = isLoading && !isMockMode
+
+  const filteredConnectors = useMemo(() => {
+    return connectors.filter((connector) => {
+      return (
+        statusFilter === 'all' ||
+        (statusFilter === 'healthy' && connector.lastHealthCheckStatus === 'healthy') ||
+        (statusFilter === 'unhealthy' && !!connector.lastHealthCheckStatus && connector.lastHealthCheckStatus !== 'healthy') ||
+        (statusFilter === 'pending' && !connector.lastHealthCheckStatus)
+      )
+    })
+  }, [connectors, statusFilter])
 
   const handleCreate = () => {
     setEditingConnector(null)
@@ -158,6 +260,10 @@ export default function MCPAdaptersPage() {
   }
 
   const handleDelete = (id: string) => {
+    if (isMockMode) {
+      return
+    }
+
     if (!window.confirm(t('confirmDelete'))) {
       return
     }
@@ -165,11 +271,19 @@ export default function MCPAdaptersPage() {
   }
 
   const handleTest = (id: string) => {
+    if (isMockMode) {
+      return
+    }
+
     setTestingId(id)
     testMutation.mutate(id)
   }
 
   const handleAuthorize = (connector: MCPConnectorListItem) => {
+    if (isMockMode) {
+      return
+    }
+
     setAuthConnector(connector)
     // Show manual dialog after a short delay or immediately to allow manual entry if popup fails/blocks
     // But primarily we open the popup
@@ -201,6 +315,7 @@ export default function MCPAdaptersPage() {
   }
 
   const handleManualTokenSubmit = async (token: string) => {
+    if (isMockMode) return
     if (!authConnector) return
 
     try {
@@ -239,31 +354,63 @@ export default function MCPAdaptersPage() {
         </Button>
       </div>
 
-      {isLoading ? (
+      {pageLoading ? (
         <div className="text-center py-8 text-muted-foreground">{common('loading')}</div>
       ) : connectors.length === 0 ? (
-        <div className="text-center py-8 text-muted-foreground">
+        <div className="rounded-xl border border-dashed border-border/70 bg-muted/20 py-12 text-center text-muted-foreground">
           {t('empty')}
         </div>
       ) : (
-        <div className="space-y-3">
-          {connectors.map((connector) => (
-            <MCPConnectorCard
-              key={connector.id}
-              connector={connector}
-              onEdit={(connector) => {
-                mcpConnectorsApi.get(connector.id).then((response) => {
-                  if (response.data) {
-                    handleEdit(response.data)
-                  }
-                })
-              }}
-              onDelete={handleDelete}
-              onTest={handleTest}
-              onAuthorize={handleAuthorize}
-              isTesting={testingId === connector.id}
-            />
-          ))}
+        <div className="space-y-4">
+          <div className="overflow-x-auto">
+            <Tabs value={statusFilter} onValueChange={(value) => setStatusFilter(value as ConnectorStatusFilter)}>
+              <TabsList className="h-auto w-max min-w-full justify-start gap-2 rounded-none bg-transparent p-0">
+                {statusPills.map((pill) => {
+                  const Icon = pill.icon
+                  return (
+                    <TabsTrigger
+                      key={pill.value}
+                      value={pill.value}
+                      className="whitespace-nowrap shrink-0 rounded-xl px-3 py-1.5 text-[10px] font-black uppercase flex items-center gap-2 transition-all md:px-4 md:py-2 md:text-[11px] data-[state=active]:bg-black data-[state=active]:text-white data-[state=active]:shadow-none dark:data-[state=active]:bg-white dark:data-[state=active]:text-black data-[state=inactive]:bg-black/5 data-[state=inactive]:opacity-40 hover:data-[state=inactive]:opacity-100 dark:data-[state=inactive]:bg-white/5"
+                    >
+                      <Icon className="h-[11px] w-[11px]" />
+                      <span>{`${pill.label}(${pill.count})`}</span>
+                    </TabsTrigger>
+                  )
+                })}
+              </TabsList>
+            </Tabs>
+          </div>
+
+          {filteredConnectors.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-border/80 bg-muted/20 py-10 text-center text-sm text-muted-foreground">
+              {t('filters.empty')}
+            </div>
+          ) : (
+            <div className="rounded-xl border bg-card">
+              {filteredConnectors.map((connector) => (
+                <MCPConnectorCard
+                  key={connector.id}
+                  connector={connector}
+                  onEdit={(connector) => {
+                    if (isMockMode) {
+                      return
+                    }
+
+                    mcpConnectorsApi.get(connector.id).then((response) => {
+                      if (response.data) {
+                        handleEdit(response.data)
+                      }
+                    })
+                  }}
+                  onDelete={handleDelete}
+                  onTest={handleTest}
+                  onAuthorize={handleAuthorize}
+                  isTesting={testingId === connector.id}
+                />
+              ))}
+            </div>
+          )}
         </div>
       )}
 
