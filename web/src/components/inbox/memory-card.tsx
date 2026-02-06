@@ -91,9 +91,6 @@ function MemoryCardComponent({
 
   // Hover 菜单状态
   const [isMenuOpen, setIsMenuOpen] = useState(false)
-  const [imageObjectUrl, setImageObjectUrl] = useState<string | null>(null)
-  const [isImageLoading, setIsImageLoading] = useState(false)
-  const [hasImageRetried, setHasImageRetried] = useState(false)
   const [audioBlobUrl, setAudioBlobUrl] = useState<string | null>(null)
   const [videoObjectUrl, setVideoObjectUrl] = useState<string | null>(null)
   const [isVideoLoading, setIsVideoLoading] = useState(false)
@@ -127,9 +124,6 @@ function MemoryCardComponent({
 
   useEffect(() => {
     return () => {
-      if (imageObjectUrl) {
-        URL.revokeObjectURL(imageObjectUrl)
-      }
       if (audioBlobUrl) {
         URL.revokeObjectURL(audioBlobUrl)
       }
@@ -140,7 +134,7 @@ function MemoryCardComponent({
         window.clearInterval(waveformTimerRef.current)
       }
     }
-  }, [imageObjectUrl, audioBlobUrl, videoObjectUrl])
+  }, [audioBlobUrl, videoObjectUrl])
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -257,38 +251,6 @@ function MemoryCardComponent({
       })
   }, [isDesktop, isVideo, videoObjectUrl, isVideoLoading, fetchVideoBlob])
 
-  const handleImageError = useCallback(() => {
-    if (hasImageRetried) return
-    setHasImageRetried(true)
-    setIsImageLoading(true)
-
-    const token = typeof window !== 'undefined'
-      ? localStorage.getItem('superinbox_auth_token')
-      : null
-
-    const fileUrl = `${getApiBaseUrl()}/inbox/${item.id}/file`
-
-    fetch(fileUrl, {
-      headers: {
-        'Authorization': token ? `Bearer ${token}` : '',
-      },
-    })
-      .then(res => {
-        if (!res.ok) throw new Error('Failed to load image')
-        return res.blob()
-      })
-      .then(blob => {
-        const url = URL.createObjectURL(blob)
-        setImageObjectUrl(url)
-      })
-      .catch(() => {
-        setIsImageLoading(false)
-      })
-      .finally(() => {
-        setIsImageLoading(false)
-      })
-  }, [hasImageRetried, item.id])
-
   const handleAudioError = useCallback(() => {
     if (hasAudioRetried) return
     setHasAudioRetried(true)
@@ -384,6 +346,22 @@ function MemoryCardComponent({
   }
   const currentTimeLabel = formatTime(currentTime)
   const durationLabel = formatTime(duration)
+  const handleCardClick = useCallback((event: MouseEvent<HTMLDivElement>) => {
+    if (!onViewDetail) return
+    if (isMenuOpen) return
+    const selectedText = typeof window !== 'undefined'
+      ? window.getSelection()?.toString().trim()
+      : ''
+    if (selectedText) return
+
+    const target = event.target
+    if (target instanceof Element) {
+      const interactiveSelector = 'button, a, input, textarea, select, [role="button"], [role="menuitem"], video, audio, [data-card-ignore-click]'
+      if (target.closest(interactiveSelector)) return
+    }
+
+    onViewDetail(item)
+  }, [onViewDetail, isMenuOpen, item])
 
   const handleCopyContent = useCallback(async () => {
     try {
@@ -437,6 +415,7 @@ function MemoryCardComponent({
       animate={animationConfig.animate}
       transition={animationConfig.transition}
       exit={{ opacity: 0, scale: 0.95 }}
+      onClick={handleCardClick}
       className={cn(
         "group rounded-[24px] p-5 relative transition-all break-inside-avoid mb-4 overflow-hidden min-h-[180px]",
         // 浅色模式: 纯白 + 极淡边框 + 阴影
@@ -601,32 +580,14 @@ function MemoryCardComponent({
           {/* 文件预览 */}
           {item.hasFile && (
             <div className="mt-4">
-              {hasMultipleFiles ? (
+              {hasMultipleFiles || isImage ? (
                 <FilePreview
                   itemId={item.id}
                   fileName={item.fileName}
-                  mimeType={item.mimeType}
+                  mimeType={item.mimeType || (isImage ? 'image/*' : item.mimeType)}
                   allFiles={item.allFiles}
+                  imageLayout="card"
                 />
-              ) : isImage ? (
-                <div
-                  className={cn(
-                    "w-full aspect-video rounded-2xl overflow-hidden relative border shadow-sm",
-                    isDark ? "bg-white/5 border-white/10" : "bg-black/5 border-black/5"
-                  )}
-                >
-                  <img
-                    src={imageObjectUrl || `${getApiBaseUrl()}/inbox/${item.id}/file`}
-                    alt={item.fileName || filePreview('imageAltFallback')}
-                    onError={handleImageError}
-                    className="h-full w-full object-cover"
-                  />
-                  {isImageLoading && (
-                    <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
-                      <span className="text-xs font-semibold text-white/80">{filePreview('loading')}</span>
-                    </div>
-                  )}
-                </div>
               ) : isAudio ? (
                 <div
                   className={cn(
@@ -647,6 +608,7 @@ function MemoryCardComponent({
                   </button>
                   <div
                     ref={waveformContainerRef}
+                    data-card-ignore-click
                     className="flex-1 flex items-end gap-1 h-6 cursor-pointer overflow-hidden"
                     onClick={handleSeek}
                     role="presentation"
