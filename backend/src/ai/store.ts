@@ -1,5 +1,10 @@
 import crypto from 'crypto';
 import { getDatabase } from '../storage/database.js';
+import {
+  getAutoCategoryColor,
+  resolveCategoryColor,
+  resolveCategoryIcon,
+} from './category-appearance.js';
 
 export type CategoryRecord = {
   id: string;
@@ -8,6 +13,8 @@ export type CategoryRecord = {
   name: string;
   description?: string;
   examples?: string[];
+  icon?: string;
+  color?: string;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -66,57 +73,65 @@ const createId = (prefix: string): string => {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 };
 
-const defaultCategorySeed = () => [
-  {
-    key: 'todo',
-    name: '待办',
-    description: '需要执行的任务或提醒事项。',
-    examples: ['报销本周差旅', '预约牙医复诊'],
-    isActive: true,
-  },
-  {
-    key: 'idea',
-    name: '想法',
-    description: '灵感、点子或待验证的思路。',
-    examples: ['做个晨间仪式', '写一篇邮件自动化复盘'],
-    isActive: true,
-  },
-  {
-    key: 'expense',
-    name: '支出',
-    description: '费用记录或需要报销的开销。',
-    examples: ['滴滴 38 元', '订阅工具 99 元/月'],
-    isActive: true,
-  },
-  {
-    key: 'schedule',
-    name: '日程',
-    description: '包含时间节点的安排或会议。',
-    examples: ['周五 15:00 评审会', '下周二和李总对齐'],
-    isActive: true,
-  },
-  {
-    key: 'note',
-    name: '笔记',
-    description: '需要保留的记录、总结或片段。',
-    examples: ['客户访谈要点', '发布流程 checklist'],
-    isActive: true,
-  },
-  {
-    key: 'bookmark',
-    name: '书签',
-    description: '需要稍后阅读或保存的链接。',
-    examples: ['https://example.com', '新模型评测文章'],
-    isActive: true,
-  },
-  {
-    key: 'unknown',
-    name: '未知',
-    description: '无法明确归类的内容。',
-    examples: ['...', '待定内容'],
-    isActive: true,
-  },
-];
+const defaultCategorySeed = () => {
+  const seed = [
+    {
+      key: 'todo',
+      name: '待办',
+      description: '需要执行的任务或提醒事项。',
+      examples: ['报销本周差旅', '预约牙医复诊'],
+      isActive: true,
+    },
+    {
+      key: 'idea',
+      name: '想法',
+      description: '灵感、点子或待验证的思路。',
+      examples: ['做个晨间仪式', '写一篇邮件自动化复盘'],
+      isActive: true,
+    },
+    {
+      key: 'expense',
+      name: '支出',
+      description: '费用记录或需要报销的开销。',
+      examples: ['滴滴 38 元', '订阅工具 99 元/月'],
+      isActive: true,
+    },
+    {
+      key: 'schedule',
+      name: '日程',
+      description: '包含时间节点的安排或会议。',
+      examples: ['周五 15:00 评审会', '下周二和李总对齐'],
+      isActive: true,
+    },
+    {
+      key: 'note',
+      name: '笔记',
+      description: '需要保留的记录、总结或片段。',
+      examples: ['客户访谈要点', '发布流程 checklist'],
+      isActive: true,
+    },
+    {
+      key: 'bookmark',
+      name: '书签',
+      description: '需要稍后阅读或保存的链接。',
+      examples: ['https://example.com', '新模型评测文章'],
+      isActive: true,
+    },
+    {
+      key: 'unknown',
+      name: '未知',
+      description: '无法明确归类的内容。',
+      examples: ['...', '待定内容'],
+      isActive: true,
+    },
+  ];
+
+  return seed.map((item) => ({
+    ...item,
+    icon: resolveCategoryIcon(item.key),
+    color: resolveCategoryColor(item.key),
+  }));
+};
 
 const defaultTemplateSeed = (coverageKeys: string[]) => ({
   name: '默认分类提示词 v1',
@@ -131,11 +146,25 @@ const ensureUserCategories = (userId: string): void => {
   const db = getDatabase();
   const existing = db.listAiCategories(userId) as CategoryRecord[];
   if (existing.length > 0) {
-    const unknownCategory = existing.find(
-      (item) => String(item.key).trim().toLowerCase() === UNKNOWN_CATEGORY_KEY
-    );
-    if (unknownCategory && !unknownCategory.isActive) {
-      db.updateAiCategory(userId, unknownCategory.id, { isActive: true });
+    for (const item of existing) {
+      const patch: Partial<CategoryRecord> = {};
+      const normalizedKey = String(item.key ?? '').trim().toLowerCase();
+
+      if (!item.icon) {
+        patch.icon = resolveCategoryIcon(item.key);
+      }
+
+      if (!item.color) {
+        patch.color = resolveCategoryColor(item.key);
+      }
+
+      if (normalizedKey === UNKNOWN_CATEGORY_KEY && !item.isActive) {
+        patch.isActive = true;
+      }
+
+      if (Object.keys(patch).length > 0) {
+        db.updateAiCategory(userId, item.id, patch);
+      }
     }
     return;
   }
@@ -148,6 +177,8 @@ const ensureUserCategories = (userId: string): void => {
     name: item.name,
     description: item.description,
     examples: item.examples,
+    icon: item.icon,
+    color: item.color,
     isActive: item.isActive,
     createdAt: now,
     updatedAt: now,
@@ -272,7 +303,18 @@ const setPreviousCategoryPromptTemplate = (userId: string, prompt: string): void
 export const listCategories = (userId: string): CategoryRecord[] => {
   ensureUserCategories(userId);
   const db = getDatabase();
-  return db.listAiCategories(userId) as CategoryRecord[];
+  const categories = db.listAiCategories(userId) as CategoryRecord[];
+
+  return [...categories].sort((a, b) => {
+    const aIsUnknown = String(a.key ?? '').trim().toLowerCase() === UNKNOWN_CATEGORY_KEY;
+    const bIsUnknown = String(b.key ?? '').trim().toLowerCase() === UNKNOWN_CATEGORY_KEY;
+
+    if (aIsUnknown !== bIsUnknown) {
+      return aIsUnknown ? 1 : -1;
+    }
+
+    return String(a.createdAt ?? '').localeCompare(String(b.createdAt ?? ''));
+  });
 };
 
 export const createCategory = (
@@ -281,8 +323,13 @@ export const createCategory = (
 ): CategoryRecord => {
   const db = getDatabase();
   const now = new Date().toISOString();
+  const normalizedKey = String(data.key ?? '').trim().toLowerCase();
+
   const record: CategoryRecord = {
     ...data,
+    key: normalizedKey,
+    icon: resolveCategoryIcon(normalizedKey, data.icon),
+    color: resolveCategoryColor(normalizedKey, data.color),
     id: createId('cat'),
     userId,
     createdAt: now,
@@ -296,7 +343,26 @@ export const updateCategory = (
   id: string,
   data: Partial<Omit<CategoryRecord, 'id' | 'userId' | 'createdAt'>>
 ): CategoryRecord | null => {
-  const patch = omitUndefined(data);
+  const normalized: Partial<Omit<CategoryRecord, 'id' | 'userId' | 'createdAt'>> = {
+    ...data,
+  };
+
+  if (typeof normalized.key === 'string') {
+    normalized.key = normalized.key.trim().toLowerCase();
+    if (normalized.key && normalized.color === undefined) {
+      normalized.color = getAutoCategoryColor(normalized.key);
+    }
+  }
+
+  if (normalized.icon !== undefined || normalized.key !== undefined) {
+    normalized.icon = resolveCategoryIcon(normalized.key, normalized.icon);
+  }
+
+  if (normalized.color !== undefined || normalized.key !== undefined) {
+    normalized.color = resolveCategoryColor(normalized.key, normalized.color);
+  }
+
+  const patch = omitUndefined(normalized);
   const db = getDatabase();
   return db.updateAiCategory(userId, id, patch) as CategoryRecord | null;
 };

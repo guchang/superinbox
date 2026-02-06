@@ -40,25 +40,43 @@ const HIDDEN_TITLE_STYLE = {
   borderWidth: 0,
 } as const
 
+function getGalleryAspectClass(displayCount: number) {
+  if (displayCount <= 2) return "aspect-[2/1]"
+  if (displayCount <= 4) return "aspect-[16/9]"
+  if (displayCount <= 6) return "aspect-[11/6]"
+  return "aspect-[2/1]"
+}
+
+function getGridContainerClass(displayCount: number) {
+  if (displayCount <= 2) return "grid-cols-12 grid-rows-1"
+  return "grid-cols-12 grid-rows-2"
+}
+
 function getImageTileClass(displayCount: number, index: number) {
-  if (displayCount === 1) {
-    return "col-span-2 md:col-span-4 aspect-[16/9]"
-  }
-  if (displayCount === 2) {
-    return "col-span-1 md:col-span-2 aspect-[4/3]"
-  }
+  if (displayCount === 1) return "col-span-12 row-start-1"
+  if (displayCount === 2) return "col-span-6 row-start-1"
+
   if (displayCount === 3) {
-    if (index === 0) return "col-span-2 md:col-span-2 aspect-[16/9]"
-    return "col-span-1 md:col-span-2 aspect-[4/3]"
+    return index === 2 ? "col-span-12 row-start-2" : "col-span-6 row-start-1"
   }
+
   if (displayCount === 4) {
-    return "col-span-1 md:col-span-2 aspect-[4/3]"
+    return index < 2 ? "col-span-6 row-start-1" : "col-span-6 row-start-2"
   }
-  if (displayCount >= 5) {
-    if (index === 0) return "col-span-2 md:col-span-2 aspect-[16/9]"
-    return "col-span-1 md:col-span-1 aspect-[4/3]"
+
+  if (displayCount === 5) {
+    return index < 2 ? "col-span-6 row-start-1" : "col-span-4 row-start-2"
   }
-  return "col-span-1 md:col-span-1 aspect-[4/3]"
+
+  if (displayCount === 6) {
+    return index < 3 ? "col-span-4 row-start-1" : "col-span-4 row-start-2"
+  }
+
+  if (displayCount === 7) {
+    return index < 3 ? "col-span-4 row-start-1" : "col-span-3 row-start-2"
+  }
+
+  return index < 4 ? "col-span-3 row-start-1" : "col-span-3 row-start-2"
 }
 
 export function ImageGallery({
@@ -375,9 +393,10 @@ export function ImageGallery({
       <DialogContent
         data-card-ignore-click
         onClick={(event) => event.stopPropagation()}
+        onEscapeKeyDown={(event) => event.stopPropagation()}
         onKeyDownCapture={handleKeyDownCapture}
-        className="w-[min(96vw,1720px)] max-w-none h-[88vh] p-0 border-none bg-transparent shadow-none [&>button]:hidden"
-        overlayClassName="bg-black/80 backdrop-blur-sm"
+        className="!z-[130] w-[min(96vw,1720px)] max-w-none h-[88vh] p-0 border-none bg-transparent shadow-none [&>button]:hidden"
+        overlayClassName="!z-[120] bg-black/80 backdrop-blur-sm"
       >
         <DialogTitle style={HIDDEN_TITLE_STYLE}>{activeImage.alt}</DialogTitle>
 
@@ -516,40 +535,50 @@ export function ImageGallery({
   if (isGrid) {
     const displayImages = images.slice(0, maxDisplayCount)
     const hiddenImageCount = Math.max(0, images.length - displayImages.length)
+    const galleryAspectClass = getGalleryAspectClass(displayImages.length)
+    const gridContainerClass = getGridContainerClass(displayImages.length)
 
     return (
       <>
-        <div className={cn("grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3", className)}>
-          {displayImages.map((image, displayIndex) => {
-            const isOverflowTile = hiddenImageCount > 0 && displayIndex === displayImages.length - 1
-            return (
-              <button
-                key={image.id}
-                type="button"
-                data-card-ignore-click
-                className={cn(
-                  "relative group overflow-hidden rounded-xl border border-border/70 bg-muted/20",
-                  "shadow-sm transition-all duration-200 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
-                  getImageTileClass(displayImages.length, displayIndex)
-                )}
-                onClick={() => openAt(displayIndex)}
-              >
-                <img
-                  src={image.src}
-                  alt={image.alt}
-                  className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
-                  onError={image.onError}
-                />
-                {isOverflowTile && (
-                  <div className="absolute inset-0 z-10 pointer-events-none bg-black/55 flex items-center justify-center">
-                    <div className="rounded-full px-3 py-1 text-sm font-semibold text-white bg-black/35 border border-white/15 backdrop-blur-sm">
-                      +{hiddenImageCount}
+        <div
+          className={cn(
+            "relative w-full overflow-hidden rounded-2xl bg-muted/15 p-2 md:p-2.5",
+            galleryAspectClass,
+            className
+          )}
+        >
+          <div className={cn("grid h-full w-full gap-2 md:gap-2.5", gridContainerClass)}>
+            {displayImages.map((image, displayIndex) => {
+              const isOverflowTile = hiddenImageCount > 0 && displayIndex === displayImages.length - 1
+              return (
+                <button
+                  key={image.id}
+                  type="button"
+                  data-card-ignore-click
+                  className={cn(
+                    "relative min-h-0 group/tile overflow-hidden rounded-xl bg-muted/20",
+                    "shadow-sm transition-all duration-200 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
+                    getImageTileClass(displayImages.length, displayIndex)
+                  )}
+                  onClick={() => openAt(displayIndex)}
+                >
+                  <img
+                    src={image.src}
+                    alt={image.alt}
+                    className="h-full w-full object-cover transition-transform duration-300 group-hover/tile:scale-[1.03]"
+                    onError={image.onError}
+                  />
+                  {isOverflowTile && (
+                    <div className="absolute inset-0 z-10 pointer-events-none bg-black/55 flex items-center justify-center">
+                      <div className="rounded-full border border-white/15 bg-black/35 px-3 py-1 text-sm font-semibold text-white backdrop-blur-sm">
+                        +{hiddenImageCount}
+                      </div>
                     </div>
-                  </div>
-                )}
-              </button>
-            )
-          })}
+                  )}
+                </button>
+              )
+            })}
+          </div>
         </div>
         {renderDialog()}
       </>
@@ -557,8 +586,8 @@ export function ImageGallery({
   }
 
   const triggerClassName = layout === "card"
-    ? "w-full aspect-video rounded-2xl overflow-hidden relative border shadow-sm cursor-zoom-in bg-muted/30"
-    : "relative group w-32 h-24 overflow-hidden rounded-xl border border-border/70 bg-muted/20 shadow-sm cursor-zoom-in"
+    ? "relative group/card w-full aspect-video overflow-hidden rounded-2xl bg-muted/30 shadow-sm cursor-zoom-in"
+    : "relative group/thumb w-32 h-24 overflow-hidden rounded-xl bg-muted/20 shadow-sm cursor-zoom-in"
 
   return (
     <>
@@ -573,7 +602,7 @@ export function ImageGallery({
           src={images[0].src}
           alt={images[0].alt}
           onError={images[0].onError}
-          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+          className="h-full w-full object-cover transition-transform duration-300 group-hover/card:scale-[1.03] group-hover/thumb:scale-[1.03]"
         />
       </button>
       {renderDialog()}

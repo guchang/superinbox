@@ -220,24 +220,46 @@ router.post('/', authenticate, (req, res): any => {
       notion: 'npx -y @notionhq/notion-mcp-server',
       github: 'npx -y @modelcontextprotocol/server-github',
       obsidian: 'npx -y @modelcontextprotocol/server-obsidian',
-      todoist: 'npx -y mcp-remote https://ai.todoist.net/mcp'
+      todoist: 'npx -y mcp-remote https://ai.todoist.net/mcp',
+      lark: 'npx -y @modelcontextprotocol/server-lark'
+    };
+
+    const tokenEnvKeyMapping: Record<string, string> = {
+      notion: 'NOTION_TOKEN',
+      todoist: 'TODOIST_API_TOKEN',
+      lark: 'LARK_APP_TOKEN',
+      github: 'GITHUB_TOKEN'
+    };
+
+    const getDefaultCommand = (type: string): string => {
+      return commandMapping[type] || `npx @modelcontextprotocol/server-${type}`;
+    };
+
+    const getDefaultAuthType = (type: string): MCPAdapterConfig['authType'] => {
+      if (type === 'notion' || type === 'todoist') {
+        return 'oauth';
+      }
+      return 'api_key';
     };
 
     // Determine transport type based on server type
     // Servers with predefined commands use stdio, others use http
-    let serverType = req.body.serverType || 'custom';
+    let serverType = (req.body.serverType || 'custom').toLowerCase();
     const command = req.body.command;
 
     // Auto-detect server type from command if not explicitly set or set to custom
     if ((!serverType || serverType === 'custom') && command) {
-      if (command.includes('ai.todoist.net')) {
+      const normalizedCommand = String(command).toLowerCase();
+      if (normalizedCommand.includes('ai.todoist.net')) {
         serverType = 'todoist';
-      } else if (command.includes('@notionhq/notion-mcp-server')) {
+      } else if (normalizedCommand.includes('notion-mcp-server')) {
         serverType = 'notion';
-      } else if (command.includes('server-github')) {
+      } else if (normalizedCommand.includes('server-github')) {
         serverType = 'github';
-      } else if (command.includes('server-obsidian')) {
+      } else if (normalizedCommand.includes('server-obsidian')) {
         serverType = 'obsidian';
+      } else if (normalizedCommand.includes('lark')) {
+        serverType = 'lark';
       }
     }
 
@@ -245,23 +267,38 @@ router.post('/', authenticate, (req, res): any => {
     const transportType: 'http' | 'stdio' = req.body.transportType ||
       (hasStdioCommand ? 'stdio' : 'http');
 
-    // Get default command for stdio types
-    const getDefaultCommand = (serverType: string): string => {
-      return commandMapping[serverType] || `npx @modelcontextprotocol/server-${serverType}`;
-    };
-
     // Build env object from various sources
     let env: Record<string, string> = {};
 
     // Add explicit env from request
-    if (req.body.env) {
+    if (req.body.env && typeof req.body.env === 'object') {
       env = { ...env, ...req.body.env };
     }
 
-    // Add API key to environment for stdio
+    // Add API key to environment for stdio if caller didn't provide env key explicitly
     if (transportType === 'stdio' && req.body.apiKey) {
-      env.NOTION_TOKEN = req.body.apiKey;
+      const tokenEnvKey = tokenEnvKeyMapping[serverType];
+      if (tokenEnvKey && !env[tokenEnvKey]) {
+        env[tokenEnvKey] = req.body.apiKey;
+      }
     }
+
+    const requestedAuthType = req.body.authType as MCPAdapterConfig['authType'] | undefined;
+    let authType: MCPAdapterConfig['authType'];
+
+    if (requestedAuthType === 'oauth' || requestedAuthType === 'api_key' || requestedAuthType === 'none') {
+      authType = requestedAuthType;
+    } else {
+      authType = getDefaultAuthType(serverType);
+    }
+
+    if (transportType === 'http' && authType === 'none') {
+      authType = 'api_key';
+    }
+
+    const oauthProvider = authType === 'oauth'
+      ? (req.body.oauthProvider || serverType)
+      : undefined;
 
     const config: MCPAdapterConfig = {
       id: uuidv4(),
@@ -272,9 +309,9 @@ router.post('/', authenticate, (req, res): any => {
       transportType,
       command: transportType === 'stdio' ? (req.body.command || getDefaultCommand(serverType)) : undefined,
       env: Object.keys(env).length > 0 ? env : undefined,
-      authType: transportType === 'stdio' ? 'none' : (req.body.authType || 'api_key'),
+      authType,
       apiKey: req.body.apiKey,
-      oauthProvider: req.body.oauthProvider,
+      oauthProvider,
       oauthAccessToken: req.body.oauthAccessToken,
       oauthRefreshToken: req.body.oauthRefreshToken,
       oauthTokenExpiresAt: req.body.oauthTokenExpiresAt,

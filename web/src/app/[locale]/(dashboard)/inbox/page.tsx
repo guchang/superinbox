@@ -5,7 +5,7 @@ import { useInfiniteQuery, useMutation, useQueryClient, useQuery } from '@tansta
 import { categoriesApi } from '@/lib/api/categories'
 import { inboxApi } from '@/lib/api/inbox'
 import { Button } from '@/components/ui/button'
-import { CategoryType, ContentType, Item } from '@/types'
+import { ContentType, Item } from '@/types'
 import {
   Loader2,
   LayoutGrid,
@@ -30,6 +30,7 @@ import { SearchDialog, SearchFilters } from '@/components/shared/search-dialog'
 import { useAutoRefetch } from '@/hooks/use-auto-refetch'
 import { getApiErrorMessage } from '@/lib/i18n/api-errors'
 import { cn } from '@/lib/utils'
+import { resolveCategoryColor, resolveCategoryIconName } from '@/lib/category-appearance'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useSearchParams } from 'next/navigation'
 
@@ -147,9 +148,24 @@ export default function InboxPage() {
     () => categories.filter((category) => category.isActive),
     [categories]
   )
-  const categoryLabelMap = useMemo(() => {
-    return new Map(categories.map((category) => [category.key, category.name]))
+  const categoryMetaMap = useMemo(() => {
+    return new Map(
+      categories.map((category) => [
+        category.key,
+        {
+          name: category.name,
+          icon: resolveCategoryIconName(category.key, category.icon),
+          color: resolveCategoryColor(category.key, category.color),
+        },
+      ])
+    )
   }, [categories])
+
+  const categoryLabelMap = useMemo(() => {
+    return new Map(
+      Array.from(categoryMetaMap.entries()).map(([key, meta]) => [key, meta.name])
+    )
+  }, [categoryMetaMap])
 
   // 构建查询参数 - 统一使用 activeType 作为媒体类型筛选
   const queryParams = useMemo(() => {
@@ -554,6 +570,7 @@ export default function InboxPage() {
                         key={item.id}
                         item={item}
                         categoryLabelMap={categoryLabelMap}
+                        categoryMetaMap={categoryMetaMap}
                         onDelete={handleDelete}
                         onRetry={handleRetry}
                         onEdit={handleEdit}

@@ -4,7 +4,7 @@ import { useState, useRef, useCallback, useEffect } from 'react'
 import { useTranslations } from 'next-intl'
 import { useTheme } from 'next-themes'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Image, Paperclip, Mic, X, Loader2, Plus, ChevronRight } from 'lucide-react'
+import { Image as ImageIcon, Paperclip, Mic, X, Loader2, Plus, ChevronRight, FileText, Play } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
 import { useIsMobile } from '@/hooks/use-is-mobile'
@@ -15,6 +15,20 @@ interface ExpandableInputProps {
 }
 
 type AnimationPhase = 'idle' | 'absorbing' | 'collapsing' | 'diving'
+
+type UploadPreviewType = 'image' | 'video' | 'file'
+
+interface SelectedUpload {
+  file: File
+  previewType: UploadPreviewType
+  previewUrl?: string
+}
+
+const getUploadPreviewType = (file: File): UploadPreviewType => {
+  if (file.type.startsWith('image/')) return 'image'
+  if (file.type.startsWith('video/')) return 'video'
+  return 'file'
+}
 
 export function ExpandableInput({ onSubmit, isSubmitting = false }: ExpandableInputProps) {
   const t = useTranslations('inbox')
@@ -30,13 +44,15 @@ export function ExpandableInput({ onSubmit, isSubmitting = false }: ExpandableIn
     setMounted(true)
   }, [resolvedTheme])
 
-  // 自动展开：有内容或聚焦时就展开
+  // 自动展开：有内容、文件或聚焦时就展开
   const [content, setContent] = useState('')
   const [isFocused, setIsFocused] = useState(false)
-  const isExpanded = isFocused || content.trim().length > 0
 
   const [animationPhase, setAnimationPhase] = useState<AnimationPhase>('idle')
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([])
+  const [selectedFiles, setSelectedFiles] = useState<SelectedUpload[]>([])
+  const hasInputContent = content.trim().length > 0
+  const hasSelectedFiles = selectedFiles.length > 0
+  const isExpanded = isFocused || hasInputContent || hasSelectedFiles
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const imageInputRef = useRef<HTMLInputElement>(null)
@@ -44,6 +60,7 @@ export function ExpandableInput({ onSubmit, isSubmitting = false }: ExpandableIn
   const [showFloatingButton, setShowFloatingButton] = useState(!isExpanded)
   const closeTimerRef = useRef<NodeJS.Timeout | null>(null)
   const previousExpanded = useRef(isExpanded)
+  const selectedFilesRef = useRef<SelectedUpload[]>([])
 
   // 吸收动效提交 - 三阶段：absorbing -> collapsing -> diving
   const handleSubmit = useCallback(async () => {
@@ -66,22 +83,40 @@ export function ExpandableInput({ onSubmit, isSubmitting = false }: ExpandableIn
 
     // 第三阶段：潜入 (600ms)
     setAnimationPhase('diving')
-    onSubmit(content, selectedFiles)
+    onSubmit(content, selectedFiles.map(({ file }) => file))
 
     await new Promise(resolve => setTimeout(resolve, 600))
 
     // 重置
     setContent('')
-    setSelectedFiles([])
+    setSelectedFiles((prev) => {
+      prev.forEach((item) => {
+        if (item.previewUrl) {
+          URL.revokeObjectURL(item.previewUrl)
+        }
+      })
+      return []
+    })
     setIsFocused(false)
     setAnimationPhase('idle')
   }, [content, selectedFiles, onSubmit, toast, common, t])
 
   // 处理文件选择
-  const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>, type: 'file' | 'image') => {
+  const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || [])
     if (files.length > 0) {
-      setSelectedFiles(prev => [...prev, ...files])
+      const nextUploads: SelectedUpload[] = files.map((file) => {
+        const previewType = getUploadPreviewType(file)
+        return {
+          file,
+          previewType,
+          previewUrl: previewType === 'image' || previewType === 'video'
+            ? URL.createObjectURL(file)
+            : undefined,
+        }
+      })
+
+      setSelectedFiles(prev => [...prev, ...nextUploads])
       toast({
         title: t('fileSelected'),
         description: files.map(f => f.name).join(', '),
@@ -92,7 +127,13 @@ export function ExpandableInput({ onSubmit, isSubmitting = false }: ExpandableIn
 
   // 移除已选文件
   const removeFile = useCallback((index: number) => {
-    setSelectedFiles(prev => prev.filter((_, i) => i !== index))
+    setSelectedFiles(prev => {
+      const item = prev[index]
+      if (item?.previewUrl) {
+        URL.revokeObjectURL(item.previewUrl)
+      }
+      return prev.filter((_, i) => i !== index)
+    })
   }, [])
 
   // 键盘快捷键
@@ -107,6 +148,21 @@ export function ExpandableInput({ onSubmit, isSubmitting = false }: ExpandableIn
 
   const isAnimating = animationPhase !== 'idle'
   const isCollapsing = animationPhase === 'collapsing'
+
+
+  useEffect(() => {
+    selectedFilesRef.current = selectedFiles
+  }, [selectedFiles])
+
+  useEffect(() => {
+    return () => {
+      selectedFilesRef.current.forEach((item) => {
+        if (item.previewUrl) {
+          URL.revokeObjectURL(item.previewUrl)
+        }
+      })
+    }
+  }, [])
 
   useEffect(() => {
     if (closeTimerRef.current) {
@@ -174,7 +230,11 @@ export function ExpandableInput({ onSubmit, isSubmitting = false }: ExpandableIn
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40 md:hidden"
-            onClick={() => setIsFocused(false)}
+            onClick={() => {
+              if (!hasInputContent && !hasSelectedFiles) {
+                setIsFocused(false)
+              }
+            }}
           />
         )}
       </AnimatePresence>
@@ -243,7 +303,7 @@ export function ExpandableInput({ onSubmit, isSubmitting = false }: ExpandableIn
                 : 'md:max-w-2xl md:mx-auto md:p-0'
             )}
             onClick={() => {
-              if (isMobile) {
+              if (isMobile && !hasInputContent && !hasSelectedFiles) {
                 setIsFocused(false)
               }
             }}
@@ -277,8 +337,8 @@ export function ExpandableInput({ onSubmit, isSubmitting = false }: ExpandableIn
               onKeyDown={handleKeyDown}
               onFocus={() => setIsFocused(true)}
               onBlur={() => {
-                // 仅当没有内容时才失去焦点收起
-                if (!content.trim()) {
+                // 仅当没有内容且没有文件时才失去焦点收起
+                if (!hasInputContent && !hasSelectedFiles) {
                   setIsFocused(false)
                 }
               }}
@@ -293,6 +353,69 @@ export function ExpandableInput({ onSubmit, isSubmitting = false }: ExpandableIn
             />
           </div>
 
+          {/* 展开状态：文件标签行（独立于工具栏） */}
+          <AnimatePresence initial={false}>
+            {isExpanded && hasSelectedFiles && (
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 8 }}
+                className="shrink-0 px-5 pb-3"
+              >
+                <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pr-1">
+                  {selectedFiles.map((entry, index) => (
+                    <motion.div
+                      key={`${entry.file.name}-${index}`}
+                      initial={{ scale: 0.94, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      exit={{ scale: 0.94, opacity: 0 }}
+                      className="relative shrink-0"
+                    >
+                      <div className="group flex h-9 min-w-[180px] max-w-[230px] items-center gap-2 rounded-lg bg-accent/60 px-1.5 pr-2 text-xs">
+                        <div className="relative h-7 w-7 shrink-0 overflow-hidden rounded-md bg-background/70">
+                          {entry.previewType === 'image' && entry.previewUrl ? (
+                            <img
+                              src={entry.previewUrl}
+                              alt={entry.file.name}
+                              className="h-full w-full object-cover"
+                            />
+                          ) : entry.previewType === 'video' && entry.previewUrl ? (
+                            <>
+                              <video
+                                src={entry.previewUrl}
+                                preload="metadata"
+                                muted
+                                playsInline
+                                className="h-full w-full object-cover"
+                              />
+                              <span className="absolute inset-0 flex items-center justify-center bg-black/35 text-white/85">
+                                <Play className="h-3 w-3 fill-current" />
+                              </span>
+                            </>
+                          ) : (
+                            <span className="flex h-full w-full items-center justify-center text-muted-foreground">
+                              <FileText className="h-3.5 w-3.5" />
+                            </span>
+                          )}
+                        </div>
+
+                        <span className="min-w-0 flex-1 truncate">{entry.file.name}</span>
+
+                        <button
+                          type="button"
+                          onClick={() => removeFile(index)}
+                          className="text-muted-foreground transition-colors hover:text-destructive"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           {/* 展开状态：底部工具栏 */}
           <AnimatePresence>
             {isExpanded && (
@@ -303,15 +426,17 @@ export function ExpandableInput({ onSubmit, isSubmitting = false }: ExpandableIn
                 className="shrink-0 p-5 pt-0 flex items-center justify-between z-20"
               >
                 {/* 左侧工具按钮 - playground 风格：简化版 */}
-                <div className="flex items-center gap-1 opacity-40">
+                <div className="flex items-center gap-1 opacity-70">
                   <button
+                    type="button"
                     onMouseDown={(e) => { e.preventDefault(); imageInputRef.current?.click() }}
                     className="p-2 rounded-lg transition-all hover:opacity-100"
                   >
-                    <Image size={18} />
+                    <ImageIcon size={18} />
                   </button>
                   <span className="w-4" />
                   <button
+                    type="button"
                     onMouseDown={(e) => { e.preventDefault(); fileInputRef.current?.click() }}
                     className="p-2 rounded-lg transition-all hover:opacity-100"
                   >
@@ -319,42 +444,19 @@ export function ExpandableInput({ onSubmit, isSubmitting = false }: ExpandableIn
                   </button>
                   <span className="w-4" />
                   <button
+                    type="button"
                     onMouseDown={(e) => { e.preventDefault(); toast({ title: t('voiceComingSoon') }) }}
                     className="p-2 rounded-lg transition-all hover:opacity-100"
                   >
                     <Mic size={18} />
                   </button>
-
-                  {/* 已选文件预览 */}
-                  {selectedFiles.length > 0 && (
-                    <div className="flex items-center gap-1 ml-2">
-                      {selectedFiles.map((file, index) => (
-                        <motion.div
-                          key={index}
-                          initial={{ scale: 0, opacity: 0 }}
-                          animate={{ scale: 1, opacity: 1 }}
-                          exit={{ scale: 0, opacity: 0 }}
-                          className="relative group"
-                        >
-                          <div className="h-8 px-2 rounded-lg bg-accent/50 flex items-center gap-1 text-xs">
-                            <span className="truncate max-w-[60px]">{file.name}</span>
-                            <button
-                              onClick={() => removeFile(index)}
-                              className="text-muted-foreground hover:text-destructive"
-                            >
-                              <X className="h-3 w-3" />
-                            </button>
-                          </div>
-                        </motion.div>
-                      ))}
-                    </div>
-                  )}
                 </div>
 
                 {/* 右侧 Capture 按钮 - playground 风格 */}
                 <button
+                  type="button"
                   onMouseDown={(e) => { e.preventDefault(); handleSubmit() }}
-                  disabled={!content.trim() && selectedFiles.length === 0}
+                  disabled={!hasInputContent && !hasSelectedFiles}
                   className={cn(
                     'px-6 py-2 rounded-2xl text-[11px] font-black uppercase tracking-widest',
                     'flex items-center gap-1 transition-all',
@@ -382,14 +484,14 @@ export function ExpandableInput({ onSubmit, isSubmitting = false }: ExpandableIn
             accept="image/*"
             multiple
             className="hidden"
-            onChange={(e) => handleFileSelect(e, 'image')}
+            onChange={handleFileSelect}
           />
           <input
             ref={fileInputRef}
             type="file"
             multiple
             className="hidden"
-            onChange={(e) => handleFileSelect(e, 'file')}
+            onChange={handleFileSelect}
           />
         </motion.div>
           </div>

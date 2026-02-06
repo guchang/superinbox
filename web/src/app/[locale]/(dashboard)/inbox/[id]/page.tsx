@@ -19,6 +19,7 @@ import { FilePreview } from '@/components/file-preview'
 import { useAutoRefetch } from '@/hooks/use-auto-refetch'
 import { getApiErrorMessage } from '@/lib/i18n/api-errors'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog'
+import { getCategoryBadgeStyle, resolveCategoryColor, resolveCategoryIconName } from '@/lib/category-appearance'
 
 export default function InboxDetailPage() {
   const t = useTranslations('inboxDetail')
@@ -43,9 +44,24 @@ export default function InboxDetailPage() {
   })
 
   const item = itemData?.data
-  const categoryLabelMap = useMemo(() => {
-    return new Map((categoriesData?.data || []).map((category) => [category.key, category.name]))
+  const categoryMetaMap = useMemo(() => {
+    return new Map(
+      (categoriesData?.data || []).map((category) => [
+        category.key,
+        {
+          name: category.name,
+          icon: resolveCategoryIconName(category.key, category.icon),
+          color: resolveCategoryColor(category.key, category.color),
+        },
+      ])
+    )
   }, [categoriesData])
+
+  const categoryLabelMap = useMemo(() => {
+    return new Map(
+      Array.from(categoryMetaMap.entries()).map(([key, meta]) => [key, meta.name])
+    )
+  }, [categoryMetaMap])
 
   // Mutations
   const deleteMutation = useMutation({
@@ -170,19 +186,6 @@ export default function InboxDetailPage() {
   }, [item, t])
 
   // Helpers
-  const getCategoryBadgeVariant = (category: string) => {
-    const variants: Record<string, any> = {
-      [CategoryType.TODO]: 'default',
-      [CategoryType.IDEA]: 'secondary',
-      [CategoryType.EXPENSE]: 'destructive',
-      [CategoryType.NOTE]: 'outline',
-      [CategoryType.BOOKMARK]: 'outline',
-      [CategoryType.SCHEDULE]: 'default',
-      [CategoryType.UNKNOWN]: 'secondary',
-    }
-    return variants[category] || 'outline'
-  }
-
   const getStatusBadgeVariant = (status: ItemStatus) => {
     const variants: Record<ItemStatus, any> = {
       [ItemStatus.PENDING]: 'secondary',
@@ -258,6 +261,11 @@ export default function InboxDetailPage() {
       [CategoryType.SCHEDULE]: t('categories.schedule'),
       [CategoryType.UNKNOWN]: t('categories.unknown'),
     }[categoryKey] || categoryKey)
+
+  const categoryBadgeStyle = getCategoryBadgeStyle(
+    categoryKey,
+    categoryMetaMap.get(categoryKey)?.color
+  )
 
   const distributionEntries = (() => {
     const results = item.distributionResults
@@ -464,7 +472,15 @@ export default function InboxDetailPage() {
               {categoryLabel && (
                 <div className="grid gap-1.5">
                   <span className="text-xs text-muted-foreground">{t('metadata.category')}</span>
-                  <div><Badge variant={getCategoryBadgeVariant(categoryKey)}>{categoryLabel}</Badge></div>
+                  <div>
+                    <Badge
+                      variant="outline"
+                      className="border text-[11px] uppercase tracking-wide"
+                      style={categoryBadgeStyle}
+                    >
+                      {categoryLabel}
+                    </Badge>
+                  </div>
                 </div>
               )}
 

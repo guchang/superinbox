@@ -28,6 +28,8 @@ export interface Category {
   name: string
   description?: string
   examples?: string[]
+  icon?: string
+  color?: string
   isActive: boolean
   createdAt: string
   updatedAt: string

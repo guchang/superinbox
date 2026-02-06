@@ -12,6 +12,7 @@ import {
   DialogClose,
 } from "@/components/ui/dialog"
 import { ImageGallery } from "@/components/inbox/image-gallery"
+import { AudioWavePlayer } from "@/components/inbox/audio-wave-player"
 import { inboxApi } from "@/lib/api/inbox"
 import { getApiBaseUrl } from "@/lib/api/base-url"
 
@@ -62,8 +63,9 @@ export function FilePreview({
   const fileUrl = `${apiBaseUrl}/inbox/${itemId}/file`
 
   useEffect(() => {
+    const objectUrlRef = mediaObjectUrlsRef
     return () => {
-      Object.values(mediaObjectUrlsRef.current).forEach((url) => URL.revokeObjectURL(url))
+      Object.values(objectUrlRef.current).forEach((url) => URL.revokeObjectURL(url))
     }
   }, [])
 
@@ -81,39 +83,50 @@ export function FilePreview({
     }
   }
 
-  const downloadFileByIndex = (originalIndex: number, name: string) => {
+  const downloadFileByIndex = async (originalIndex: number, name: string) => {
     const downloadUrl = `${apiBaseUrl}/inbox/${itemId}/file/${originalIndex}/download`
     const token = getAuthToken()
 
-    fetch(downloadUrl, {
-      headers: {
-        Authorization: token ? `Bearer ${token}` : "",
-      },
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error("Download failed")
-        return res.blob()
+    try {
+      const response = await fetch(downloadUrl, {
+        headers: {
+          Authorization: token ? `Bearer ${token}` : "",
+        },
       })
-      .then((blob) => {
-        const url = URL.createObjectURL(blob)
-        const link = document.createElement("a")
-        link.href = url
-        link.download = name
-        document.body.appendChild(link)
-        link.click()
-        document.body.removeChild(link)
-        URL.revokeObjectURL(url)
-      })
-      .catch((err) => console.error("Download failed:", err))
-  }
 
-  const formatFileSize = (fileSize?: number) => {
-    if (typeof fileSize !== "number") return ""
-    const kb = fileSize / 1024
-    if (kb >= 1024) {
-      return `${(kb / 1024).toFixed(1)}MB`
+      if (!response.ok) {
+        let detail = response.statusText
+        try {
+          const payload = await response.json() as {
+            message?: string
+            error?: { message?: string } | string
+          }
+          if (typeof payload.error === "string") {
+            detail = payload.error
+          } else if (payload.error?.message) {
+            detail = payload.error.message
+          } else if (payload.message) {
+            detail = payload.message
+          }
+        } catch {
+          // ignore parse errors and keep status text
+        }
+
+        throw new Error(`Download failed (${response.status}): ${detail}`)
+      }
+
+      const blob = await response.blob()
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement("a")
+      link.href = url
+      link.download = name
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(url)
+    } catch (error) {
+      console.error("Download failed:", error)
     }
-    return `${kb.toFixed(1)}KB`
   }
 
   const handleMediaError = async (key: string, url: string) => {
@@ -137,6 +150,15 @@ export function FilePreview({
       console.error("Failed to load media:", error)
     }
   }
+
+  const renderAudioPlayer = (mediaSrc: string, mediaKey: string, mediaUrl: string) => (
+    <AudioWavePlayer
+      src={mediaSrc}
+      waveformKey={`${itemId}-${mediaKey}`}
+      onError={() => handleMediaError(mediaKey, mediaUrl)}
+      className="w-full min-w-0"
+    />
+  )
 
   const normalizedFiles = allFiles ?? []
   const hasMultipleFiles = normalizedFiles.length > 1
@@ -167,7 +189,7 @@ export function FilePreview({
     })
 
     return (
-      <div className="space-y-4 w-full max-w-full min-w-0 overflow-hidden">
+      <div className="space-y-4 w-full max-w-full min-w-0">
         {galleryImages.length > 0 && (
           <div className="space-y-2">
             <div className="text-xs font-medium text-muted-foreground">
@@ -182,39 +204,15 @@ export function FilePreview({
             <div className="text-xs font-medium text-muted-foreground">
               {t("sections.audio", { count: audioEntries.length })}
             </div>
-            <div className="grid gap-3 w-full min-w-0">
-              {audioEntries.map(({ file, originalIndex }) => {
+            <div className="flex flex-col gap-3 w-full min-w-0">
+              {audioEntries.map(({ originalIndex }) => {
                 const mediaKey = `audio-${originalIndex}`
                 const mediaUrl = `${apiBaseUrl}/inbox/${itemId}/file/${originalIndex}`
                 const mediaSrc = mediaObjectUrls[mediaKey] || mediaUrl
 
                 return (
-                  <div key={originalIndex} className="grid gap-2 p-3 bg-muted rounded-lg border">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="min-w-0">
-                        <div className="text-xs font-bold text-foreground truncate" title={file.fileName}>
-                          {file.fileName}
-                        </div>
-                        <div className="text-xs text-muted-foreground font-mono">
-                          {formatFileSize(file.fileSize)}
-                        </div>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => downloadFileByIndex(originalIndex, file.fileName)}
-                        className="h-8 w-8 p-0 flex-shrink-0"
-                      >
-                        <Download className="h-4 w-4" />
-                      </Button>
-                    </div>
-                    <audio
-                      controls
-                      preload="metadata"
-                      src={mediaSrc}
-                      onError={() => handleMediaError(mediaKey, mediaUrl)}
-                      className="block w-full max-w-full"
-                    />
+                  <div key={originalIndex} className="w-full min-w-0">
+                    {renderAudioPlayer(mediaSrc, mediaKey, mediaUrl)}
                   </div>
                 )
               })}
@@ -309,12 +307,12 @@ export function FilePreview({
             </div>
             <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin">
               {otherEntries.map(({ file, originalIndex }) => (
-                <div key={originalIndex} className="flex-shrink-0 flex items-center gap-3 p-3 bg-muted rounded-lg border min-w-[220px] hover:bg-muted/80 transition-colors cursor-pointer group">
+                <div key={originalIndex} className="flex-shrink-0 w-[280px] sm:w-[320px] max-w-[78vw] flex items-center gap-3 p-3 bg-muted rounded-lg border hover:bg-muted/80 transition-colors cursor-pointer group">
                   <div className="w-10 h-10 flex items-center justify-center bg-background rounded-lg shadow-sm group-hover:scale-105 transition-transform">
                     <File className="h-5 w-5 text-muted-foreground" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="text-xs font-bold text-foreground truncate" title={file.fileName}>
+                    <div className="text-xs font-bold text-foreground truncate max-w-[170px] sm:max-w-[210px]" title={file.fileName}>
                       {file.fileName}
                     </div>
                     <div className="text-xs text-muted-foreground font-mono">
@@ -324,33 +322,7 @@ export function FilePreview({
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => {
-                      const downloadUrl = `${apiBaseUrl}/v1/inbox/${itemId}/file/${originalIndex}/download`
-                      const token = typeof window !== "undefined"
-                        ? localStorage.getItem("superinbox_auth_token")
-                        : null
-
-                      fetch(downloadUrl, {
-                        headers: {
-                          Authorization: token ? `Bearer ${token}` : "",
-                        },
-                      })
-                        .then((res) => {
-                          if (!res.ok) throw new Error("Download failed")
-                          return res.blob()
-                        })
-                        .then((blob) => {
-                          const url = URL.createObjectURL(blob)
-                          const link = document.createElement("a")
-                          link.href = url
-                          link.download = file.fileName
-                          document.body.appendChild(link)
-                          link.click()
-                          document.body.removeChild(link)
-                          URL.revokeObjectURL(url)
-                        })
-                        .catch((err) => console.error("Download failed:", err))
-                    }}
+                    onClick={() => downloadFileByIndex(originalIndex, file.fileName)}
                     className="h-8 w-8 p-0 flex-shrink-0"
                   >
                     <Download className="h-4 w-4" />
@@ -466,33 +438,7 @@ export function FilePreview({
     const mediaKey = "single-media"
     const mediaSrc = mediaObjectUrls[mediaKey] || fileUrl
 
-    return (
-      <div className="grid gap-3 p-4 bg-muted rounded-lg border w-full max-w-full min-w-0 overflow-hidden">
-        <div className="flex items-center justify-between gap-2 max-w-full min-w-0">
-          <div className="min-w-0 max-w-full">
-            <div className="text-sm font-medium text-foreground truncate">
-              {fileName || t("fileFallback")}
-            </div>
-          </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleDownload}
-            className="h-8 w-8 p-0 flex-shrink-0"
-            aria-label={t("download")}
-          >
-            <Download className="h-4 w-4" />
-          </Button>
-        </div>
-        <audio
-          controls
-          preload="metadata"
-          src={mediaSrc}
-          onError={() => handleMediaError(mediaKey, fileUrl)}
-          className="block w-full max-w-full"
-        />
-      </div>
-    )
+    return renderAudioPlayer(mediaSrc, mediaKey, fileUrl)
   }
 
   return (

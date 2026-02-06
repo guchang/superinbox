@@ -49,8 +49,10 @@ router.post('/', authenticate, (req, res) => {
     }
   }
 
+  const normalizedKey = String(payload.key).trim().toLowerCase();
+
   const existing = listCategories(userId).find(
-    (category) => category.key === payload.key
+    (category) => category.key === normalizedKey
   );
   if (existing) {
     sendError(res, {
@@ -63,10 +65,12 @@ router.post('/', authenticate, (req, res) => {
   }
 
   const record = createCategory(userId, {
-    key: String(payload.key).trim(),
+    key: normalizedKey,
     name: String(payload.name).trim(),
     description: payload.description ?? '',
     examples: Array.isArray(payload.examples) ? payload.examples : [],
+    icon: typeof payload.icon === 'string' ? payload.icon.trim() : undefined,
+    color: typeof payload.color === 'string' ? payload.color.trim() : undefined,
     isActive: payload.isActive ?? true,
   });
 
@@ -100,9 +104,43 @@ router.put('/prompt', authenticate, (req, res) => {
 
 router.post('/prompt/generate', authenticate, async (req, res) => {
   const userId = req.user?.userId ?? 'default-user';
+  const payload = req.body as { mode?: unknown; requirement?: unknown; language?: unknown };
+  const mode = typeof payload.mode === 'string' ? payload.mode.trim() : '';
+  const requirement =
+    typeof payload.requirement === 'string' ? payload.requirement.trim() : '';
+  const language =
+    typeof payload.language === 'string' ? payload.language.trim() : '';
+  const allowedModes = new Set(['low_cost', 'high_precision', 'custom']);
+  const normalizedMode = mode || 'low_cost';
+
+  if (!allowedModes.has(normalizedMode)) {
+    sendError(res, {
+      statusCode: 400,
+      code: 'AI.INVALID_INPUT',
+      message: 'Invalid mode',
+      params: { field: 'mode' },
+    });
+    return;
+  }
+
+  if (normalizedMode === 'custom' && !requirement) {
+    sendError(res, {
+      statusCode: 400,
+      code: 'AI.INVALID_INPUT',
+      message: 'Requirement is required for custom mode',
+      params: { field: 'requirement' },
+    });
+    return;
+  }
 
   try {
-    const prompt = await getAIService().generateCategoryPrompt({ userId });
+    const prompt = await getAIService().generateCategoryPrompt({
+      userId,
+      mode: normalizedMode as 'low_cost' | 'high_precision' | 'custom',
+      requirement,
+      language,
+    });
+
     if (!prompt.trim()) {
       sendError(res, {
         statusCode: 500,
@@ -174,8 +212,9 @@ router.put('/:id', authenticate, (req, res) => {
   }
 
   if (payload.key) {
+    const normalizedKey = String(payload.key).trim().toLowerCase();
     const existing = listCategories(userId).find(
-      (category) => category.key === payload.key && category.id !== id
+      (category) => category.key === normalizedKey && category.id !== id
     );
     if (existing) {
       sendError(res, {
@@ -189,10 +228,12 @@ router.put('/:id', authenticate, (req, res) => {
   }
 
   const record = updateCategory(userId, id, {
-    key: payload.key ? String(payload.key).trim() : undefined,
+    key: payload.key ? String(payload.key).trim().toLowerCase() : undefined,
     name: payload.name ? String(payload.name).trim() : undefined,
     description: payload.description,
     examples: Array.isArray(payload.examples) ? payload.examples : undefined,
+    icon: typeof payload.icon === 'string' ? payload.icon.trim() : undefined,
+    color: typeof payload.color === 'string' ? payload.color.trim() : undefined,
     isActive: typeof payload.isActive === 'boolean' ? payload.isActive : undefined,
   });
 

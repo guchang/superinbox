@@ -10,12 +10,7 @@ import {
   Inbox,
   GitBranch,
   Plug,
-  CheckCircle2,
-  Wallet,
-  Lightbulb,
-  Link2,
   Cpu,
-  Type,
   LogOut,
   Languages,
   Moon,
@@ -39,7 +34,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from '@/components/ui/sidebar'
-import { useMemo, useState, useEffect } from 'react'
+import { useMemo, useState, useEffect, type CSSProperties } from 'react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { PanelLeft } from 'lucide-react'
@@ -54,7 +49,7 @@ import {
 import { useAuth } from '@/lib/hooks/use-auth'
 import { useToast } from '@/hooks/use-toast'
 import { useTheme } from 'next-themes'
-import { routing } from '@/i18n/routing'
+import { getCategoryIconComponent, getCategorySoftStyle } from '@/lib/category-appearance'
 
 // Gmail 风格的导航项组件
 interface NavItemProps {
@@ -62,13 +57,13 @@ interface NavItemProps {
   label: string
   icon: React.ComponentType<{ className?: string; size?: number; strokeWidth?: number }>
   href: string
-  color?: string
+  iconStyle?: CSSProperties
   isActive: boolean
   count?: number
   collapsed?: boolean
 }
 
-function NavItem({ label, icon: Icon, href, color, isActive, count, collapsed }: NavItemProps) {
+function NavItem({ label, icon: Icon, href, iconStyle, isActive, count, collapsed }: NavItemProps) {
   return (
     <SidebarMenuItem>
       <Link
@@ -82,9 +77,8 @@ function NavItem({ label, icon: Icon, href, color, isActive, count, collapsed }:
       >
           <div className={`flex items-center gap-3 ${collapsed ? '' : ''}`}>
             <div
-              className={`p-1.5 rounded-lg transition-colors ${
-                isActive ? color || 'bg-current/10' : ''
-              }`}
+              className="p-1.5 rounded-lg transition-colors"
+              style={isActive ? iconStyle : undefined}
             >
               <Icon className={`h-4 w-4 ${isActive ? 'stroke-[2.5]' : 'stroke-2'}`} />
             </div>
@@ -102,16 +96,6 @@ function NavItem({ label, icon: Icon, href, color, isActive, count, collapsed }:
       </Link>
     </SidebarMenuItem>
   )
-}
-
-// Category key 到 icon 和颜色的映射
-const categoryConfig: Record<string, { icon: typeof CheckCircle2; color?: string }> = {
-  todo: { icon: CheckCircle2, color: 'text-blue-500 bg-blue-500/10' },
-  expense: { icon: Wallet, color: 'text-orange-500 bg-orange-500/10' },
-  idea: { icon: Lightbulb, color: 'text-yellow-500 bg-yellow-500/10' },
-  note: { icon: Type },
-  bookmark: { icon: Link2, color: 'text-indigo-500 bg-indigo-500/10' },
-  schedule: { icon: Link2, color: 'text-purple-500 bg-purple-500/10' },
 }
 
 interface AppSidebarProps {
@@ -181,10 +165,14 @@ export function AppSidebar({ className }: AppSidebarProps) {
   const { data: categoriesData } = useQuery({
     queryKey: ['categories'],
     queryFn: () => categoriesApi.list(),
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 30 * 1000,
+    gcTime: 5 * 60 * 1000,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
   })
 
-  const categories = categoriesData?.data || []
+  const categories = useMemo(() => categoriesData?.data || [], [categoriesData?.data])
 
   const { data: countData } = useQuery({
     queryKey: ['inbox-counts', categories.map((category) => category.key).join(',')],
@@ -233,34 +221,39 @@ export function AppSidebar({ className }: AppSidebarProps) {
   const intentItems = useMemo(() => {
     const activeCategories = categories.filter((category) => category.isActive)
 
-    // 如果没有获取到 categories，使用默认配置
     if (activeCategories.length === 0) {
-      return [
-        { id: 'todo', label: 'Todo & Tasks', href: '/inbox?category=todo', icon: CheckCircle2, color: 'text-blue-500 bg-blue-500/10', count: 0 },
-        { id: 'expense', label: 'Finance', href: '/inbox?category=expense', icon: Wallet, color: 'text-orange-500 bg-orange-500/10', count: 0 },
-        { id: 'idea', label: 'Insights & Ideas', href: '/inbox?category=idea', icon: Lightbulb, color: 'text-yellow-500 bg-yellow-500/10', count: 0 },
-        { id: 'note', label: 'Daily Logs', href: '/inbox?category=note', icon: Type, count: 0 },
-        { id: 'bookmark', label: 'Reading List', href: '/inbox?category=bookmark', icon: Link2, color: 'text-indigo-500 bg-indigo-500/10', count: 0 },
+      const fallback = [
+        { key: 'todo', label: 'Todo' },
+        { key: 'idea', label: 'Idea' },
+        { key: 'expense', label: 'Expense' },
+        { key: 'schedule', label: 'Schedule' },
+        { key: 'note', label: 'Note' },
+        { key: 'bookmark', label: 'Bookmark' },
       ]
+
+      return fallback.map((category) => ({
+        id: category.key,
+        label: category.label,
+        href: `/inbox?category=${category.key}`,
+        icon: getCategoryIconComponent(undefined, category.key),
+        iconStyle: getCategorySoftStyle(category.key),
+        count: 0,
+      }))
     }
 
-    // 使用 API 返回的 category 名称
-    return activeCategories.map((category) => {
-      const config = categoryConfig[category.key] || { icon: Type }
-      return {
-        id: category.key,
-        label: category.name, // 使用 API 返回的名称
-        href: `/inbox?category=${category.key}`,
-        icon: config.icon,
-        color: config.color,
-        count: countData?.categoryTotals?.get(category.key) ?? 0,
-      }
-    })
+    return activeCategories.map((category) => ({
+      id: category.key,
+      label: category.name,
+      href: `/inbox?category=${category.key}`,
+      icon: getCategoryIconComponent(category.icon, category.key),
+      iconStyle: getCategorySoftStyle(category.key, category.color),
+      count: countData?.categoryTotals?.get(category.key) ?? 0,
+    }))
   }, [categories, countData])
 
   // Management 分组
   const managementItems = [
-    { id: 'categories', label: t('items.categories') || 'Categories', href: '/category', icon: Cpu, color: 'text-purple-500 bg-purple-500/10' },
+    { id: 'categories', label: t('items.categories') || 'Categories', href: '/category', icon: Cpu },
     { id: 'routing', label: t('items.routing') || 'Routing', href: '/routing', icon: GitBranch },
     { id: 'connections', label: t('items.connections') || 'Connections', href: '/mcp-adapters', icon: Plug },
   ]
@@ -349,7 +342,7 @@ export function AppSidebar({ className }: AppSidebarProps) {
                     label={item.label}
                     href={item.href}
                     icon={item.icon}
-                    color={item.color}
+                    iconStyle={item.iconStyle}
                     isActive={isActive(item.href)}
                     count={item.count}
                   />

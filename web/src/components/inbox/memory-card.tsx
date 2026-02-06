@@ -1,16 +1,18 @@
 'use client'
 
 import { useTranslations } from 'next-intl'
-import { memo, useMemo, useState, useRef, useEffect, useCallback, type MouseEvent } from 'react'
+import { memo, useState, useRef, useEffect, useCallback, type MouseEvent } from 'react'
 import { useTheme } from 'next-themes'
 import { Item, ItemStatus, ContentType } from '@/types'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { FilePreview } from '@/components/file-preview'
+import { AudioWavePlayer } from '@/components/inbox/audio-wave-player'
 import { RoutingStatus } from '@/components/inbox/routing-status'
 import { formatRelativeTime } from '@/lib/utils'
 import { cn } from '@/lib/utils'
 import { getApiBaseUrl } from '@/lib/api/base-url'
+import { getCategoryBadgeStyle, resolveCategoryColor } from '@/lib/category-appearance'
 import { inboxApi } from '@/lib/api/inbox'
 import {
   DropdownMenu,
@@ -26,7 +28,6 @@ import {
   Loader2,
   Clock,
   RefreshCw,
-  CheckCircle2,
   Pencil,
   Sparkles,
   Send,
@@ -34,30 +35,26 @@ import {
   Copy,
   Check,
   Play,
-  Pause,
   Download,
   FileText,
 } from 'lucide-react'
 
-// 获取意图配置（颜色等）
-const getIntentConfig = (category: string, isDark = false) => {
-  const map: Record<string, { color: string; bgColor: string; accent: string; icon: typeof CheckCircle2 }> = {
-    todo: { color: 'text-blue-500', bgColor: 'bg-blue-500/10', accent: 'bg-blue-400', icon: CheckCircle2 },
-    idea: { color: 'text-yellow-500', bgColor: 'bg-yellow-500/10', accent: 'bg-yellow-400', icon: CheckCircle2 },
-    expense: { color: 'text-orange-500', bgColor: 'bg-orange-500/10', accent: 'bg-orange-400', icon: CheckCircle2 },
-    note: { color: 'text-slate-500', bgColor: 'bg-slate-500/10', accent: isDark ? 'bg-white/40' : 'bg-black/40', icon: CheckCircle2 },
-    bookmark: { color: 'text-indigo-500', bgColor: 'bg-indigo-500/10', accent: 'bg-indigo-500', icon: CheckCircle2 },
-    schedule: { color: 'text-purple-500', bgColor: 'bg-purple-500/10', accent: 'bg-purple-400', icon: CheckCircle2 },
-    audio: { color: 'text-rose-500', bgColor: 'bg-rose-500/10', accent: 'bg-rose-500', icon: CheckCircle2 },
-    image: { color: 'text-emerald-500', bgColor: 'bg-emerald-500/10', accent: 'bg-emerald-400', icon: CheckCircle2 },
-    file: { color: 'text-amber-500', bgColor: 'bg-amber-500/10', accent: 'bg-amber-500', icon: CheckCircle2 },
-  }
-  return map[category] || { color: 'text-slate-500', bgColor: 'bg-slate-500/10', accent: isDark ? 'bg-white/40' : 'bg-black/40', icon: CheckCircle2 }
+const FALLBACK_ACCENT_BY_CATEGORY: Record<string, string> = {
+  todo: '#3b82f6',
+  idea: '#eab308',
+  expense: '#f97316',
+  note: '#64748b',
+  bookmark: '#6366f1',
+  schedule: '#8b5cf6',
+  audio: '#f43f5e',
+  image: '#10b981',
+  file: '#f59e0b',
 }
 
 interface MemoryCardProps {
   item: Item
   categoryLabelMap: Map<string, string>
+  categoryMetaMap?: Map<string, { name: string; icon?: string; color?: string }>
   onDelete: (id: string) => void
   onRetry: (id: string) => void
   onEdit?: (item: Item) => void
@@ -72,6 +69,7 @@ interface MemoryCardProps {
 function MemoryCardComponent({
   item,
   categoryLabelMap,
+  categoryMetaMap,
   onDelete,
   onRetry,
   onEdit,
@@ -99,15 +97,15 @@ function MemoryCardComponent({
   const [isDesktop, setIsDesktop] = useState(true)
   const [hasAudioRetried, setHasAudioRetried] = useState(false)
   const [copied, setCopied] = useState(false)
-  const [isPlaying, setIsPlaying] = useState(false)
-  const [duration, setDuration] = useState(0)
-  const [currentTime, setCurrentTime] = useState(0)
-  const audioRef = useRef<HTMLAudioElement | null>(null)
   const videoRef = useRef<HTMLVideoElement | null>(null)
-  const waveformContainerRef = useRef<HTMLDivElement | null>(null)
-  const [barCount, setBarCount] = useState(42)
 
-  const config = useMemo(() => getIntentConfig(item.analysis?.category ?? 'unknown', isDark), [item.analysis?.category, isDark])
+  const categoryKey = item.analysis?.category ?? 'unknown'
+  const categoryMeta = categoryMetaMap?.get(categoryKey)
+  const categoryColor = resolveCategoryColor(categoryKey, categoryMeta?.color)
+  const badgeStyle = getCategoryBadgeStyle(categoryKey, categoryMeta?.color)
+  const fallbackAccentColor =
+    FALLBACK_ACCENT_BY_CATEGORY[categoryKey] || (resolvedTheme === 'dark' ? '#94a3b8' : '#64748b')
+  const accentColor = categoryColor || fallbackAccentColor
   const isAnalyzing = item.status === ItemStatus.PROCESSING
   const isFailed = item.status === ItemStatus.FAILED
   const hasMultipleFiles = Boolean(item.allFiles && item.allFiles.length > 1)
@@ -115,12 +113,6 @@ function MemoryCardComponent({
   const isImage = lowerMimeType.startsWith('image/') || item.contentType === ContentType.IMAGE
   const isAudio = lowerMimeType.startsWith('audio/') || item.contentType === ContentType.AUDIO
   const isVideo = lowerMimeType.startsWith('video/') || item.contentType === ContentType.VIDEO
-  const waveformHeights = useMemo(
-    () => Array.from({ length: barCount }, () => Math.floor(Math.random() * 40) + 30),
-    [barCount, item.id]
-  )
-  const [animatedHeights, setAnimatedHeights] = useState<number[]>(waveformHeights)
-  const waveformTimerRef = useRef<number | null>(null)
 
   useEffect(() => {
     return () => {
@@ -129,9 +121,6 @@ function MemoryCardComponent({
       }
       if (videoObjectUrl) {
         URL.revokeObjectURL(videoObjectUrl)
-      }
-      if (waveformTimerRef.current) {
-        window.clearInterval(waveformTimerRef.current)
       }
     }
   }, [audioBlobUrl, videoObjectUrl])
@@ -153,55 +142,6 @@ function MemoryCardComponent({
     setIsVideoActivated(false)
   }, [item.id])
 
-  useEffect(() => {
-    const element = waveformContainerRef.current
-    if (!element || typeof ResizeObserver === 'undefined') return
-
-    const observer = new ResizeObserver((entries) => {
-      const entry = entries[0]
-      if (!entry) return
-      const width = entry.contentRect.width
-      const barWidth = 2
-      const gap = 4
-      const count = Math.floor((width + gap) / (barWidth + gap))
-      const clamped = Math.min(64, Math.max(18, count))
-      setBarCount(clamped)
-    })
-
-    observer.observe(element)
-    return () => observer.disconnect()
-  }, [])
-
-  useEffect(() => {
-    setAnimatedHeights(waveformHeights)
-  }, [waveformHeights])
-
-  useEffect(() => {
-    if (!isPlaying) {
-      if (waveformTimerRef.current) {
-        window.clearInterval(waveformTimerRef.current)
-        waveformTimerRef.current = null
-      }
-      setAnimatedHeights(waveformHeights)
-      return
-    }
-
-    waveformTimerRef.current = window.setInterval(() => {
-      setAnimatedHeights(
-        waveformHeights.map((height) => {
-          const jitter = Math.round((Math.random() - 0.5) * 14)
-          return Math.min(90, Math.max(24, height + jitter))
-        })
-      )
-    }, 140)
-
-    return () => {
-      if (waveformTimerRef.current) {
-        window.clearInterval(waveformTimerRef.current)
-        waveformTimerRef.current = null
-      }
-    }
-  }, [isPlaying, waveformHeights])
 
   const fetchVideoBlob = useCallback(async () => {
     const token = typeof window !== 'undefined'
@@ -290,19 +230,6 @@ function MemoryCardComponent({
     inboxApi.downloadFile(item.id, item.fileName).catch(() => undefined)
   }, [item.id, item.fileName])
 
-  const handleTogglePlay = useCallback(async () => {
-    const audio = audioRef.current
-    if (!audio) return
-    if (audio.paused) {
-      try {
-        await audio.play()
-      } catch (error) {
-        console.error('Audio play failed:', error)
-      }
-    } else {
-      audio.pause()
-    }
-  }, [])
 
   const handleVideoClick = useCallback(() => {
     const video = videoRef.current
@@ -325,27 +252,7 @@ function MemoryCardComponent({
   }, [isDesktop, isVideoActivated])
 
 
-  const handleSeek = useCallback((event: MouseEvent<HTMLDivElement>) => {
-    if (!audioRef.current || !duration) return
-    const { left, width } = event.currentTarget.getBoundingClientRect()
-    const ratio = Math.min(Math.max((event.clientX - left) / width, 0), 1)
-    const nextTime = ratio * duration
-    audioRef.current.currentTime = nextTime
-    setCurrentTime(nextTime)
-  }, [duration])
-
   const audioSource = audioBlobUrl || `${getApiBaseUrl()}/inbox/${item.id}/file`
-  const progress = duration > 0 ? currentTime / duration : 0
-  const activeBars = Math.round(progress * waveformHeights.length)
-  const displayHeights = isPlaying ? animatedHeights : waveformHeights
-  const formatTime = (value: number) => {
-    if (!Number.isFinite(value) || value <= 0) return '--:--'
-    const minutes = Math.floor(value / 60)
-    const seconds = Math.floor(value % 60)
-    return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
-  }
-  const currentTimeLabel = formatTime(currentTime)
-  const durationLabel = formatTime(duration)
   const handleCardClick = useCallback((event: MouseEvent<HTMLDivElement>) => {
     if (!onViewDetail) return
     if (isMenuOpen) return
@@ -388,8 +295,11 @@ function MemoryCardComponent({
     if (isAnalyzing) return { label: t('badge.analyzing'), variant: 'outline' as const }
     if (isFailed) return { label: t('badge.failed'), variant: 'destructive' as const }
     return {
-      label: categoryLabelMap.get(item.analysis?.category ?? '') || (item.analysis?.category?.toUpperCase() ?? 'UNKNOWN'),
-      variant: 'default' as const
+      label:
+        categoryMeta?.name ||
+        categoryLabelMap.get(item.analysis?.category ?? '') ||
+        (item.analysis?.category?.toUpperCase() ?? 'UNKNOWN'),
+      variant: 'outline' as const
     }
   }
 
@@ -437,7 +347,8 @@ function MemoryCardComponent({
                 opacity: [0, 0.3, 0]
               }}
               transition={{ duration: 1.5, repeat: Infinity, delay: i * 0.1 }}
-              className={cn("absolute w-1 h-1 rounded-full blur-[1px]", config.accent)}
+              className="absolute w-1 h-1 rounded-full blur-[1px]"
+              style={{ backgroundColor: accentColor }}
             />
           ))}
         </div>
@@ -449,11 +360,8 @@ function MemoryCardComponent({
           <div className="flex items-center gap-2">
             <Badge
               variant={badge.variant}
-              className={cn(
-                "h-5 text-[10px] font-black uppercase tracking-widest gap-1",
-                !isAnalyzing && !isFailed && config.color,
-                !isAnalyzing && !isFailed && config.bgColor
-              )}
+              className="h-5 border text-[10px] font-black uppercase tracking-widest gap-1"
+              style={!isAnalyzing && !isFailed ? badgeStyle : undefined}
             >
               {isAnalyzing && <Loader2 className="h-3 w-3 animate-spin" />}
               {badge.label}
@@ -589,68 +497,12 @@ function MemoryCardComponent({
                   imageLayout="card"
                 />
               ) : isAudio ? (
-                <div
-                  className={cn(
-                    "w-full p-3 rounded-xl flex items-center gap-3 border",
-                    isDark ? "bg-white/5 border-white/10" : "bg-black/5 border-black/5"
-                  )}
-                >
-                  <button
-                    type="button"
-                    onClick={handleTogglePlay}
-                    aria-label={isPlaying ? '暂停播放' : '播放音频'}
-                    className={cn(
-                      "w-8 h-8 min-w-8 min-h-8 p-0 aspect-square shrink-0 rounded-full flex items-center justify-center transition",
-                      isDark ? "bg-white/10 text-white" : "bg-black/10 text-black"
-                    )}
-                  >
-                    {isPlaying ? <Pause className="h-4 w-4" fill="currentColor" /> : <Play className="h-4 w-4" fill="currentColor" />}
-                  </button>
-                  <div
-                    ref={waveformContainerRef}
-                    data-card-ignore-click
-                    className="flex-1 flex items-end gap-1 h-6 cursor-pointer overflow-hidden"
-                    onClick={handleSeek}
-                    role="presentation"
-                  >
-                    {displayHeights.map((height, index) => (
-                      <div
-                        key={`${item.id}-wave-${index}`}
-                        className={cn(
-                          "w-[2px] rounded-full transition-colors",
-                          index < activeBars
-                            ? (isDark ? "bg-white/70" : "bg-black/70")
-                            : (isDark ? "bg-white/20" : "bg-black/20")
-                        )}
-                        style={{ height: `${height}%` }}
-                      />
-                    ))}
-                  </div>
-                  <div
-                    className={cn(
-                      "shrink-0 text-[10px] font-bold tabular-nums whitespace-nowrap tracking-wider",
-                      isDark ? "text-white/40" : "text-black/40"
-                    )}
-                  >
-                    <span className="sm:hidden">{durationLabel}</span>
-                    <span className="hidden sm:inline">{currentTimeLabel} / {durationLabel}</span>
-                  </div>
-                  <audio
-                    ref={audioRef}
-                    preload="metadata"
-                    src={audioSource}
-                    onLoadedMetadata={(event) => {
-                      setDuration(event.currentTarget.duration || 0)
-                      setCurrentTime(event.currentTarget.currentTime || 0)
-                    }}
-                    onTimeUpdate={(event) => setCurrentTime(event.currentTarget.currentTime)}
-                    onPlay={() => setIsPlaying(true)}
-                    onPause={() => setIsPlaying(false)}
-                    onEnded={() => setIsPlaying(false)}
-                    onError={handleAudioError}
-                    className="hidden"
-                  />
-                </div>
+                <AudioWavePlayer
+                  src={audioSource}
+                  waveformKey={`${item.id}-single-audio`}
+                  onError={handleAudioError}
+                  ignoreCardClick
+                />
               ) : isVideo ? (
                 <div
                   className={cn(

@@ -37,7 +37,8 @@ const configSchema = z.object({
 
   // Storage
   UPLOAD_DIR: z.string().default('./data/uploads'),
-  MAX_UPLOAD_SIZE: z.string().transform(Number).default('10485760'),
+  MAX_UPLOAD_SIZE: z.string().transform(Number).default('104857600'),
+  MAX_UPLOAD_FILES: z.string().transform(Number).default('20'),
 
   // Logging
   LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
@@ -87,7 +88,8 @@ const validateConfig = (): AppConfig => {
       },
       storage: {
         uploadDir: env.UPLOAD_DIR,
-        maxUploadSize: env.MAX_UPLOAD_SIZE
+        maxUploadSize: env.MAX_UPLOAD_SIZE,
+        maxUploadFiles: env.MAX_UPLOAD_FILES
       }
     };
   } catch (error) {

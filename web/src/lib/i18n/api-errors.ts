@@ -31,6 +31,8 @@ const ERROR_CODE_TO_KEY: Record<string, string> = {
   'MCP.INVALID_CONFIG': 'mcp.invalidConfig',
   'INBOX.NOT_FOUND': 'inbox.notFound',
   'INBOX.FILE_TOO_LARGE': 'inbox.fileTooLarge',
+  'INBOX.TOO_MANY_FILES': 'inbox.tooManyFiles',
+  'INBOX.INVALID_FILE_TYPE': 'inbox.invalidFileType',
   'INBOX.FILE_NOT_FOUND': 'inbox.fileNotFound',
   'INBOX.FILE_INDEX_OUT_OF_RANGE': 'inbox.fileIndexOutOfRange',
   'INBOX.NO_FILES': 'inbox.noFiles',

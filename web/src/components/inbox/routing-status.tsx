@@ -92,7 +92,7 @@ function RoutingStatusBadge({
       case 'pending':
         return {
           variant: 'outline' as const,
-          className: 'text-xs border-gray-200 text-gray-600 bg-gray-50',
+          className: 'text-xs border-amber-200 text-amber-700 bg-amber-50',
           icon: <Clock className="h-3 w-3 mr-1" />,
           text: message || t('routingStatus.pending')
         }

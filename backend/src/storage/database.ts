@@ -187,6 +187,8 @@ export class DatabaseManager {
         name TEXT NOT NULL,
         description TEXT,
         examples TEXT,
+        icon TEXT,
+        color TEXT,
         is_active INTEGER NOT NULL DEFAULT 1,
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL,
@@ -215,7 +217,26 @@ export class DatabaseManager {
       CREATE INDEX IF NOT EXISTS idx_ai_templates_is_active ON ai_templates(is_active);
     `);
 
+    this.ensureTableColumn('ai_categories', 'icon', 'TEXT');
+    this.ensureTableColumn('ai_categories', 'color', 'TEXT');
+
     this.initialized = true;
+  }
+
+  private ensureTableColumn(tableName: string, columnName: string, definition: string): void {
+    if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(tableName)) {
+      throw new Error(`Invalid table name: ${tableName}`);
+    }
+    if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(columnName)) {
+      throw new Error(`Invalid column name: ${columnName}`);
+    }
+
+    const rows = this.db.prepare(`PRAGMA table_info(${tableName})`).all() as Array<{ name: string }>;
+    const exists = rows.some((row) => row.name === columnName);
+
+    if (!exists) {
+      this.db.exec(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${definition}`);
+    }
   }
 
   /**
@@ -1187,6 +1208,8 @@ export class DatabaseManager {
       name: row.name,
       description: row.description,
       examples: row.examples ? JSON.parse(row.examples) : [],
+      icon: row.icon ?? undefined,
+      color: row.color ?? undefined,
       isActive: Boolean(row.is_active),
       createdAt: row.created_at,
       updatedAt: row.updated_at,
@@ -1199,8 +1222,8 @@ export class DatabaseManager {
   createAiCategory(category: any): any {
     const stmt = this.db.prepare(`
       INSERT INTO ai_categories (
-        id, user_id, key, name, description, examples, is_active, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        id, user_id, key, name, description, examples, icon, color, is_active, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     stmt.run(
@@ -1210,6 +1233,8 @@ export class DatabaseManager {
       category.name,
       category.description ?? null,
       category.examples ? JSON.stringify(category.examples) : null,
+      category.icon ?? null,
+      category.color ?? null,
       category.isActive ? 1 : 0,
       category.createdAt,
       category.updatedAt
@@ -1278,6 +1303,8 @@ export class DatabaseManager {
       name: row.name,
       description: row.description,
       examples: row.examples ? JSON.parse(row.examples) : [],
+      icon: row.icon ?? undefined,
+      color: row.color ?? undefined,
       isActive: Boolean(row.is_active),
       createdAt: row.created_at,
       updatedAt: row.updated_at,

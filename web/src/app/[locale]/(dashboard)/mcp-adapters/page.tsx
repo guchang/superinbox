@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl'
 import { useSearchParams } from 'next/navigation'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { mcpConnectorsApi } from '@/lib/api/mcp-connectors'
-import type { MCPConnectorConfig, MCPConnectorListItem } from '@/types'
+import type { CreateMCPConnectorRequest, MCPConnectorConfig, MCPConnectorListItem } from '@/types'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -19,10 +19,12 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { useToast } from '@/hooks/use-toast'
-import { CheckCircle2, Clock, LayoutGrid, Plus, XCircle } from 'lucide-react'
+import { CheckCircle2, ChevronDown, Clock, LayoutGrid, Plus, XCircle } from 'lucide-react'
 import { getApiErrorMessage } from '@/lib/i18n/api-errors'
 import { MCPConnectorCard } from '@/components/mcp-connectors/connector-card'
+import { cn } from '@/lib/utils'
 
 type ConnectorStatusFilter = 'all' | 'healthy' | 'unhealthy' | 'pending'
 
@@ -103,6 +105,220 @@ const MOCK_CONNECTORS: MCPConnectorListItem[] = [
     updatedAt: '2026-02-05T08:05:00.000Z',
   },
 ]
+
+
+type ConnectorTemplateKey = 'notion' | 'todoist' | 'lark' | 'custom'
+
+type ConnectorTemplatePreset = {
+  key: ConnectorTemplateKey
+  serverType: string
+  command: string
+  transportType: 'stdio' | 'http'
+  authType: 'oauth' | 'api_key'
+  tokenEnvKey?: string
+  supportsOAuth: boolean
+  tokenOptional: boolean
+}
+
+const CONNECTOR_TEMPLATE_PRESETS: Record<ConnectorTemplateKey, ConnectorTemplatePreset> = {
+  notion: {
+    key: 'notion',
+    serverType: 'notion',
+    command: 'npx -y @notionhq/notion-mcp-server',
+    transportType: 'stdio',
+    authType: 'oauth',
+    tokenEnvKey: 'NOTION_TOKEN',
+    supportsOAuth: true,
+    tokenOptional: true,
+  },
+  todoist: {
+    key: 'todoist',
+    serverType: 'todoist',
+    command: 'npx -y mcp-remote https://ai.todoist.net/mcp',
+    transportType: 'stdio',
+    authType: 'oauth',
+    tokenEnvKey: 'TODOIST_API_TOKEN',
+    supportsOAuth: true,
+    tokenOptional: true,
+  },
+  lark: {
+    key: 'lark',
+    serverType: 'lark',
+    command: 'npx -y @modelcontextprotocol/server-lark',
+    transportType: 'stdio',
+    authType: 'api_key',
+    tokenEnvKey: 'LARK_APP_TOKEN',
+    supportsOAuth: false,
+    tokenOptional: false,
+  },
+  custom: {
+    key: 'custom',
+    serverType: 'custom',
+    command: 'npx -y @modelcontextprotocol/server-memory',
+    transportType: 'stdio',
+    authType: 'api_key',
+    tokenEnvKey: 'MCP_API_KEY',
+    supportsOAuth: false,
+    tokenOptional: true,
+  },
+}
+
+const CONNECTOR_TEMPLATE_ORDER: ConnectorTemplateKey[] = ['notion', 'todoist', 'lark', 'custom']
+
+const SERVER_TYPE_TOKEN_ENV_KEYS: Record<string, string> = {
+  notion: 'NOTION_TOKEN',
+  todoist: 'TODOIST_API_TOKEN',
+  lark: 'LARK_APP_TOKEN',
+  github: 'GITHUB_TOKEN',
+  custom: 'MCP_API_KEY',
+}
+
+function getTokenEnvKeyForServerType(serverType: string): string | undefined {
+  const normalizedServerType = serverType.toLowerCase()
+
+  if (SERVER_TYPE_TOKEN_ENV_KEYS[normalizedServerType]) {
+    return SERVER_TYPE_TOKEN_ENV_KEYS[normalizedServerType]
+  }
+
+  const preset = Object.values(CONNECTOR_TEMPLATE_PRESETS).find(
+    (item) => item.serverType === normalizedServerType
+  )
+
+  return preset?.tokenEnvKey
+}
+
+function inferServerTypeFromCommand(command: string, fallback = 'custom'): string {
+  const normalizedCommand = command.toLowerCase()
+
+  if (normalizedCommand.includes('ai.todoist.net')) return 'todoist'
+  if (normalizedCommand.includes('notion')) return 'notion'
+  if (normalizedCommand.includes('server-github')) return 'github'
+  if (normalizedCommand.includes('server-obsidian')) return 'obsidian'
+  if (normalizedCommand.includes('lark')) return 'lark'
+
+  return fallback
+}
+
+function buildTemplateJson(template: ConnectorTemplatePreset, name: string, token?: string): string {
+  const env = token && template.tokenEnvKey
+    ? { [template.tokenEnvKey]: token }
+    : undefined
+
+  const serverConfig: Record<string, unknown> = {
+    command: template.command,
+  }
+
+  if (env) {
+    serverConfig.env = env
+  }
+
+  return JSON.stringify(
+    {
+      mcpServers: {
+        [name || `${template.serverType}-connector`]: serverConfig,
+      },
+    },
+    null,
+    2
+  )
+}
+
+function extractApiKeyFromEnv(env?: Record<string, string>): string | undefined {
+  if (!env) return undefined
+
+  const tokenKey = Object.keys(env).find((key) =>
+    key.toUpperCase().includes('TOKEN') || key.toUpperCase().includes('KEY')
+  )
+
+  return tokenKey ? env[tokenKey] : undefined
+}
+
+function syncCredentialToTemplateJson(
+  jsonString: string,
+  tokenEnvKey: string | undefined,
+  credential: string
+): string {
+  if (!tokenEnvKey) {
+    return jsonString
+  }
+
+  try {
+    const config = JSON.parse(jsonString) as Record<string, unknown>
+    const servers = (config.mcpServers && typeof config.mcpServers === 'object'
+      ? config.mcpServers
+      : config) as Record<string, unknown>
+
+    const serverKey = Object.keys(servers)[0]
+    if (!serverKey) {
+      return jsonString
+    }
+
+    const serverConfig = servers[serverKey]
+    if (!serverConfig || typeof serverConfig !== 'object' || Array.isArray(serverConfig)) {
+      return jsonString
+    }
+
+    const mutableServerConfig = serverConfig as Record<string, unknown>
+    const existingEnv = mutableServerConfig.env
+    const nextEnv =
+      existingEnv && typeof existingEnv === 'object' && !Array.isArray(existingEnv)
+        ? { ...(existingEnv as Record<string, string>) }
+        : {}
+
+    const normalizedCredential = credential.trim()
+
+    if (normalizedCredential) {
+      nextEnv[tokenEnvKey] = normalizedCredential
+      mutableServerConfig.env = nextEnv
+    } else {
+      delete nextEnv[tokenEnvKey]
+      if (Object.keys(nextEnv).length > 0) {
+        mutableServerConfig.env = nextEnv
+      } else {
+        delete mutableServerConfig.env
+      }
+    }
+
+    return JSON.stringify(config, null, 2)
+  } catch {
+    return jsonString
+  }
+}
+
+function extractCredentialFromMcpJson(
+  jsonString: string,
+  tokenEnvKey: string | undefined
+): string | null {
+  try {
+    const config = JSON.parse(jsonString) as Record<string, unknown>
+    const servers = (config.mcpServers && typeof config.mcpServers === 'object'
+      ? config.mcpServers
+      : config) as Record<string, unknown>
+
+    const serverKey = Object.keys(servers)[0]
+    if (!serverKey) {
+      return ''
+    }
+
+    const serverConfig = servers[serverKey]
+    if (!serverConfig || typeof serverConfig !== 'object' || Array.isArray(serverConfig)) {
+      return ''
+    }
+
+    const env = (serverConfig as { env?: Record<string, string> }).env
+    if (!env || typeof env !== 'object' || Array.isArray(env)) {
+      return ''
+    }
+
+    if (tokenEnvKey && env[tokenEnvKey]) {
+      return env[tokenEnvKey]
+    }
+
+    return extractApiKeyFromEnv(env) || ''
+  } catch {
+    return null
+  }
+}
 
 /**
  * Parse MCP JSON configuration
@@ -237,6 +453,7 @@ export default function MCPAdaptersPage() {
   ]
 
   const pageLoading = isLoading && !isMockMode
+  const showDesktopPillActionRow = !pageLoading && connectors.length > 0
 
   const filteredConnectors = useMemo(() => {
     return connectors.filter((connector) => {
@@ -348,7 +565,10 @@ export default function MCPAdaptersPage() {
         ) : (
           <div className="flex-1" />
         )}
-        <Button onClick={handleCreate} className="shrink-0 self-end md:self-auto">
+        <Button
+          onClick={handleCreate}
+          className={cn('shrink-0 self-end md:self-auto', showDesktopPillActionRow && 'md:hidden')}
+        >
           <Plus className="h-4 w-4 mr-2" />
           {t('actions.add')}
         </Button>
@@ -362,24 +582,31 @@ export default function MCPAdaptersPage() {
         </div>
       ) : (
         <div className="space-y-4">
-          <div className="overflow-x-auto">
-            <Tabs value={statusFilter} onValueChange={(value) => setStatusFilter(value as ConnectorStatusFilter)}>
-              <TabsList className="h-auto w-max min-w-full justify-start gap-2 rounded-none bg-transparent p-0">
-                {statusPills.map((pill) => {
-                  const Icon = pill.icon
-                  return (
-                    <TabsTrigger
-                      key={pill.value}
-                      value={pill.value}
-                      className="whitespace-nowrap shrink-0 rounded-xl px-3 py-1.5 text-[10px] font-black uppercase flex items-center gap-2 transition-all md:px-4 md:py-2 md:text-[11px] data-[state=active]:bg-black data-[state=active]:text-white data-[state=active]:shadow-none dark:data-[state=active]:bg-white dark:data-[state=active]:text-black data-[state=inactive]:bg-black/5 data-[state=inactive]:opacity-40 hover:data-[state=inactive]:opacity-100 dark:data-[state=inactive]:bg-white/5"
-                    >
-                      <Icon className="h-[11px] w-[11px]" />
-                      <span>{`${pill.label}(${pill.count})`}</span>
-                    </TabsTrigger>
-                  )
-                })}
-              </TabsList>
-            </Tabs>
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div className="min-w-0 overflow-x-auto">
+              <Tabs value={statusFilter} onValueChange={(value) => setStatusFilter(value as ConnectorStatusFilter)}>
+                <TabsList className="h-auto w-max min-w-full justify-start gap-2 rounded-none bg-transparent p-0 md:min-w-0">
+                  {statusPills.map((pill) => {
+                    const Icon = pill.icon
+                    return (
+                      <TabsTrigger
+                        key={pill.value}
+                        value={pill.value}
+                        className="whitespace-nowrap shrink-0 rounded-xl px-3 py-1.5 text-[10px] font-black uppercase flex items-center gap-2 transition-all md:px-4 md:py-2 md:text-[11px] data-[state=active]:bg-black data-[state=active]:text-white data-[state=active]:shadow-none dark:data-[state=active]:bg-white dark:data-[state=active]:text-black data-[state=inactive]:bg-black/5 data-[state=inactive]:opacity-40 hover:data-[state=inactive]:opacity-100 dark:data-[state=inactive]:bg-white/5"
+                      >
+                        <Icon className="h-[11px] w-[11px]" />
+                        <span>{`${pill.label}(${pill.count})`}</span>
+                      </TabsTrigger>
+                    )
+                  })}
+                </TabsList>
+              </Tabs>
+            </div>
+
+            <Button onClick={handleCreate} className="hidden shrink-0 md:inline-flex">
+              <Plus className="h-4 w-4 mr-2" />
+              {t('actions.add')}
+            </Button>
           </div>
 
           {filteredConnectors.length === 0 ? (
@@ -481,75 +708,140 @@ function CreateConnectorDialog({ open, onClose, onCreated }: { open: boolean, on
   const errors = useTranslations('errors')
   const { toast } = useToast()
 
-  const [serverType, setServerType] = useState('custom')
+  const [templateKey, setTemplateKey] = useState<ConnectorTemplateKey>('notion')
+  const [name, setName] = useState('')
+  const [credential, setCredential] = useState('')
+  const [advancedOpen, setAdvancedOpen] = useState(false)
   const [jsonConfig, setJsonConfig] = useState('')
   const [jsonError, setJsonError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
-  useEffect(() => {
-    if (open) {
-      setServerType('custom')
-      setJsonConfig(`{
-  "mcpServers": {
-    "my-server": {
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-memory"]
-    }
-  }
-}`)
-      setJsonError(null)
-    }
-  }, [open])
+  const selectedTemplate = CONNECTOR_TEMPLATE_PRESETS[templateKey]
+  const isCustomTemplate = templateKey === 'custom'
+  const shouldUseAdvancedConfig = isCustomTemplate || advancedOpen
+
 
   useEffect(() => {
-    if (!jsonConfig) return
-    if (jsonConfig.includes('todoist')) setServerType('todoist')
-    else if (jsonConfig.includes('notion')) setServerType('notion')
-  }, [jsonConfig])
+    if (!open) {
+      return
+    }
+
+    const initialTemplate: ConnectorTemplateKey = 'notion'
+    const defaultName = t(`quickCreate.templates.${initialTemplate}.defaultName`)
+    const template = CONNECTOR_TEMPLATE_PRESETS[initialTemplate]
+
+    setTemplateKey(initialTemplate)
+    setName(defaultName)
+    setCredential('')
+    setAdvancedOpen(false)
+    setJsonConfig(buildTemplateJson(template, defaultName))
+    setJsonError(null)
+  }, [open, t])
+
+  useEffect(() => {
+    if (!open) {
+      return
+    }
+
+    const nextTemplate = CONNECTOR_TEMPLATE_PRESETS[templateKey]
+    const defaultName = t(`quickCreate.templates.${templateKey}.defaultName`)
+
+    setName(defaultName)
+    setCredential('')
+    setAdvancedOpen(templateKey === 'custom')
+    setJsonConfig(buildTemplateJson(nextTemplate, defaultName))
+    setJsonError(null)
+  }, [templateKey, open, t])
 
   const handleSubmit = async () => {
     setJsonError(null)
-    if (!jsonConfig.trim()) {
-      setJsonError(t('jsonConfig.errors.required'))
+
+    const trimmedName = name.trim()
+    if (!trimmedName) {
+      setJsonError(t('validation.name.description'))
       return
     }
 
-    let parsed
-    try {
-      parsed = parseMcpJson(jsonConfig, t)
-    } catch (err) {
-      setJsonError(err instanceof Error ? err.message : t('jsonConfig.errors.invalidJson'))
+    if (!selectedTemplate.tokenOptional && !credential.trim() && !shouldUseAdvancedConfig) {
+      setJsonError(t('quickCreate.errors.tokenRequired'))
       return
     }
 
-    if (!parsed) return
+    let payload: CreateMCPConnectorRequest
+
+    if (shouldUseAdvancedConfig) {
+      if (!jsonConfig.trim()) {
+        setJsonError(t('jsonConfig.errors.required'))
+        return
+      }
+
+      let parsed
+      try {
+        parsed = parseMcpJson(jsonConfig, t)
+      } catch (err) {
+        setJsonError(err instanceof Error ? err.message : t('jsonConfig.errors.invalidJson'))
+        return
+      }
+
+      if (!parsed) {
+        return
+      }
+
+      const inferredServerType = templateKey === 'custom'
+        ? inferServerTypeFromCommand(parsed.command, 'custom')
+        : selectedTemplate.serverType
+
+      const env: Record<string, string> = { ...(parsed.env || {}) }
+      const trimmedCredential = credential.trim()
+
+      if (trimmedCredential && selectedTemplate.tokenEnvKey && !env[selectedTemplate.tokenEnvKey]) {
+        env[selectedTemplate.tokenEnvKey] = trimmedCredential
+      }
+
+      const apiKeyValue = trimmedCredential || extractApiKeyFromEnv(env)
+      const authType: 'oauth' | 'api_key' =
+        selectedTemplate.authType === 'oauth' || inferredServerType === 'notion' || inferredServerType === 'todoist'
+          ? 'oauth'
+          : 'api_key'
+
+      payload = {
+        name: trimmedName || parsed.name,
+        serverType: inferredServerType,
+        transportType: 'stdio',
+        command: parsed.command,
+        env: Object.keys(env).length > 0 ? env : undefined,
+        apiKey: apiKeyValue,
+        authType,
+        oauthProvider: authType === 'oauth' ? inferredServerType : undefined,
+        oauthAccessToken: authType === 'oauth' && trimmedCredential ? trimmedCredential : undefined,
+        enabled: true,
+      }
+    } else {
+      const trimmedCredential = credential.trim()
+      const env = trimmedCredential && selectedTemplate.tokenEnvKey
+        ? { [selectedTemplate.tokenEnvKey]: trimmedCredential }
+        : undefined
+
+      payload = {
+        name: trimmedName,
+        serverType: selectedTemplate.serverType,
+        transportType: selectedTemplate.transportType,
+        command: selectedTemplate.command,
+        env,
+        apiKey: trimmedCredential || undefined,
+        authType: selectedTemplate.authType,
+        oauthProvider: selectedTemplate.authType === 'oauth' ? selectedTemplate.serverType : undefined,
+        oauthAccessToken: selectedTemplate.authType === 'oauth' && trimmedCredential ? trimmedCredential : undefined,
+        enabled: true,
+      }
+    }
 
     try {
       setSaving(true)
-      const authType = (serverType === 'todoist' || serverType === 'notion') ? 'oauth' : 'api_key'
-
-      let apiKeyValue: string | undefined
-      if (parsed.env) {
-        const tokenKey = Object.keys(parsed.env).find(key =>
-          key.toUpperCase().includes('TOKEN') || key.toUpperCase().includes('KEY')
-        )
-        if (tokenKey) apiKeyValue = parsed.env[tokenKey]
-      }
-
-      await mcpConnectorsApi.create({
-        name: parsed.name,
-        serverType,
-        transportType: 'stdio',
-        command: parsed.command,
-        env: parsed.env,
-        apiKey: apiKeyValue,
-        authType,
-        enabled: true
-      })
-
+      await mcpConnectorsApi.create(payload)
       toast({
         title: t('toast.createSuccess.title'),
-        description: t('toast.createSuccess.description', { name: parsed.name }),
+        description: t('toast.createSuccess.description', { name: payload.name || trimmedName }),
       })
       onCreated()
     } catch (error) {
@@ -568,24 +860,121 @@ function CreateConnectorDialog({ open, onClose, onCreated }: { open: boolean, on
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>{t('dialog.create.title')}</DialogTitle>
-          <DialogDescription>{t('jsonConfig.description')}</DialogDescription>
+          <DialogDescription>{t('quickCreate.description')}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="jsonConfig">{t('jsonConfig.label')}</Label>
-            <Textarea
-              id="jsonConfig"
-              value={jsonConfig}
-              onChange={(e) => {
-                setJsonConfig(e.target.value)
+            <Label>{t('quickCreate.templateLabel')}</Label>
+            <div className="flex flex-wrap gap-2">
+              {CONNECTOR_TEMPLATE_ORDER.map((key) => {
+                const isActive = key === templateKey
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setTemplateKey(key)}
+                    className={cn(
+                      'rounded-xl px-3 py-1.5 text-[11px] font-bold transition-all md:px-4 md:py-2',
+                      isActive
+                        ? 'bg-black text-white dark:bg-white dark:text-black'
+                        : 'bg-black/5 text-foreground/70 hover:text-foreground dark:bg-white/5'
+                    )}
+                    disabled={saving}
+                  >
+                    {t(`quickCreate.templates.${key}.label`)}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="create-connector-name">{t('fields.name.label')}</Label>
+            <Input
+              id="create-connector-name"
+              value={name}
+              onChange={(event) => {
+                setName(event.target.value)
                 setJsonError(null)
               }}
-              className="font-mono text-sm min-h-[300px]"
+              placeholder={t('fields.name.placeholder')}
               disabled={saving}
             />
-            {jsonError && <p className="text-xs text-destructive">{jsonError}</p>}
           </div>
+
+          {!isCustomTemplate && (
+            <div className="space-y-2">
+              <Label htmlFor="connector-credential">{t('quickCreate.tokenLabel')}</Label>
+              <Input
+                id="connector-credential"
+                type="password"
+                value={credential}
+                onChange={(event) => {
+                  const nextCredential = event.target.value
+                  setCredential(nextCredential)
+                  setJsonConfig((prev) =>
+                    syncCredentialToTemplateJson(prev, selectedTemplate.tokenEnvKey, nextCredential)
+                  )
+                  setJsonError(null)
+                }}
+                placeholder={t('quickCreate.tokenPlaceholder')}
+                disabled={saving}
+              />
+              <p className="text-xs text-muted-foreground">
+                {selectedTemplate.supportsOAuth
+                  ? t('quickCreate.oauthHint')
+                  : t('quickCreate.tokenHint', { envKey: selectedTemplate.tokenEnvKey || 'TOKEN' })}
+              </p>
+            </div>
+          )}
+
+          {isCustomTemplate ? (
+            <div className="space-y-2">
+              <Label htmlFor="jsonConfig">{t('jsonConfig.label')}</Label>
+              <Textarea
+                id="jsonConfig"
+                value={jsonConfig}
+                onChange={(event) => {
+                  setJsonConfig(event.target.value)
+                  setJsonError(null)
+                }}
+                className="min-h-[240px] font-mono text-sm"
+                disabled={saving}
+              />
+            </div>
+          ) : (
+            <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
+              <div className="rounded-lg border border-dashed p-3">
+                <CollapsibleTrigger asChild>
+                  <button
+                    type="button"
+                    className="flex w-full items-center justify-between text-sm font-medium"
+                    disabled={saving}
+                  >
+                    <span>{t('quickCreate.advancedToggle')}</span>
+                    <ChevronDown className={cn('h-4 w-4 transition-transform', advancedOpen && 'rotate-180')} />
+                  </button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="pt-3">
+                  <p className="mb-2 text-xs text-muted-foreground">
+                    {t('quickCreate.advancedDescription')}
+                  </p>
+                  <Textarea
+                    value={jsonConfig}
+                    onChange={(event) => {
+                      setJsonConfig(event.target.value)
+                      setJsonError(null)
+                    }}
+                    className="min-h-[180px] font-mono text-sm"
+                    disabled={saving}
+                  />
+                </CollapsibleContent>
+              </div>
+            </Collapsible>
+          )}
+
+          {jsonError && <p className="text-xs text-destructive">{jsonError}</p>}
         </div>
 
         <DialogFooter>
@@ -606,13 +995,22 @@ function EditConnectorDialog({ open, connector, onClose, onUpdated }: { open: bo
   const { toast } = useToast()
 
   const [serverType, setServerType] = useState('custom')
+  const [name, setName] = useState('')
+  const [credential, setCredential] = useState('')
+  const [advancedOpen, setAdvancedOpen] = useState(false)
   const [jsonConfig, setJsonConfig] = useState('')
   const [jsonError, setJsonError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
+  const tokenEnvKey = getTokenEnvKeyForServerType(serverType)
+
   useEffect(() => {
     if (open && connector) {
-      setServerType(connector.serverType || 'custom')
+      const currentServerType = connector.serverType || 'custom'
+      setServerType(currentServerType)
+      setName(connector.name)
+      setAdvancedOpen(false)
+
       const mcpJson: Record<string, unknown> = { mcpServers: {} }
       const serverConfig: Record<string, unknown> = {
         command: '',
@@ -628,8 +1026,13 @@ function EditConnectorDialog({ open, connector, onClose, onUpdated }: { open: bo
       } else {
         if (connector.serverUrl) (serverConfig as any).url = connector.serverUrl
       }
+
       ;(mcpJson.mcpServers as Record<string, unknown>)[connector.name] = serverConfig
-      setJsonConfig(JSON.stringify(mcpJson, null, 2))
+      const finalJson = JSON.stringify(mcpJson, null, 2)
+      const defaultTokenEnvKey = getTokenEnvKeyForServerType(currentServerType)
+
+      setJsonConfig(finalJson)
+      setCredential(extractCredentialFromMcpJson(finalJson, defaultTokenEnvKey) || '')
       setJsonError(null)
     }
   }, [open, connector])
@@ -637,6 +1040,13 @@ function EditConnectorDialog({ open, connector, onClose, onUpdated }: { open: bo
   const handleSubmit = async () => {
     if (!connector) return
     setJsonError(null)
+
+    const trimmedName = name.trim()
+    if (!trimmedName) {
+      setJsonError(t('validation.name.description'))
+      return
+    }
+
     let parsed
     try {
       parsed = parseMcpJson(jsonConfig, t)
@@ -644,7 +1054,7 @@ function EditConnectorDialog({ open, connector, onClose, onUpdated }: { open: bo
       setJsonError(err instanceof Error ? err.message : t('jsonConfig.errors.invalidJson'))
       return
     }
-    if (!parsed || !parsed.name) return
+    if (!parsed) return
 
     try {
       setSaving(true)
@@ -652,14 +1062,14 @@ function EditConnectorDialog({ open, connector, onClose, onUpdated }: { open: bo
 
       let apiKeyValue: string | undefined
       if (parsed.env) {
-        const tokenKey = Object.keys(parsed.env).find(k =>
-          k.toUpperCase().includes('TOKEN') || k.toUpperCase().includes('KEY')
+        const tokenKey = Object.keys(parsed.env).find((key) =>
+          key.toUpperCase().includes('TOKEN') || key.toUpperCase().includes('KEY')
         )
         if (tokenKey) apiKeyValue = parsed.env[tokenKey]
       }
 
       await mcpConnectorsApi.update(connector.id, {
-        name: parsed.name,
+        name: trimmedName,
         serverType,
         transportType: parsed.command ? 'stdio' : 'http',
         command: parsed.command,
@@ -670,7 +1080,7 @@ function EditConnectorDialog({ open, connector, onClose, onUpdated }: { open: bo
 
       toast({
         title: t('toast.updateSuccess.title'),
-        description: t('toast.updateSuccess.description', { name: parsed.name }),
+        description: t('toast.updateSuccess.description', { name: trimmedName }),
       })
       onUpdated()
     } catch (error) {
@@ -693,19 +1103,84 @@ function EditConnectorDialog({ open, connector, onClose, onUpdated }: { open: bo
         </DialogHeader>
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="edit-json-config">{t('jsonConfig.label')}</Label>
-            <Textarea
-              id="edit-json-config"
-              value={jsonConfig}
-              onChange={(e) => {
-                setJsonConfig(e.target.value)
+            <Label htmlFor="edit-connector-name">{t('fields.name.label')}</Label>
+            <Input
+              id="edit-connector-name"
+              value={name}
+              onChange={(event) => {
+                setName(event.target.value)
                 setJsonError(null)
               }}
-              className="font-mono text-sm min-h-[300px]"
+              placeholder={t('fields.name.placeholder')}
               disabled={saving}
             />
-            {jsonError && <p className="text-xs text-destructive">{jsonError}</p>}
           </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="edit-connector-credential">{t('quickCreate.tokenLabel')}</Label>
+            <Input
+              id="edit-connector-credential"
+              type="password"
+              value={credential}
+              onChange={(event) => {
+                const nextCredential = event.target.value
+                setCredential(nextCredential)
+                setJsonConfig((prev) =>
+                  syncCredentialToTemplateJson(prev, tokenEnvKey, nextCredential)
+                )
+                setJsonError(null)
+              }}
+              placeholder={t('quickCreate.tokenPlaceholder')}
+              disabled={saving}
+            />
+            {tokenEnvKey ? (
+              <p className="text-xs text-muted-foreground">
+                {serverType === 'notion' || serverType === 'todoist'
+                  ? t('quickCreate.oauthHint')
+                  : t('quickCreate.tokenHint', { envKey: tokenEnvKey })}
+              </p>
+            ) : null}
+          </div>
+
+          <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
+            <div className="rounded-lg border border-dashed p-3">
+              <CollapsibleTrigger asChild>
+                <button
+                  type="button"
+                  className="flex w-full items-center justify-between text-sm font-medium"
+                  disabled={saving}
+                >
+                  <span>{t('quickCreate.advancedToggle')}</span>
+                  <ChevronDown className={cn('h-4 w-4 transition-transform', advancedOpen && 'rotate-180')} />
+                </button>
+              </CollapsibleTrigger>
+
+              <CollapsibleContent className="pt-3">
+                <p className="mb-2 text-xs text-muted-foreground">
+                  {t('quickCreate.advancedDescription')}
+                </p>
+                <Textarea
+                  id="edit-json-config"
+                  value={jsonConfig}
+                  onChange={(event) => {
+                    const nextJsonConfig = event.target.value
+                    setJsonConfig(nextJsonConfig)
+
+                    const nextCredential = extractCredentialFromMcpJson(nextJsonConfig, tokenEnvKey)
+                    if (nextCredential !== null) {
+                      setCredential(nextCredential)
+                    }
+
+                    setJsonError(null)
+                  }}
+                  className="min-h-[180px] font-mono text-sm"
+                  disabled={saving}
+                />
+              </CollapsibleContent>
+            </div>
+          </Collapsible>
+
+          {jsonError && <p className="text-xs text-destructive">{jsonError}</p>}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose} disabled={saving}>{common('cancel')}</Button>

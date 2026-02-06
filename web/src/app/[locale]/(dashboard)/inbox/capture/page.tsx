@@ -36,7 +36,7 @@ interface FilePreviewState {
   preview: string
 }
 
-const MAX_FILE_SIZE = 20 * 1024 * 1024
+const MAX_FILE_SIZE = 100 * 1024 * 1024
 const MESSAGE_LIMIT = 10
 const COLLAPSE_DURATION_MS = 800
 const ROUTING_DOT_ANIMATION = { opacity: [0.1, 0.6, 0.1], scale: [0.8, 1, 0.8] }

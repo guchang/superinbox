@@ -11,6 +11,7 @@
     "operationFailed": "Operation failed",
     "tryLater": "Please try again later",
     "cancel": "Cancel",
+    "close": "Close",
     "processing": "Processing",
     "reload": "Reload",
     "showing": "Showing",
@@ -507,7 +508,7 @@
     "placeholder": "Write something... (idea, bill, todo, URL...)",
     "upload": {
       "instructions": "Click, drag, or paste files here",
-      "supported": "Supports images, PDF, audio, video, etc. (max 20MB)"
+      "supported": "Supports images, PDF, audio, video, etc. (up to 100MB per file, 20 files max)"
     },
     "selectedFiles": "Selected {count} files",
     "actions": {
@@ -1176,6 +1177,7 @@
       "notion": "Notion",
       "github": "GitHub",
       "todoist": "Todoist",
+      "lark": "Lark",
       "custom": "Custom"
     },
     "authTypes": {
@@ -1190,6 +1192,37 @@
       "edit": {
         "title": "Edit MCP connector",
         "description": "Update connector settings"
+      }
+    },
+    "quickCreate": {
+      "description": "Pick a template first, then provide credentials. Use advanced JSON only when needed.",
+      "templateLabel": "Quick templates",
+      "tokenLabel": "Credential token (optional)",
+      "tokenPlaceholder": "Enter token (or skip and authorize later)",
+      "tokenHint": "This value will be mapped to env key {envKey}",
+      "oauthHint": "You can leave this empty and click Authorize after creation, or paste a token now.",
+      "advancedToggle": "Advanced JSON config (optional)",
+      "advancedDescription": "Edit JSON only if you need custom command or environment settings.",
+      "errors": {
+        "tokenRequired": "This template requires a token before creation."
+      },
+      "templates": {
+        "notion": {
+          "label": "Notion",
+          "defaultName": "Notion Workspace"
+        },
+        "todoist": {
+          "label": "Todoist",
+          "defaultName": "Todoist Workspace"
+        },
+        "lark": {
+          "label": "Lark",
+          "defaultName": "Lark Workspace"
+        },
+        "custom": {
+          "label": "Custom",
+          "defaultName": "My MCP Server"
+        }
       }
     },
     "fields": {
@@ -1320,6 +1353,8 @@
     "inbox": {
       "notFound": "Item not found",
       "fileTooLarge": "File too large. Max {max}",
+      "tooManyFiles": "Too many files. Maximum allowed is {max}",
+      "invalidFileType": "Unsupported file type: {mimeType}",
       "fileNotFound": "File not found",
       "fileIndexOutOfRange": "File index is out of range",
       "noFiles": "No files uploaded",
@@ -1336,7 +1371,7 @@
       "categoryKeyExists": "Category key already exists",
       "categoryPromptVersionNotFound": "Prompt history version not found",
       "systemCategoryImmutable": "System fallback category cannot be renamed, disabled, or deleted",
-      "categoryPromptPreviousNotFound": "Previous prompt not found"
+      "categoryPromptPreviousNotFound": "Previous prompt version not found"
     },
     "settings": {
       "invalidTimezone": "Timezone is invalid",
@@ -1361,6 +1396,7 @@
     "description": "Manage classification rules and examples for the AI classification engine. Enabled categories participate in intelligent content classification.",
     "actions": {
       "addCategory": "Add category",
+      "openLibrary": "Category library",
       "edit": "Edit",
       "save": "Save",
       "editCategory": "Edit category",
@@ -1388,6 +1424,57 @@
       },
       "empty": "No categories yet"
     },
+    "library": {
+      "title": "Category Library",
+      "description": "Import by selecting multiple scenarios and categories. Imported categories are disabled by default.",
+      "scenarioTitle": "1. Select scenarios (multi-select)",
+      "categorySelectionTitle": "2. Select categories to import",
+      "categorySelectionDescription": "{count} categories available",
+      "selectedCount": "{count} categories selected",
+      "selectedCategoryCount": "Selected {count}/{total}",
+      "selectAllScenarios": "Select all scenarios",
+      "clearScenarios": "Clear scenarios",
+      "selectAllCategories": "Select all categories",
+      "clearCategories": "Clear categories",
+      "emptyScenarioHint": "Select one or more scenarios first, then choose categories to import.",
+      "apply": "Import to my categories",
+      "applying": "Importing...",
+      "confirmImport": "Import {count} selected categories? They will be added as disabled, and duplicates will be auto-numbered.",
+      "scenarios": {
+        "personalCapture": {
+          "name": "Personal Capture",
+          "description": "Covers daily capture like todo, ideas, schedule, notes, and bookmarks."
+        },
+        "mediaReading": {
+          "name": "Media & Reading",
+          "description": "Great for movies, books, and review notes."
+        },
+        "workProject": {
+          "name": "Work Projects",
+          "description": "For meeting notes, plans, decisions, and follow-up tasks."
+        },
+        "contentCreation": {
+          "name": "Content Creation",
+          "description": "Manage topics, drafts, publishing plans, and reference materials."
+        },
+        "financeManagement": {
+          "name": "Finance Management",
+          "description": "Track reimbursements, bills, budgets, and income."
+        },
+        "healthLife": {
+          "name": "Health & Life",
+          "description": "Track fitness, meals, medical follow-up, and lifestyle goals."
+        },
+        "travelTrip": {
+          "name": "Travel & Trips",
+          "description": "Plan itineraries, bookings, and packing lists."
+        },
+        "softwareDevelopment": {
+          "name": "Software Development",
+          "description": "Covers feature requests, bugs, releases, and technical notes."
+        }
+      }
+    },
     "promptEditor": {
       "title": "Classification Prompt",
       "description": "You can edit the classification prompt manually or generate one with AI. Click \"Save & Apply\" to take effect immediately for subsequent auto-classification.",
@@ -1399,14 +1486,43 @@
         "generate": "Generate with AI",
         "generating": "Generating...",
         "save": "Save & Apply",
-        "rollback": "Roll back to previous",
-        "viewFull": "View Full"
+        "rollback": "Restore Previous Version",
+        "viewFull": "View Full",
+        "expand": "Expand Advanced Settings",
+        "collapse": "Collapse Advanced Settings"
       },
-      "rollbackHint": "If results are not ideal, roll back to the previous applied prompt.",
-      "rollbackUnavailable": "No previous prompt available to roll back",
-      "confirmRollback": "Roll back to the previous prompt? Unsaved edits will be lost.",
+      "rollbackHint": "If results are not ideal, you can restore the previous prompt version.",
+      "rollbackUnavailable": "No previous prompt version available to restore",
+      "confirmRollback": "Restore the previous prompt version? Unsaved edits will be lost.",
       "preview": {
-        "title": "Previous Prompt Content"
+        "title": "Previous Version Prompt Content"
+      },
+      "currentTitle": "Current Prompt",
+      "historyTitle": "History Version",
+      "advancedTitle": "Advanced Settings",
+      "advancedDescription": "Customize the classification prompt with AI generation, save-and-apply, and restore to the previous version.",
+      "generateDialog": {
+        "title": "Generate Prompt",
+        "description": "Choose a generation strategy and describe your needs. The result will be filled into the current prompt editor.",
+        "modes": {
+          "lowCost": "Low Cost",
+          "highPrecision": "High Precision",
+          "custom": "Custom"
+        },
+        "hints": {
+          "lowCost": "More concise and token-efficient for quick iteration.",
+          "highPrecision": "More complete rules and stricter constraints for better accuracy.",
+          "custom": "The prompt will be tailored strictly to your requirements."
+        },
+        "requirementLabel": "Requirements",
+        "requirementOptional": "(Optional)",
+        "requirementPlaceholders": {
+          "lowCost": "Optional: Add rules, boundaries, or misclassified examples (with expected category)",
+          "highPrecision": "Optional: Add rules, boundaries, or misclassified examples (with expected category)",
+          "custom": "Required: Specify language, dimensions, priorities, and entity rules"
+        },
+        "requirementRequired": "Please enter requirements for custom mode.",
+        "submit": "Generate"
       }
     },
     "status": {
@@ -1430,6 +1546,15 @@
           "placeholder": "e.g. todo",
           "hint": "Use lowercase English for rule conditions and API fields.",
           "conflict": "This key already exists."
+        },
+        "icon": {
+          "label": "Category icon",
+          "placeholder": "Select an icon",
+          "hint": "The icon appears in category management and inbox badges."
+        },
+        "color": {
+          "label": "Category color",
+          "hint": "Color is auto-assigned by category key and synced to inbox badges."
         },
         "description": {
           "label": "Classification rule",
@@ -1459,10 +1584,14 @@
         "title": "Failed to reset prompt"
       },
       "promptRollback": {
-        "title": "Rolled back to previous prompt"
+        "title": "Restored to previous version"
       },
       "promptRollbackFailed": {
-        "title": "Failed to roll back prompt"
+        "title": "Failed to restore previous version"
+      },
+      "categoryKeyUpdated": {
+        "title": "Category key updated",
+        "description": "Subsequent classification and routing will use the new key."
       },
       "categorySaveFailed": {
         "title": "Failed to save category"
@@ -1476,6 +1605,13 @@
       },
       "categoryDeleteFailed": {
         "title": "Failed to delete category"
+      },
+      "libraryImported": {
+        "title": "Category import completed",
+        "description": "Imported {count} categories (disabled by default)"
+      },
+      "libraryImportFailed": {
+        "title": "Failed to import categories"
       },
       "promptGenerated": {
         "title": "Prompt suggestion generated"

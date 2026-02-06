@@ -509,7 +509,7 @@
     "placeholder": "记点什么？（想法、账单、待办、URL...）",
     "upload": {
       "instructions": "点击、拖拽或粘贴文件到此处上传",
-      "supported": "支持图片、PDF、音频、视频等 (最大 20MB)"
+      "supported": "支持图片、PDF、音频、视频等（单文件最大 100MB，最多 20 个文件）"
     },
     "selectedFiles": "已选择 {count} 个文件",
     "actions": {
@@ -1084,6 +1084,7 @@
       "notion": "Notion",
       "github": "GitHub",
       "todoist": "Todoist",
+      "lark": "Lark",
       "custom": "自定义"
     },
     "authTypes": {
@@ -1098,6 +1099,37 @@
       "edit": {
         "title": "编辑 MCP 连接器",
         "description": "修改连接器配置"
+      }
+    },
+    "quickCreate": {
+      "description": "先选择模板，再输入凭证即可完成配置。高级 JSON 仅在需要时使用。",
+      "templateLabel": "快速模板",
+      "tokenLabel": "访问凭证（可选）",
+      "tokenPlaceholder": "输入 Token（或留空后续授权）",
+      "tokenHint": "将写入环境变量 {envKey}",
+      "oauthHint": "可以留空并创建后点击“去授权”，也可直接粘贴 Token。",
+      "advancedToggle": "高级 JSON 配置（可选）",
+      "advancedDescription": "如需自定义命令或环境变量，可在此编辑 JSON。",
+      "errors": {
+        "tokenRequired": "该模板需要先填写 Token。"
+      },
+      "templates": {
+        "notion": {
+          "label": "Notion",
+          "defaultName": "Notion Workspace"
+        },
+        "todoist": {
+          "label": "Todoist",
+          "defaultName": "Todoist Workspace"
+        },
+        "lark": {
+          "label": "Lark",
+          "defaultName": "Lark Workspace"
+        },
+        "custom": {
+          "label": "自定义",
+          "defaultName": "My MCP Server"
+        }
       }
     },
     "fields": {
@@ -1228,6 +1260,8 @@
     "inbox": {
       "notFound": "条目不存在",
       "fileTooLarge": "文件过大，最大允许 {max}",
+      "tooManyFiles": "文件数量超限，最多允许 {max} 个",
+      "invalidFileType": "不支持的文件类型：{mimeType}",
       "fileNotFound": "文件不存在",
       "fileIndexOutOfRange": "文件索引超出范围",
       "noFiles": "未上传文件",
@@ -1244,7 +1278,7 @@
       "categoryKeyExists": "分类 key 已存在",
       "categoryPromptVersionNotFound": "提示词历史版本不存在",
       "systemCategoryImmutable": "系统兜底分类不可重命名、停用或删除",
-      "categoryPromptPreviousNotFound": "上一次提示词不存在"
+      "categoryPromptPreviousNotFound": "上一版本提示词不存在"
     },
     "settings": {
       "invalidTimezone": "时区无效",
@@ -1269,6 +1303,7 @@
     "description": "管理 AI 分类引擎的分类规则和示例数据，启用后将参与内容智能分类。",
     "actions": {
       "addCategory": "新增分类",
+      "openLibrary": "分类库",
       "edit": "编辑",
       "save": "保存",
       "editCategory": "编辑分类",
@@ -1296,6 +1331,57 @@
       },
       "empty": "暂无分类"
     },
+    "library": {
+      "title": "分类库",
+      "description": "按场景与分类多选导入，导入后默认停用，可按需启用。",
+      "scenarioTitle": "1. 选择场景（可多选）",
+      "categorySelectionTitle": "2. 选择要导入的分类",
+      "categorySelectionDescription": "当前可选 {count} 个分类",
+      "selectedCount": "已选择 {count} 个分类",
+      "selectedCategoryCount": "已选 {count}/{total}",
+      "selectAllScenarios": "全选场景",
+      "clearScenarios": "清空场景",
+      "selectAllCategories": "全选分类",
+      "clearCategories": "清空分类",
+      "emptyScenarioHint": "请先勾选场景，再选择要导入的分类。",
+      "apply": "导入到我的分类",
+      "applying": "导入中...",
+      "confirmImport": "确认导入已选 {count} 个分类吗？将新增为停用状态，重名会自动追加编号。",
+      "scenarios": {
+        "personalCapture": {
+          "name": "个人收集",
+          "description": "覆盖待办、想法、日程、笔记、书签等日常记录。"
+        },
+        "mediaReading": {
+          "name": "影视阅读",
+          "description": "适合追剧观影、阅读记录与观后感沉淀。"
+        },
+        "workProject": {
+          "name": "工作项目",
+          "description": "用于项目协作中的会议纪要、计划与跟进事项。"
+        },
+        "contentCreation": {
+          "name": "内容创作",
+          "description": "用于选题、草稿、发布计划和灵感素材管理。"
+        },
+        "financeManagement": {
+          "name": "财务管理",
+          "description": "聚焦报销、账单、预算和收入追踪。"
+        },
+        "healthLife": {
+          "name": "健康生活",
+          "description": "用于运动、饮食、就医与生活习惯记录。"
+        },
+        "travelTrip": {
+          "name": "旅行出行",
+          "description": "管理行程规划、预订信息与出行清单。"
+        },
+        "softwareDevelopment": {
+          "name": "软件开发",
+          "description": "覆盖需求、缺陷、版本发布与技术记录。"
+        }
+      }
+    },
     "promptEditor": {
       "title": "分类提示词",
       "description": "你可以手动编辑或智能生成分类提示词。点击“保存并应用”后会立即用于后续自动分类。",
@@ -1307,14 +1393,43 @@
         "generate": "智能生成",
         "generating": "生成中...",
         "save": "保存并应用",
-        "rollback": "回滚到上一次",
-        "viewFull": "查看完整"
+        "rollback": "恢复到上一版本",
+        "viewFull": "查看完整",
+        "expand": "展开高级设置",
+        "collapse": "收起高级设置"
       },
-      "rollbackHint": "若效果不理想，可回滚到上一次已生效提示词。",
-      "rollbackUnavailable": "暂无可回滚的上一次提示词",
-      "confirmRollback": "确认恢复到上一次提示词吗？当前未保存修改将丢失。",
+      "rollbackHint": "若效果不理想，可恢复到上一版本提示词。",
+      "rollbackUnavailable": "暂无可恢复的上一版本提示词",
+      "confirmRollback": "确认恢复到上一版本吗？当前未保存修改将丢失。",
       "preview": {
-        "title": "上一次提示词完整内容"
+        "title": "上一版本提示词完整内容"
+      },
+      "currentTitle": "当前提示词",
+      "historyTitle": "历史版本",
+      "advancedTitle": "高级设置",
+      "advancedDescription": "可自定义分类提示词，支持智能生成、保存并应用，以及恢复到上一版本。",
+      "generateDialog": {
+        "title": "智能生成提示词",
+        "description": "选择生成策略并输入你的需求，生成结果会回填到当前提示词编辑区。",
+        "modes": {
+          "lowCost": "节省消耗",
+          "highPrecision": "高精准",
+          "custom": "自定义"
+        },
+        "hints": {
+          "lowCost": "更精炼、更省 token，适合快速迭代。",
+          "highPrecision": "规则更完整、约束更严格，优先分类准确率。",
+          "custom": "将严格按你的需求定制提示词结构与规则。"
+        },
+        "requirementLabel": "需求说明",
+        "requirementOptional": "（可选）",
+        "requirementPlaceholders": {
+          "lowCost": "可选：补充规则、边界或误判示例（含期望分类）",
+          "highPrecision": "可选：补充规则、边界或误判示例（含期望分类）",
+          "custom": "必填：说明语言、维度、优先级、实体规则"
+        },
+        "requirementRequired": "自定义模式下请先输入需求。",
+        "submit": "开始生成"
       }
     },
     "status": {
@@ -1338,6 +1453,15 @@
           "placeholder": "例如：todo",
           "hint": "建议使用英文小写，作为规则条件和 API 字段。",
           "conflict": "该标识已存在。"
+        },
+        "icon": {
+          "label": "分类图标",
+          "placeholder": "选择图标",
+          "hint": "图标会展示在分类管理和收件箱标签中。"
+        },
+        "color": {
+          "label": "分类颜色",
+          "hint": "颜色根据分类 key 自动分配，并同步到收件箱分类标签。"
         },
         "description": {
           "label": "分类规则",
@@ -1367,10 +1491,14 @@
         "title": "恢复默认提示词失败"
       },
       "promptRollback": {
-        "title": "已回滚到上一次提示词"
+        "title": "已恢复到上一版本"
       },
       "promptRollbackFailed": {
-        "title": "回滚提示词失败"
+        "title": "恢复到上一版本失败"
+      },
+      "categoryKeyUpdated": {
+        "title": "分类标识已更新",
+        "description": "后续分类和路由会使用新的分类标识。"
       },
       "categorySaveFailed": {
         "title": "保存分类失败"
@@ -1384,6 +1512,13 @@
       },
       "categoryDeleteFailed": {
         "title": "删除分类失败"
+      },
+      "libraryImported": {
+        "title": "分类导入完成",
+        "description": "已导入 {count} 个分类（默认停用）"
+      },
+      "libraryImportFailed": {
+        "title": "导入分类失败"
       },
       "promptGenerated": {
         "title": "已生成提示词建议"

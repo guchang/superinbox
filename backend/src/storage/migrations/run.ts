@@ -4,8 +4,6 @@
 
 import { getDatabase } from '../database.js';
 import crypto from 'crypto';
-import { existsSync, mkdirSync } from 'fs';
-import { dirname } from 'path';
 
 const migrations = [
   {
@@ -408,6 +406,11 @@ const migrations = [
       CREATE INDEX IF NOT EXISTS idx_item_files_file_type ON item_files(file_type);
       CREATE UNIQUE INDEX IF NOT EXISTS idx_item_files_item_path ON item_files(item_id, file_path);
     `
+  },
+  {
+    version: '015',
+    name: 'add_category_icon_and_color',
+    up: '-- handled in code for idempotency'
   }
 ];
 
@@ -421,7 +424,11 @@ export const runMigrations = async (): Promise<void> => {
 
     if (!alreadyApplied) {
       console.log(`Applying migration: ${migration.version} - ${migration.name}`);
-      (db as any).db.exec(migration.up);
+      if (migration.version === '015') {
+        ensureAiCategoryAppearanceColumns(db);
+      } else {
+        (db as any).db.exec(migration.up);
+      }
       if (migration.version === '014') {
         backfillItemFiles(db);
       }
@@ -450,6 +457,20 @@ const recordMigration = (version: string, name: string): void => {
     'INSERT INTO migrations (version, name, applied_at) VALUES (?, ?, ?)'
   );
   stmt.run(version, name, new Date().toISOString());
+};
+
+const ensureAiCategoryAppearanceColumns = (db: ReturnType<typeof getDatabase>): void => {
+  const database = (db as any).db;
+  const rows = database.prepare(`PRAGMA table_info(ai_categories)`).all() as Array<{ name: string }>;
+  const existingColumns = new Set(rows.map((row) => row.name));
+
+  if (!existingColumns.has('icon')) {
+    database.exec('ALTER TABLE ai_categories ADD COLUMN icon TEXT');
+  }
+
+  if (!existingColumns.has('color')) {
+    database.exec('ALTER TABLE ai_categories ADD COLUMN color TEXT');
+  }
 };
 
 const backfillItemFiles = (db: ReturnType<typeof getDatabase>): void => {

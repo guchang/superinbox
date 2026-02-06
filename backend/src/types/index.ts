@@ -349,6 +349,7 @@ export interface AppConfig {
   storage: {
     uploadDir: string;
     maxUploadSize: number;
+    maxUploadFiles: number;
   };
 }
 

@@ -343,7 +343,7 @@ export default function RoutingPage() {
                         <div className="flex flex-wrap items-center gap-2 mb-2">
                           <h3 className="font-medium">{rule.name}</h3>
                           {isSystemRule && (
-                            <Badge variant="outline" className="text-amber-600 dark:text-amber-400 border-amber-300 dark:border-amber-700">
+                            <Badge variant="outline" className="h-6 border-amber-300 px-2.5 text-xs text-amber-600 dark:border-amber-700 dark:text-amber-400">
                               {t('ruleList.systemBadge')}
                             </Badge>
                           )}
@@ -414,7 +414,14 @@ export default function RoutingPage() {
                   const isSystemRule = rule.isSystem === true
 
                   return (
-                    <Card key={rule.id} className={`relative ${isSystemRule ? 'bg-amber-50/50 dark:bg-amber-950/20' : ''}`}>
+                    <Card
+                      key={rule.id}
+                      className={`group relative overflow-hidden rounded-[24px] border border-black/[0.04] bg-white shadow-sm transition-all hover:shadow-xl dark:border-white/[0.06] dark:bg-white/[0.02] dark:hover:border-white/20 ${
+                        isSystemRule
+                          ? 'ring-1 ring-amber-300/40 dark:ring-amber-700/40'
+                          : ''
+                      }`}
+                    >
                       <CardHeader className="pb-3">
                         <div className="flex items-start justify-between gap-2 mb-2">
                           <div className="flex-1 min-w-0">
@@ -422,7 +429,7 @@ export default function RoutingPage() {
                           </div>
                           <div className="flex flex-wrap gap-1">
                             {isSystemRule && (
-                              <Badge variant="outline" className="text-amber-600 dark:text-amber-400 border-amber-300 dark:border-amber-700">
+                              <Badge variant="outline" className="h-6 border-amber-300 px-2.5 text-xs text-amber-600 dark:border-amber-700 dark:text-amber-400">
                                 {t('ruleList.systemBadge')}
                               </Badge>
                             )}
@@ -439,7 +446,7 @@ export default function RoutingPage() {
                           </p>
                         )}
                       </CardHeader>
-                      <CardContent className="pt-0">
+                      <CardContent className="pt-0 pb-3">
                         <div className="absolute bottom-4 right-4">
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>

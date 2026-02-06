@@ -7,6 +7,9 @@ import type {
 
 export type CategoryInput = Omit<Category, 'id' | 'createdAt' | 'updatedAt'>
 
+export type CategoryPromptGenerateMode = 'low_cost' | 'high_precision' | 'custom'
+export type CategoryPromptGenerateLanguage = string
+
 export const categoriesApi = {
   async list(): Promise<ApiResponse<Category[]>> {
     return apiClient.get<Category[]>('/categories')
@@ -32,8 +35,12 @@ export const categoriesApi = {
     return apiClient.put<CategoryPrompt>('/categories/prompt', { prompt })
   },
 
-  async generatePrompt(): Promise<ApiResponse<{ prompt: string }>> {
-    return apiClient.post<{ prompt: string }>('/categories/prompt/generate', {})
+  async generatePrompt(params: {
+    mode: CategoryPromptGenerateMode
+    requirement?: string
+    language?: CategoryPromptGenerateLanguage
+  }): Promise<ApiResponse<{ prompt: string }>> {
+    return apiClient.post<{ prompt: string }>('/categories/prompt/generate', params)
   },
 
   async resetPrompt(): Promise<ApiResponse<CategoryPrompt>> {

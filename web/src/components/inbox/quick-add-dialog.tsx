@@ -30,8 +30,8 @@ interface FilePreview {
   error?: string
 }
 
-// Maximum file size: 20MB
-const MAX_FILE_SIZE = 20 * 1024 * 1024
+// Maximum file size: 100MB
+const MAX_FILE_SIZE = 100 * 1024 * 1024
 
 // Format file size for display
 function formatFileSize(bytes: number): string {
