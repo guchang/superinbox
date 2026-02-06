@@ -533,7 +533,7 @@ export function CommandSearch({
   const suggestions = getSuggestions
   const shouldShowDropdown = open && suggestions.length > 0
 
-  const dialogItemClass = "rounded-none px-6 py-3 text-[13px] font-medium text-slate-700 dark:text-white/80"
+  const dialogItemClass = "rounded-none px-6 py-1.5 md:py-2 text-[13px] font-medium text-slate-700 dark:text-white/80"
   const dialogActiveClass = "bg-black/5 text-slate-900 dark:bg-white/10 dark:text-white"
   const dialogHintClass = "text-[11px] text-slate-500 dark:text-white/40"
 
@@ -543,30 +543,21 @@ export function CommandSearch({
         className={cn(
           "bg-transparent text-foreground",
           isDialog &&
-            "bg-transparent text-slate-700 dark:text-white/80 [&_[cmdk-group-heading]]:px-6 [&_[cmdk-group-heading]]:py-3 [&_[cmdk-group-heading]]:text-[11px] [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wide [&_[cmdk-group-heading]]:text-slate-500 dark:[&_[cmdk-group-heading]]:text-white/40 [&_[cmdk-item]]:px-6 [&_[cmdk-item]]:py-3 [&_[cmdk-item]]:rounded-none"
+            "bg-transparent text-slate-700 dark:text-white/80 [&_[cmdk-group]]:p-0 [&_[cmdk-group-heading]]:px-6 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-[11px] [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wide [&_[cmdk-group-heading]]:text-slate-500 dark:[&_[cmdk-group-heading]]:text-white/40 [&_[cmdk-item]]:px-6 [&_[cmdk-item]]:py-1.5 md:[&_[cmdk-item]]:py-2 [&_[cmdk-item]]:rounded-none"
         )}
       >
         <CommandList>
-          {!inputValue && (
-            <CommandGroup>
-              {getSuggestions.filter(s => s.type === 'tip').map((suggestion, index) => (
-                <CommandItem
-                  key={index}
-                  onSelect={() => {
-                    inputRef.current?.focus()
-                  }}
-                  className={cn(
-                    "cursor-default opacity-70 hover:opacity-100",
-                    isDialog && "px-6 py-3 text-xs"
-                  )}
-                >
-                  <div className={cn("flex items-center gap-2 text-sm text-muted-foreground", isDialog && "text-xs text-slate-500 dark:text-white/40")}>
-                    <span>{suggestion.text}</span>
-                  </div>
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          )}
+          {!inputValue && getSuggestions.filter(s => s.type === 'tip').map((suggestion, index) => (
+            <div
+              key={index}
+              className={cn(
+                "h-10 flex items-center px-2 text-sm text-muted-foreground opacity-70",
+                isDialog && "h-11 px-6 text-xs text-slate-500 dark:text-white/40"
+              )}
+            >
+              <span>{suggestion.text}</span>
+            </div>
+          ))}
 
           {!inputValue && (
             <CommandGroup heading={t('sections.options')}>
@@ -755,7 +746,7 @@ export function CommandSearch({
     return (
       <div className="flex flex-col">
         <div>{inputContent}</div>
-        {shouldShowDropdown && <div className="py-2">{dropdownContent}</div>}
+        {shouldShowDropdown && <div className="-mt-2 pb-0">{dropdownContent}</div>}
       </div>
     )
   }

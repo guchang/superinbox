@@ -402,7 +402,7 @@ export default function InboxPage() {
     <div className="h-full flex flex-col bg-[#f5f5f7] dark:bg-[#0b0b0f]">
       {/* 顶部区域：标题、搜索、类型筛选 */}
       {/* playground 风格：移除固定容器限制，让输入框可以自由定位 */}
-      <div className="hidden md:block shrink-0 px-4 md:px-6 pt-6 pb-4 border-b border-black/[0.03] dark:border-white/[0.03] bg-white/50 dark:bg-[#0b0b0f]/50 backdrop-blur-xl relative">
+      <div className="hidden md:block shrink-0 px-4 md:px-6 pt-6 pb-4 bg-white/50 dark:bg-[#0b0b0f]/50 backdrop-blur-xl relative">
         <ExpandableInput
           onSubmit={handleCreate}
           isSubmitting={createMutation.isPending}
@@ -433,7 +433,7 @@ export default function InboxPage() {
       <div className="flex-1 overflow-y-auto p-4 md:p-6 bg-black/[0.01] dark:bg-[#0b0b0f]/40">
         <div className="flex flex-col gap-2 pb-2 md:gap-3 md:pb-4">
           <div className="flex items-center gap-3">
-            <span className="text-2xl font-bold tracking-tight whitespace-nowrap flex-shrink-0">
+            <span className="text-lg md:text-xl font-semibold tracking-tight whitespace-nowrap flex-shrink-0">
               {currentCategoryLabel}
             </span>
             {totalCount > 0 && (
