@@ -62,6 +62,7 @@ import {
   getCategoryBadgeStyle,
   getCategoryIconComponent,
   getCategorySoftStyle,
+  hasCategoryDefaultAppearance,
   resolveCategoryColor,
   resolveCategoryIconName,
 } from '@/lib/category-appearance'
@@ -74,10 +75,19 @@ type CategoryDraft = {
   description: string
   examplesText: string
   icon: string
+  color: string
   isActive: boolean
 }
 
 const UNKNOWN_CATEGORY_KEY = 'unknown'
+const HEX_COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/
+
+const normalizeDraftColor = (value?: string): string => String(value ?? '').trim().toLowerCase()
+
+const isDraftColorValid = (value?: string): boolean => {
+  const normalized = normalizeDraftColor(value)
+  return !normalized || HEX_COLOR_PATTERN.test(normalized)
+}
 
 const isUnknownCategory = (
   category?: Pick<CategoryDraft, 'key'> | Pick<Category, 'key'> | null
@@ -190,6 +200,12 @@ export default function CategoryPage() {
         return aIsUnknown ? 1 : -1
       }
 
+      const aSortOrder = typeof a.sortOrder === 'number' ? a.sortOrder : Number.MAX_SAFE_INTEGER
+      const bSortOrder = typeof b.sortOrder === 'number' ? b.sortOrder : Number.MAX_SAFE_INTEGER
+      if (aSortOrder !== bSortOrder) {
+        return aSortOrder - bSortOrder
+      }
+
       return a.createdAt.localeCompare(b.createdAt)
     })
   }, [categories])
@@ -204,11 +220,27 @@ export default function CategoryPage() {
     )
   }, [categories, categoryDraft])
 
+  const draftColorValue = normalizeDraftColor(categoryDraft?.color)
+  const isDraftColorInputValid = isDraftColorValid(categoryDraft?.color)
+  const resolvedDraftColor = resolveCategoryColor(categoryDraft?.key, categoryDraft?.color)
+  const resolvedDraftIconName = resolveCategoryIconName(categoryDraft?.key, categoryDraft?.icon)
+  const isColorAutoMode = !draftColorValue
+  const hasDefaultAppearance = hasCategoryDefaultAppearance(categoryDraft?.key)
+  const defaultDraftIcon = resolveCategoryIconName(categoryDraft?.key)
+  const isDefaultDraftAppearance =
+    resolvedDraftIconName === defaultDraftIcon &&
+    isColorAutoMode
+  const canRestoreDefaultAppearance =
+    !isUnknownCategory(categoryDraft) &&
+    hasDefaultAppearance &&
+    !isDefaultDraftAppearance
+
   const canSaveCategory =
     categoryDraft &&
     categoryDraft.name.trim().length > 0 &&
     categoryDraft.key.trim().length > 0 &&
-    !categoryKeyConflict
+    !categoryKeyConflict &&
+    isDraftColorInputValid
 
   const canSavePrompt =
     promptDraft.trim().length > 0 &&
@@ -278,11 +310,6 @@ export default function CategoryPage() {
     setIsLibraryDialogOpen(true)
   }
 
-  const DraftCategoryIcon = getCategoryIconComponent(
-    categoryDraft?.icon,
-    categoryDraft?.key
-  )
-
   const openCategoryDialog = (category?: Category) => {
     setCategoryDraft({
       id: category?.id,
@@ -292,6 +319,7 @@ export default function CategoryPage() {
       description: category?.description || '',
       examplesText: (category?.examples || []).join('\n'),
       icon: resolveCategoryIconName(category?.key, category?.icon),
+      color: normalizeDraftColor(category?.color),
       isActive: isUnknownCategory(category) ? true : (category?.isActive ?? true),
     })
     setCategoryDialogOpen(true)
@@ -299,6 +327,16 @@ export default function CategoryPage() {
 
   const handleSaveCategory = async () => {
     if (!categoryDraft) return
+
+    if (!isDraftColorValid(categoryDraft.color)) {
+      toast({
+        title: t('toasts.categorySaveFailed.title'),
+        description: t('categoryDialog.fields.color.invalid'),
+        variant: 'destructive',
+      })
+      return
+    }
+
     setIsSavingCategory(true)
 
     const examples = categoryDraft.examplesText
@@ -312,6 +350,9 @@ export default function CategoryPage() {
       description: categoryDraft.description.trim(),
       examples,
       icon: resolveCategoryIconName(categoryDraft.key, categoryDraft.icon),
+      color: isUnknownCategory(categoryDraft)
+        ? undefined
+        : (draftColorValue || undefined),
       isActive: isUnknownCategory(categoryDraft) ? true : categoryDraft.isActive,
     }
 
@@ -1433,64 +1474,115 @@ export default function CategoryPage() {
               )}
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="category-icon">
-                {t('categoryDialog.fields.icon.label')}
-              </Label>
-              <Select
-                value={resolveCategoryIconName(categoryDraft?.key, categoryDraft?.icon)}
-                onValueChange={(value) =>
-                  setCategoryDraft((prev) =>
-                    prev ? { ...prev, icon: value } : prev
-                  )
-                }
-              >
-                <SelectTrigger id="category-icon">
-                  <SelectValue placeholder={t('categoryDialog.fields.icon.placeholder')} />
-                </SelectTrigger>
-                <SelectContent>
-                  {CATEGORY_ICON_OPTIONS.map((iconName) => {
-                    const Icon = getCategoryIconComponent(iconName)
-
-                    return (
-                      <SelectItem key={iconName} value={iconName}>
-                        <span className="flex items-center gap-2">
-                          <Icon className="h-4 w-4" />
-                          <span>{iconName}</span>
-                        </span>
-                      </SelectItem>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <Label htmlFor="category-icon">{t('categoryDialog.fields.appearance.label')}</Label>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 px-2 text-muted-foreground hover:text-foreground"
+                  onClick={() =>
+                    setCategoryDraft((prev) =>
+                      prev
+                        ? {
+                            ...prev,
+                            icon: resolveCategoryIconName(prev.key),
+                            color: '',
+                          }
+                        : prev
                     )
-                  })}
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground">
-                {t('categoryDialog.fields.icon.hint')}
-              </p>
-            </div>
-            <div className="grid gap-2">
-              <Label>{t('categoryDialog.fields.color.label')}</Label>
-              <div className="flex items-center justify-between rounded-md border px-3 py-2">
-                <div className="inline-flex items-center gap-2">
-                  <span
-                    className="inline-flex h-7 w-7 items-center justify-center rounded-md"
-                    style={getCategorySoftStyle(categoryDraft?.key)}
-                  >
-                    <DraftCategoryIcon className="h-4 w-4" />
-                  </span>
-                  <Badge
-                    variant="outline"
-                    className="text-[10px] font-medium uppercase tracking-wide"
-                    style={getCategoryBadgeStyle(categoryDraft?.key)}
-                  >
-                    {categoryDraft?.key?.trim() || UNKNOWN_CATEGORY_KEY}
-                  </Badge>
-                </div>
-                <span className="text-xs font-mono text-muted-foreground">
-                  {resolveCategoryColor(categoryDraft?.key)}
-                </span>
+                  }
+                  disabled={!canRestoreDefaultAppearance}
+                >
+                  {t('categoryDialog.fields.appearance.reset')}
+                </Button>
               </div>
-              <p className="text-xs text-muted-foreground">
-                {t('categoryDialog.fields.color.hint')}
-              </p>
+
+              <div className="space-y-3 rounded-md border p-3">
+                <Select
+                  value={resolvedDraftIconName}
+                  onValueChange={(value) =>
+                    setCategoryDraft((prev) =>
+                      prev ? { ...prev, icon: value } : prev
+                    )
+                  }
+                >
+                  <SelectTrigger id="category-icon">
+                    <SelectValue placeholder={t('categoryDialog.fields.icon.placeholder')} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CATEGORY_ICON_OPTIONS.map((iconName) => {
+                      const Icon = getCategoryIconComponent(iconName)
+
+                      return (
+                        <SelectItem key={iconName} value={iconName}>
+                          <span className="flex items-center gap-2">
+                            <Icon className="h-4 w-4" />
+                            <span>{iconName}</span>
+                          </span>
+                        </SelectItem>
+                      )
+                    })}
+                  </SelectContent>
+                </Select>
+
+                <div className="flex items-center gap-2">
+                  <Input
+                    id="category-color-picker"
+                    type="color"
+                    value={resolvedDraftColor}
+                    onChange={(event) =>
+                      setCategoryDraft((prev) =>
+                        prev
+                          ? {
+                              ...prev,
+                              color: normalizeDraftColor(event.target.value),
+                            }
+                          : prev
+                      )
+                    }
+                    disabled={isUnknownCategory(categoryDraft)}
+                    className="h-10 w-16 shrink-0 cursor-pointer p-1"
+                  />
+                  <Input
+                    id="category-color-input"
+                    value={categoryDraft?.color || ''}
+                    onChange={(event) =>
+                      setCategoryDraft((prev) =>
+                        prev
+                          ? {
+                              ...prev,
+                              color: event.target.value,
+                            }
+                          : prev
+                      )
+                    }
+                    placeholder={t('categoryDialog.fields.color.placeholder')}
+                    disabled={isUnknownCategory(categoryDraft)}
+                    className="min-w-0 flex-1 font-mono"
+                  />
+                </div>
+              </div>
+
+              {isUnknownCategory(categoryDraft) ? (
+                <p className="text-xs text-muted-foreground">
+                  {t('categoryDialog.fields.color.systemFallbackHint')}
+                </p>
+              ) : !hasDefaultAppearance ? (
+                <p className="text-xs text-muted-foreground">
+                  {t('categoryDialog.fields.appearance.noDefault')}
+                </p>
+              ) : !isDraftColorInputValid ? (
+                <p className="text-xs text-destructive">
+                  {t('categoryDialog.fields.color.invalid')}
+                </p>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  {isColorAutoMode
+                    ? t('categoryDialog.fields.color.hint')
+                    : t('categoryDialog.fields.color.customHint')}
+                </p>
+              )}
             </div>
             <div className="grid gap-2">
               <Label htmlFor="category-description">

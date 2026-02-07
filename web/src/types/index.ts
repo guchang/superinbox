@@ -30,6 +30,7 @@ export interface Category {
   examples?: string[]
   icon?: string
   color?: string
+  sortOrder?: number
   isActive: boolean
   createdAt: string
   updatedAt: string
@@ -81,6 +82,12 @@ export interface Item {
   analysis?: AIAnalysis
   distributionResults?: Record<string, any>
   distributedTargets?: any[]
+  routingPreviewTargets?: Array<{
+    id?: string
+    name?: string
+    serverType?: string
+    logoColor?: string
+  }>
   distributedRuleNames?: string[]
   routingStatus?: RoutingStatus
   createdAt: string

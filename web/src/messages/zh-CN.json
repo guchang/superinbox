@@ -68,6 +68,18 @@
     "footer": {
       "version": "SuperInbox v0.1.0",
       "copyright": "© 2024 SuperInbox"
+    },
+    "sorting": {
+      "edit": "排序",
+      "save": "保存",
+      "cancel": "取消",
+      "saved": "分类顺序已更新",
+      "saveFailed": "分类顺序更新失败",
+      "moveUp": "上移",
+      "moveDown": "下移",
+      "fixedBottom": "固定在最后",
+      "hint": "桌面端可拖拽排序，移动端可上移/下移；unknown 固定在末位。",
+      "disabled": "至少需要两个启用分类才可排序"
     }
   },
   "auth": {
@@ -230,7 +242,7 @@
     "routingStatus": {
       "pending": "等待路由分发",
       "skipped": "不执行路由分发",
-      "processing": "路由分发中...",
+      "processing": "路由分发中",
       "completed": "路由分发完成",
       "failed": "路由分发失败",
       "distributedWithRules": "已分发: {rules}"
@@ -321,6 +333,7 @@
       "attachments": "附件",
       "aiAnalysis": "AI 分析",
       "distributionTargets": "分发目标",
+      "routingProgress": "路由进度",
       "rules": "规则"
     },
     "analysis": {
@@ -375,6 +388,7 @@
       "attachments": "附件",
       "aiAnalysis": "AI 分析",
       "distributionTargets": "分发目标",
+      "routingProgress": "路由进度",
       "rules": "规则"
     },
     "analysis": {
@@ -1454,6 +1468,11 @@
           "hint": "建议使用英文小写，作为规则条件和 API 字段。",
           "conflict": "该标识已存在。"
         },
+        "appearance": {
+          "label": "分类图标和颜色",
+          "reset": "恢复默认图标和颜色",
+          "noDefault": "当前分类没有预设默认图标和颜色。"
+        },
         "icon": {
           "label": "分类图标",
           "placeholder": "选择图标",
@@ -1461,7 +1480,13 @@
         },
         "color": {
           "label": "分类颜色",
-          "hint": "颜色根据分类 key 自动分配，并同步到收件箱分类标签。"
+          "autoMode": "自动分配颜色",
+          "placeholder": "例如：#22c55e",
+          "hint": "留空时会根据分类 key 自动分配颜色，并同步到收件箱分类标签。",
+          "customHint": "当前使用自定义颜色。",
+          "reset": "恢复自动分配",
+          "invalid": "请输入 #RRGGBB 格式的颜色值。",
+          "systemFallbackHint": "系统兜底分类固定为灰色，不支持修改颜色。"
         },
         "description": {
           "label": "分类规则",

@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge'
 import { ContentType, Item, ItemStatus } from '@/types'
 import { formatRelativeTime } from '@/lib/utils'
 import { FilePreview } from '@/components/file-preview'
+import { useRoutingProgress } from '@/hooks/use-routing-progress'
 
 interface DetailModalProps {
   item: Item | null
@@ -56,6 +57,28 @@ const getDistributionTargetLabel = (target: unknown, index: number) => {
 
 const isLikelyUrl = (value: string) => /^https?:\/\/\S+/i.test(value)
 
+
+function RoutingProgressDots() {
+  return (
+    <div className="flex items-center gap-1" aria-hidden="true">
+      {Array.from({ length: 8 }).map((_, index) => (
+        <motion.span
+          key={index}
+          className="h-1.5 w-1.5 rounded-[2px] bg-current"
+          initial={{ opacity: 0.16, scale: 0.82 }}
+          animate={{ opacity: [0.16, 0.72, 0.16], scale: [0.82, 1, 0.82] }}
+          transition={{
+            duration: 1.2,
+            repeat: Infinity,
+            delay: index * 0.08,
+            ease: 'easeInOut',
+          }}
+        />
+      ))}
+    </div>
+  )
+}
+
 const isUrlEntity = (type: string, value: string) => {
   return /url|link/i.test(type) || isLikelyUrl(value)
 }
@@ -71,6 +94,7 @@ export function DetailModal({
   redistributing,
 }: DetailModalProps) {
   const detailT = useTranslations('inboxDetail')
+  const inboxT = useTranslations('inbox')
   const time = useTranslations('time')
 
   // ESC 关闭
@@ -94,6 +118,12 @@ export function DetailModal({
   const { resolvedTheme } = useTheme()
   const isDark = resolvedTheme === 'dark'
 
+  const isRoutingProcessing = item?.routingStatus === 'processing'
+  const routingProgress = useRoutingProgress(
+    isOpen && isRoutingProcessing ? item?.id ?? null : null,
+    { disabled: !(isOpen && isRoutingProcessing && item?.id) }
+  )
+
   if (!item) return null
 
   const categoryKey = item.analysis?.category ?? 'unknown'
@@ -108,6 +138,11 @@ export function DetailModal({
   }[categoryKey] || categoryKey
   const isAnalyzing = item.status === ItemStatus.PROCESSING
   const isFailed = item.status === ItemStatus.FAILED
+  const liveRoutingTarget = String(routingProgress.matchedTargetName || '').trim()
+  const liveRoutingTitle = liveRoutingTarget
+    ? `${categoryLabel} → ${liveRoutingTarget}`
+    : categoryLabel
+  const showRoutingProgressSection = isRoutingProcessing
   const contentText = item.content?.trim() ?? ''
   const hasContentText = contentText.length > 0
   const entityBadges = (item.analysis?.entities || [])
@@ -286,6 +321,24 @@ export function DetailModal({
                     </div>
                   )}
                 </section>
+
+                {showRoutingProgressSection && (
+                  <section className="rounded-2xl bg-black/[0.02] dark:bg-white/[0.02] border border-black/[0.03] dark:border-white/[0.03] p-5 sm:p-6">
+                    <div className="text-[10px] font-bold uppercase tracking-widest opacity-40 mb-3">
+                      {detailT('sections.routingProgress')}
+                    </div>
+                    <div className="flex items-center gap-2 text-sm font-semibold text-primary">
+                      <span className="truncate">{categoryLabel}</span>
+                      <RoutingProgressDots />
+                      <span className="truncate" title={liveRoutingTitle}>
+                        {liveRoutingTarget || inboxT('routingStatus.processing')}
+                      </span>
+                    </div>
+                    <p className="mt-2 text-xs text-muted-foreground break-words">
+                      {routingProgress.message || inboxT('routingStatus.processing')}
+                    </p>
+                  </section>
+                )}
 
                 {item.distributedTargets && item.distributedTargets.length > 0 && (
                   <section className="rounded-2xl bg-black/[0.02] dark:bg-white/[0.02] border border-black/[0.03] dark:border-white/[0.03] p-5 sm:p-6">

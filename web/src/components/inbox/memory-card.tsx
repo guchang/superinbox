@@ -4,17 +4,16 @@ import { useTranslations } from 'next-intl'
 import { memo, useState, useRef, useEffect, useCallback, type MouseEvent } from 'react'
 import { useTheme } from 'next-themes'
 import { Item, ItemStatus, ContentType } from '@/types'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { FilePreview } from '@/components/file-preview'
 import { AudioWavePlayer } from '@/components/inbox/audio-wave-player'
-import { RoutingStatus } from '@/components/inbox/routing-status'
+import { MCPConnectorLogo } from '@/components/mcp-connectors/mcp-connector-logo'
 import { formatRelativeTime } from '@/lib/utils'
 import { cn } from '@/lib/utils'
 import { getApiBaseUrl } from '@/lib/api/base-url'
 import {
-  getCategoryBadgeStyle,
   getCategoryDisplayColor,
+  getCategoryIconComponent,
 } from '@/lib/category-appearance'
 import { inboxApi } from '@/lib/api/inbox'
 import {
@@ -26,10 +25,8 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { motion } from 'framer-motion'
 import {
-  Eye,
   Trash2,
   Loader2,
-  Clock,
   RefreshCw,
   Pencil,
   Sparkles,
@@ -54,10 +51,153 @@ const FALLBACK_ACCENT_BY_CATEGORY: Record<string, string> = {
   file: '#f59e0b',
 }
 
+function extractDestinationFromRuleName(ruleName: string): string {
+  const segments = ruleName
+    .split(/(?:->|→|⇒|➡|⟶|⮕)/)
+    .map((segment) => segment.trim())
+    .filter(Boolean)
+
+  if (segments.length < 2) return ''
+  return segments[segments.length - 1] || ''
+}
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
+function isLikelyOpaqueTargetId(value: string): boolean {
+  const trimmed = value.trim()
+  if (!trimmed) return false
+  if (UUID_PATTERN.test(trimmed)) return true
+
+  const compactIdPattern = /^[A-Za-z0-9_-]{24,}$/
+  return compactIdPattern.test(trimmed) && !trimmed.includes('.')
+}
+
+type ConnectorMeta = {
+  name: string
+  serverType?: string
+  logoColor?: string
+}
+
+type DestinationEntry = {
+  label: string
+  serverType?: string
+  logoColor?: string
+}
+
+function resolveDestinationEntry(
+  targetId: string,
+  connectorMetaMap?: Map<string, ConnectorMeta>
+): DestinationEntry | null {
+  const rawTargetId = targetId.trim()
+  if (!rawTargetId) return null
+
+  const mappedMeta = connectorMetaMap?.get(rawTargetId)
+  const mappedName = mappedMeta?.name?.trim()
+  if (mappedName) {
+    return {
+      label: mappedName,
+      serverType: mappedMeta?.serverType,
+      logoColor: mappedMeta?.logoColor,
+    }
+  }
+
+  if (isLikelyOpaqueTargetId(rawTargetId)) {
+    return null
+  }
+
+  return { label: rawTargetId }
+}
+
+function resolveDestinationFromTarget(
+  target: unknown,
+  connectorMetaMap?: Map<string, ConnectorMeta>
+): DestinationEntry | null {
+  if (typeof target === 'string') {
+    return resolveDestinationEntry(target, connectorMetaMap)
+  }
+
+  if (!target || typeof target !== 'object') {
+    return null
+  }
+
+  const record = target as Record<string, unknown>
+  const targetServerType = String(
+    record.serverType ?? record.targetServerType ?? record.type ?? ''
+  ).trim()
+  const targetLogoColor = String(
+    record.logoColor ?? record.targetLogoColor ?? ''
+  ).trim()
+
+  const idCandidates = [
+    record.id,
+    record.targetId,
+    record.adapterId,
+    record.target,
+    record.destination,
+  ]
+
+  for (const candidate of idCandidates) {
+    if (typeof candidate !== 'string' || !candidate.trim()) continue
+    const mapped = resolveDestinationEntry(candidate, connectorMetaMap)
+    if (mapped) {
+      return {
+        ...mapped,
+        serverType: mapped.serverType || targetServerType || undefined,
+        logoColor: mapped.logoColor || targetLogoColor || undefined,
+      }
+    }
+  }
+
+  const nameCandidates = [
+    record.name,
+    record.targetName,
+    record.destinationName,
+    record.connectorName,
+    record.adapterName,
+  ]
+
+  for (const candidate of nameCandidates) {
+    if (typeof candidate !== 'string' || !candidate.trim()) continue
+    return {
+      label: candidate.trim(),
+      serverType: targetServerType || undefined,
+      logoColor: targetLogoColor || undefined,
+    }
+  }
+
+  return null
+}
+
+function RoutingPulseBlocks({ accentColor }: { accentColor: string }) {
+  return (
+    <div className="ml-1 flex items-center gap-0.5">
+      {Array.from({ length: 8 }).map((_, index) => (
+        <motion.div
+          key={index}
+          initial={{ opacity: 0.1, scale: 0.8 }}
+          animate={{
+            opacity: [0.1, 0.6, 0.1],
+            scale: [0.8, 1, 0.8],
+          }}
+          transition={{
+            duration: 1.2,
+            repeat: Infinity,
+            delay: index * 0.1,
+            ease: 'easeInOut',
+          }}
+          className="h-1 w-1 rounded-[1px] md:h-1.5 md:w-1.5 md:rounded-[2px]"
+          style={{ backgroundColor: accentColor }}
+        />
+      ))}
+    </div>
+  )
+}
+
 interface MemoryCardProps {
   item: Item
   categoryLabelMap: Map<string, string>
   categoryMetaMap?: Map<string, { name: string; icon?: string; color?: string }>
+  connectorMetaMap?: Map<string, ConnectorMeta>
   onDelete: (id: string) => void
   onRetry: (id: string) => void
   onEdit?: (item: Item) => void
@@ -73,6 +213,7 @@ function MemoryCardComponent({
   item,
   categoryLabelMap,
   categoryMetaMap,
+  connectorMetaMap,
   onDelete,
   onRetry,
   onEdit,
@@ -106,17 +247,87 @@ function MemoryCardComponent({
   const categoryMeta = categoryMetaMap?.get(categoryKey)
   const themeMode = isDark ? 'dark' : 'light'
   const categoryColor = getCategoryDisplayColor(categoryKey, categoryMeta?.color, themeMode)
-  const badgeStyle = getCategoryBadgeStyle(categoryKey, categoryMeta?.color, themeMode)
   const fallbackAccentColor =
     FALLBACK_ACCENT_BY_CATEGORY[categoryKey] || (resolvedTheme === 'dark' ? '#94a3b8' : '#64748b')
   const accentColor = categoryColor || fallbackAccentColor
   const isAnalyzing = item.status === ItemStatus.PROCESSING
   const isFailed = item.status === ItemStatus.FAILED
+  const categoryDisplayLabel =
+    categoryMeta?.name ||
+    categoryLabelMap.get(item.analysis?.category ?? '') ||
+    (item.analysis?.category?.toUpperCase() ?? 'UNKNOWN')
+  const CategoryIcon = getCategoryIconComponent(categoryMeta?.icon, categoryKey)
   const hasMultipleFiles = Boolean(item.allFiles && item.allFiles.length > 1)
   const lowerMimeType = item.mimeType?.toLowerCase() ?? ''
   const isImage = lowerMimeType.startsWith('image/') || item.contentType === ContentType.IMAGE
   const isAudio = lowerMimeType.startsWith('audio/') || item.contentType === ContentType.AUDIO
   const isVideo = lowerMimeType.startsWith('video/') || item.contentType === ContentType.VIDEO
+
+  const rawRoutingStatus = item.routingStatus
+  const routingStatusValue = rawRoutingStatus === 'failed' ? 'error' : rawRoutingStatus
+
+  const normalizedRuleNames = (item.distributedRuleNames ?? [])
+    .map((name) => String(name ?? '').trim())
+    .filter(Boolean)
+
+  const rawTargets = routingStatusValue === 'processing' && (item.routingPreviewTargets?.length ?? 0) > 0
+    ? item.routingPreviewTargets ?? []
+    : item.distributedTargets ?? []
+
+  const destinationEntriesFromTargets = rawTargets
+    .map((target) => resolveDestinationFromTarget(target, connectorMetaMap))
+    .filter((entry): entry is DestinationEntry => Boolean(entry))
+  const destinationEntriesFromRuleNames = normalizedRuleNames
+    .map(extractDestinationFromRuleName)
+    .filter(Boolean)
+    .map((label) => ({ label }))
+
+  const destinationCandidates = destinationEntriesFromTargets.length > 0
+    ? destinationEntriesFromTargets
+    : destinationEntriesFromRuleNames
+
+  const destinationEntries: DestinationEntry[] = Array.from(
+    destinationCandidates.reduce((map, entry) => {
+      if (!map.has(entry.label)) {
+        map.set(entry.label, entry)
+      }
+      return map
+    }, new Map<string, DestinationEntry>()).values()
+  )
+
+  const destinationNames = destinationEntries.map((entry) => entry.label)
+  const destinationSummary = destinationNames.length > 1
+    ? `${destinationNames[0]} +${destinationNames.length - 1}`
+    : (destinationNames[0] ?? '')
+
+  const primaryDestination = destinationEntries[0]
+
+  const isRoutingProcessing = routingStatusValue === 'processing'
+  const showDestination = Boolean(destinationSummary) && (
+    routingStatusValue === 'completed' ||
+    routingStatusValue === 'error' ||
+    routingStatusValue === 'processing'
+  )
+  const showProcessingDestination = isRoutingProcessing && Boolean(destinationSummary)
+  const routingStateText =
+    routingStatusValue === 'processing'
+      ? t('routingStatus.processing')
+      : routingStatusValue === 'pending'
+        ? t('routingStatus.pending')
+        : routingStatusValue === 'error'
+          ? t('routingStatus.failed')
+          : null
+  const showRoutingStateText = Boolean(routingStateText) && !showProcessingDestination
+  const routingStateToneClass =
+    routingStatusValue === 'error'
+      ? 'text-rose-600/85 dark:text-rose-300/85'
+      : 'text-muted-foreground'
+  const routingStateStyle =
+    routingStatusValue === 'processing' || routingStatusValue === 'pending'
+      ? { color: accentColor }
+      : undefined
+  const metaDividerToneClass = isDark ? 'text-white/25' : 'text-slate-300'
+  const relativeTimeLabel = formatRelativeTime(item.createdAtLocal ?? item.createdAt, time)
 
   useEffect(() => {
     return () => {
@@ -295,20 +506,6 @@ function MemoryCardComponent({
     }
   }, [item.content])
 
-  const getBadgeContent = () => {
-    if (isAnalyzing) return { label: t('badge.analyzing'), variant: 'outline' as const }
-    if (isFailed) return { label: t('badge.failed'), variant: 'destructive' as const }
-    return {
-      label:
-        categoryMeta?.name ||
-        categoryLabelMap.get(item.analysis?.category ?? '') ||
-        (item.analysis?.category?.toUpperCase() ?? 'UNKNOWN'),
-      variant: 'outline' as const
-    }
-  }
-
-  const badge = getBadgeContent()
-
   const animationConfig =
     animationVariant === 'elastic'
       ? {
@@ -331,84 +528,135 @@ function MemoryCardComponent({
       exit={{ opacity: 0, scale: 0.95 }}
       onClick={handleCardClick}
       className={cn(
-        "group rounded-[24px] p-5 relative flex transition-all break-inside-avoid mb-4 overflow-hidden min-h-[180px]",
-        // 浅色模式: 纯白 + 极淡边框 + 阴影
-        "bg-white border border-black/[0.04] shadow-sm hover:shadow-xl",
-        // 深色模式: 更接近 inbox-new 的边框/对比
-        "dark:bg-white/[0.02] dark:border-white/[0.06] dark:hover:border-white/20",
-        isAnalyzing && "animate-pulse bg-accent/30"
+        "group relative mb-4 flex min-h-[168px] break-inside-avoid overflow-hidden rounded-2xl border p-4 transition-shadow duration-200 sm:p-5",
+        "border-slate-200/80 bg-white shadow-[0_4px_14px_-12px_rgba(15,23,42,0.28)] hover:shadow-[0_12px_24px_-18px_rgba(15,23,42,0.32)]",
+        "dark:border-white/10 dark:bg-[#17181d] dark:hover:border-white/15 dark:shadow-[0_10px_20px_-14px_rgba(2,6,23,0.72)]",
+        isAnalyzing && "ring-1"
       )}
     >
-      {/* 背景装饰 - 12个浮动粒子效果 */}
       {isAnalyzing && (
         <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
-          {Array.from({ length: 12 }).map((_, i) => (
-            <motion.div
-              key={i}
-              animate={{
-                x: [Math.random() * 400, Math.random() * 400],
-                y: [Math.random() * 200, Math.random() * 200],
-                opacity: [0, 0.3, 0]
-              }}
-              transition={{ duration: 1.5, repeat: Infinity, delay: i * 0.1 }}
-              className="absolute w-1 h-1 rounded-full blur-[1px]"
-              style={{ backgroundColor: accentColor }}
-            />
-          ))}
+          <motion.div
+            className="absolute left-[58%] top-[108%] h-44 w-44 -translate-x-1/2 -translate-y-1/2 rounded-full border-[1.4px]"
+            style={{ borderColor: `color-mix(in srgb, ${accentColor} 48%, transparent)` }}
+            initial={{ scale: 0, opacity: 0 }}
+            animate={{ scale: 3.15, opacity: [0, 0.34, 0] }}
+            transition={{ duration: 2.0, repeat: Infinity, ease: 'easeOut' }}
+          />
+          <motion.div
+            className="absolute left-[58%] top-[108%] h-44 w-44 -translate-x-1/2 -translate-y-1/2 rounded-full border-[1.2px]"
+            style={{ borderColor: `color-mix(in srgb, ${accentColor} 42%, transparent)` }}
+            initial={{ scale: 0, opacity: 0 }}
+            animate={{ scale: 3.15, opacity: [0, 0.28, 0] }}
+            transition={{ duration: 2.0, repeat: Infinity, ease: 'easeOut', delay: 0.22 }}
+          />
+          <motion.div
+            className="absolute left-[58%] top-[108%] h-44 w-44 -translate-x-1/2 -translate-y-1/2 rounded-full border"
+            style={{ borderColor: `color-mix(in srgb, ${accentColor} 38%, transparent)` }}
+            initial={{ scale: 0, opacity: 0 }}
+            animate={{ scale: 3.15, opacity: [0, 0.22, 0] }}
+            transition={{ duration: 2.0, repeat: Infinity, ease: 'easeOut', delay: 0.44 }}
+          />
+          <motion.div
+            className="absolute left-[58%] top-[108%] h-44 w-44 -translate-x-1/2 -translate-y-1/2 rounded-full border"
+            style={{ borderColor: `color-mix(in srgb, ${accentColor} 35%, transparent)` }}
+            initial={{ scale: 0, opacity: 0 }}
+            animate={{ scale: 3.15, opacity: [0, 0.16, 0] }}
+            transition={{ duration: 2.0, repeat: Infinity, ease: 'easeOut', delay: 0.66 }}
+          />
         </div>
       )}
 
       <div className="relative z-10 flex w-full flex-1 flex-col">
-        {/* 顶部：标签和操作区 */}
-        <div className="flex justify-between items-center mb-4">
-          <div className="flex items-center gap-2">
-            <Badge
-              variant={badge.variant}
-              className="h-6 border px-2.5 text-xs font-bold uppercase tracking-wide gap-1"
-              style={!isAnalyzing && !isFailed ? badgeStyle : undefined}
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <div className="min-w-0 flex flex-1 items-center gap-1.5 text-[12px]">
+            <span className="inline-flex h-4 w-4 shrink-0 items-center justify-center" style={{ color: accentColor }}>
+              <CategoryIcon className="h-3.5 w-3.5" aria-hidden="true" />
+            </span>
+            <span
+              className="-ml-[3px] shrink-0 font-semibold"
+              style={{ color: accentColor }}
+              title={categoryDisplayLabel}
             >
-              {isAnalyzing && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-              {badge.label}
-            </Badge>
+              {categoryDisplayLabel}
+            </span>
+
+            {showDestination && (
+              <>
+                {!showProcessingDestination && (
+                  <span className={cn('text-[11px] font-medium', metaDividerToneClass)}>→</span>
+                )}
+                {showProcessingDestination && <RoutingPulseBlocks accentColor={accentColor} />}
+                <span className="inline-flex h-4 w-4 shrink-0 items-center justify-center opacity-[0.85]">
+                  <MCPConnectorLogo
+                    serverType={primaryDestination?.serverType}
+                    name={primaryDestination?.label}
+                    logoColor={primaryDestination?.logoColor || accentColor}
+                    size="sm"
+                    className="h-4 w-4 rounded-[4px] text-[9px]"
+                  />
+                </span>
+                <span
+                  className="-ml-[3px] min-w-0 truncate text-[12px] font-semibold"
+                  style={{ color: accentColor }}
+                  title={destinationNames.join(', ')}
+                >
+                  {destinationSummary}
+                </span>
+              </>
+            )}
+
+            {showRoutingStateText && (
+              <>
+                {!isRoutingProcessing && (
+                  <span className={cn('text-[11px] font-medium', metaDividerToneClass)}>·</span>
+                )}
+                {isRoutingProcessing && !showDestination && <RoutingPulseBlocks accentColor={accentColor} />}
+                <span
+                  className={cn('truncate text-[12px] font-medium', routingStateToneClass)}
+                  style={routingStateStyle}
+                >
+                  {routingStateText}
+                </span>
+              </>
+            )}
+          </div>
+
+          <div className="flex shrink-0 items-center gap-1">
+            <span className={cn('text-[10px] font-medium uppercase tracking-[0.08em]', isDark ? 'text-white/42' : 'text-slate-400')}>
+              {relativeTimeLabel}
+            </span>
 
             {isFailed && (
               <Button
                 variant="ghost"
-                size="sm"
+                size="icon"
                 onClick={(e) => {
                   e.preventDefault()
                   e.stopPropagation()
                   onRetry(item.id)
                 }}
                 disabled={retryingId === item.id}
-                className="h-5 px-2 text-xs"
+                className="h-7 w-7 rounded-full text-rose-500/80 hover:text-rose-500"
               >
                 {retryingId === item.id ? (
-                  <Loader2 className="h-3 w-3 animate-spin" />
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
                 ) : (
-                  <RefreshCw className="h-3 w-3" />
+                  <RefreshCw className="h-3.5 w-3.5" />
                 )}
               </Button>
             )}
-          </div>
 
-          {/* 右侧：时间 + 来源 + 更多按钮 */}
-          <div className="flex items-center gap-2 text-[10px] font-bold opacity-40 uppercase tracking-wider">
-            <Clock className="h-3 w-3" />
-            <span>{formatRelativeTime(item.createdAtLocal ?? item.createdAt, time)}</span>
-            <span className="opacity-50">·</span>
-            <span>{item.source?.toUpperCase()}</span>
-
-            {/* 更多操作按钮 */}
             <DropdownMenu open={isMenuOpen} onOpenChange={setIsMenuOpen}>
               <DropdownMenuTrigger asChild>
                 <button
                   type="button"
                   onClick={(e) => e.stopPropagation()}
                   className={cn(
-                    "ml-1 h-6 w-6 rounded flex items-center justify-center transition-all duration-200",
-                    "hover:bg-black/5 dark:hover:bg-white/10",
-                    "opacity-80 hover:opacity-100"
+                    'inline-flex h-7 w-7 items-center justify-center rounded-full transition-colors duration-200 focus:outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-0',
+                    isDark
+                      ? 'text-white/42 hover:text-white/72 focus-visible:ring-white/30'
+                      : 'text-slate-400 hover:text-slate-600 focus-visible:ring-slate-300/80'
                   )}
                 >
                   <MoreVertical className="h-3.5 w-3.5" />
@@ -428,13 +676,6 @@ function MemoryCardComponent({
                     <Copy className="h-3.5 w-3.5" />
                   )}
                   <span>{t('actions.copy')}</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => onViewDetail?.(item)}
-                  className="cursor-pointer gap-2 text-[11px] font-semibold text-slate-700 focus:bg-black/5 dark:text-white/70 dark:focus:bg-white/10"
-                >
-                  <Eye className="h-3.5 w-3.5" />
-                  <span>{t('actions.viewDetails')}</span>
                 </DropdownMenuItem>
                 {onEdit && (
                   <DropdownMenuItem
@@ -479,10 +720,10 @@ function MemoryCardComponent({
         </div>
 
         {/* 内容 */}
-        <div className="mb-4 flex-1">
+        <div className="mb-3 flex-1">
           <h3 className={cn(
-            "text-lg font-bold leading-tight transition-colors",
-            isAnalyzing ? 'text-muted-foreground italic' : (isDark ? 'text-white/95' : 'text-black/95'),
+            "text-[16px] font-semibold leading-[1.58] sm:text-[17px]",
+            isAnalyzing ? 'text-muted-foreground italic' : (isDark ? 'text-white/92' : 'text-slate-900'),
             item.contentType === ContentType.URL ? 'break-all' : 'break-words',
             "line-clamp-3"
           )}>
@@ -491,7 +732,7 @@ function MemoryCardComponent({
 
           {/* 文件预览 */}
           {item.hasFile && (
-            <div className="mt-4">
+            <div className="mt-3">
               {hasMultipleFiles || isImage ? (
                 <FilePreview
                   itemId={item.id}
@@ -596,20 +837,7 @@ function MemoryCardComponent({
           )}
         </div>
 
-        {/* 底部：路由状态和操作 */}
-        <div className={cn("flex items-center pt-4 border-t", isDark ? "border-white/[0.03]" : "border-black/[0.03]")}>
-          <div className="flex-1 min-w-0">
-            <RoutingStatus
-              itemId={item.id}
-              initialDistributedTargets={item.distributedTargets}
-              initialRuleNames={item.distributedRuleNames}
-              routingStatus={item.routingStatus}
-              disabled={true}
-              showAnimation={true}
-              processingAccentColor={accentColor}
-            />
-          </div>
-        </div>
+
       </div>
     </motion.div>
   )

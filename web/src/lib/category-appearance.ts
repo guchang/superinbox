@@ -83,6 +83,8 @@ const DEFAULT_ICON_BY_KEY: Record<string, CategoryIconName> = {
   sinbox: 'wrench',
 }
 
+const DEFAULT_APPEARANCE_KEYS = new Set(Object.keys(DEFAULT_ICON_BY_KEY))
+
 const normalizeCategoryKey = (key?: string): string => {
   return String(key ?? '').trim().toLowerCase() || UNKNOWN_CATEGORY_KEY
 }
@@ -183,6 +185,16 @@ export const getCategoryDisplayColor = (
   }
 
   return getThemeAdjustedCategoryColor(resolved, theme)
+}
+
+export const hasCategoryDefaultAppearance = (key?: string): boolean => {
+  const normalizedKey = String(key ?? '').trim().toLowerCase()
+
+  if (!normalizedKey) {
+    return false
+  }
+
+  return DEFAULT_APPEARANCE_KEYS.has(normalizedKey)
 }
 
 export const resolveCategoryIconName = (

@@ -37,6 +37,7 @@ export const inboxApi = {
         suggestedTitle: entry.suggestedTitle || null,
         status: entry.status,
         distributedTargets: entry.distributedTargets || entry.routedTo || [],
+        routingPreviewTargets: entry.routingPreviewTargets || [],
         distributionResults: entry.distributionResults || [],
         distributedRuleNames: entry.distributedRuleNames || [],
         routingStatus: entry.routingStatus || 'skipped',
@@ -87,6 +88,7 @@ export const inboxApi = {
         suggestedTitle: data.suggestedTitle || null,
         status: data.status,
         distributedTargets: data.distributedTargets || [],
+        routingPreviewTargets: data.routingPreviewTargets || [],
         distributionResults: data.routingHistory?.map((h: any) => ({
           targetId: h.adapter,
           status: h.status,

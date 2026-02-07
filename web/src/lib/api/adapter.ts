@@ -15,6 +15,7 @@ interface BackendItem {
   suggestedTitle: string | null
   status: string
   distributedTargets: any[]
+  routingPreviewTargets?: Array<{ id?: string; name?: string; serverType?: string; logoColor?: string }>
   distributionResults: any[]
   distributedRuleNames?: string[]
   routingStatus?: string
@@ -64,6 +65,7 @@ export function adaptBackendItem(backendItem: BackendItem): Item {
     analysis,
     distributionResults: backendItem.distributionResults,
     distributedTargets: backendItem.distributedTargets,
+    routingPreviewTargets: backendItem.routingPreviewTargets || [],
     distributedRuleNames: backendItem.distributedRuleNames,
     routingStatus: backendItem.routingStatus as any,
     createdAt: backendItem.createdAt,

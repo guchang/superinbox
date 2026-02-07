@@ -4,6 +4,7 @@ import { useTranslations } from 'next-intl'
 import { useInfiniteQuery, useMutation, useQueryClient, useQuery } from '@tanstack/react-query'
 import { categoriesApi } from '@/lib/api/categories'
 import { inboxApi } from '@/lib/api/inbox'
+import { mcpConnectorsApi } from '@/lib/api/mcp-connectors'
 import { Button } from '@/components/ui/button'
 import { ContentType, Item } from '@/types'
 import {
@@ -142,6 +143,12 @@ export default function InboxPage() {
     staleTime: 5 * 60 * 1000,
   })
 
+  const { data: mcpConnectorsData } = useQuery({
+    queryKey: ['mcp-connectors-list'],
+    queryFn: () => mcpConnectorsApi.list(),
+    staleTime: 5 * 60 * 1000,
+  })
+
   // 使用数据缓存避免重复创建数组引用
   const categories = useMemo(() => categoriesData?.data || [], [categoriesData?.data])
   const activeCategories = useMemo(
@@ -166,6 +173,25 @@ export default function InboxPage() {
       Array.from(categoryMetaMap.entries()).map(([key, meta]) => [key, meta.name])
     )
   }, [categoryMetaMap])
+
+  const connectorMetaMap = useMemo(() => {
+    const map = new Map<string, { name: string; serverType?: string; logoColor?: string }>()
+    const connectorItems = mcpConnectorsData?.data || []
+
+    connectorItems.forEach((connector) => {
+      const id = String(connector.id ?? '').trim()
+      const name = String(connector.name ?? '').trim()
+      if (!id || !name) return
+
+      map.set(id, {
+        name,
+        serverType: String(connector.serverType ?? '').trim() || undefined,
+        logoColor: String(connector.logoColor ?? '').trim() || undefined,
+      })
+    })
+
+    return map
+  }, [mcpConnectorsData?.data])
 
   // 构建查询参数 - 统一使用 activeType 作为媒体类型筛选
   const queryParams = useMemo(() => {
@@ -571,6 +597,7 @@ export default function InboxPage() {
                         item={item}
                         categoryLabelMap={categoryLabelMap}
                         categoryMetaMap={categoryMetaMap}
+                        connectorMetaMap={connectorMetaMap}
                         onDelete={handleDelete}
                         onRetry={handleRetry}
                         onEdit={handleEdit}

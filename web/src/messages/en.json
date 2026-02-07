@@ -68,6 +68,18 @@
     "footer": {
       "version": "SuperInbox v0.1.0",
       "copyright": "© 2024 SuperInbox"
+    },
+    "sorting": {
+      "edit": "Sort",
+      "save": "Save",
+      "cancel": "Cancel",
+      "saved": "Category order updated",
+      "saveFailed": "Failed to update category order",
+      "moveUp": "Move up",
+      "moveDown": "Move down",
+      "fixedBottom": "Fixed at bottom",
+      "hint": "Drag to reorder categories on desktop, use move up/down on mobile; unknown stays fixed at the bottom.",
+      "disabled": "At least two active categories are required to sort"
     }
   },
   "auth": {
@@ -230,7 +242,7 @@
     "routingStatus": {
       "pending": "Waiting for routing",
       "skipped": "Routing skipped",
-      "processing": "Routing in progress...",
+      "processing": "Routing in progress",
       "completed": "Routing completed",
       "failed": "Routing failed",
       "distributedWithRules": "Routed to: {rules}"
@@ -284,6 +296,7 @@
       "attachments": "Attachments",
       "aiAnalysis": "AI Analysis",
       "distributionTargets": "Distribution targets",
+      "routingProgress": "Routing progress",
       "rules": "Rules"
     },
     "analysis": {
@@ -374,6 +387,7 @@
       "attachments": "Attachments",
       "aiAnalysis": "AI Analysis",
       "distributionTargets": "Distribution targets",
+      "routingProgress": "Routing progress",
       "rules": "Rules"
     },
     "analysis": {
@@ -1547,6 +1561,11 @@
           "hint": "Use lowercase English for rule conditions and API fields.",
           "conflict": "This key already exists."
         },
+        "appearance": {
+          "label": "Category icon and color",
+          "reset": "Restore default icon and color",
+          "noDefault": "No default icon and color are configured for this category."
+        },
         "icon": {
           "label": "Category icon",
           "placeholder": "Select an icon",
@@ -1554,7 +1573,13 @@
         },
         "color": {
           "label": "Category color",
-          "hint": "Color is auto-assigned by category key and synced to inbox badges."
+          "autoMode": "Auto assign color",
+          "placeholder": "e.g. #22c55e",
+          "hint": "Leave empty to auto-assign color by category key and sync it to inbox badges.",
+          "customHint": "Custom color is currently applied.",
+          "reset": "Use auto color",
+          "invalid": "Please enter a valid #RRGGBB color value.",
+          "systemFallbackHint": "System fallback category is fixed to gray and cannot change color."
         },
         "description": {
           "label": "Classification rule",

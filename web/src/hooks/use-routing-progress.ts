@@ -6,7 +6,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useTranslations } from 'next-intl'
-import { getBackendDirectUrl } from '@/lib/api/base-url'
+import { getApiBaseUrl } from '@/lib/api/base-url'
 
 // 路由进度状态
 export type RoutingStatus =
@@ -24,6 +24,10 @@ export interface RoutingProgressState {
   ruleNames: string[]
   totalSuccess: number
   totalFailed: number
+  matchedTargetName: string | null
+  matchedTargetId: string | null
+  matchedTargetServerType: string | null
+  matchedTargetLogoColor: string | null
   isConnected: boolean
   error: string | null
 }
@@ -39,6 +43,10 @@ export function useRoutingProgress(itemId: string | null, options?: { disabled?:
     ruleNames: [],
     totalSuccess: 0,
     totalFailed: 0,
+    matchedTargetName: null,
+    matchedTargetId: null,
+    matchedTargetServerType: null,
+    matchedTargetLogoColor: null,
     isConnected: false,
     error: null
   })
@@ -89,6 +97,10 @@ export function useRoutingProgress(itemId: string | null, options?: { disabled?:
             message: typeof data?.totalRules === 'number'
               ? t('routingProgress.startWithRules', { count: data.totalRules })
               : t('routingProgress.start'),
+            matchedTargetName: null,
+            matchedTargetId: null,
+            matchedTargetServerType: null,
+            matchedTargetLogoColor: null,
             error: null
           }))
           break
@@ -98,19 +110,43 @@ export function useRoutingProgress(itemId: string | null, options?: { disabled?:
             ...prev,
             status: 'skipped',
             message: t('routingProgress.skipped'),
+            matchedTargetName: null,
+            matchedTargetId: null,
+            matchedTargetServerType: null,
+            matchedTargetLogoColor: null,
             error: null
           }))
           // Auto-disconnect on skipped
           disconnect()
           break
 
-        case 'routing:rule_match':
+        case 'routing:rule_match': {
+          const targetName = String(data?.targetName || '').trim()
+          const targetId = String(data?.targetId || '').trim()
+          const targetServerType = String(data?.targetServerType || '').trim()
+          const targetLogoColor = String(data?.targetLogoColor || '').trim()
+
           setState(prev => ({
             ...prev,
             status: 'processing',
-            message: t('routingProgress.ruleMatch', { ruleName: data.ruleName || '' })
+            message: t('routingProgress.ruleMatch', { ruleName: data.ruleName || '' }),
+            matchedTargetName: targetName || prev.matchedTargetName,
+            matchedTargetId: targetId || prev.matchedTargetId,
+            matchedTargetServerType: targetServerType || prev.matchedTargetServerType,
+            matchedTargetLogoColor: targetLogoColor || prev.matchedTargetLogoColor,
           }))
           break
+        }
+
+        case 'routing:tool_call_start': {
+          const adapterName = String(data?.adapterName || '').trim()
+          setState(prev => ({
+            ...prev,
+            status: 'processing',
+            matchedTargetName: adapterName || prev.matchedTargetName,
+          }))
+          break
+        }
 
         case 'step:start':
           setState(prev => ({
@@ -172,7 +208,11 @@ export function useRoutingProgress(itemId: string | null, options?: { disabled?:
             distributedTargets: data.distributedTargets || [],
             ruleNames: data.ruleNames || [],
             totalSuccess: data.totalSuccess || 0,
-            totalFailed: data.totalFailed || 0
+            totalFailed: data.totalFailed || 0,
+            matchedTargetName: null,
+            matchedTargetId: null,
+            matchedTargetServerType: null,
+            matchedTargetLogoColor: null,
           }))
           // Auto-disconnect on completion
           disconnect()
@@ -186,7 +226,11 @@ export function useRoutingProgress(itemId: string | null, options?: { disabled?:
             distributedTargets: data.distributedTargets || [],
             ruleNames: data.ruleNames || [],
             totalSuccess: data.totalSuccess || 0,
-            totalFailed: data.totalFailed || 0
+            totalFailed: data.totalFailed || 0,
+            matchedTargetName: null,
+            matchedTargetId: null,
+            matchedTargetServerType: null,
+            matchedTargetLogoColor: null,
           }))
           // Auto-disconnect on completion
           disconnect()
@@ -197,6 +241,10 @@ export function useRoutingProgress(itemId: string | null, options?: { disabled?:
             ...prev,
             status: 'error',
             message: t('routingProgress.error'),
+            matchedTargetName: null,
+            matchedTargetId: null,
+            matchedTargetServerType: null,
+            matchedTargetLogoColor: null,
             error: data.error
           }))
           // Auto-disconnect on error
@@ -228,24 +276,17 @@ export function useRoutingProgress(itemId: string | null, options?: { disabled?:
         return
       }
 
-      // 将 token 同步到 cookie，确保后台可以通过 cookie 进行校验（避免使用触发预检的自定义头）
-      if (typeof document !== 'undefined') {
-        const cookieName = 'superinbox_auth_token'
-        const secureFlag = typeof window !== 'undefined' && window.location.protocol === 'https:' ? '; Secure' : ''
-        document.cookie = `${cookieName}=${encodeURIComponent(token)}; Path=/; SameSite=Lax${secureFlag}`
-      }
-
       setState(prev => ({ ...prev, isConnected: false }))
 
-      // 直接连接后端（绕过 Next.js 代理，因为代理不支持 SSE）
-      // 使用 fetch + ReadableStream 替代 EventSource，并依赖 cookie 进行认证
-      const backendUrl = getBackendDirectUrl()
-      const response = await fetch(`${backendUrl}/v1/inbox/${itemId}/routing-progress`, {
+      // 通过同源 /v1 代理连接 SSE，避免 token 暴露在 URL
+      const sseUrl = `${getApiBaseUrl()}/inbox/${itemId}/routing-progress`
+
+      const response = await fetch(sseUrl, {
         method: 'GET',
         headers: {
           'Accept': 'text/event-stream',
+          'Authorization': `Bearer ${token}`,
         },
-        credentials: 'include',
         signal: abortControllerRef.current?.signal,
       })
 
@@ -328,7 +369,7 @@ export function useRoutingProgress(itemId: string | null, options?: { disabled?:
         }))
       }
     }
-  }, [itemId, handleEvent, disabled, getBackendDirectUrl])
+  }, [itemId, handleEvent, disabled])
 
   // 手动重连
   const reconnect = useCallback(() => {
@@ -346,6 +387,10 @@ export function useRoutingProgress(itemId: string | null, options?: { disabled?:
         ...prev,
         status: 'pending',
         message: t('routePending'),
+        matchedTargetName: null,
+        matchedTargetId: null,
+        matchedTargetServerType: null,
+        matchedTargetLogoColor: null,
         isConnected: false,
         error: null
       }))
@@ -359,8 +404,8 @@ export function useRoutingProgress(itemId: string | null, options?: { disabled?:
 
     if (itemId && !disabled) {
       connect(currentConnectionId)
-    } else {
-      console.log(`[useRoutingProgress] No itemId provided or disabled`)
+    } else if (!itemId) {
+      console.log('[useRoutingProgress] No itemId provided')
     }
 
     return () => {
