@@ -99,13 +99,50 @@ const isHexColor = (value: string): boolean => {
   return /^#[0-9a-fA-F]{6}$/.test(value)
 }
 
-const hexToRgba = (hexColor: string, alpha: number): string => {
+const hexToRgb = (hexColor: string) => {
   const sanitized = hexColor.replace('#', '')
-  const r = Number.parseInt(sanitized.slice(0, 2), 16)
-  const g = Number.parseInt(sanitized.slice(2, 4), 16)
-  const b = Number.parseInt(sanitized.slice(4, 6), 16)
+  return {
+    r: Number.parseInt(sanitized.slice(0, 2), 16),
+    g: Number.parseInt(sanitized.slice(2, 4), 16),
+    b: Number.parseInt(sanitized.slice(4, 6), 16),
+  }
+}
 
+const rgbToHex = (r: number, g: number, b: number): string => {
+  const clamp = (value: number) => Math.min(255, Math.max(0, Math.round(value)))
+  return `#${clamp(r).toString(16).padStart(2, '0')}${clamp(g)
+    .toString(16)
+    .padStart(2, '0')}${clamp(b).toString(16).padStart(2, '0')}`
+}
+
+const mixHexColors = (baseHexColor: string, targetHexColor: string, ratio: number): string => {
+  const base = hexToRgb(baseHexColor)
+  const target = hexToRgb(targetHexColor)
+  const safeRatio = Math.min(1, Math.max(0, ratio))
+
+  return rgbToHex(
+    base.r + (target.r - base.r) * safeRatio,
+    base.g + (target.g - base.g) * safeRatio,
+    base.b + (target.b - base.b) * safeRatio
+  )
+}
+
+const hexToRgba = (hexColor: string, alpha: number): string => {
+  const { r, g, b } = hexToRgb(hexColor)
   return `rgba(${r}, ${g}, ${b}, ${Math.min(1, Math.max(0, alpha)).toFixed(2)})`
+}
+
+export type CategoryAppearanceTheme = 'light' | 'dark'
+
+const getThemeAdjustedCategoryColor = (
+  color: string,
+  theme: CategoryAppearanceTheme = 'light'
+): string => {
+  if (theme === 'dark') {
+    return mixHexColors(color, '#ffffff', 0.30)
+  }
+
+  return color
 }
 
 export const getAutoCategoryColor = (key?: string): string => {
@@ -134,6 +171,20 @@ export const resolveCategoryColor = (key?: string, color?: string): string => {
   return getAutoCategoryColor(normalizedKey)
 }
 
+export const getCategoryDisplayColor = (
+  key?: string,
+  color?: string,
+  theme: CategoryAppearanceTheme = 'light'
+): string => {
+  const resolved = resolveCategoryColor(key, color)
+
+  if (normalizeCategoryKey(key) === UNKNOWN_CATEGORY_KEY) {
+    return resolved
+  }
+
+  return getThemeAdjustedCategoryColor(resolved, theme)
+}
+
 export const resolveCategoryIconName = (
   key?: string,
   icon?: string
@@ -153,19 +204,44 @@ export const getCategoryIconComponent = (icon?: string, key?: string): LucideIco
   return CATEGORY_ICON_COMPONENTS[iconName] || Inbox
 }
 
-export const getCategoryBadgeStyle = (key?: string, color?: string): CSSProperties => {
-  const resolved = resolveCategoryColor(key, color)
+export const getCategoryBadgeStyle = (
+  key?: string,
+  color?: string,
+  theme: CategoryAppearanceTheme = 'light'
+): CSSProperties => {
+  const adjustedColor = getCategoryDisplayColor(key, color, theme)
+
+  if (theme === 'dark') {
+    return {
+      color: adjustedColor,
+      borderColor: hexToRgba(adjustedColor, 0.55),
+      backgroundColor: hexToRgba(adjustedColor, 0.26),
+    }
+  }
+
   return {
-    color: resolved,
-    borderColor: hexToRgba(resolved, 0.35),
-    backgroundColor: hexToRgba(resolved, 0.14),
+    color: adjustedColor,
+    borderColor: hexToRgba(adjustedColor, 0.35),
+    backgroundColor: hexToRgba(adjustedColor, 0.14),
   }
 }
 
-export const getCategorySoftStyle = (key?: string, color?: string): CSSProperties => {
-  const resolved = resolveCategoryColor(key, color)
+export const getCategorySoftStyle = (
+  key?: string,
+  color?: string,
+  theme: CategoryAppearanceTheme = 'light'
+): CSSProperties => {
+  const adjustedColor = getCategoryDisplayColor(key, color, theme)
+
+  if (theme === 'dark') {
+    return {
+      color: adjustedColor,
+      backgroundColor: hexToRgba(adjustedColor, 0.24),
+    }
+  }
+
   return {
-    color: resolved,
-    backgroundColor: hexToRgba(resolved, 0.14),
+    color: adjustedColor,
+    backgroundColor: hexToRgba(adjustedColor, 0.14),
   }
 }

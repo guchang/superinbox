@@ -236,7 +236,7 @@ export function AppSidebar({ className }: AppSidebarProps) {
         label: category.label,
         href: `/inbox?category=${category.key}`,
         icon: getCategoryIconComponent(undefined, category.key),
-        iconStyle: getCategorySoftStyle(category.key),
+        iconStyle: getCategorySoftStyle(category.key, undefined, isDark ? 'dark' : 'light'),
         count: 0,
       }))
     }
@@ -246,10 +246,10 @@ export function AppSidebar({ className }: AppSidebarProps) {
       label: category.name,
       href: `/inbox?category=${category.key}`,
       icon: getCategoryIconComponent(category.icon, category.key),
-      iconStyle: getCategorySoftStyle(category.key, category.color),
+      iconStyle: getCategorySoftStyle(category.key, category.color, isDark ? 'dark' : 'light'),
       count: countData?.categoryTotals?.get(category.key) ?? 0,
     }))
-  }, [categories, countData])
+  }, [categories, countData, isDark])
 
   // Management 分组
   const managementItems = [

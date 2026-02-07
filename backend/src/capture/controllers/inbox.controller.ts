@@ -736,6 +736,29 @@ export class InboxController {
         .map(r => r.ruleName)
         .filter(Boolean);
 
+      const totalAttempts = successCount + failedCount;
+
+      if (totalAttempts === 0) {
+        logger.info(`No routing rule matched for item ${item.id}, marking routing as skipped`);
+
+        this.db.updateItem(item.id, {
+          distributedTargets,
+          distributionResults: results,
+          routingStatus: 'skipped'
+        });
+
+        sseManager.sendToItem(item.id, {
+          type: 'routing:skipped',
+          itemId: item.id,
+          timestamp: new Date().toISOString(),
+          data: {
+            message: '未匹配到可分发规则'
+          }
+        });
+
+        return;
+      }
+
       // 7. Update item with results and mark as completed
       this.db.updateItem(item.id, {
         distributedTargets,

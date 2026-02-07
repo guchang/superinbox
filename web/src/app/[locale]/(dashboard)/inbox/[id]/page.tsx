@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import { useParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
+import { useTheme } from 'next-themes'
 import { Link, useRouter } from '@/i18n/navigation'
 import { categoriesApi } from '@/lib/api/categories'
 import { inboxApi } from '@/lib/api/inbox'
@@ -31,6 +32,8 @@ export default function InboxDetailPage() {
   const { toast } = useToast()
   const params = useParams()
   const id = params.id as string
+  const { resolvedTheme } = useTheme()
+  const isDark = resolvedTheme === 'dark'
 
   const { data: itemData, isLoading, refetch } = useQuery({
     queryKey: ['inbox', id],
@@ -264,7 +267,8 @@ export default function InboxDetailPage() {
 
   const categoryBadgeStyle = getCategoryBadgeStyle(
     categoryKey,
-    categoryMetaMap.get(categoryKey)?.color
+    categoryMetaMap.get(categoryKey)?.color,
+    isDark ? 'dark' : 'light'
   )
 
   const distributionEntries = (() => {

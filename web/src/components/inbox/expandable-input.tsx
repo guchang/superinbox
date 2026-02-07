@@ -4,7 +4,7 @@ import { useState, useRef, useCallback, useEffect } from 'react'
 import { useTranslations } from 'next-intl'
 import { useTheme } from 'next-themes'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Image as ImageIcon, Paperclip, Mic, X, Loader2, Plus, ChevronRight, FileText, Play } from 'lucide-react'
+import { Image as ImageIcon, Paperclip, Mic, X, Loader2, Plus, FileText, Play } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
 import { useIsMobile } from '@/hooks/use-is-mobile'
@@ -50,17 +50,33 @@ export function ExpandableInput({ onSubmit, isSubmitting = false }: ExpandableIn
 
   const [animationPhase, setAnimationPhase] = useState<AnimationPhase>('idle')
   const [selectedFiles, setSelectedFiles] = useState<SelectedUpload[]>([])
+  const [isMobilePanelOpen, setIsMobilePanelOpen] = useState(false)
   const hasInputContent = content.trim().length > 0
   const hasSelectedFiles = selectedFiles.length > 0
-  const isExpanded = isFocused || hasInputContent || hasSelectedFiles
+  const desktopExpanded = isFocused || hasInputContent || hasSelectedFiles
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const imageInputRef = useRef<HTMLInputElement>(null)
   const isMobile = useIsMobile()
+  const isExpanded = isMobile ? isMobilePanelOpen : desktopExpanded
   const [showFloatingButton, setShowFloatingButton] = useState(!isExpanded)
   const closeTimerRef = useRef<NodeJS.Timeout | null>(null)
   const previousExpanded = useRef(isExpanded)
   const selectedFilesRef = useRef<SelectedUpload[]>([])
+
+  const openInputPanel = useCallback(() => {
+    setIsFocused(true)
+    if (isMobile) {
+      setIsMobilePanelOpen(true)
+    }
+  }, [isMobile])
+
+  const closeInputPanel = useCallback(() => {
+    setIsFocused(false)
+    if (isMobile) {
+      setIsMobilePanelOpen(false)
+    }
+  }, [isMobile])
 
   // 吸收动效提交 - 三阶段：absorbing -> collapsing -> diving
   const handleSubmit = useCallback(async () => {
@@ -97,9 +113,9 @@ export function ExpandableInput({ onSubmit, isSubmitting = false }: ExpandableIn
       })
       return []
     })
-    setIsFocused(false)
+    closeInputPanel()
     setAnimationPhase('idle')
-  }, [content, selectedFiles, onSubmit, toast, common, t])
+  }, [content, selectedFiles, onSubmit, toast, common, t, closeInputPanel])
 
   // 处理文件选择
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -142,9 +158,9 @@ export function ExpandableInput({ onSubmit, isSubmitting = false }: ExpandableIn
       handleSubmit()
     }
     if (e.key === 'Escape' && isExpanded) {
-      setIsFocused(false)
+      closeInputPanel()
     }
-  }, [handleSubmit, isExpanded])
+  }, [handleSubmit, isExpanded, closeInputPanel])
 
   const isAnimating = animationPhase !== 'idle'
   const isCollapsing = animationPhase === 'collapsing'
@@ -198,12 +214,12 @@ export function ExpandableInput({ onSubmit, isSubmitting = false }: ExpandableIn
     if (!isExpanded) return
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
-        setIsFocused(false)
+        closeInputPanel()
       }
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [isExpanded])
+  }, [isExpanded, closeInputPanel])
 
   const panelHeight = isExpanded ? 220 : 56
   const panelRadius = isExpanded ? 32 : 28
@@ -230,11 +246,7 @@ export function ExpandableInput({ onSubmit, isSubmitting = false }: ExpandableIn
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40 md:hidden"
-            onClick={() => {
-              if (!hasInputContent && !hasSelectedFiles) {
-                setIsFocused(false)
-              }
-            }}
+            onClick={closeInputPanel}
           />
         )}
       </AnimatePresence>
@@ -281,13 +293,18 @@ export function ExpandableInput({ onSubmit, isSubmitting = false }: ExpandableIn
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.9 }}
             transition={{ duration: 0.18, ease: 'easeOut' }}
-            onClick={() => setIsFocused(true)}
+            onClick={openInputPanel}
+            aria-label={t('captureButton')}
             className={cn(
-              "fixed bottom-8 right-8 z-[60] h-14 w-14 rounded-full shadow-2xl flex items-center justify-center md:hidden",
-              isDark ? 'bg-[#12121a] text-white' : 'bg-white text-black'
+              "fixed bottom-[calc(env(safe-area-inset-bottom)+16px)] right-4 z-[60] flex h-12 items-center gap-2 rounded-full px-4 md:hidden",
+              "ring-1 transition-all duration-200 active:scale-95",
+              isDark
+                ? 'border border-white bg-[#151922] text-white ring-white/30 shadow-[0_14px_30px_rgba(0,0,0,0.38)]'
+                : 'bg-[#0f172a] text-white ring-black/10 shadow-[0_12px_28px_rgba(15,23,42,0.28)]'
             )}
           >
-            <Plus size={24} />
+            <Plus size={16} strokeWidth={2.8} />
+            <span className="text-xs font-black uppercase tracking-wide">{t('captureButton')}</span>
           </motion.button>
         )}
       </AnimatePresence>
@@ -303,8 +320,8 @@ export function ExpandableInput({ onSubmit, isSubmitting = false }: ExpandableIn
                 : 'md:max-w-2xl md:mx-auto md:p-0'
             )}
             onClick={() => {
-              if (isMobile && !hasInputContent && !hasSelectedFiles) {
-                setIsFocused(false)
+              if (isMobile) {
+                closeInputPanel()
               }
             }}
           >
@@ -319,7 +336,7 @@ export function ExpandableInput({ onSubmit, isSubmitting = false }: ExpandableIn
                   event.stopPropagation()
                   return
                 }
-                setIsFocused(true)
+                openInputPanel()
               }}
             >
 
@@ -335,10 +352,9 @@ export function ExpandableInput({ onSubmit, isSubmitting = false }: ExpandableIn
               value={content}
               onChange={(e) => setContent(e.target.value)}
               onKeyDown={handleKeyDown}
-              onFocus={() => setIsFocused(true)}
+              onFocus={openInputPanel}
               onBlur={() => {
-                // 仅当没有内容且没有文件时才失去焦点收起
-                if (!hasInputContent && !hasSelectedFiles) {
+                if (!isMobile && !hasInputContent && !hasSelectedFiles) {
                   setIsFocused(false)
                 }
               }}
@@ -445,7 +461,7 @@ export function ExpandableInput({ onSubmit, isSubmitting = false }: ExpandableIn
                   <span className="w-4" />
                   <button
                     type="button"
-                    onMouseDown={(e) => { e.preventDefault(); toast({ title: t('voiceComingSoon') }) }}
+                    onMouseDown={(e) => { e.preventDefault(); toast({ title: t('voiceComingSoon'), channel: 'development' }) }}
                     className="p-2 rounded-lg transition-all hover:opacity-100"
                   >
                     <Mic size={18} />
@@ -457,9 +473,10 @@ export function ExpandableInput({ onSubmit, isSubmitting = false }: ExpandableIn
                   type="button"
                   onMouseDown={(e) => { e.preventDefault(); handleSubmit() }}
                   disabled={!hasInputContent && !hasSelectedFiles}
+                  aria-label={t('captureButton')}
                   className={cn(
                     'px-6 py-2 rounded-2xl text-[11px] font-black uppercase tracking-widest',
-                    'flex items-center gap-1 transition-all',
+                    'flex items-center justify-center transition-all',
                     isDark ? 'bg-white text-black hover:bg-white/90' : 'bg-black text-white hover:bg-black/90',
                     'disabled:opacity-30 disabled:cursor-not-allowed'
                   )}
@@ -467,10 +484,7 @@ export function ExpandableInput({ onSubmit, isSubmitting = false }: ExpandableIn
                   {isSubmitting ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
-                    <>
-                      Capture
-                      <ChevronRight size={14} className="inline ml-1" />
-                    </>
+                    <span className="text-center">{t('captureButton')}</span>
                   )}
                 </button>
               </motion.div>

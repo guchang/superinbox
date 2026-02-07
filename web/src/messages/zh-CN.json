@@ -314,7 +314,7 @@
     "inputPlaceholder": "记录点什么...",
     "inputPlaceholderExpanded": "记录想法、待办、账单、URL...",
     "voiceComingSoon": "语音输入即将推出",
-    "captureButton": "记录",
+    "captureButton": "记一下",
     "inputHint": "按 Cmd/Ctrl + Enter 提交，ESC 取消",
     "sections": {
       "content": "原始内容",
@@ -1303,7 +1303,7 @@
     "description": "管理 AI 分类引擎的分类规则和示例数据，启用后将参与内容智能分类。",
     "actions": {
       "addCategory": "新增分类",
-      "openLibrary": "分类库",
+      "openLibrary": "分类模板库",
       "edit": "编辑",
       "save": "保存",
       "editCategory": "编辑分类",
@@ -1332,7 +1332,7 @@
       "empty": "暂无分类"
     },
     "library": {
-      "title": "分类库",
+      "title": "分类模板库",
       "description": "按场景与分类多选导入，导入后默认停用，可按需启用。",
       "scenarioTitle": "1. 选择场景（可多选）",
       "categorySelectionTitle": "2. 选择要导入的分类",

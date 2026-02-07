@@ -256,6 +256,14 @@ export const CATEGORY_LIBRARY_SCENARIOS: CategoryLibraryScenario[] = [
         color: '#65a30d',
       },
       {
+        key: 'weight_log',
+        name: '体重记录',
+        description: '体重变化记录与目标追踪。',
+        examples: ['本周体重趋势', '减脂期每晨称重'],
+        icon: 'target',
+        color: '#0ea5e9',
+      },
+      {
         key: 'wellness_goal',
         name: '生活目标',
         description: '睡眠、习惯和身心状态目标。',
@@ -479,6 +487,11 @@ const CATEGORY_LIBRARY_EN_CONTENT_BY_KEY: Record<string, CategoryLibraryCategory
     name: 'Meal Log',
     description: 'Nutrition notes, calorie tracking, and meal plans.',
     examples: ['Weekly meal log', 'Reduce sugar intake plan'],
+  },
+  weight_log: {
+    name: 'Weight Log',
+    description: 'Track weight changes and progress toward goals.',
+    examples: ['Weekly weight trend', 'Daily morning weigh-in during cut'],
   },
   wellness_goal: {
     name: 'Wellness Goals',

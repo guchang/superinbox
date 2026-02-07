@@ -12,7 +12,10 @@ import { RoutingStatus } from '@/components/inbox/routing-status'
 import { formatRelativeTime } from '@/lib/utils'
 import { cn } from '@/lib/utils'
 import { getApiBaseUrl } from '@/lib/api/base-url'
-import { getCategoryBadgeStyle, resolveCategoryColor } from '@/lib/category-appearance'
+import {
+  getCategoryBadgeStyle,
+  getCategoryDisplayColor,
+} from '@/lib/category-appearance'
 import { inboxApi } from '@/lib/api/inbox'
 import {
   DropdownMenu,
@@ -101,8 +104,9 @@ function MemoryCardComponent({
 
   const categoryKey = item.analysis?.category ?? 'unknown'
   const categoryMeta = categoryMetaMap?.get(categoryKey)
-  const categoryColor = resolveCategoryColor(categoryKey, categoryMeta?.color)
-  const badgeStyle = getCategoryBadgeStyle(categoryKey, categoryMeta?.color)
+  const themeMode = isDark ? 'dark' : 'light'
+  const categoryColor = getCategoryDisplayColor(categoryKey, categoryMeta?.color, themeMode)
+  const badgeStyle = getCategoryBadgeStyle(categoryKey, categoryMeta?.color, themeMode)
   const fallbackAccentColor =
     FALLBACK_ACCENT_BY_CATEGORY[categoryKey] || (resolvedTheme === 'dark' ? '#94a3b8' : '#64748b')
   const accentColor = categoryColor || fallbackAccentColor
@@ -327,7 +331,7 @@ function MemoryCardComponent({
       exit={{ opacity: 0, scale: 0.95 }}
       onClick={handleCardClick}
       className={cn(
-        "group rounded-[24px] p-5 relative transition-all break-inside-avoid mb-4 overflow-hidden min-h-[180px]",
+        "group rounded-[24px] p-5 relative flex transition-all break-inside-avoid mb-4 overflow-hidden min-h-[180px]",
         // 浅色模式: 纯白 + 极淡边框 + 阴影
         "bg-white border border-black/[0.04] shadow-sm hover:shadow-xl",
         // 深色模式: 更接近 inbox-new 的边框/对比
@@ -354,16 +358,16 @@ function MemoryCardComponent({
         </div>
       )}
 
-      <div className="relative z-10 flex flex-col">
+      <div className="relative z-10 flex w-full flex-1 flex-col">
         {/* 顶部：标签和操作区 */}
         <div className="flex justify-between items-center mb-4">
           <div className="flex items-center gap-2">
             <Badge
               variant={badge.variant}
-              className="h-5 border text-[10px] font-black uppercase tracking-widest gap-1"
+              className="h-6 border px-2.5 text-xs font-bold uppercase tracking-wide gap-1"
               style={!isAnalyzing && !isFailed ? badgeStyle : undefined}
             >
-              {isAnalyzing && <Loader2 className="h-3 w-3 animate-spin" />}
+              {isAnalyzing && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
               {badge.label}
             </Badge>
 
@@ -475,7 +479,7 @@ function MemoryCardComponent({
         </div>
 
         {/* 内容 */}
-        <div className="mb-4">
+        <div className="mb-4 flex-1">
           <h3 className={cn(
             "text-lg font-bold leading-tight transition-colors",
             isAnalyzing ? 'text-muted-foreground italic' : (isDark ? 'text-white/95' : 'text-black/95'),
@@ -601,7 +605,8 @@ function MemoryCardComponent({
               initialRuleNames={item.distributedRuleNames}
               routingStatus={item.routingStatus}
               disabled={true}
-              showAnimation={false}
+              showAnimation={true}
+              processingAccentColor={accentColor}
             />
           </div>
         </div>

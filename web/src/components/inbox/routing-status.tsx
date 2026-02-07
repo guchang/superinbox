@@ -4,9 +4,50 @@
  */
 
 import { Badge } from '@/components/ui/badge'
-import { Loader2, CheckCircle, XCircle, Clock, Zap, MinusCircle } from 'lucide-react'
+import { CheckCircle, XCircle, Clock, MinusCircle } from 'lucide-react'
+import { motion } from 'framer-motion'
 import { useRoutingProgress, type RoutingStatus } from '@/hooks/use-routing-progress'
+import type { CSSProperties } from 'react'
 import { useTranslations } from 'next-intl'
+
+const createProcessingTintStyle = (accentColor: string): CSSProperties => ({
+  backgroundColor: `color-mix(in srgb, ${accentColor} 14%, transparent)`,
+  borderColor: `color-mix(in srgb, ${accentColor} 36%, transparent)`,
+  color: accentColor,
+})
+
+interface ProcessingBlocksProps {
+  active: boolean
+  blockClassName: string
+  blockStyle?: { backgroundColor?: string }
+}
+
+function ProcessingBlocks({ active, blockClassName, blockStyle }: ProcessingBlocksProps) {
+  return (
+    <div className="flex gap-0.5 ml-1">
+      {Array.from({ length: 20 }).map((_, index) => (
+        <motion.div
+          key={index}
+          initial={{ opacity: 0.1, scale: 0.8 }}
+          animate={active
+            ? {
+                opacity: [0.1, 0.6, 0.1],
+                scale: [0.8, 1, 0.8],
+              }
+            : { opacity: 0.05 }}
+          transition={{
+            duration: 1.2,
+            repeat: Infinity,
+            delay: index * 0.1,
+            ease: 'easeInOut',
+          }}
+          className={`w-1 h-1 md:w-1.5 md:h-1.5 rounded-[1px] md:rounded-[2px] ${index >= 12 ? 'hidden md:block' : ''} ${blockClassName}`}
+          style={blockStyle}
+        />
+      ))}
+    </div>
+  )
+}
 
 interface RoutingStatusProps {
   itemId: string
@@ -16,9 +57,10 @@ interface RoutingStatusProps {
   className?: string
   disabled?: boolean  // 禁用 SSE 连接
   showAnimation?: boolean  // 是否显示动画效果
+  processingAccentColor?: string
 }
 
-export function RoutingStatus({ itemId, initialDistributedTargets = [], initialRuleNames = [], routingStatus, className, disabled = false, showAnimation = true }: RoutingStatusProps) {
+export function RoutingStatus({ itemId, initialDistributedTargets = [], initialRuleNames = [], routingStatus, className, disabled = false, showAnimation = true, processingAccentColor }: RoutingStatusProps) {
   const t = useTranslations('inbox')
   const progress = useRoutingProgress(itemId, { disabled })
 
@@ -59,6 +101,7 @@ export function RoutingStatus({ itemId, initialDistributedTargets = [], initialR
       error={progress.error}
       showIndicator={showIndicator}
       showAnimation={showAnimation}
+      processingAccentColor={processingAccentColor}
     />
   )
 }
@@ -72,6 +115,7 @@ interface RoutingStatusBadgeProps {
   error: string | null
   showIndicator?: boolean
   showAnimation?: boolean  // 是否显示动画效果
+  processingAccentColor?: string
 }
 
 function RoutingStatusBadge({
@@ -82,7 +126,8 @@ function RoutingStatusBadge({
   isConnected,
   error,
   showIndicator = false,
-  showAnimation = true
+  showAnimation = true,
+  processingAccentColor
 }: RoutingStatusBadgeProps) {
   const t = useTranslations('inbox')
   
@@ -92,66 +137,89 @@ function RoutingStatusBadge({
       case 'pending':
         return {
           variant: 'outline' as const,
-          className: 'text-xs border-amber-200 text-amber-700 bg-amber-50',
-          icon: <Clock className="h-3 w-3 mr-1" />,
-          text: message || t('routingStatus.pending')
+          className: 'text-xs border-amber-400/30 bg-amber-100/10 text-amber-700/80 dark:border-amber-300/18 dark:bg-amber-300/6 dark:text-amber-200/75',
+          icon: <Clock className="h-2.5 w-2.5 mr-1 opacity-65" />,
+          text: message || t('routingStatus.pending'),
+          processingBlockClassName: ''
         }
 
       case 'skipped':
         return {
           variant: 'outline' as const,
-          className: 'text-xs border-gray-300 text-gray-500 bg-gray-50',
-          icon: <MinusCircle className="h-3 w-3 mr-1" />,
-          text: message || t('routingStatus.skipped')
+          className: 'text-xs border-zinc-400/30 bg-zinc-500/5 text-zinc-600/78 dark:border-zinc-200/16 dark:bg-white/4 dark:text-zinc-300/65',
+          icon: <MinusCircle className="h-2.5 w-2.5 mr-1 opacity-60" />,
+          text: message || t('routingStatus.skipped'),
+          processingBlockClassName: ''
         }
 
       case 'processing':
         return {
           variant: 'outline' as const,
-          className: `text-xs border-blue-200 text-blue-700 bg-blue-50 ${showAnimation ? 'animate-pulse' : ''}`,
-          icon: <Loader2 className={`h-3 w-3 mr-1 ${showAnimation ? 'animate-spin' : ''}`} />,
-          text: message || t('routingStatus.processing')
+          className: 'text-xs border-blue-300/80 bg-blue-50 text-blue-800 dark:border-blue-400/25 dark:bg-blue-500/10 dark:text-blue-200',
+          icon: null,
+          text: message || t('routingStatus.processing'),
+          processingBlockClassName: 'bg-blue-600/70 dark:bg-blue-300/80'
         }
 
       case 'completed':
         return {
           variant: 'outline' as const,
-          className: 'text-xs border-green-200 text-green-700 bg-green-50 hover:bg-green-100 hover:border-green-300',
-          icon: <CheckCircle className="h-3 w-3 mr-1" />,
+          className: 'text-xs border-emerald-400/30 bg-emerald-100/10 text-emerald-700/80 dark:border-emerald-300/18 dark:bg-emerald-300/6 dark:text-emerald-200/75',
+          icon: <CheckCircle className="h-2.5 w-2.5 mr-1 opacity-65" />,
           text: ruleNames.length > 0
             ? t('routingStatus.distributedWithRules', { rules: ruleNames.join(', ') })
-            : t('routingStatus.completed')
+            : t('routingStatus.completed'),
+          processingBlockClassName: ''
         }
 
       case 'error':
         return {
           variant: 'outline' as const,
-          className: 'text-xs border-red-200 text-red-700 bg-red-50',
+          className: 'text-xs border-rose-300/80 bg-rose-50 text-rose-800 dark:border-rose-400/25 dark:bg-rose-500/10 dark:text-rose-200',
           icon: <XCircle className="h-3 w-3 mr-1" />,
-          text: message || t('routingStatus.failed')
+          text: message || t('routingStatus.failed'),
+          processingBlockClassName: ''
         }
 
       default:
         return {
           variant: 'outline' as const,
-          className: 'text-xs border-gray-200 text-gray-600 bg-gray-50',
+          className: 'text-xs border-gray-200/80 bg-gray-50 text-gray-600 dark:border-white/15 dark:bg-white/5 dark:text-white/55',
           icon: <Clock className="h-3 w-3 mr-1" />,
-          text: '未知状态'
+          text: '未知状态',
+          processingBlockClassName: ''
         }
     }
   }
 
   const config = getStatusConfig()
+  const normalizedProcessingAccent = processingAccentColor?.trim()
+  const hasProcessingAccent = status === 'processing' && Boolean(normalizedProcessingAccent)
+  const processingBadgeStyle = hasProcessingAccent && normalizedProcessingAccent
+    ? createProcessingTintStyle(normalizedProcessingAccent)
+    : undefined
+  const processingBlockStyle = hasProcessingAccent && normalizedProcessingAccent
+    ? { backgroundColor: normalizedProcessingAccent }
+    : undefined
+  const processingBlockClassName = hasProcessingAccent ? '' : config.processingBlockClassName
 
   return (
     <div className={`flex items-center gap-2 ${showIndicator ? 'pr-1' : ''}`}>
       <Badge
         variant={config.variant}
-        className={`${config.className} max-w-[200px] sm:max-w-none truncate`}
+        className={`${config.className} max-w-full md:max-w-[320px] truncate`}
+        style={processingBadgeStyle}
         title={error ? `错误: ${error}` : message}
       >
         {config.icon}
         <span className="truncate">{config.text}</span>
+        {status === 'processing' && (
+          <ProcessingBlocks
+            active={showAnimation}
+            blockClassName={processingBlockClassName}
+            blockStyle={processingBlockStyle}
+          />
+        )}
       </Badge>
 
       {/* 连接状态指示器（仅开发模式 + SSE 活跃时显示） */}
