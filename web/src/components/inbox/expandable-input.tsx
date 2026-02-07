@@ -8,6 +8,7 @@ import { Image as ImageIcon, Paperclip, Mic, X, Loader2, Plus, FileText, Play } 
 import { cn } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
 import { useIsMobile } from '@/hooks/use-is-mobile'
+import { useSidebar } from '@/components/ui/sidebar'
 
 interface ExpandableInputProps {
   onSubmit: (content: string, files?: File[]) => void
@@ -58,6 +59,7 @@ export function ExpandableInput({ onSubmit, isSubmitting = false }: ExpandableIn
   const fileInputRef = useRef<HTMLInputElement>(null)
   const imageInputRef = useRef<HTMLInputElement>(null)
   const isMobile = useIsMobile()
+  const { openMobile } = useSidebar()
   const isExpanded = isMobile ? isMobilePanelOpen : desktopExpanded
   const [showFloatingButton, setShowFloatingButton] = useState(!isExpanded)
   const closeTimerRef = useRef<NodeJS.Timeout | null>(null)
@@ -296,7 +298,8 @@ export function ExpandableInput({ onSubmit, isSubmitting = false }: ExpandableIn
             onClick={openInputPanel}
             aria-label={t('captureButton')}
             className={cn(
-              "fixed bottom-[calc(env(safe-area-inset-bottom)+16px)] right-4 z-[60] flex h-12 items-center gap-2 rounded-full px-4 md:hidden",
+              "fixed bottom-[calc(env(safe-area-inset-bottom)+16px)] right-4 flex h-12 items-center gap-2 rounded-full px-4 md:hidden",
+              openMobile ? 'z-30 opacity-0 pointer-events-none' : 'z-[60]',
               "ring-1 transition-all duration-200 active:scale-95",
               isDark
                 ? 'border border-white bg-[#151922] text-white ring-white/30 shadow-[0_14px_30px_rgba(0,0,0,0.38)]'
