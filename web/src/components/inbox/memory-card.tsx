@@ -535,7 +535,7 @@ function MemoryCardComponent({
       exit={{ opacity: 0, scale: 0.95 }}
       onClick={handleCardClick}
       className={cn(
-        "group relative mb-4 flex min-h-[168px] break-inside-avoid overflow-hidden rounded-2xl border p-4 transition-shadow duration-200 sm:p-5",
+        "group relative mb-4 flex min-h-[132px] break-inside-avoid overflow-hidden rounded-2xl border p-3.5 transition-shadow duration-200 md:mb-2.5 md:min-h-[140px]",
         "border-slate-200/80 bg-white shadow-[0_4px_14px_-12px_rgba(15,23,42,0.28)] hover:shadow-[0_12px_24px_-18px_rgba(15,23,42,0.32)]",
         "dark:border-white/10 dark:bg-[#17181d] dark:hover:border-white/15 dark:shadow-[0_10px_20px_-14px_rgba(2,6,23,0.72)]",
         isAnalyzing && "ring-1"
