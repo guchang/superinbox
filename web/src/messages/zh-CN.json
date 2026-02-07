@@ -737,6 +737,17 @@
   },
   "settings": {
     "title": "系统设置",
+    "mobileMenu": {
+      "title": "移动端设置中心",
+      "description": "在一个页面中管理账户、偏好和语言",
+      "backAction": "返回设置中心",
+      "sections": {
+        "account": "账户与导航",
+        "preferences": "偏好设置",
+        "language": "语言",
+        "session": "会话"
+      }
+    },
     "theme": {
       "title": "主题设置",
       "description": "选择应用程序的外观主题",

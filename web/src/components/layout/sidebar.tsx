@@ -1,6 +1,6 @@
 "use client"
 
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { Link, usePathname, useRouter } from '@/i18n/navigation'
 import { useSearchParams } from 'next/navigation'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
@@ -39,11 +39,13 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  useSidebar,
 } from '@/components/ui/sidebar'
 import {
   useMemo,
   useState,
   useEffect,
+  useCallback,
   type CSSProperties,
   type ComponentType,
   type DragEvent as ReactDragEvent,
@@ -74,9 +76,10 @@ interface NavItemProps {
   isActive: boolean
   count?: number
   collapsed?: boolean
+  onNavigate?: () => void
 }
 
-function NavItem({ label, icon: Icon, href, iconStyle, isActive, count, collapsed }: NavItemProps) {
+function NavItem({ label, icon: Icon, href, iconStyle, isActive, count, collapsed, onNavigate }: NavItemProps) {
   return (
     <SidebarMenuItem>
       <Link
@@ -87,6 +90,7 @@ function NavItem({ label, icon: Icon, href, iconStyle, isActive, count, collapse
             : 'text-foreground/80 opacity-60 hover:opacity-100 hover:bg-current/5'
         } ${collapsed ? 'justify-center px-2' : ''}`}
         title={collapsed ? label : undefined}
+        onClick={onNavigate}
       >
           <div className={`flex items-center gap-3 ${collapsed ? '' : ''}`}>
             <div
@@ -142,10 +146,12 @@ export function AppSidebar({ className }: AppSidebarProps) {
   const t = useTranslations('sidebar')
   const headerT = useTranslations('header')
   const pathname = usePathname()
+  const currentLocale = useLocale()
   const searchParams = useSearchParams()
   const router = useRouter()
   const queryClient = useQueryClient()
   const [isMobileOpen, setIsMobileOpen] = useState(false)
+  const { setOpenMobile } = useSidebar()
   const { authState, logout } = useAuth()
   const { toast } = useToast()
   const { theme, setTheme } = useTheme()
@@ -157,11 +163,20 @@ export function AppSidebar({ className }: AppSidebarProps) {
   const [draggingIntentId, setDraggingIntentId] = useState<string | null>(null)
   const [dragOverIntentId, setDragOverIntentId] = useState<string | null>(null)
 
+  const closeMobileSidebar = useCallback(() => {
+    setIsMobileOpen(false)
+    setOpenMobile(false)
+  }, [setOpenMobile])
+
+  const searchParamsKey = searchParams?.toString() ?? ''
+
   useEffect(() => {
     setMounted(true)
   }, [])
 
   const handleLogout = async () => {
+    closeMobileSidebar()
+
     try {
       await logout()
       toast({
@@ -176,13 +191,15 @@ export function AppSidebar({ className }: AppSidebarProps) {
   }
 
   const handleLocaleChange = (nextLocale: string) => {
-    if (nextLocale === pathname.split('/')[1]) return
+    if (nextLocale === currentLocale) return
+    closeMobileSidebar()
     const localePattern = new RegExp(`^/(${['zh-CN', 'en'].join('|')})(?=/|$)`)
     const currentPath = window.location.pathname.replace(localePattern, '') || '/'
     window.location.href = `/${nextLocale}${currentPath}`
   }
 
   const handleNavigate = (path: string) => {
+    closeMobileSidebar()
     router.push(path)
   }
 
@@ -198,14 +215,18 @@ export function AppSidebar({ className }: AppSidebarProps) {
       setIsDesktopViewport(isDesktop)
 
       if (isDesktop) {
-        setIsMobileOpen(false)
+        closeMobileSidebar()
       }
     }
 
     checkScreenSize()
     window.addEventListener('resize', checkScreenSize)
     return () => window.removeEventListener('resize', checkScreenSize)
-  }, [])
+  }, [closeMobileSidebar])
+
+  useEffect(() => {
+    closeMobileSidebar()
+  }, [pathname, searchParamsKey, closeMobileSidebar])
 
   // 从 API 获取 categories
   const { data: categoriesData } = useQuery({
@@ -452,6 +473,8 @@ export function AppSidebar({ className }: AppSidebarProps) {
     return getCategoryIconComponent(unknownActiveCategory.icon, unknownActiveCategory.key)
   }, [unknownActiveCategory])
 
+  const isMobileViewport = mounted && !isDesktopViewport
+
   // Mailbox 分组
   const mailboxItems = [
     { id: 'inbox', label: t('items.inbox') || 'All Memories', href: '/inbox', icon: Inbox, count: countData?.inboxTotal ?? 0 },
@@ -525,7 +548,7 @@ export function AppSidebar({ className }: AppSidebarProps) {
             variant="ghost"
             size="icon"
             className="absolute top-4 right-4 h-8 w-8 rounded-lg md:hidden"
-            onClick={() => setIsMobileOpen(false)}
+            onClick={closeMobileSidebar}
           >
             <PanelLeft className="h-4 w-4" />
           </Button>
@@ -535,7 +558,7 @@ export function AppSidebar({ className }: AppSidebarProps) {
           <SidebarMenu>
             <SidebarMenuItem>
               <SidebarMenuButton asChild className="h-9 gap-2">
-                <Link href="/inbox">
+                <Link href="/inbox" onClick={closeMobileSidebar}>
                   <div className="flex h-6 w-6 items-center justify-center rounded bg-primary text-primary-foreground shadow-lg">
                     <Inbox className="h-4 w-4" />
                   </div>
@@ -560,6 +583,7 @@ export function AppSidebar({ className }: AppSidebarProps) {
                     icon={item.icon}
                     isActive={isActive(item.href)}
                     count={item.count}
+                    onNavigate={closeMobileSidebar}
                   />
                 ))}
               </SidebarMenu>
@@ -625,6 +649,7 @@ export function AppSidebar({ className }: AppSidebarProps) {
                       iconStyle={item.iconStyle}
                       isActive={isActive(item.href)}
                       count={item.count}
+                      onNavigate={closeMobileSidebar}
                     />
                   ))}
                 </SidebarMenu>
@@ -751,6 +776,7 @@ export function AppSidebar({ className }: AppSidebarProps) {
                     href={item.href}
                     icon={item.icon}
                     isActive={isActive(item.href)}
+                    onNavigate={closeMobileSidebar}
                   />
                 ))}
               </SidebarMenu>
@@ -761,116 +787,136 @@ export function AppSidebar({ className }: AppSidebarProps) {
         <SidebarFooter className="border-t border-black/[0.03] dark:border-white/[0.03] px-4 py-3">
           <SidebarMenu>
             <SidebarMenuItem>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <SidebarMenuButton
-                    size="lg"
-                    className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
-                  >
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted text-xs font-semibold text-muted-foreground">
-                      {userInitials}
-                    </div>
-                    <div className="grid flex-1 text-left text-sm leading-tight">
-                      <span className="truncate font-medium">{userName}</span>
-                      <span className="truncate text-xs text-muted-foreground">{userEmail}</span>
-                    </div>
-                    <MoreVertical className="ml-auto size-4 text-muted-foreground" />
-                  </SidebarMenuButton>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent
-                  className="w-56"
-                  side="right"
-                  align="end"
-                  sideOffset={4}
+              {isMobileViewport ? (
+                <SidebarMenuButton
+                  size="lg"
+                  className={cn(
+                    'data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground',
+                    pathname.startsWith('/settings/mobile') && 'bg-sidebar-accent text-sidebar-accent-foreground'
+                  )}
+                  onClick={() => handleNavigate('/settings/mobile')}
                 >
-                  <DropdownMenuLabel>
-                    <div className="flex flex-col space-y-1">
-                      <p className="text-sm font-medium leading-none">{userName}</p>
-                      <p className="text-xs leading-none text-muted-foreground">
-                        {userEmail}
-                      </p>
-                    </div>
-                  </DropdownMenuLabel>
-                  <DropdownMenuSeparator />
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted text-xs font-semibold text-muted-foreground">
+                    {userInitials}
+                  </div>
+                  <div className="grid flex-1 text-left text-sm leading-tight">
+                    <span className="truncate font-medium">{userName}</span>
+                    <span className="truncate text-xs text-muted-foreground">{userEmail}</span>
+                  </div>
+                  <Settings className="ml-auto size-4 text-muted-foreground" />
+                </SidebarMenuButton>
+              ) : (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <SidebarMenuButton
+                      size="lg"
+                      className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+                    >
+                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted text-xs font-semibold text-muted-foreground">
+                        {userInitials}
+                      </div>
+                      <div className="grid flex-1 text-left text-sm leading-tight">
+                        <span className="truncate font-medium">{userName}</span>
+                        <span className="truncate text-xs text-muted-foreground">{userEmail}</span>
+                      </div>
+                      <MoreVertical className="ml-auto size-4 text-muted-foreground" />
+                    </SidebarMenuButton>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent
+                    className="w-56"
+                    side="right"
+                    align="end"
+                    sideOffset={4}
+                  >
+                    <DropdownMenuLabel>
+                      <div className="flex flex-col space-y-1">
+                        <p className="text-sm font-medium leading-none">{userName}</p>
+                        <p className="text-xs leading-none text-muted-foreground">
+                          {userEmail}
+                        </p>
+                      </div>
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
 
-                  <DropdownMenuItem
-                    onClick={() => handleNavigate('/dashboard')}
-                    className={cn("cursor-pointer", isActive('/dashboard') && "bg-accent")}
-                  >
-                    <LayoutDashboard className="mr-2 h-4 w-4" />
-                    <span>{t('items.dashboard')}</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => handleNavigate('/settings')}
-                    className={cn("cursor-pointer", isActive('/settings') && "bg-accent")}
-                  >
-                    <Settings className="mr-2 h-4 w-4" />
-                    <span>{t('items.settings')}</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => handleNavigate('/settings/api-keys')}
-                    className={cn("cursor-pointer", isActive('/settings/api-keys') && "bg-accent")}
-                  >
-                    <Key className="mr-2 h-4 w-4" />
-                    <span>{t('items.apiKeys')}</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => handleNavigate('/settings/logs')}
-                    className={cn("cursor-pointer", isActive('/settings/logs') && "bg-accent")}
-                  >
-                    <Shield className="mr-2 h-4 w-4" />
-                    <span>{t('items.logs')}</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => handleNavigate('/settings/statistics')}
-                    className={cn("cursor-pointer", isActive('/settings/statistics') && "bg-accent")}
-                  >
-                    <BarChart3 className="mr-2 h-4 w-4" />
-                    <span>{t('items.statistics')}</span>
-                  </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => handleNavigate('/dashboard')}
+                      className={cn("cursor-pointer", isActive('/dashboard') && "bg-accent")}
+                    >
+                      <LayoutDashboard className="mr-2 h-4 w-4" />
+                      <span>{t('items.dashboard')}</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => handleNavigate('/settings')}
+                      className={cn("cursor-pointer", isActive('/settings') && "bg-accent")}
+                    >
+                      <Settings className="mr-2 h-4 w-4" />
+                      <span>{t('items.settings')}</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => handleNavigate('/settings/api-keys')}
+                      className={cn("cursor-pointer", isActive('/settings/api-keys') && "bg-accent")}
+                    >
+                      <Key className="mr-2 h-4 w-4" />
+                      <span>{t('items.apiKeys')}</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => handleNavigate('/settings/logs')}
+                      className={cn("cursor-pointer", isActive('/settings/logs') && "bg-accent")}
+                    >
+                      <Shield className="mr-2 h-4 w-4" />
+                      <span>{t('items.logs')}</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => handleNavigate('/settings/statistics')}
+                      className={cn("cursor-pointer", isActive('/settings/statistics') && "bg-accent")}
+                    >
+                      <BarChart3 className="mr-2 h-4 w-4" />
+                      <span>{t('items.statistics')}</span>
+                    </DropdownMenuItem>
 
-                  <DropdownMenuSeparator />
+                    <DropdownMenuSeparator />
 
-                  <DropdownMenuItem
-                    onClick={() => setTheme(isDark ? "light" : "dark")}
-                    className="cursor-pointer"
-                  >
-                    {isDark ? (
-                      <Sun className="mr-2 h-4 w-4" />
-                    ) : (
-                      <Moon className="mr-2 h-4 w-4" />
-                    )}
-                    <span>{isDark ? headerT('theme.light') : headerT('theme.dark')}</span>
-                  </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => setTheme(isDark ? "light" : "dark")}
+                      className="cursor-pointer"
+                    >
+                      {isDark ? (
+                        <Sun className="mr-2 h-4 w-4" />
+                      ) : (
+                        <Moon className="mr-2 h-4 w-4" />
+                      )}
+                      <span>{isDark ? headerT('theme.light') : headerT('theme.dark')}</span>
+                    </DropdownMenuItem>
 
-                  <DropdownMenuSeparator />
+                    <DropdownMenuSeparator />
 
-                  <DropdownMenuLabel>{headerT('language.label')}</DropdownMenuLabel>
-                  <DropdownMenuItem
-                    onClick={() => handleLocaleChange('zh-CN')}
-                    className="cursor-pointer"
-                    disabled={pathname.split('/')[1] === 'zh-CN'}
-                  >
-                    <Languages className="mr-2 h-4 w-4" />
-                    <span>{headerT('language.zh')}</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => handleLocaleChange('en')}
-                    className="cursor-pointer"
-                    disabled={pathname.split('/')[1] === 'en'}
-                  >
-                    <Languages className="mr-2 h-4 w-4" />
-                    <span>{headerT('language.en')}</span>
-                  </DropdownMenuItem>
+                    <DropdownMenuLabel>{headerT('language.label')}</DropdownMenuLabel>
+                    <DropdownMenuItem
+                      onClick={() => handleLocaleChange('zh-CN')}
+                      className="cursor-pointer"
+                      disabled={currentLocale === 'zh-CN'}
+                    >
+                      <Languages className="mr-2 h-4 w-4" />
+                      <span>{headerT('language.zh')}</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => handleLocaleChange('en')}
+                      className="cursor-pointer"
+                      disabled={currentLocale === 'en'}
+                    >
+                      <Languages className="mr-2 h-4 w-4" />
+                      <span>{headerT('language.en')}</span>
+                    </DropdownMenuItem>
 
-                  <DropdownMenuSeparator />
+                    <DropdownMenuSeparator />
 
-                  <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
-                    <LogOut className="mr-2 h-4 w-4" />
-                    <span>{headerT('logout.action')}</span>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+                    <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
+                      <LogOut className="mr-2 h-4 w-4" />
+                      <span>{headerT('logout.action')}</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
             </SidebarMenuItem>
           </SidebarMenu>
         </SidebarFooter>

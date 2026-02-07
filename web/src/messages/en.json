@@ -736,6 +736,17 @@
   },
   "settings": {
     "title": "Settings",
+    "mobileMenu": {
+      "title": "Mobile Settings",
+      "description": "Manage account access, preferences, and language in one page",
+      "backAction": "Back to Settings",
+      "sections": {
+        "account": "Account & Navigation",
+        "preferences": "Preferences",
+        "language": "Language",
+        "session": "Session"
+      }
+    },
     "theme": {
       "title": "Theme",
       "description": "Select the theme for the application",
