@@ -22,6 +22,10 @@ export interface RoutingRuleMatchEvent extends RoutingProgressEvent {
   data: {
     ruleName: string
     ruleId: string
+    targetId?: string
+    targetName?: string
+    targetServerType?: string
+    targetLogoColor?: string
     message: string
   }
 }

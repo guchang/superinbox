@@ -10,6 +10,13 @@ import { logger } from '../middleware/logger.js';
 import { mcpAdapter } from './adapters/mcp-adapter.js';
 import { RateLimiter } from '../utils/rate-limiter.js';
 
+type RuleTargetPreview = {
+  targetId?: string;
+  targetName: string;
+  targetServerType?: string;
+  targetLogoColor?: string;
+};
+
 export class RouterService {
   private registry: AdapterRegistry;
   private db = getDatabase();
@@ -295,11 +302,7 @@ export class RouterService {
 
     try {
       // Get active rules for user
-      const rules = this.db.database.prepare(`
-        SELECT * FROM routing_rules
-        WHERE user_id = ? AND is_active = 1
-        ORDER BY priority DESC, created_at ASC
-      `).all(item.userId) as any[];
+      const rules = this.getActiveRoutingRulesForUser(item.userId);
 
       logger.info(`Found ${rules.length} active routing rules for user ${item.userId}`);
 
@@ -316,13 +319,19 @@ export class RouterService {
         if (this.checkRuleConditions(item, rule)) {
           logger.info(`Rule "${rule.name}" matched for item ${item.id}`);
 
+          const targetPreview = this.extractRuleTargetPreview(rule, item.userId);
+
           // Notify that a rule matched
           if (progressCallback) {
             progressCallback({
               type: 'rule_matched',
               data: {
                 ruleId: rule.id,
-                ruleName: rule.name
+                ruleName: rule.name,
+                targetId: targetPreview?.targetId,
+                targetName: targetPreview?.targetName,
+                targetServerType: targetPreview?.targetServerType,
+                targetLogoColor: targetPreview?.targetLogoColor,
               }
             });
           }
@@ -336,6 +345,198 @@ export class RouterService {
     }
 
     return results;
+  }
+
+  getActiveRoutingRulesForUser(userId: string): any[] {
+    return this.db.database.prepare(`
+      SELECT * FROM routing_rules
+      WHERE user_id = ? AND is_active = 1
+      ORDER BY priority DESC, created_at ASC
+    `).all(userId) as any[];
+  }
+
+  getMatchedRuleTargetPreviews(item: Item, rules?: any[]): RuleTargetPreview[] {
+    const activeRules = rules ?? this.getActiveRoutingRulesForUser(item.userId);
+
+    const targetMap = new Map<string, RuleTargetPreview>();
+
+    for (const rule of activeRules) {
+      if (!this.checkRuleConditions(item, rule)) {
+        continue;
+      }
+
+      const preview = this.extractRuleTargetPreview(rule, item.userId);
+      if (!preview || (!preview.targetName && !preview.targetId)) {
+        continue;
+      }
+
+      const resolvedName = String(preview.targetName || preview.targetId || '').trim();
+      if (!resolvedName) {
+        continue;
+      }
+
+      const normalized: RuleTargetPreview = {
+        targetName: resolvedName,
+        targetId: preview.targetId,
+        targetServerType: preview.targetServerType,
+        targetLogoColor: preview.targetLogoColor,
+      };
+
+      const key = normalized.targetId || normalized.targetName;
+      if (!targetMap.has(key)) {
+        targetMap.set(key, normalized);
+      }
+    }
+
+    return Array.from(targetMap.values());
+  }
+
+  private normalizeActionType(action: any): string {
+    return String(action?.type || '').trim().toLowerCase();
+  }
+
+  private isMcpActionType(actionType: string): boolean {
+    return actionType === 'distribute_mcp' || actionType === 'mcp' || actionType === 'mcp_http';
+  }
+
+  private extractFirstNonEmptyString(candidates: unknown[]): string | undefined {
+    for (const candidate of candidates) {
+      if (typeof candidate !== 'string') continue;
+      const value = candidate.trim();
+      if (value) return value;
+    }
+    return undefined;
+  }
+
+  private findMCPAdapterById(userId: string, adapterId: string): any | null {
+    if (!adapterId) return null;
+
+    return this.db.database.prepare(`
+      SELECT id, name, server_type as serverType, logo_color as logoColor
+      FROM mcp_adapter_configs
+      WHERE id = ? AND user_id = ?
+      LIMIT 1
+    `).get(adapterId, userId) as any;
+  }
+
+  private findMCPAdapterByName(userId: string, connectorName: string): any | null {
+    if (!connectorName) return null;
+
+    return this.db.database.prepare(`
+      SELECT id, name, server_type as serverType, logo_color as logoColor
+      FROM mcp_adapter_configs
+      WHERE name = ? COLLATE NOCASE AND user_id = ?
+      ORDER BY enabled DESC, updated_at DESC
+      LIMIT 1
+    `).get(connectorName, userId) as any;
+  }
+
+  private resolveMCPActionTarget(action: any, userId: string): {
+    adapterId?: string;
+    connectorName?: string;
+    adapter?: any;
+  } {
+    const adapterId = this.extractFirstNonEmptyString([
+      action?.mcp_adapter_id,
+      action?.mcpAdapterId,
+      action?.adapterId,
+      action?.connectorId,
+      action?.config?.mcpAdapterId,
+      action?.config?.mcp_adapter_id,
+      action?.config?.adapterId,
+      action?.config?.connectorId,
+    ]);
+
+    const connectorName = this.extractFirstNonEmptyString([
+      action?.config?.connectorName,
+      action?.connectorName,
+      action?.config?.targetName,
+      action?.targetName,
+      action?.config?.name,
+    ]);
+
+    const adapterById = adapterId ? this.findMCPAdapterById(userId, adapterId) : null;
+    if (adapterById) {
+      return {
+        adapterId: adapterById.id,
+        connectorName: connectorName || adapterById.name,
+        adapter: adapterById,
+      };
+    }
+
+    const adapterByName = connectorName ? this.findMCPAdapterByName(userId, connectorName) : null;
+    if (adapterByName) {
+      return {
+        adapterId: adapterByName.id,
+        connectorName: adapterByName.name || connectorName,
+        adapter: adapterByName,
+      };
+    }
+
+    return {
+      adapterId,
+      connectorName,
+    };
+  }
+
+  private extractRuleTargetPreview(
+    rule: any,
+    userId: string
+  ): { targetId?: string; targetName?: string; targetServerType?: string; targetLogoColor?: string } | null {
+    try {
+      const actions = typeof rule.actions === 'string'
+        ? JSON.parse(rule.actions || '[]')
+        : Array.isArray(rule.actions)
+          ? rule.actions
+          : [];
+
+      if (!Array.isArray(actions) || actions.length === 0) {
+        return null;
+      }
+
+      for (const action of actions) {
+        const actionType = this.normalizeActionType(action);
+
+        if (this.isMcpActionType(actionType)) {
+          const resolvedTarget = this.resolveMCPActionTarget(action, userId);
+
+          if (resolvedTarget.adapter) {
+            return {
+              targetId: resolvedTarget.adapter.id,
+              targetName: resolvedTarget.adapter.name || resolvedTarget.connectorName || resolvedTarget.adapter.id,
+              targetServerType: resolvedTarget.adapter.serverType || undefined,
+              targetLogoColor: resolvedTarget.adapter.logoColor || undefined,
+            };
+          }
+
+          if (resolvedTarget.adapterId || resolvedTarget.connectorName) {
+            return {
+              targetId: resolvedTarget.adapterId,
+              targetName: resolvedTarget.connectorName || resolvedTarget.adapterId,
+            };
+          }
+        }
+
+        if (actionType === 'distribute_adapter' || actionType === 'adapter') {
+          const adapterType = this.extractFirstNonEmptyString([
+            action?.adapter_type,
+            action?.adapterType,
+            action?.config?.adapterType,
+          ]);
+
+          if (adapterType) {
+            return {
+              targetId: adapterType,
+              targetName: adapterType,
+            };
+          }
+        }
+      }
+    } catch (error) {
+      logger.debug(`Failed to extract rule target preview for rule ${rule?.id || 'unknown'}:`, error);
+    }
+
+    return null;
   }
 
   /**
@@ -450,12 +651,17 @@ export class RouterService {
     progressCallback?: (event: { type: string; data?: any }) => void
   ): Promise<DistributionResult | null> {
     const ruleId = rule.id;
-    switch (action.type) {
+    const actionType = this.normalizeActionType(action);
+
+    switch (actionType) {
       case 'distribute_mcp':
+      case 'mcp':
+      case 'mcp_http':
         // Distribute to MCP adapter
         return await this.distributeToMCPAdapter(item, action, rule, progressCallback);
 
       case 'distribute_adapter':
+      case 'adapter':
         // Distribute to traditional adapter
         return await this.distributeToTraditionalAdapter(item, action, rule, progressCallback);
 
@@ -485,7 +691,7 @@ export class RouterService {
         };
 
       default:
-        logger.warn(`Unknown action type: ${action.type}`);
+        logger.warn(`Unknown action type: ${action?.type}`);
         return null;
     }
   }
@@ -504,27 +710,19 @@ export class RouterService {
     const { getDispatcherService } = await import('./dispatcher.service.js');
     const dispatcher = getDispatcherService();
 
-    // Support both mcp_adapter_id and connectorName (from config)
-    let mcpAdapterId = action.mcp_adapter_id;
-
-    if (!mcpAdapterId && action.config?.connectorName) {
-      // Look up adapter by name
-      const connectorName = action.config.connectorName;
-      const row = this.db.database.prepare(`
-        SELECT id FROM mcp_adapter_configs
-        WHERE name = ? AND user_id = ? AND enabled = 1
-      `).get(connectorName, item.userId) as any;
-
-      if (row) {
-        mcpAdapterId = row.id;
-        logger.info(`Resolved connector name "${connectorName}" to adapter ID: ${mcpAdapterId}`);
-      } else {
-        throw new Error(`MCP adapter not found with name: ${connectorName}`);
-      }
-    }
+    const resolvedTarget = this.resolveMCPActionTarget(action, item.userId);
+    const mcpAdapterId = resolvedTarget.adapter?.id || resolvedTarget.adapterId;
 
     if (!mcpAdapterId) {
-      throw new Error('mcp_adapter_id or connectorName is required for distribute_mcp action');
+      throw new Error('mcpAdapterId or connectorName is required for MCP action');
+    }
+
+    if (!resolvedTarget.adapter && resolvedTarget.connectorName) {
+      throw new Error(`MCP adapter not found with name: ${resolvedTarget.connectorName}`);
+    }
+
+    if (!resolvedTarget.adapter && resolvedTarget.adapterId && !resolvedTarget.connectorName) {
+      throw new Error(`MCP adapter not found with id: ${resolvedTarget.adapterId}`);
     }
 
     // Get MCP adapter config to determine serverType for default instructions
@@ -550,7 +748,7 @@ export class RouterService {
       item,
       mcpAdapterId,
       instructions,
-      params: action.config?.params,
+      params: action.config?.params || action.params,
       onProgress: (event, data) => {
         // Forward raw DispatcherService events directly
         if (progressCallback && data) {

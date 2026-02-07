@@ -15,6 +15,7 @@ export type CategoryRecord = {
   examples?: string[];
   icon?: string;
   color?: string;
+  sortOrder?: number;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -73,6 +74,55 @@ const createId = (prefix: string): string => {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 };
 
+const normalizeSortOrder = (value: unknown): number | undefined => {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return undefined;
+  }
+
+  return Math.max(0, Math.floor(value));
+};
+
+const compareCategoryOrder = (a: CategoryRecord, b: CategoryRecord): number => {
+  const aIsUnknown = String(a.key ?? '').trim().toLowerCase() === UNKNOWN_CATEGORY_KEY;
+  const bIsUnknown = String(b.key ?? '').trim().toLowerCase() === UNKNOWN_CATEGORY_KEY;
+
+  if (aIsUnknown !== bIsUnknown) {
+    return aIsUnknown ? 1 : -1;
+  }
+
+  const aSortOrder = normalizeSortOrder(a.sortOrder);
+  const bSortOrder = normalizeSortOrder(b.sortOrder);
+
+  if (aSortOrder !== undefined && bSortOrder !== undefined && aSortOrder !== bSortOrder) {
+    return aSortOrder - bSortOrder;
+  }
+
+  if (aSortOrder !== undefined && bSortOrder === undefined) {
+    return -1;
+  }
+
+  if (aSortOrder === undefined && bSortOrder !== undefined) {
+    return 1;
+  }
+
+  return String(a.createdAt ?? '').localeCompare(String(b.createdAt ?? ''));
+};
+
+const getNextCategorySortOrder = (categories: CategoryRecord[]): number => {
+  return categories.reduce((max, item) => {
+    if (String(item.key ?? '').trim().toLowerCase() === UNKNOWN_CATEGORY_KEY) {
+      return max;
+    }
+
+    const normalizedSortOrder = normalizeSortOrder(item.sortOrder);
+    if (normalizedSortOrder === undefined) {
+      return max;
+    }
+
+    return Math.max(max, normalizedSortOrder);
+  }, 0) + 1;
+};
+
 const defaultCategorySeed = () => {
   const seed = [
     {
@@ -126,10 +176,11 @@ const defaultCategorySeed = () => {
     },
   ];
 
-  return seed.map((item) => ({
+  return seed.map((item, index) => ({
     ...item,
     icon: resolveCategoryIcon(item.key),
     color: resolveCategoryColor(item.key),
+    sortOrder: index + 1,
   }));
 };
 
@@ -146,6 +197,14 @@ const ensureUserCategories = (userId: string): void => {
   const db = getDatabase();
   const existing = db.listAiCategories(userId) as CategoryRecord[];
   if (existing.length > 0) {
+    const orderedExisting = [...existing].sort(compareCategoryOrder);
+    const knownCategoryRecords = orderedExisting.filter(
+      (item) => String(item.key ?? '').trim().toLowerCase() !== UNKNOWN_CATEGORY_KEY
+    );
+    const fallbackSortOrderById = new Map(
+      knownCategoryRecords.map((item, index) => [item.id, index + 1])
+    );
+
     for (const item of existing) {
       const patch: Partial<CategoryRecord> = {};
       const normalizedKey = String(item.key ?? '').trim().toLowerCase();
@@ -160,6 +219,16 @@ const ensureUserCategories = (userId: string): void => {
 
       if (normalizedKey === UNKNOWN_CATEGORY_KEY && !item.isActive) {
         patch.isActive = true;
+      }
+
+      const normalizedSortOrder = normalizeSortOrder(item.sortOrder);
+      const fallbackSortOrder = fallbackSortOrderById.get(item.id);
+      if (
+        normalizedKey !== UNKNOWN_CATEGORY_KEY &&
+        normalizedSortOrder === undefined &&
+        typeof fallbackSortOrder === 'number'
+      ) {
+        patch.sortOrder = fallbackSortOrder;
       }
 
       if (Object.keys(patch).length > 0) {
@@ -179,6 +248,7 @@ const ensureUserCategories = (userId: string): void => {
     examples: item.examples,
     icon: item.icon,
     color: item.color,
+    sortOrder: item.sortOrder,
     isActive: item.isActive,
     createdAt: now,
     updatedAt: now,
@@ -305,16 +375,7 @@ export const listCategories = (userId: string): CategoryRecord[] => {
   const db = getDatabase();
   const categories = db.listAiCategories(userId) as CategoryRecord[];
 
-  return [...categories].sort((a, b) => {
-    const aIsUnknown = String(a.key ?? '').trim().toLowerCase() === UNKNOWN_CATEGORY_KEY;
-    const bIsUnknown = String(b.key ?? '').trim().toLowerCase() === UNKNOWN_CATEGORY_KEY;
-
-    if (aIsUnknown !== bIsUnknown) {
-      return aIsUnknown ? 1 : -1;
-    }
-
-    return String(a.createdAt ?? '').localeCompare(String(b.createdAt ?? ''));
-  });
+  return [...categories].sort(compareCategoryOrder);
 };
 
 export const createCategory = (
@@ -324,12 +385,18 @@ export const createCategory = (
   const db = getDatabase();
   const now = new Date().toISOString();
   const normalizedKey = String(data.key ?? '').trim().toLowerCase();
+  const normalizedSortOrder = normalizeSortOrder(data.sortOrder);
+
+  const nextSortOrder = normalizedKey === UNKNOWN_CATEGORY_KEY
+    ? undefined
+    : (normalizedSortOrder ?? getNextCategorySortOrder(listCategories(userId)));
 
   const record: CategoryRecord = {
     ...data,
     key: normalizedKey,
     icon: resolveCategoryIcon(normalizedKey, data.icon),
     color: resolveCategoryColor(normalizedKey, data.color),
+    sortOrder: nextSortOrder,
     id: createId('cat'),
     userId,
     createdAt: now,
@@ -360,6 +427,10 @@ export const updateCategory = (
 
   if (normalized.color !== undefined || normalized.key !== undefined) {
     normalized.color = resolveCategoryColor(normalized.key, normalized.color);
+  }
+
+  if (normalized.sortOrder !== undefined) {
+    normalized.sortOrder = normalizeSortOrder(normalized.sortOrder);
   }
 
   const patch = omitUndefined(normalized);

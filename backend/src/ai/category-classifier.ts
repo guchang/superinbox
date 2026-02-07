@@ -94,6 +94,13 @@ export class CategoryClassifier {
     categories: CategoryDefinition[],
     customSystemPrompt?: string
   ): string {
+    const normalizedCustomPrompt =
+      typeof customSystemPrompt === 'string' ? customSystemPrompt.trim() : '';
+
+    if (normalizedCustomPrompt) {
+      return normalizedCustomPrompt;
+    }
+
     const categoriesText = categories
       .map((category) => {
         const label = category.name && category.name !== category.key
@@ -107,10 +114,7 @@ export class CategoryClassifier {
       })
       .join('\n');
     const categoryKeys = categories.map((category) => category.key).join(', ');
-    const basePrompt =
-      typeof customSystemPrompt === 'string' && customSystemPrompt.trim().length > 0
-        ? customSystemPrompt.trim()
-        : `You are SuperInbox's AI assistant, responsible for analyzing user input and classifying it into categories.
+    const basePrompt = `You are SuperInbox's AI assistant, responsible for analyzing user input and classifying it into categories.
 
 Your tasks:
 1. Identify the primary category of the content
@@ -137,7 +141,6 @@ Response format (must be valid JSON):
     "amount": 99.99,
     "currency": "CNY",
     "tags": ["shopping", "important"],
-    "category": "shopping",
     "people": ["Zhang San"],
     "location": "Beijing",
     "urls": ["https://example.com"]
@@ -177,54 +180,132 @@ Please identify the category and extract entity information.`;
     allowedKeys: string[],
     categories: CategoryDefinition[]
   ): AIAnalysisResult {
+    const payload = this.isRecord(result) ? result : {};
+
     // Ensure category is valid
     const normalizedCategory =
-      typeof result.category === 'string' ? result.category.trim() : '';
+      typeof payload.category === 'string' ? payload.category.trim() : '';
+    const normalizedCategoryLower = normalizedCategory.toLowerCase();
     const matchedCategory =
-      categories.find((category) => category.key === normalizedCategory) ||
-      categories.find((category) => category.name?.trim() === normalizedCategory);
+      categories.find((category) => category.key.toLowerCase() === normalizedCategoryLower) ||
+      categories.find((category) => category.name?.trim()?.toLowerCase() === normalizedCategoryLower);
     
     if (matchedCategory) {
-      result.category = matchedCategory.key;
-    } else if (allowedKeys.includes(normalizedCategory)) {
-      result.category = normalizedCategory;
+      payload.category = matchedCategory.key;
+    } else if (allowedKeys.some((key) => key.toLowerCase() === normalizedCategoryLower)) {
+      const exactKey = allowedKeys.find((key) => key.toLowerCase() === normalizedCategoryLower);
+      payload.category = exactKey ?? normalizedCategory;
     } else {
-      result.category = 'unknown';
+      payload.category = 'unknown';
     }
 
     // Ensure entities object exists
-    if (!result.entities || typeof result.entities !== 'object') {
-      result.entities = {};
-    }
+    const entitiesInput = this.isRecord(payload.entities) ? payload.entities : {};
 
     // Ensure confidence is a number between 0 and 1
-    if (typeof result.confidence !== 'number' || result.confidence < 0 || result.confidence > 1) {
-      result.confidence = 0.5;
+    if (typeof payload.confidence !== 'number' || payload.confidence < 0 || payload.confidence > 1) {
+      payload.confidence = 0;
     }
 
     // Normalize entities
     const entities: ExtractedEntities = {
-      dates: result.entities.dates ?? [],
-      dueDate: result.entities.dueDate ? new Date(result.entities.dueDate) : undefined,
-      startDate: result.entities.startDate ? new Date(result.entities.startDate) : undefined,
-      amount: result.entities.amount,
-      currency: result.entities.currency,
-      tags: result.entities.tags ?? [],
-      category: result.entities.category,
-      people: result.entities.people ?? [],
-      location: result.entities.location,
-      urls: result.entities.urls ?? [],
-      customFields: result.entities.customFields ?? {}
+      dates: this.normalizeDateArray(entitiesInput.dates),
+      dueDate: this.normalizeDateValue(entitiesInput.dueDate),
+      startDate: this.normalizeDateValue(entitiesInput.startDate),
+      amount: this.normalizeAmount(entitiesInput.amount),
+      currency: this.normalizeCurrency(entitiesInput.currency),
+      tags: this.normalizeStringArray(entitiesInput.tags),
+      people: this.normalizeStringArray(entitiesInput.people),
+      location: this.normalizeString(entitiesInput.location),
+      urls: this.normalizeUrls(entitiesInput.urls),
+      customFields: this.isRecord(entitiesInput.customFields) ? entitiesInput.customFields : {}
     };
 
     return {
-      category: result.category,
+      category: payload.category,
       entities,
-      summary: result.summary,
-      suggestedTitle: result.suggestedTitle,
-      confidence: result.confidence,
-      reasoning: result.reasoning
+      summary: this.normalizeString(payload.summary),
+      suggestedTitle: this.normalizeString(payload.suggestedTitle),
+      confidence: payload.confidence,
+      reasoning: this.normalizeString(payload.reasoning)
     };
+  }
+
+  private isRecord(value: unknown): value is Record<string, any> {
+    return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+  }
+
+  private normalizeString(value: unknown): string | undefined {
+    if (typeof value !== 'string') return undefined;
+    const trimmed = value.trim();
+    return trimmed || undefined;
+  }
+
+  private normalizeStringArray(value: unknown): string[] {
+    if (!Array.isArray(value)) return [];
+    return value
+      .map((item) => this.normalizeString(item))
+      .filter((item): item is string => Boolean(item));
+  }
+
+  private normalizeDateArray(value: unknown): Date[] {
+    if (!Array.isArray(value)) return [];
+    return value
+      .map((item) => this.normalizeDateValue(item))
+      .filter((item): item is Date => Boolean(item));
+  }
+
+  private normalizeDateValue(value: unknown): Date | undefined {
+    if (value instanceof Date && !Number.isNaN(value.getTime())) {
+      return value;
+    }
+
+    if (typeof value !== 'string') {
+      return undefined;
+    }
+
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return undefined;
+    }
+
+    const parsedDate = /^\d{4}-\d{2}-\d{2}$/.test(trimmed)
+      ? new Date(`${trimmed}T00:00:00.000Z`)
+      : new Date(trimmed);
+
+    if (Number.isNaN(parsedDate.getTime())) {
+      return undefined;
+    }
+
+    return parsedDate;
+  }
+
+  private normalizeAmount(value: unknown): number | undefined {
+    if (typeof value !== 'number' || !Number.isFinite(value)) {
+      return undefined;
+    }
+    return value;
+  }
+
+  private normalizeCurrency(value: unknown): string | undefined {
+    if (typeof value !== 'string') {
+      return undefined;
+    }
+    const normalized = value.trim().toUpperCase();
+    return /^[A-Z]{3}$/.test(normalized) ? normalized : undefined;
+  }
+
+  private normalizeUrls(value: unknown): string[] {
+    return this.normalizeStringArray(value).filter((url) => this.isValidUrl(url));
+  }
+
+  private isValidUrl(value: string): boolean {
+    try {
+      const url = new URL(value);
+      return url.protocol === 'http:' || url.protocol === 'https:';
+    } catch {
+      return false;
+    }
   }
 
   private normalizeCategories(categories?: CategoryDefinition[]): CategoryDefinition[] {

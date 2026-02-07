@@ -7,6 +7,7 @@
 import type { Request, Response } from 'express';
 import { getDatabase } from '../../storage/database.js';
 import { sendError } from '../../utils/error-response.js';
+import { randomUUID } from 'crypto';
 
 /**
  * GET /v1/intelligence/parse/:id
@@ -36,9 +37,13 @@ export async function getParseResult(req: Request, res: Response): Promise<void>
       originalContent: item.originalContent,
       parsed: {
         category: item.category,
-        confidence: 0.8, // Default confidence for now
+        confidence: typeof item.aiConfidence === 'number' ? item.aiConfidence : 0,
         entities: item.entities || {}
       },
+      reasoning: item.aiReasoning,
+      promptVersion: item.aiPromptVersion,
+      model: item.aiModel,
+      parseStatus: item.aiParseStatus,
       parsedAt: item.processedAt || item.updatedAt
     });
   } catch (error) {
@@ -75,23 +80,46 @@ export async function updateParseResult(req: Request, res: Response): Promise<vo
       return;
     }
 
+    const correctedCategory = typeof category === 'string' ? category : item.category;
+    const correctedEntities = entities && typeof entities === 'object' ? entities : item.entities;
+
     // Update item with corrected data
     const updatedItem = db.updateItem(id, {
-      category: category || item.category,
-      entities: entities || item.entities,
+      category: correctedCategory,
+      entities: correctedEntities,
+      aiParseStatus: 'success',
+      aiConfidence: item.aiConfidence,
+      aiReasoning: item.aiReasoning,
+      aiPromptVersion: item.aiPromptVersion,
+      aiModel: item.aiModel,
       status: 'completed',
       processedAt: new Date()
     });
 
-    // TODO: Store feedback for AI learning
-    // This should be persisted to a feedback table for future training
-    if (feedback) {
-      console.log(`Feedback received for item ${id}:`, feedback);
+    if (!updatedItem) {
+      sendError(res, {
+        statusCode: 404,
+        code: 'INBOX.NOT_FOUND',
+        message: 'Item not found',
+        params: { id }
+      });
+      return;
     }
+
+    db.createAiFeedback({
+      id: randomUUID(),
+      itemId: id,
+      userId,
+      originalCategory: item.category,
+      correctedCategory,
+      originalEntities: item.entities,
+      correctedEntities,
+      feedback: typeof feedback === 'string' ? feedback : undefined,
+    });
 
     res.json({
       success: true,
-      message: 'Parse result updated and feedback recorded',
+      message: '已更新解析结果并记录反馈',
       updatedAt: updatedItem.updatedAt
     });
   } catch (error) {

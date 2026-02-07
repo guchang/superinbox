@@ -22,9 +22,75 @@ const router = Router();
 
 const requiredFields = ['key', 'name'];
 const UNKNOWN_CATEGORY_KEY = 'unknown';
+const MAX_PROMPT_LENGTH = 20000;
+const REQUIRED_PROMPT_PLACEHOLDERS = [
+  '{{NOW_ISO}}',
+  '{{TIMEZONE}}',
+  '{{CONTENT_TYPE}}',
+  '{{CONTENT}}',
+  '{{ACTIVE_CATEGORY_KEYS_JSON}}',
+  '{{CATEGORY_RULES_JSON}}',
+  '{{FALLBACK_CATEGORY_KEY}}',
+];
 
 const isUnknownCategory = (key?: string): boolean => {
   return String(key ?? '').trim().toLowerCase() === UNKNOWN_CATEGORY_KEY;
+};
+
+const parseSortOrder = (value: unknown): number | undefined => {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return undefined;
+  }
+
+  return Math.max(0, Math.floor(value));
+};
+
+export const validateCategoryPromptContent = (prompt: string): { message?: string; missingPlaceholders?: string[] } => {
+  if (prompt.length > MAX_PROMPT_LENGTH) {
+    return {
+      message: `Prompt is too long (max ${MAX_PROMPT_LENGTH} characters)`,
+    };
+  }
+
+  const missingPlaceholders = REQUIRED_PROMPT_PLACEHOLDERS.filter(
+    (placeholder) => !prompt.includes(placeholder)
+  );
+
+  if (missingPlaceholders.length > 0) {
+    return {
+      message: 'Prompt is missing required runtime placeholders',
+      missingPlaceholders,
+    };
+  }
+
+  const hasJsonOnlyConstraint =
+    /json/i.test(prompt) &&
+    /(only|合法|valid|仅|strict)/i.test(prompt);
+  if (!hasJsonOnlyConstraint) {
+    return {
+      message: 'Prompt must clearly constrain output to JSON only',
+    };
+  }
+
+  const hasCategoryConstraint =
+    /(activeCategoryKeys|分类集合|allowed categories|category keys)/i.test(prompt) &&
+    /(only|仅|must|必须)/i.test(prompt);
+  if (!hasCategoryConstraint) {
+    return {
+      message: 'Prompt must clearly constrain category to active keys',
+    };
+  }
+
+  const hasFallbackConstraint =
+    /unknown/i.test(prompt) &&
+    /(fallback|兜底|only|仅)/i.test(prompt);
+  if (!hasFallbackConstraint) {
+    return {
+      message: 'Prompt must clearly define unknown as fallback only',
+    };
+  }
+
+  return {};
 };
 
 router.get('/', authenticate, (req, res) => {
@@ -71,6 +137,7 @@ router.post('/', authenticate, (req, res) => {
     examples: Array.isArray(payload.examples) ? payload.examples : [],
     icon: typeof payload.icon === 'string' ? payload.icon.trim() : undefined,
     color: typeof payload.color === 'string' ? payload.color.trim() : undefined,
+    sortOrder: parseSortOrder(payload.sortOrder),
     isActive: payload.isActive ?? true,
   });
 
@@ -94,6 +161,19 @@ router.put('/prompt', authenticate, (req, res) => {
       code: 'AI.INVALID_INPUT',
       message: 'Prompt is required',
       params: { field: 'prompt' }
+    });
+    return;
+  }
+
+  const validation = validateCategoryPromptContent(prompt);
+  if (validation.message) {
+    sendError(res, {
+      statusCode: 400,
+      code: 'AI.INVALID_PROMPT',
+      message: validation.message,
+      params: validation.missingPlaceholders
+        ? { missingPlaceholders: validation.missingPlaceholders }
+        : undefined,
     });
     return;
   }
@@ -140,6 +220,19 @@ router.post('/prompt/generate', authenticate, async (req, res) => {
       requirement,
       language,
     });
+
+    const validation = validateCategoryPromptContent(prompt);
+    if (validation.message) {
+      sendError(res, {
+        statusCode: 500,
+        code: 'AI.PREVIEW_FAILED',
+        message: `Generated prompt failed validation: ${validation.message}`,
+        params: validation.missingPlaceholders
+          ? { missingPlaceholders: validation.missingPlaceholders }
+          : undefined,
+      });
+      return;
+    }
 
     if (!prompt.trim()) {
       sendError(res, {
@@ -200,7 +293,11 @@ router.put('/:id', authenticate, (req, res) => {
 
   if (isUnknownCategory(current.key)) {
     const nextKey = payload.key ? String(payload.key).trim() : current.key;
-    if (!isUnknownCategory(nextKey) || payload.isActive === false) {
+    if (
+      !isUnknownCategory(nextKey) ||
+      payload.isActive === false ||
+      payload.sortOrder !== undefined
+    ) {
       sendError(res, {
         statusCode: 400,
         code: 'AI.SYSTEM_CATEGORY_IMMUTABLE',
@@ -234,6 +331,7 @@ router.put('/:id', authenticate, (req, res) => {
     examples: Array.isArray(payload.examples) ? payload.examples : undefined,
     icon: typeof payload.icon === 'string' ? payload.icon.trim() : undefined,
     color: typeof payload.color === 'string' ? payload.color.trim() : undefined,
+    sortOrder: parseSortOrder(payload.sortOrder),
     isActive: typeof payload.isActive === 'boolean' ? payload.isActive : undefined,
   });
 

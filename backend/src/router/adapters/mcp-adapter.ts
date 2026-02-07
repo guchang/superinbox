@@ -498,8 +498,9 @@ export class MCPAdapter extends BaseAdapter {
       }
 
       // Add due date if available
-      if (item.entities.dueDate) {
-        task.dueString = item.entities.dueDate.toISOString().split('T')[0];
+      const dueString = this.normalizeDueDateString(item.entities.dueDate);
+      if (dueString) {
+        task.dueString = dueString;
       }
 
       // Add tags/labels
@@ -528,6 +529,39 @@ export class MCPAdapter extends BaseAdapter {
         source: item.source
       }
     };
+  }
+
+  private normalizeDueDateString(value: unknown): string | undefined {
+    if (!value) {
+      return undefined;
+    }
+
+    if (value instanceof Date) {
+      if (Number.isNaN(value.getTime())) {
+        return undefined;
+      }
+      return value.toISOString().split('T')[0];
+    }
+
+    if (typeof value !== 'string') {
+      return undefined;
+    }
+
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return undefined;
+    }
+
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+      return trimmed;
+    }
+
+    const parsed = new Date(trimmed);
+    if (Number.isNaN(parsed.getTime())) {
+      return undefined;
+    }
+
+    return parsed.toISOString().split('T')[0];
   }
 
   /**

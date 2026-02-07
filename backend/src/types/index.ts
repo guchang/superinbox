@@ -115,7 +115,13 @@ export interface AIAnalysisResult {
   suggestedTitle?: string;
   confidence: number;
   reasoning?: string;
+  metadata?: {
+    promptVersion?: string;
+    model?: string;
+  };
 }
+
+export type AIParseStatus = 'pending' | 'success' | 'failed';
 
 /**
  * Routing Status - Tracks the state of routing distribution
@@ -139,6 +145,11 @@ export interface Item {
   entities: ExtractedEntities;
   summary?: string;
   suggestedTitle?: string;
+  aiConfidence?: number;
+  aiReasoning?: string;
+  aiPromptVersion?: string;
+  aiModel?: string;
+  aiParseStatus?: AIParseStatus;
 
   // Status management
   status: ItemStatus;

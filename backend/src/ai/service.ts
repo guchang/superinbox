@@ -16,6 +16,7 @@ import { getDatabase } from '../storage/database.js';
 import type { AIAnalysisResult } from '../types/index.js';
 import { ContentType } from '../types/index.js';
 import { logger } from '../middleware/logger.js';
+import { createHash } from 'crypto';
 
 export class AIService {
   /**
@@ -29,7 +30,8 @@ export class AIService {
     const preparedContent = await this.prepareContentForAnalysis(content, contentType);
     const userId = options?.userId;
     const categories = userId ? listCategories(userId) : undefined;
-    const rawPrompt = userId ? getCategoryPrompt(userId).prompt : undefined;
+    const promptRecord = userId ? getCategoryPrompt(userId) : undefined;
+    const rawPrompt = promptRecord?.isCustomized ? promptRecord.prompt : undefined;
     const runtimeContext = userId
       ? this.buildPromptRuntimeContext({
           userId,
@@ -43,7 +45,17 @@ export class AIService {
       : rawPrompt;
     const llm = getUserLLMClient(userId);
     const categoryClassifier = new CategoryClassifier(llm);
-    return categoryClassifier.analyze(preparedContent, contentType, categories, prompt);
+    const analysis = await categoryClassifier.analyze(preparedContent, contentType, categories, prompt);
+
+    return {
+      ...analysis,
+      metadata: {
+        promptVersion: rawPrompt
+          ? `sha256:${createHash('sha256').update(rawPrompt).digest('hex').slice(0, 16)}`
+          : 'builtin-default-v1',
+        model: llm.getModelName(),
+      },
+    };
   }
 
   /**
@@ -353,7 +365,6 @@ C. 若用户补充需求与默认规则冲突，以用户补充需求为准（�
     "amount": 0,
     "currency": "",
     "tags": [],
-    "category": "",
     "people": [],
     "location": "",
     "urls": []
@@ -408,7 +419,6 @@ D. unknown 仅兜底：仅当无法匹配其他分类时才使用。
     "amount": 0,
     "currency": "",
     "tags": [],
-    "category": "",
     "people": [],
     "location": "",
     "urls": []
@@ -483,7 +493,6 @@ C. If additional user requirements conflict with default rules, follow user requ
     "amount": 0,
     "currency": "",
     "tags": [],
-    "category": "",
     "people": [],
     "location": "",
     "urls": []
@@ -538,7 +547,6 @@ D. unknown is fallback only, used when no other category matches.
     "amount": 0,
     "currency": "",
     "tags": [],
-    "category": "",
     "people": [],
     "location": "",
     "urls": []

@@ -8,6 +8,7 @@ import { getDatabase } from '../../storage/database.js';
 import { getRouterService } from '../../router/router.service.js';
 import { sendError } from '../../utils/error-response.js';
 import { logger } from '../../middleware/logger.js';
+import type { Item } from '../../types/index.js';
 
 interface BatchRedistributeOptions {
   batchSize?: number;
@@ -146,7 +147,7 @@ export class BatchRedistributeController {
   /**
    * Get items matching filter for redistribution
    */
-  private getItemsToRedistribute(userId: string, filter?: any) {
+  private getItemsToRedistribute(userId: string, filter?: any): Item[] {
     let query = 'SELECT * FROM items WHERE user_id = ?';
     const params: any[] = [userId];
 
@@ -172,14 +173,24 @@ export class BatchRedistributeController {
 
     query += ' ORDER BY created_at DESC';
 
-    return this.db.database.prepare(query).all(...params);
+    const rows = this.db.database.prepare(query).all(...params) as Array<{ id: string }>;
+    const items: Item[] = [];
+
+    for (const row of rows) {
+      const item = this.db.getItemById(row.id);
+      if (item) {
+        items.push(item);
+      }
+    }
+
+    return items;
   }
 
   /**
    * Process items in batches with safety delays
    */
   private async processBatches(
-    items: any[],
+    items: Item[],
     options: {
       batchSize: number;
       delayBetweenBatches: number;
@@ -231,7 +242,7 @@ export class BatchRedistributeController {
   /**
    * Distribute a single item
    */
-  private async distributeSingleItem(item: any): Promise<any> {
+  private async distributeSingleItem(item: Item): Promise<any> {
     const results = await this.router.distributeItem(item);
 
     // Update item with results

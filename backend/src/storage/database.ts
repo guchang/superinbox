@@ -87,6 +87,11 @@ export class DatabaseManager {
         entities TEXT,
         summary TEXT,
         suggested_title TEXT,
+        ai_confidence REAL,
+        ai_reasoning TEXT,
+        ai_prompt_version TEXT,
+        ai_model TEXT,
+        ai_parse_status TEXT DEFAULT 'pending' CHECK(ai_parse_status IN ('pending', 'success', 'failed')),
         status TEXT NOT NULL,
         distributed_targets TEXT,
         routing_status TEXT DEFAULT 'pending' CHECK(routing_status IN ('pending', 'skipped', 'processing', 'completed', 'failed')),
@@ -189,6 +194,7 @@ export class DatabaseManager {
         examples TEXT,
         icon TEXT,
         color TEXT,
+        sort_order INTEGER,
         is_active INTEGER NOT NULL DEFAULT 1,
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL,
@@ -210,15 +216,38 @@ export class DatabaseManager {
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
       );
 
+      CREATE TABLE IF NOT EXISTS ai_feedback (
+        id TEXT PRIMARY KEY,
+        item_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        original_category TEXT,
+        corrected_category TEXT,
+        original_entities TEXT,
+        corrected_entities TEXT,
+        feedback TEXT,
+        created_at TEXT NOT NULL,
+        FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      );
+
       CREATE INDEX IF NOT EXISTS idx_ai_categories_user_id ON ai_categories(user_id);
       CREATE INDEX IF NOT EXISTS idx_ai_categories_key ON ai_categories(key);
       CREATE INDEX IF NOT EXISTS idx_ai_categories_is_active ON ai_categories(is_active);
       CREATE INDEX IF NOT EXISTS idx_ai_templates_user_id ON ai_templates(user_id);
       CREATE INDEX IF NOT EXISTS idx_ai_templates_is_active ON ai_templates(is_active);
+      CREATE INDEX IF NOT EXISTS idx_ai_feedback_user_id ON ai_feedback(user_id);
+      CREATE INDEX IF NOT EXISTS idx_ai_feedback_item_id ON ai_feedback(item_id);
+      CREATE INDEX IF NOT EXISTS idx_ai_feedback_created_at ON ai_feedback(created_at);
     `);
 
     this.ensureTableColumn('ai_categories', 'icon', 'TEXT');
     this.ensureTableColumn('ai_categories', 'color', 'TEXT');
+    this.ensureTableColumn('ai_categories', 'sort_order', 'INTEGER');
+    this.ensureTableColumn('items', 'ai_confidence', 'REAL');
+    this.ensureTableColumn('items', 'ai_reasoning', 'TEXT');
+    this.ensureTableColumn('items', 'ai_prompt_version', 'TEXT');
+    this.ensureTableColumn('items', 'ai_model', 'TEXT');
+    this.ensureTableColumn('items', 'ai_parse_status', "TEXT DEFAULT 'pending' CHECK(ai_parse_status IN ('pending', 'success', 'failed'))");
 
     this.initialized = true;
   }
@@ -247,9 +276,10 @@ export class DatabaseManager {
       INSERT INTO items (
         id, user_id, original_content, content_type, source,
         category, entities, summary, suggested_title,
+        ai_confidence, ai_reasoning, ai_prompt_version, ai_model, ai_parse_status,
         status, distributed_targets, routing_status,
         created_at, updated_at, processed_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     stmt.run(
@@ -262,6 +292,11 @@ export class DatabaseManager {
       JSON.stringify(item.entities),
       item.summary ?? null,
       item.suggestedTitle ?? null,
+      item.aiConfidence ?? null,
+      item.aiReasoning ?? null,
+      item.aiPromptVersion ?? null,
+      item.aiModel ?? null,
+      item.aiParseStatus ?? 'pending',
       item.status,
       JSON.stringify(item.distributedTargets),
       item.routingStatus,
@@ -485,6 +520,11 @@ export class DatabaseManager {
         entities = ?,
         summary = ?,
         suggested_title = ?,
+        ai_confidence = ?,
+        ai_reasoning = ?,
+        ai_prompt_version = ?,
+        ai_model = ?,
+        ai_parse_status = ?,
         status = ?,
         distributed_targets = ?,
         routing_status = ?,
@@ -500,6 +540,11 @@ export class DatabaseManager {
       JSON.stringify(updated.entities),
       updated.summary ?? null,
       updated.suggestedTitle ?? null,
+      updated.aiConfidence ?? null,
+      updated.aiReasoning ?? null,
+      updated.aiPromptVersion ?? null,
+      updated.aiModel ?? null,
+      updated.aiParseStatus ?? 'pending',
       updated.status,
       JSON.stringify(updated.distributedTargets),
       updated.routingStatus,
@@ -616,6 +661,11 @@ export class DatabaseManager {
       entities: JSON.parse(row.entities || '{}'),
       summary: row.summary,
       suggestedTitle: row.suggested_title,
+      aiConfidence: typeof row.ai_confidence === 'number' ? row.ai_confidence : undefined,
+      aiReasoning: row.ai_reasoning ?? undefined,
+      aiPromptVersion: row.ai_prompt_version ?? undefined,
+      aiModel: row.ai_model ?? undefined,
+      aiParseStatus: row.ai_parse_status ?? 'pending',
       status: row.status,
       distributedTargets: JSON.parse(row.distributed_targets || '[]'),
       distributionResults,
@@ -1210,6 +1260,7 @@ export class DatabaseManager {
       examples: row.examples ? JSON.parse(row.examples) : [],
       icon: row.icon ?? undefined,
       color: row.color ?? undefined,
+      sortOrder: typeof row.sort_order === 'number' ? row.sort_order : undefined,
       isActive: Boolean(row.is_active),
       createdAt: row.created_at,
       updatedAt: row.updated_at,
@@ -1222,8 +1273,8 @@ export class DatabaseManager {
   createAiCategory(category: any): any {
     const stmt = this.db.prepare(`
       INSERT INTO ai_categories (
-        id, user_id, key, name, description, examples, icon, color, is_active, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        id, user_id, key, name, description, examples, icon, color, sort_order, is_active, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     stmt.run(
@@ -1235,6 +1286,7 @@ export class DatabaseManager {
       category.examples ? JSON.stringify(category.examples) : null,
       category.icon ?? null,
       category.color ?? null,
+      typeof category.sortOrder === 'number' ? category.sortOrder : null,
       category.isActive ? 1 : 0,
       category.createdAt,
       category.updatedAt
@@ -1305,6 +1357,7 @@ export class DatabaseManager {
       examples: row.examples ? JSON.parse(row.examples) : [],
       icon: row.icon ?? undefined,
       color: row.color ?? undefined,
+      sortOrder: typeof row.sort_order === 'number' ? row.sort_order : undefined,
       isActive: Boolean(row.is_active),
       createdAt: row.created_at,
       updatedAt: row.updated_at,
@@ -1871,6 +1924,83 @@ export class DatabaseManager {
     }));
 
     return { data, total };
+  }
+
+  createAiFeedback(data: {
+    id: string;
+    itemId: string;
+    userId: string;
+    originalCategory?: string;
+    correctedCategory?: string;
+    originalEntities?: Record<string, unknown>;
+    correctedEntities?: Record<string, unknown>;
+    feedback?: string;
+    createdAt?: string;
+  }): void {
+    const stmt = this.db.prepare(`
+      INSERT INTO ai_feedback (
+        id, item_id, user_id, original_category, corrected_category,
+        original_entities, corrected_entities, feedback, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    stmt.run(
+      data.id,
+      data.itemId,
+      data.userId,
+      data.originalCategory ?? null,
+      data.correctedCategory ?? null,
+      data.originalEntities ? JSON.stringify(data.originalEntities) : null,
+      data.correctedEntities ? JSON.stringify(data.correctedEntities) : null,
+      data.feedback ?? null,
+      data.createdAt ?? new Date().toISOString()
+    );
+  }
+
+  getAiFeedbackByUser(userId?: string, limit = 100, offset = 0): any[] {
+    const hasUserFilter = typeof userId === 'string' && userId.trim().length > 0;
+    const query = hasUserFilter
+      ? `
+      SELECT * FROM ai_feedback
+      WHERE user_id = ?
+      ORDER BY created_at DESC
+      LIMIT ? OFFSET ?
+    `
+      : `
+      SELECT * FROM ai_feedback
+      ORDER BY created_at DESC
+      LIMIT ? OFFSET ?
+    `;
+
+    const stmt = this.db.prepare(query);
+    const rows = hasUserFilter
+      ? (stmt.all(userId, limit, offset) as any[])
+      : (stmt.all(limit, offset) as any[]);
+
+    return rows.map((row) => ({
+      id: row.id,
+      itemId: row.item_id,
+      userId: row.user_id,
+      originalCategory: row.original_category,
+      correctedCategory: row.corrected_category,
+      originalEntities: row.original_entities ? JSON.parse(row.original_entities) : undefined,
+      correctedEntities: row.corrected_entities ? JSON.parse(row.corrected_entities) : undefined,
+      feedback: row.feedback,
+      createdAt: row.created_at,
+    }));
+  }
+
+  countAiFeedbackByUser(userId?: string): number {
+    const hasUserFilter = typeof userId === 'string' && userId.trim().length > 0;
+    const stmt = hasUserFilter
+      ? this.db.prepare('SELECT COUNT(*) as count FROM ai_feedback WHERE user_id = ?')
+      : this.db.prepare('SELECT COUNT(*) as count FROM ai_feedback');
+
+    const row = hasUserFilter
+      ? (stmt.get(userId) as { count?: number })
+      : (stmt.get() as { count?: number });
+
+    return row?.count ?? 0;
   }
 }
 

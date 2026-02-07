@@ -176,20 +176,39 @@ export class InboxController {
       const createdAtLocal = timezone ? formatDateInTimeZone(item.createdAt, timezone) : null;
       const updatedAtLocal = timezone ? formatDateInTimeZone(item.updatedAt, timezone) : null;
 
+      const routingPreviewTargets = item.routingStatus === 'processing'
+        ? this.router.getMatchedRuleTargetPreviews(item).map((preview) => ({
+            id: preview.targetId || preview.targetName,
+            name: preview.targetName,
+            serverType: preview.targetServerType,
+            logoColor: preview.targetLogoColor,
+          }))
+        : [];
+
       res.json({
         id: item.id,
         content: item.originalContent,
         source: item.source,
         parsed: {
           category: item.category,
-          confidence: 1.0, // Default confidence as it's not stored in current model
+          confidence: typeof item.aiConfidence === 'number' ? item.aiConfidence : 0,
           entities: item.entities
         },
+        reasoning: item.aiReasoning,
+        promptVersion: item.aiPromptVersion,
+        model: item.aiModel,
+        parseStatus: item.aiParseStatus,
         routingHistory: item.distributionResults.map(result => ({
           adapter: result.targetId,
           status: result.status,
           timestamp: result.timestamp || new Date().toISOString()
         })),
+        distributedTargets: item.distributedTargets,
+        distributedRuleNames: (item.distributionResults || [])
+          .filter((r: any) => r.ruleName && (r.status === 'success' || r.status === 'completed'))
+          .map((r: any) => r.ruleName),
+        routingPreviewTargets,
+        routingStatus: item.routingStatus,
         createdAt: item.createdAt.toISOString(),
         updatedAt: item.updatedAt.toISOString(),
         createdAtLocal,
@@ -245,6 +264,24 @@ export class InboxController {
 
       // Get items
       const items = this.db.getItemsByUserId(userId, filter);
+      const hasProcessingItems = items.some((item) => item.routingStatus === 'processing');
+      const activeRulesForPreview = hasProcessingItems
+        ? this.router.getActiveRoutingRulesForUser(userId)
+        : [];
+
+      const buildRoutingPreviewTargets = (item: Item) => {
+        if (item.routingStatus !== 'processing') {
+          return [];
+        }
+
+        return this.router.getMatchedRuleTargetPreviews(item, activeRulesForPreview)
+          .map((preview) => ({
+            id: preview.targetId || preview.targetName,
+            name: preview.targetName,
+            serverType: preview.targetServerType,
+            logoColor: preview.targetLogoColor,
+          }));
+      };
 
       res.json({
         total,
@@ -261,6 +298,7 @@ export class InboxController {
           createdAtLocal: timezone ? formatDateInTimeZone(item.createdAt, timezone) : null,
           routedTo: item.distributedTargets,
           distributedTargets: item.distributedTargets,
+          routingPreviewTargets: buildRoutingPreviewTargets(item),
           distributedRuleNames: (item.distributionResults || [])
             .filter((r: any) => r.ruleName && (r.status === 'success' || r.status === 'completed'))
             .map((r: any) => r.ruleName),
@@ -583,7 +621,7 @@ export class InboxController {
       // Mark as failed if category is unknown and confidence is low
       const shouldMarkAsFailed =
         analysis.category === 'unknown' &&
-        (!analysis.confidence || analysis.confidence < 0.3);
+        (typeof analysis.confidence !== 'number' || analysis.confidence < 0.5);
 
       if (shouldMarkAsFailed) {
         logger.warn(`[AI Processing] Item ${itemId} marked as failed: category=unknown, confidence=${analysis.confidence}`);
@@ -605,6 +643,11 @@ export class InboxController {
         entities: { ...analysis.entities, ...fileMetadata },
         summary: analysis.summary,
         suggestedTitle: analysis.suggestedTitle,
+        aiConfidence: analysis.confidence,
+        aiReasoning: analysis.reasoning,
+        aiPromptVersion: analysis.metadata?.promptVersion,
+        aiModel: analysis.metadata?.model,
+        aiParseStatus: shouldMarkAsFailed ? 'failed' : 'success',
         status: shouldMarkAsFailed ? 'failed' : 'completed',
         processedAt: new Date()
       });
@@ -645,7 +688,11 @@ export class InboxController {
       if (error instanceof Error) {
         logger.error(`[AI Processing] Error details: ${error.message}\n${error.stack}`);
       }
-      this.db.updateItem(itemId, { status: 'failed' });
+      this.db.updateItem(itemId, {
+        status: 'failed',
+        aiParseStatus: 'failed',
+        processedAt: new Date()
+      });
       sseManager.sendToItem(itemId, {
         type: 'ai.failed',
         itemId,
@@ -822,18 +869,27 @@ export class InboxController {
           });
           break;
 
-        case 'rule_matched':
+        case 'rule_matched': {
+          const targetName = String(event.data?.targetName || '').trim();
+          const ruleName = event.data?.ruleName || '未知规则';
           sseManager.sendToItem(itemId, {
             type: 'routing:rule_match',
             itemId,
             timestamp: new Date().toISOString(),
             data: {
-              ruleName: event.data?.ruleName || '未知规则',
+              ruleName,
               ruleId: event.data?.ruleId || '',
-              message: `匹配规则: ${event.data?.ruleName || '未知规则'}`
+              targetId: event.data?.targetId || '',
+              targetName,
+              targetServerType: event.data?.targetServerType || '',
+              targetLogoColor: event.data?.targetLogoColor || '',
+              message: targetName
+                ? `匹配规则: ${ruleName} → ${targetName}`
+                : `匹配规则: ${ruleName}`
             }
           });
           break;
+        }
 
         case 'tool_call_start':
           sseManager.sendToItem(itemId, {

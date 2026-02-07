@@ -6,7 +6,6 @@ import axios, { type AxiosInstance } from 'axios';
 import { randomUUID } from 'crypto';
 import type { LLMConfig } from '../types/index.js';
 import { config } from '../config/index.js';
-import { resolveLlmConfig } from './llm-config.js';
 import { getDatabase } from '../storage/database.js';
 
 export interface LLMMessage {
@@ -387,6 +386,14 @@ export class LLMClient {
 
     const response = await this.chat(messages);
     return response.content;
+  }
+
+  getModelName(): string {
+    return this.config.model;
+  }
+
+  getProviderName(): string {
+    return this.provider;
   }
 
   /**

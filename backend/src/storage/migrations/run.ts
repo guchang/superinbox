@@ -411,6 +411,11 @@ const migrations = [
     version: '015',
     name: 'add_category_icon_and_color',
     up: '-- handled in code for idempotency'
+  },
+  {
+    version: '016',
+    name: 'add_ai_quality_fields_and_feedback',
+    up: '-- handled in code for idempotency'
   }
 ];
 
@@ -426,6 +431,8 @@ export const runMigrations = async (): Promise<void> => {
       console.log(`Applying migration: ${migration.version} - ${migration.name}`);
       if (migration.version === '015') {
         ensureAiCategoryAppearanceColumns(db);
+      } else if (migration.version === '016') {
+        ensureAiQualityColumnsAndFeedbackTable(db);
       } else {
         (db as any).db.exec(migration.up);
       }
@@ -471,6 +478,56 @@ const ensureAiCategoryAppearanceColumns = (db: ReturnType<typeof getDatabase>): 
   if (!existingColumns.has('color')) {
     database.exec('ALTER TABLE ai_categories ADD COLUMN color TEXT');
   }
+
+  if (!existingColumns.has('sort_order')) {
+    database.exec('ALTER TABLE ai_categories ADD COLUMN sort_order INTEGER');
+  }
+};
+
+const ensureAiQualityColumnsAndFeedbackTable = (db: ReturnType<typeof getDatabase>): void => {
+  const database = (db as any).db;
+  const itemColumns = database.prepare(`PRAGMA table_info(items)`).all() as Array<{ name: string }>;
+  const existingItemColumns = new Set(itemColumns.map((row) => row.name));
+
+  if (!existingItemColumns.has('ai_confidence')) {
+    database.exec('ALTER TABLE items ADD COLUMN ai_confidence REAL');
+  }
+
+  if (!existingItemColumns.has('ai_reasoning')) {
+    database.exec('ALTER TABLE items ADD COLUMN ai_reasoning TEXT');
+  }
+
+  if (!existingItemColumns.has('ai_prompt_version')) {
+    database.exec('ALTER TABLE items ADD COLUMN ai_prompt_version TEXT');
+  }
+
+  if (!existingItemColumns.has('ai_model')) {
+    database.exec('ALTER TABLE items ADD COLUMN ai_model TEXT');
+  }
+
+  if (!existingItemColumns.has('ai_parse_status')) {
+    database.exec("ALTER TABLE items ADD COLUMN ai_parse_status TEXT DEFAULT 'pending' CHECK(ai_parse_status IN ('pending', 'success', 'failed'))");
+  }
+
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS ai_feedback (
+      id TEXT PRIMARY KEY,
+      item_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      original_category TEXT,
+      corrected_category TEXT,
+      original_entities TEXT,
+      corrected_entities TEXT,
+      feedback TEXT,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_ai_feedback_user_id ON ai_feedback(user_id);
+    CREATE INDEX IF NOT EXISTS idx_ai_feedback_item_id ON ai_feedback(item_id);
+    CREATE INDEX IF NOT EXISTS idx_ai_feedback_created_at ON ai_feedback(created_at);
+  `);
 };
 
 const backfillItemFiles = (db: ReturnType<typeof getDatabase>): void => {
