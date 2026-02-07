@@ -205,6 +205,7 @@ interface MemoryCardProps {
   onReclassify?: (id: string) => void
   onRedistribute?: (id: string) => void
   onViewDetail?: (item: Item) => void
+  onHeightChange?: (id: string, height: number) => void
   deletingId: string | null
   retryingId: string | null
   animationVariant?: 'elastic' | 'fade'
@@ -221,6 +222,7 @@ function MemoryCardComponent({
   onReclassify,
   onRedistribute,
   onViewDetail,
+  onHeightChange,
   deletingId,
   retryingId,
   animationVariant = 'fade',
@@ -243,6 +245,7 @@ function MemoryCardComponent({
   const [hasAudioRetried, setHasAudioRetried] = useState(false)
   const [copied, setCopied] = useState(false)
   const videoRef = useRef<HTMLVideoElement | null>(null)
+  const cardRef = useRef<HTMLDivElement | null>(null)
 
   const categoryKey = item.analysis?.category ?? 'unknown'
   const categoryMeta = categoryMetaMap?.get(categoryKey)
@@ -329,6 +332,37 @@ function MemoryCardComponent({
       : undefined
   const metaDividerToneClass = isDark ? 'text-white/25' : 'text-slate-300'
   const relativeTimeLabel = formatRelativeTime(item.createdAtLocal ?? item.createdAt, time)
+
+  useEffect(() => {
+    if (!onHeightChange) return
+
+    const element = cardRef.current
+    if (!element) return
+
+    const reportHeight = (height: number) => {
+      if (!Number.isFinite(height) || height <= 0) return
+      onHeightChange(item.id, height)
+    }
+
+    reportHeight(element.getBoundingClientRect().height)
+
+    if (typeof ResizeObserver === 'undefined') {
+      const raf = window.requestAnimationFrame(() => {
+        reportHeight(element.getBoundingClientRect().height)
+      })
+      return () => window.cancelAnimationFrame(raf)
+    }
+
+    const observer = new ResizeObserver((entries) => {
+      const nextHeight = entries[0]?.contentRect.height
+      if (typeof nextHeight === 'number') {
+        reportHeight(nextHeight)
+      }
+    })
+
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [item.id, onHeightChange])
 
   useEffect(() => {
     return () => {
@@ -528,6 +562,7 @@ function MemoryCardComponent({
 
   return (
     <motion.div
+      ref={cardRef}
       layout
       initial={animationConfig.initial}
       animate={animationConfig.animate}

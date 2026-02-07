@@ -46,6 +46,71 @@ const contentTypeFilters = [
   { id: 'file', icon: Paperclip },
 ] as const
 
+const CARD_VERTICAL_SPACING = 16
+const FALLBACK_CARD_HEIGHT = 232
+const MAX_VISUAL_DRIFT_PX = 120
+
+function estimateCardHeight(item: Item): number {
+  const mimeType = item.mimeType?.toLowerCase() ?? ''
+  const hasMultipleFiles = Boolean(item.allFiles && item.allFiles.length > 1)
+  const hasSingleFile = Boolean(item.hasFile || (item.allFiles?.length ?? 0) === 1)
+
+  let estimated = FALLBACK_CARD_HEIGHT
+
+  if (hasMultipleFiles) {
+    estimated += 126
+  } else if (hasSingleFile) {
+    if (mimeType.startsWith('image/') || item.contentType === ContentType.IMAGE) {
+      estimated += 138
+    } else if (mimeType.startsWith('video/') || item.contentType === ContentType.VIDEO) {
+      estimated += 132
+    } else if (mimeType.startsWith('audio/') || item.contentType === ContentType.AUDIO) {
+      estimated += 108
+    } else {
+      estimated += 88
+    }
+  }
+
+  const contentLength = item.content?.length ?? 0
+  estimated += Math.min(56, Math.floor(contentLength / 40) * 8)
+
+  return estimated
+}
+
+function selectColumnIndex(
+  columnHeights: number[],
+  columnItemCounts: number[],
+  nextCardHeight: number
+): number {
+  const firstEmptyColumn = columnItemCounts.findIndex((count) => count === 0)
+  if (firstEmptyColumn >= 0) {
+    return firstEmptyColumn
+  }
+
+  let bestColumnIndex = 0
+  let bestColumnScore = Number.POSITIVE_INFINITY
+
+  columnHeights.forEach((height, index) => {
+    const projectedHeights = columnHeights.map((value, columnIndex) => (
+      columnIndex === index ? value + nextCardHeight : value
+    ))
+
+    const projectedMax = Math.max(...projectedHeights)
+    const projectedMin = Math.min(...projectedHeights)
+    const projectedDrift = projectedMax - projectedMin
+    const driftOverflow = Math.max(0, projectedDrift - MAX_VISUAL_DRIFT_PX)
+    const projectedHeight = height + nextCardHeight
+    const score = driftOverflow * 10 + projectedHeight
+
+    if (score < bestColumnScore) {
+      bestColumnScore = score
+      bestColumnIndex = index
+    }
+  })
+
+  return bestColumnIndex
+}
+
 
 export default function InboxPage() {
   const t = useTranslations('inbox')
@@ -70,6 +135,7 @@ export default function InboxPage() {
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const loadMoreRef = useRef<HTMLDivElement>(null)
   const [columnCount, setColumnCount] = useState(1)
+  const [itemHeights, setItemHeights] = useState<Record<string, number>>({})
 
   // 监听 URL 参数控制搜索对话框与筛选
   useEffect(() => {
@@ -243,13 +309,64 @@ export default function InboxPage() {
     return itemsData?.pages.flatMap((page) => page.data?.items || []) || []
   }, [itemsData])
 
+  useEffect(() => {
+    const visibleIds = new Set(items.map((item) => item.id))
+
+    setItemHeights((previous) => {
+      let hasRemovedEntries = false
+      const next: Record<string, number> = {}
+
+      Object.entries(previous).forEach(([itemId, height]) => {
+        if (visibleIds.has(itemId)) {
+          next[itemId] = height
+        } else {
+          hasRemovedEntries = true
+        }
+      })
+
+      return hasRemovedEntries ? next : previous
+    })
+  }, [items])
+
+  const handleItemHeightChange = useCallback((itemId: string, nextHeight: number) => {
+    const normalizedHeight = Math.max(FALLBACK_CARD_HEIGHT, Math.round(nextHeight))
+
+    setItemHeights((previous) => {
+      const currentHeight = previous[itemId]
+      if (currentHeight && Math.abs(currentHeight - normalizedHeight) < 4) {
+        return previous
+      }
+
+      return {
+        ...previous,
+        [itemId]: normalizedHeight,
+      }
+    })
+  }, [])
+
   const columns = useMemo(() => {
     const columnItems: Item[][] = Array.from({ length: columnCount }, () => [])
-    items.forEach((item, index) => {
-      columnItems[index % columnCount].push(item)
+
+    if (columnCount <= 1) {
+      columnItems[0] = items
+      return columnItems
+    }
+
+    const columnHeights = Array.from({ length: columnCount }, () => 0)
+    const columnItemCounts = Array.from({ length: columnCount }, () => 0)
+
+    items.forEach((item) => {
+      const measuredHeight = itemHeights[item.id]
+      const cardHeight = (measuredHeight ?? estimateCardHeight(item)) + CARD_VERTICAL_SPACING
+      const targetColumn = selectColumnIndex(columnHeights, columnItemCounts, cardHeight)
+
+      columnItems[targetColumn].push(item)
+      columnHeights[targetColumn] += cardHeight
+      columnItemCounts[targetColumn] += 1
     })
+
     return columnItems
-  }, [items, columnCount])
+  }, [items, columnCount, itemHeights])
 
   // 获取总数
   const totalCount = itemsData?.pages[0]?.data?.total || 0
@@ -604,6 +721,7 @@ export default function InboxPage() {
                         onReclassify={(id) => reclassifyMutation.mutate(id)}
                         onRedistribute={(id) => redistributeMutation.mutate(id)}
                         onViewDetail={handleViewDetail}
+                        onHeightChange={handleItemHeightChange}
                         deletingId={deletingId}
                         retryingId={retryingId}
                         animationVariant={item.id === createdItemId ? 'elastic' : 'fade'}
