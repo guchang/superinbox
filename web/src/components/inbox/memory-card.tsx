@@ -7,6 +7,7 @@ import { Item, ItemStatus, ContentType } from '@/types'
 import { Button } from '@/components/ui/button'
 import { FilePreview } from '@/components/file-preview'
 import { AudioWavePlayer } from '@/components/inbox/audio-wave-player'
+import { LinkifiedText } from '@/components/shared/linkified-text'
 import { MCPConnectorLogo } from '@/components/mcp-connectors/mcp-connector-logo'
 import { formatRelativeTime } from '@/lib/utils'
 import { cn } from '@/lib/utils'
@@ -476,10 +477,16 @@ function MemoryCardComponent({
       : ''
     if (selectedText) return
 
-    const target = event.target
-    if (target instanceof Element) {
+    const rawTarget = event.target
+    const targetElement = rawTarget instanceof Element
+      ? rawTarget
+      : rawTarget instanceof Node
+        ? rawTarget.parentElement
+        : null
+
+    if (targetElement) {
       const interactiveSelector = 'button, a, input, textarea, select, [role="button"], [role="menuitem"], video, audio, [data-card-ignore-click]'
-      if (target.closest(interactiveSelector)) return
+      if (targetElement.closest(interactiveSelector)) return
     }
 
     onViewDetail(item)
@@ -727,7 +734,13 @@ function MemoryCardComponent({
             item.contentType === ContentType.URL ? 'break-all' : 'break-words',
             "line-clamp-3"
           )}>
-            {item.content}
+            <LinkifiedText
+              text={item.content}
+              linkClassName={cn(
+                'text-current hover:opacity-80',
+                item.contentType === ContentType.URL && 'font-semibold'
+              )}
+            />
           </h3>
 
           {/* 文件预览 */}

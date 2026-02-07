@@ -12,6 +12,8 @@ import { ContentType, Item, ItemStatus } from '@/types'
 import { formatRelativeTime } from '@/lib/utils'
 import { FilePreview } from '@/components/file-preview'
 import { useRoutingProgress } from '@/hooks/use-routing-progress'
+import { LinkifiedText } from '@/components/shared/linkified-text'
+import { isLikelyExternalUrl, normalizeExternalUrl, shouldOpenInNewTab } from '@/lib/external-url'
 
 interface DetailModalProps {
   item: Item | null
@@ -55,9 +57,6 @@ const getDistributionTargetLabel = (target: unknown, index: number) => {
   return `Target ${index + 1}`
 }
 
-const isLikelyUrl = (value: string) => /^https?:\/\/\S+/i.test(value)
-
-
 function RoutingProgressDots() {
   return (
     <div className="flex items-center gap-1" aria-hidden="true">
@@ -80,7 +79,7 @@ function RoutingProgressDots() {
 }
 
 const isUrlEntity = (type: string, value: string) => {
-  return /url|link/i.test(type) || isLikelyUrl(value)
+  return /url|link/i.test(type) || isLikelyExternalUrl(value)
 }
 
 export function DetailModal({
@@ -157,10 +156,15 @@ export function DetailModal({
       if (entity.value === '{}' || entity.value === '[]') return false
       return true
     })
-    .map((entity) => ({
-      ...entity,
-      isUrl: isUrlEntity(entity.type, entity.value),
-    }))
+    .map((entity) => {
+      const href = normalizeExternalUrl(entity.value)
+      return {
+        ...entity,
+        href,
+        openInNewTab: href ? shouldOpenInNewTab(href) : false,
+        isUrl: isUrlEntity(entity.type, entity.value) && Boolean(href),
+      }
+    })
 
   return (
     <AnimatePresence>
@@ -225,7 +229,10 @@ export function DetailModal({
                           : 'text-2xl font-bold leading-relaxed break-words',
                         isAnalyzing ? 'text-muted-foreground italic' : 'text-foreground'
                       )}>
-                        {contentText}
+                        <LinkifiedText
+                          text={contentText}
+                          linkClassName="text-current hover:opacity-80"
+                        />
                       </h2>
                     )}
                   </div>
@@ -290,9 +297,9 @@ export function DetailModal({
                               entity.isUrl ? (
                                 <a
                                   key={`${entity.type}-${entity.value}-${index}`}
-                                  href={entity.value}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
+                                  href={entity.href || undefined}
+                                  target={entity.openInNewTab ? '_blank' : undefined}
+                                  rel={entity.openInNewTab ? 'noopener noreferrer' : undefined}
                                   className="inline-flex max-w-full items-start rounded-md border border-blue-200 bg-blue-50 px-2 py-1 text-[10px] font-medium text-blue-700 hover:underline dark:border-blue-400/30 dark:bg-blue-500/10 dark:text-blue-300"
                                 >
                                   <span className="mr-1 shrink-0 opacity-70">{entity.type}:</span>
@@ -315,7 +322,12 @@ export function DetailModal({
                       {item.analysis?.summary && (
                         <div className="flex items-start gap-2">
                           <span className="text-xs text-muted-foreground w-20 shrink-0">{detailT('analysis.summary')}:</span>
-                          <span className="text-sm">{item.analysis.summary}</span>
+                          <span className="text-sm">
+                            <LinkifiedText
+                              text={item.analysis.summary}
+                              linkClassName="text-primary hover:opacity-80"
+                            />
+                          </span>
                         </div>
                       )}
                     </div>

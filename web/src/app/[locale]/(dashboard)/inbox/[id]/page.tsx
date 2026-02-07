@@ -21,6 +21,7 @@ import { useAutoRefetch } from '@/hooks/use-auto-refetch'
 import { getApiErrorMessage } from '@/lib/i18n/api-errors'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog'
 import { getCategoryBadgeStyle, resolveCategoryColor, resolveCategoryIconName } from '@/lib/category-appearance'
+import { LinkifiedText } from '@/components/shared/linkified-text'
 
 export default function InboxDetailPage() {
   const t = useTranslations('inboxDetail')
@@ -379,9 +380,14 @@ export default function InboxDetailPage() {
             <CardContent>
               <div className={`
                 text-sm leading-relaxed min-h-[120px]
-                ${item.contentType === ContentType.URL ? 'font-mono break-all text-blue-600 hover:underline cursor-pointer' : 'whitespace-pre-wrap break-words'}
+                ${item.contentType === ContentType.URL ? 'font-mono break-all text-blue-600' : 'whitespace-pre-wrap break-words'}
               `}>
-                {item.content?.trim() ? item.content : (
+                {item.content?.trim() ? (
+                  <LinkifiedText
+                    text={item.content.trim()}
+                    linkClassName="text-current hover:opacity-80"
+                  />
+                ) : (
                   <span className="text-muted-foreground italic">{t('content.empty')}</span>
                 )}
               </div>
@@ -422,7 +428,10 @@ export default function InboxDetailPage() {
                   <div className="grid gap-2">
                     <span className="text-sm font-medium text-muted-foreground">{t('analysis.summary')}</span>
                     <p className="text-sm text-foreground leading-relaxed bg-muted/30 p-3 rounded-md">
-                      {item.analysis.summary}
+                      <LinkifiedText
+                        text={item.analysis.summary}
+                        linkClassName="text-primary hover:opacity-80"
+                      />
                     </p>
                   </div>
                 )}
