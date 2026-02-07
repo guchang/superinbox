@@ -502,7 +502,7 @@ export default function InboxPage() {
 
       {/* 结果区域 */}
       <div className="flex-1 overflow-y-auto p-4 md:p-6 bg-black/[0.01] dark:bg-[#0b0b0f]/40">
-        <div className="flex flex-col gap-2 pb-2 md:flex-row md:items-center md:justify-between md:gap-4 md:pb-4">
+        <div className="flex flex-col gap-2 pb-3.5 md:flex-row md:items-center md:justify-between md:gap-4 md:pb-4">
           <div className="flex items-center gap-2 min-w-0 flex-wrap md:flex-nowrap md:shrink-0">
             <span className="text-lg md:text-xl font-semibold tracking-tight shrink-0">
               {currentCategoryLabel}
