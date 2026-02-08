@@ -777,7 +777,16 @@
     },
     "llmConfig": {
       "title": "LLM Configuration",
-      "description": "Configure the model and endpoint used for AI processing",
+      "description": "Support multiple active configs with ordered fallback",
+      "addTitle": "Add new config",
+      "addBadge": "Ordered fallback",
+      "loading": "Loading configs...",
+      "empty": "No config yet. Add at least one configuration first.",
+      "fallbackHint": "Fallback order is top to bottom. If an upper config fails, the next one is used automatically.",
+      "name": {
+        "label": "Config name",
+        "placeholder": "e.g. Primary / Backup"
+      },
       "provider": {
         "label": "Provider",
         "placeholder": "openai"
@@ -790,6 +799,11 @@
         "label": "API Base URL",
         "placeholder": "https://api.nvidia.com/v1"
       },
+      "timeout": {
+        "label": "Timeout (ms)",
+        "placeholder": "e.g. 30000",
+        "helper": "Leave blank to use the default value"
+      },
       "maxTokens": {
         "label": "Max Tokens",
         "placeholder": "e.g. 2000",
@@ -798,9 +812,30 @@
       "apiKey": {
         "label": "LLM API Key",
         "placeholder": "Enter your LLM API key",
-        "configured": "Custom key set",
+        "updatePlaceholder": "Leave blank to keep current key",
+        "configured": "Key configured",
+        "notConfigured": "Key not configured",
         "default": "Using default key",
         "helper": "Leave blank to keep current; clear to fall back to default"
+      },
+      "activeCount": "{count} active",
+      "totalCount": "{count} total",
+      "createDialog": {
+        "title": "Add LLM Config",
+        "description": "New config joins fallback chain and stays collapsed by default."
+      },
+      "activate": {
+        "label": "Activation",
+        "helper": "Active configs participate in ordered fallback."
+      },
+      "connection": {
+        "ok": "Connection OK",
+        "failed": "Connection Failed",
+        "result": "{message} ({latency}ms)"
+      },
+      "editDialog": {
+        "title": "Edit LLM Config",
+        "description": "Update config details while keeping the list compact."
       }
     },
     "timezone": {
@@ -820,7 +855,17 @@
     "actions": {
       "clear": "Clear",
       "save": "Save",
-      "useBrowserTimezone": "Use browser timezone"
+      "useBrowserTimezone": "Use browser timezone",
+      "add": "Add",
+      "delete": "Delete",
+      "active": "Active",
+      "inactive": "Inactive",
+      "addConfig": "Add Config",
+      "cancel": "Cancel",
+      "testConnection": "Test Connection",
+      "moveUp": "Move Up",
+      "moveDown": "Move Down",
+      "edit": "Edit"
     },
     "toast": {
       "timezoneEmpty": {
@@ -842,9 +887,17 @@
         "title": "Model is required",
         "description": "Enter a model name, e.g. openai/gpt-oss-120b"
       },
+      "llmApiKeyEmpty": {
+        "title": "LLM API key is required",
+        "description": "API key is required when creating a config"
+      },
       "llmMaxTokensInvalid": {
         "title": "Invalid Max Tokens",
         "description": "Enter a positive integer"
+      },
+      "llmTimeoutInvalid": {
+        "title": "Invalid timeout",
+        "description": "Enter a positive integer in milliseconds"
       },
       "llmConfigSaved": {
         "title": "LLM configuration saved",
@@ -853,9 +906,22 @@
       "llmConfigSaveFailure": {
         "title": "Failed to save LLM configuration"
       },
+      "llmConfigDeleted": {
+        "title": "LLM configuration deleted",
+        "description": "Removed from fallback list"
+      },
       "llmApiKeyCleared": {
         "title": "LLM API key cleared",
         "description": "Falling back to the default key"
+      },
+      "llmConnectionTestSuccess": {
+        "title": "Connection test passed"
+      },
+      "llmConnectionTestFailed": {
+        "title": "Connection test failed"
+      },
+      "llmConnectionTestResult": {
+        "description": "{message} ({latency}ms)"
       }
     }
   },

@@ -256,22 +256,64 @@ export interface UserSettings {
   updatedAt?: string
 }
 
-export interface LlmSettings {
-  provider: string
-  model: string
+export interface LlmConfigItem {
+  id: string
+  name: string | null
+  provider: string | null
+  model: string | null
   baseUrl: string | null
-  timeout: number
-  maxTokens: number
+  timeout: number | null
+  maxTokens: number | null
+  isActive: boolean
+  priority: number
   apiKeyConfigured: boolean
+  createdAt: string
+  updatedAt: string
 }
 
-export interface LlmSettingsUpdate {
-  provider?: string
-  model?: string
+export interface LlmSettings {
+  configs: LlmConfigItem[]
+}
+
+export interface LlmConfigCreatePayload {
+  name?: string | null
+  provider: string
+  model: string
+  baseUrl?: string | null
+  apiKey: string
+  timeout?: number | null
+  maxTokens?: number | null
+  isActive?: boolean
+}
+
+export interface LlmConfigTestPayload {
+  provider: string
+  model: string
+  baseUrl?: string | null
+  apiKey: string
+  timeout?: number | null
+  maxTokens?: number | null
+}
+
+export interface LlmConfigUpdatePayload {
+  name?: string | null
+  provider?: string | null
+  model?: string | null
   baseUrl?: string | null
   apiKey?: string | null
   timeout?: number | null
   maxTokens?: number | null
+  isActive?: boolean
+  priority?: number
+}
+
+export interface LlmConfigTestResult {
+  id: string
+  ok: boolean
+  latencyMs: number
+  provider: string
+  model: string
+  message: string
 }
 
 // ========== 认证相关类型 ==========

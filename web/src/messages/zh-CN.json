@@ -778,7 +778,16 @@
     },
     "llmConfig": {
       "title": "LLM 配置",
-      "description": "配置用于内容处理的模型与访问地址",
+      "description": "支持多配置同时激活，按顺序自动兜底",
+      "addTitle": "新增配置",
+      "addBadge": "按顺序兜底",
+      "loading": "正在加载配置...",
+      "empty": "暂无配置，请先新增至少一个配置。",
+      "fallbackHint": "从上到下为兜底顺序：上面的配置失败后会自动尝试下面的配置。",
+      "name": {
+        "label": "配置名称",
+        "placeholder": "例如：主配置 / 备用配置"
+      },
       "provider": {
         "label": "模型提供商",
         "placeholder": "openai"
@@ -791,6 +800,11 @@
         "label": "API Base URL",
         "placeholder": "https://api.nvidia.com/v1"
       },
+      "timeout": {
+        "label": "超时时间(ms)",
+        "placeholder": "例如 30000",
+        "helper": "留空使用默认值"
+      },
       "maxTokens": {
         "label": "Max Tokens",
         "placeholder": "例如 2000",
@@ -799,9 +813,30 @@
       "apiKey": {
         "label": "LLM API Key",
         "placeholder": "输入你的 LLM API Key",
-        "configured": "已配置（自定义）",
+        "updatePlaceholder": "留空表示不更新当前密钥",
+        "configured": "已配置密钥",
+        "notConfigured": "未配置密钥",
         "default": "使用默认密钥",
         "helper": "留空表示不更新，清除将回退到默认密钥"
+      },
+      "activeCount": "已激活 {count} 个",
+      "totalCount": "总计 {count} 个",
+      "createDialog": {
+        "title": "新增 LLM 配置",
+        "description": "创建后可加入兜底链路，默认折叠显示。"
+      },
+      "activate": {
+        "label": "激活状态",
+        "helper": "激活后会参与按顺序兜底。"
+      },
+      "connection": {
+        "ok": "连接成功",
+        "failed": "连接失败",
+        "result": "{message}（耗时 {latency}ms）"
+      },
+      "editDialog": {
+        "title": "编辑 LLM 配置",
+        "description": "修改配置并保存，列表保持简洁展示。"
       }
     },
     "timezone": {
@@ -821,7 +856,17 @@
     "actions": {
       "clear": "清除",
       "save": "保存",
-      "useBrowserTimezone": "使用当前浏览器时区"
+      "useBrowserTimezone": "使用当前浏览器时区",
+      "add": "新增",
+      "delete": "删除",
+      "active": "已激活",
+      "inactive": "未激活",
+      "addConfig": "新增配置",
+      "cancel": "取消",
+      "testConnection": "测试连接",
+      "moveUp": "上移",
+      "moveDown": "下移",
+      "edit": "编辑"
     },
     "toast": {
       "timezoneEmpty": {
@@ -843,9 +888,17 @@
         "title": "模型名称不能为空",
         "description": "请输入模型名称，如 openai/gpt-oss-120b"
       },
+      "llmApiKeyEmpty": {
+        "title": "LLM API Key 不能为空",
+        "description": "新增配置时必须填写 API Key"
+      },
       "llmMaxTokensInvalid": {
         "title": "Max Tokens 无效",
         "description": "请输入正整数"
+      },
+      "llmTimeoutInvalid": {
+        "title": "超时时间无效",
+        "description": "请输入正整数毫秒值"
       },
       "llmConfigSaved": {
         "title": "LLM 配置已保存",
@@ -854,9 +907,22 @@
       "llmConfigSaveFailure": {
         "title": "LLM 配置保存失败"
       },
+      "llmConfigDeleted": {
+        "title": "LLM 配置已删除",
+        "description": "已从兜底列表中移除该配置"
+      },
       "llmApiKeyCleared": {
         "title": "LLM API Key 已清除",
         "description": "将回退到默认密钥"
+      },
+      "llmConnectionTestSuccess": {
+        "title": "连接测试成功"
+      },
+      "llmConnectionTestFailed": {
+        "title": "连接测试失败"
+      },
+      "llmConnectionTestResult": {
+        "description": "{message}（耗时 {latency}ms）"
       }
     }
   },

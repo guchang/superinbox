@@ -1,5 +1,15 @@
 import { apiClient } from './client'
-import type { ApiKey, Statistics, ApiResponse, UserSettings, LlmSettings, LlmSettingsUpdate } from '@/types'
+import type {
+  ApiKey,
+  Statistics,
+  ApiResponse,
+  UserSettings,
+  LlmSettings,
+  LlmConfigCreatePayload,
+  LlmConfigUpdatePayload,
+  LlmConfigTestPayload,
+  LlmConfigTestResult,
+} from '@/types'
 
 export const settingsApi = {
   // 获取统计信息
@@ -37,13 +47,38 @@ export const settingsApi = {
     return apiClient.put<UserSettings>('/settings/timezone', { timezone })
   },
 
-  // 获取 LLM 配置
-  async getLlmConfig(): Promise<ApiResponse<LlmSettings>> {
+  // 获取 LLM 配置列表
+  async getLlmConfigs(): Promise<ApiResponse<LlmSettings>> {
     return apiClient.get<LlmSettings>('/settings/llm')
   },
 
-  // 更新 LLM 配置
-  async updateLlmConfig(payload: LlmSettingsUpdate): Promise<ApiResponse<LlmSettings>> {
-    return apiClient.put<LlmSettings>('/settings/llm', payload)
+  // 创建 LLM 配置
+  async createLlmConfig(payload: LlmConfigCreatePayload): Promise<ApiResponse<LlmSettings>> {
+    return apiClient.post<LlmSettings>('/settings/llm', payload)
+  },
+
+  // 更新指定 LLM 配置
+  async updateLlmConfig(id: string, payload: LlmConfigUpdatePayload): Promise<ApiResponse<LlmSettings>> {
+    return apiClient.put<LlmSettings>(`/settings/llm/${id}`, payload)
+  },
+
+  // 删除指定 LLM 配置
+  async deleteLlmConfig(id: string): Promise<ApiResponse<LlmSettings>> {
+    return apiClient.delete<LlmSettings>(`/settings/llm/${id}`)
+  },
+
+  // 测试指定 LLM 配置连接
+  async testLlmConfig(id: string): Promise<ApiResponse<LlmConfigTestResult>> {
+    return apiClient.post<LlmConfigTestResult>(`/settings/llm/${id}/test`)
+  },
+
+  // 测试草稿 LLM 配置连接（用于新增弹窗）
+  async testLlmDraftConfig(payload: LlmConfigTestPayload): Promise<ApiResponse<LlmConfigTestResult>> {
+    return apiClient.post<LlmConfigTestResult>('/settings/llm/test', payload)
+  },
+
+  // 调整 LLM 配置优先级顺序
+  async reorderLlmConfigs(orderedIds: string[]): Promise<ApiResponse<LlmSettings>> {
+    return apiClient.put<LlmSettings>('/settings/llm/reorder', { orderedIds })
   },
 }
