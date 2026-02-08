@@ -21,7 +21,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { motion } from 'framer-motion'
@@ -725,29 +724,27 @@ function MemoryCardComponent({
                     className="cursor-pointer gap-2 text-[11px] font-semibold text-slate-700 focus:bg-black/5 dark:text-white/70 dark:focus:bg-white/10"
                   >
                     <Pencil className="h-3.5 w-3.5" />
-                    <span>{t('actions.edit')}</span>
+                    <span>{t('actions.editContent')}</span>
                   </DropdownMenuItem>
                 )}
                 {onReclassify && (
-                  <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      onClick={() => onReclassify(item.id)}
-                      className="cursor-pointer gap-2 text-[11px] font-semibold text-slate-700 focus:bg-black/5 dark:text-white/70 dark:focus:bg-white/10"
-                    >
-                      <Sparkles className="h-3.5 w-3.5" />
-                      <span>{t('actions.reclassify')}</span>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => onRedistribute?.(item.id)}
-                      className="cursor-pointer gap-2 text-[11px] font-semibold text-slate-700 focus:bg-black/5 dark:text-white/70 dark:focus:bg-white/10"
-                    >
-                      <Send className="h-3.5 w-3.5" />
-                      <span>{t('actions.redistribute')}</span>
-                    </DropdownMenuItem>
-                  </>
+                  <DropdownMenuItem
+                    onClick={() => onReclassify(item.id)}
+                    className="cursor-pointer gap-2 text-[11px] font-semibold text-slate-700 focus:bg-black/5 dark:text-white/70 dark:focus:bg-white/10"
+                  >
+                    <Sparkles className="h-3.5 w-3.5" />
+                    <span>{t('actions.reclassify')}</span>
+                  </DropdownMenuItem>
                 )}
-                <DropdownMenuSeparator />
+                {onRedistribute && (
+                  <DropdownMenuItem
+                    onClick={() => onRedistribute(item.id)}
+                    className="cursor-pointer gap-2 text-[11px] font-semibold text-slate-700 focus:bg-black/5 dark:text-white/70 dark:focus:bg-white/10"
+                  >
+                    <Send className="h-3.5 w-3.5" />
+                    <span>{t('actions.redistribute')}</span>
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuItem
                   onClick={() => onDelete(item.id)}
                   className="cursor-pointer gap-2 text-[11px] font-semibold text-rose-500 focus:bg-black/5 focus:text-rose-500 dark:focus:bg-white/10"

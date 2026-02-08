@@ -144,6 +144,12 @@ export interface CreateItemRequest {
   type?: ContentType
 }
 
+export interface UpdateItemRequest {
+  content?: string
+  category?: CategoryKey
+  status?: ItemStatus
+}
+
 // 筛选参数
 export interface FilterParams extends PaginationParams {
   category?: CategoryKey

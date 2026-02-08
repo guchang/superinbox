@@ -27,6 +27,7 @@ import {
   Plus,
   Send,
   Trash2,
+  Video,
   X,
   Zap,
 } from "lucide-react"
@@ -391,6 +392,11 @@ export default function InboxCapturePage() {
         label: t("types.audio"),
         icon: Mic,
         container: "bg-rose-500/10 text-rose-600 dark:text-rose-400",
+      },
+      [ContentType.VIDEO]: {
+        label: t("types.video"),
+        icon: Video,
+        container: "bg-violet-500/10 text-violet-600 dark:text-violet-400",
       },
       [ContentType.FILE]: {
         label: t("types.file"),

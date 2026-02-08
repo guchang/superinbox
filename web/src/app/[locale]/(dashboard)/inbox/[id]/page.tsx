@@ -212,6 +212,7 @@ export default function InboxDetailPage() {
     [ContentType.IMAGE]: t('contentType.image'),
     [ContentType.URL]: t('contentType.url'),
     [ContentType.AUDIO]: t('contentType.audio'),
+    [ContentType.VIDEO]: t('contentType.video'),
     [ContentType.FILE]: t('contentType.file'),
   }
 

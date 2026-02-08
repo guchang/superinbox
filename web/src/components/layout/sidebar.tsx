@@ -418,7 +418,7 @@ export function AppSidebar({ className }: AppSidebarProps) {
         currentSortOrder: category.sortOrder,
       }))
       .filter(
-        (item): item is { id: string; nextSortOrder: number; currentSortOrder?: number } =>
+        (item): item is { id: string; nextSortOrder: number; currentSortOrder: number | undefined } =>
           typeof item.nextSortOrder === 'number' && item.currentSortOrder !== item.nextSortOrder
       )
 

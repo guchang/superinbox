@@ -4,6 +4,7 @@ import { adaptBackendItem, adaptBackendItems } from './adapter'
 import type {
   Item,
   CreateItemRequest,
+  UpdateItemRequest,
   FilterParams,
   PaginatedResponse,
   ApiResponse,
@@ -135,8 +136,20 @@ export const inboxApi = {
   },
 
   // 更新条目
-  async updateItem(id: string, data: Partial<Item>): Promise<ApiResponse<Item>> {
-    const response = await apiClient.put<any>(`/inbox/${id}`, data)
+  async updateItem(id: string, data: UpdateItemRequest): Promise<ApiResponse<Item>> {
+    const payload: Record<string, unknown> = {}
+
+    if (data.content !== undefined) {
+      payload.content = data.content
+    }
+    if (data.category !== undefined) {
+      payload.category = data.category
+    }
+    if (data.status !== undefined) {
+      payload.status = data.status
+    }
+
+    const response = await apiClient.put<any>(`/inbox/${id}`, payload)
 
     // 适配后端数据格式
     if (response.success && response.data) {

@@ -6,6 +6,8 @@ import { useTranslations } from 'next-intl'
 import { cn } from "@/lib/utils"
 import { CommandSearch, type SearchFilters } from "./command-search"
 import { INBOX_OPEN_SEARCH_EVENT } from '@/lib/constants/ui-events'
+export type { SearchFilters } from "./command-search"
+
 import {
   Dialog,
   DialogContent,

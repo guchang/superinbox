@@ -263,7 +263,7 @@
       "unknownTool": "unknown"
     },
     "actions": {
-      "copy": "Copy",
+      "copy": "Copy text",
       "viewDetails": "View details",
       "edit": "Edit",
       "detail": "Detail",
@@ -291,6 +291,10 @@
     "voiceComingSoon": "Voice input coming soon",
     "captureButton": "Capture",
     "inputHint": "Cmd/Ctrl + Enter to submit, ESC to cancel",
+    "dragOverlay": {
+      "title": "Drag files here and release to upload",
+      "description": "Files will be added as new inbox items and routed on creation"
+    },
     "sections": {
       "content": "Original content",
       "attachments": "Attachments",
@@ -342,6 +346,13 @@
       },
       "createFailure": {
         "title": "Create failed"
+      },
+      "updateSuccess": {
+        "title": "Saved",
+        "description": "Item content updated"
+      },
+      "updateFailure": {
+        "title": "Save failed"
       }
     }
   },
@@ -357,7 +368,14 @@
       "reclassify": "Reclassify",
       "redistribute": "Redistribute",
       "refresh": "Refresh",
-      "editContent": "Edit content"
+      "editContent": "Edit content",
+      "cancelEdit": "Cancel",
+      "saveEdit": "Save",
+      "openInPage": "Open in detail page"
+    },
+    "edit": {
+      "placeholder": "Type item content...",
+      "shortcutHint": "Cmd/Ctrl + Enter to save"
     },
     "categories": {
       "todo": "Todo",
@@ -386,9 +404,12 @@
       "content": "Original content",
       "attachments": "Attachments",
       "aiAnalysis": "AI Analysis",
+      "analysis": "AI Analysis",
+      "distribution": "Distribution",
       "distributionTargets": "Distribution targets",
       "routingProgress": "Routing progress",
-      "rules": "Rules"
+      "rules": "Rules",
+      "properties": "Properties"
     },
     "analysis": {
       "analyzing": "Analyzing content...",

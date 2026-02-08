@@ -57,6 +57,7 @@ const createItemSchema = z.object({
 
 const updateItemSchema = z.object({
   content: z.string().min(1).max(10000).optional(),
+  category: z.string().min(1).max(100).optional(),
   status: z.enum(['pending', 'processing', 'completed', 'failed', 'archived']).optional()
 });
 
@@ -369,6 +370,9 @@ export class InboxController {
       const updates: Partial<Item> = {};
       if (body.content !== undefined) {
         updates.originalContent = body.content;
+      }
+      if (body.category !== undefined) {
+        updates.category = body.category as any;
       }
       if (body.status !== undefined) {
         updates.status = body.status as ItemStatus;

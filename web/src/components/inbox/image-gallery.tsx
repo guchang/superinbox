@@ -26,6 +26,7 @@ interface ImageGalleryProps {
   maxDisplayCount?: number
   className?: string
   onOpenChange?: (open: boolean) => void
+  renderTrigger?: (open: () => void) => React.ReactNode
 }
 
 const HIDDEN_TITLE_STYLE = {
@@ -85,6 +86,7 @@ export function ImageGallery({
   maxDisplayCount = 8,
   className,
   onOpenChange,
+  renderTrigger,
 }: ImageGalleryProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [activeIndex, setActiveIndex] = useState(0)
@@ -580,6 +582,15 @@ export function ImageGallery({
             })}
           </div>
         </div>
+        {renderDialog()}
+      </>
+    )
+  }
+
+  if (renderTrigger) {
+    return (
+      <>
+        {renderTrigger(() => openAt(0))}
         {renderDialog()}
       </>
     )

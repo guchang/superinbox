@@ -6,7 +6,7 @@
 import { Badge } from '@/components/ui/badge'
 import { CheckCircle, XCircle, Clock, MinusCircle } from 'lucide-react'
 import { motion } from 'framer-motion'
-import { useRoutingProgress, type RoutingStatus } from '@/hooks/use-routing-progress'
+import { useRoutingProgress, type RoutingStatus as RoutingProgressStatus } from '@/hooks/use-routing-progress'
 import type { CSSProperties } from 'react'
 import { useTranslations } from 'next-intl'
 
@@ -72,7 +72,7 @@ export function RoutingStatus({ itemId, initialDistributedTargets = [], initialR
   const useStatic = disabled
 
   const effectiveStatus = useStatic 
-    ? (routingStatus as RoutingStatus || 'pending')  // 使用数据库中的状态
+    ? (routingStatus as RoutingProgressStatus || 'pending')  // 使用数据库中的状态
     : progress.status
   const effectiveTargets = useStatic ? initialDistributedTargets : progress.distributedTargets
   const effectiveRuleNames = useStatic ? initialRuleNames : (progress.ruleNames || [])
@@ -107,7 +107,7 @@ export function RoutingStatus({ itemId, initialDistributedTargets = [], initialR
 }
 
 interface RoutingStatusBadgeProps {
-  status: RoutingStatus
+  status: RoutingProgressStatus
   message: string
   distributedTargets: string[]
   ruleNames: string[]
@@ -116,6 +116,7 @@ interface RoutingStatusBadgeProps {
   showIndicator?: boolean
   showAnimation?: boolean  // 是否显示动画效果
   processingAccentColor?: string
+  className?: string
 }
 
 function RoutingStatusBadge({
@@ -127,7 +128,8 @@ function RoutingStatusBadge({
   error,
   showIndicator = false,
   showAnimation = true,
-  processingAccentColor
+  processingAccentColor,
+  className
 }: RoutingStatusBadgeProps) {
   const t = useTranslations('inbox')
   
@@ -204,7 +206,7 @@ function RoutingStatusBadge({
   const processingBlockClassName = hasProcessingAccent ? '' : config.processingBlockClassName
 
   return (
-    <div className={`flex items-center gap-2 ${showIndicator ? 'pr-1' : ''}`}>
+    <div className={`flex items-center gap-2 ${showIndicator ? 'pr-1' : ''} ${className ?? ''}`.trim()}>
       <Badge
         variant={config.variant}
         className={`${config.className} max-w-full md:max-w-[320px] truncate`}
@@ -235,5 +237,3 @@ function RoutingStatusBadge({
   )
 }
 
-// 导出类型供其他组件使用
-export type { RoutingStatus }

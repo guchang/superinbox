@@ -23,9 +23,9 @@ import {
 } from 'lucide-react'
 import { Link } from '@/i18n/navigation'
 import { useToast } from '@/hooks/use-toast'
-import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
+import { useState, useMemo, useEffect, useRef, useCallback, type DragEvent as ReactDragEvent } from 'react'
 import { MemoryCard } from '@/components/inbox/memory-card'
-import { ExpandableInput } from '@/components/inbox/expandable-input'
+import { ExpandableInput, type ExpandableInputHandle } from '@/components/inbox/expandable-input'
 import { DetailModal } from '@/components/inbox/detail-modal'
 import { SearchDialog, SearchFilters } from '@/components/shared/search-dialog'
 import { useAutoRefetch } from '@/hooks/use-auto-refetch'
@@ -111,7 +111,6 @@ function selectColumnIndex(
   return bestColumnIndex
 }
 
-
 export default function InboxPage() {
   const t = useTranslations('inbox')
   const filtersT = useTranslations('inbox.contentTypeFilters')
@@ -129,13 +128,20 @@ export default function InboxPage() {
   const [activeType, setActiveType] = useState<string>('all')
   const [selectedItem, setSelectedItem] = useState<Item | null>(null)
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
-  const [editingItem, setEditingItem] = useState<Item | null>(null)
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [isDetailEditing, setIsDetailEditing] = useState(false)
   const [createdItemId, setCreatedItemId] = useState<string | null>(null)
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const loadMoreRef = useRef<HTMLDivElement>(null)
   const [columnCount, setColumnCount] = useState(1)
   const [itemHeights, setItemHeights] = useState<Record<string, number>>({})
+  const [isDesktopViewport, setIsDesktopViewport] = useState(false)
+  const [isPageDragActive, setIsPageDragActive] = useState(false)
+  const [isDragOverComposerZone, setIsDragOverComposerZone] = useState(false)
+  const desktopComposerRef = useRef<ExpandableInputHandle | null>(null)
+  const mobileComposerRef = useRef<ExpandableInputHandle | null>(null)
+  const desktopDropZoneRef = useRef<HTMLDivElement | null>(null)
+  const composerDragDepthRef = useRef(0)
+  const dragAutoExpandedRef = useRef(false)
 
   // 监听 URL 参数控制搜索对话框与筛选
   useEffect(() => {
@@ -200,6 +206,22 @@ export default function InboxPage() {
     updateColumnCount()
     window.addEventListener('resize', updateColumnCount)
     return () => window.removeEventListener('resize', updateColumnCount)
+  }, [])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    const media = window.matchMedia('(min-width: 768px)')
+    const updateViewport = () => setIsDesktopViewport(media.matches)
+
+    updateViewport()
+    if (media.addEventListener) {
+      media.addEventListener('change', updateViewport)
+      return () => media.removeEventListener('change', updateViewport)
+    }
+
+    media.addListener(updateViewport)
+    return () => media.removeListener(updateViewport)
   }, [])
 
 
@@ -344,6 +366,157 @@ export default function InboxPage() {
     })
   }, [])
 
+  const getActiveComposer = useCallback(() => {
+    if (isDesktopViewport) {
+      return desktopComposerRef.current || mobileComposerRef.current
+    }
+    return mobileComposerRef.current || desktopComposerRef.current
+  }, [isDesktopViewport])
+
+  const appendFilesToCompose = useCallback((files: File[]) => {
+    if (files.length === 0) return
+
+    const composer = getActiveComposer()
+    composer?.appendFiles(files)
+  }, [getActiveComposer])
+
+  const hasFileDragData = useCallback((dataTransfer?: DataTransfer | null) => {
+    return Array.from(dataTransfer?.types ?? []).includes('Files')
+  }, [])
+
+  const ensureDesktopComposerExpandedForDrag = useCallback(() => {
+    if (dragAutoExpandedRef.current) return
+    desktopComposerRef.current?.focusComposer()
+    dragAutoExpandedRef.current = true
+  }, [])
+
+  const collapseDesktopComposerIfEmpty = useCallback(() => {
+    desktopComposerRef.current?.collapseComposerIfEmpty()
+  }, [])
+
+  const clearPageDragState = useCallback(() => {
+    composerDragDepthRef.current = 0
+    dragAutoExpandedRef.current = false
+    setIsPageDragActive(false)
+    setIsDragOverComposerZone(false)
+  }, [])
+
+  const isDropInsideComposerZone = useCallback((clientX: number, clientY: number) => {
+    const zone = desktopDropZoneRef.current
+    if (!zone) return false
+
+    const rect = zone.getBoundingClientRect()
+    return (
+      clientX >= rect.left &&
+      clientX <= rect.right &&
+      clientY >= rect.top &&
+      clientY <= rect.bottom
+    )
+  }, [])
+
+  const handleComposerDragEnter = useCallback((event: ReactDragEvent<HTMLDivElement>) => {
+    if (!isDesktopViewport || !hasFileDragData(event.dataTransfer)) return
+    event.preventDefault()
+    ensureDesktopComposerExpandedForDrag()
+    composerDragDepthRef.current += 1
+    setIsPageDragActive(true)
+    setIsDragOverComposerZone(true)
+  }, [isDesktopViewport, hasFileDragData, ensureDesktopComposerExpandedForDrag])
+
+  const handleComposerDragOver = useCallback((event: ReactDragEvent<HTMLDivElement>) => {
+    if (!isDesktopViewport || !hasFileDragData(event.dataTransfer)) return
+    event.preventDefault()
+    event.dataTransfer.dropEffect = 'copy'
+    setIsPageDragActive(true)
+    setIsDragOverComposerZone(true)
+  }, [isDesktopViewport, hasFileDragData])
+
+  const handleComposerDragLeave = useCallback((event: ReactDragEvent<HTMLDivElement>) => {
+    if (!isDesktopViewport || !hasFileDragData(event.dataTransfer)) return
+    event.preventDefault()
+    composerDragDepthRef.current = Math.max(0, composerDragDepthRef.current - 1)
+    if (composerDragDepthRef.current === 0) {
+      setIsDragOverComposerZone(false)
+    }
+  }, [isDesktopViewport, hasFileDragData])
+
+  const handleComposerDrop = useCallback((event: ReactDragEvent<HTMLDivElement>) => {
+    if (!isDesktopViewport || !hasFileDragData(event.dataTransfer)) return
+    event.preventDefault()
+    event.stopPropagation()
+
+    const droppedFiles = Array.from(event.dataTransfer.files ?? [])
+    clearPageDragState()
+
+    if (droppedFiles.length === 0) return
+    appendFilesToCompose(droppedFiles)
+  }, [isDesktopViewport, hasFileDragData, clearPageDragState, appendFilesToCompose])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (!isDesktopViewport) {
+      clearPageDragState()
+      return
+    }
+
+    const handleWindowDragEnter = (event: DragEvent) => {
+      if (!hasFileDragData(event.dataTransfer)) return
+      event.preventDefault()
+      ensureDesktopComposerExpandedForDrag()
+      setIsPageDragActive(true)
+    }
+
+    const handleWindowDragOver = (event: DragEvent) => {
+      if (!hasFileDragData(event.dataTransfer)) return
+      event.preventDefault()
+      ensureDesktopComposerExpandedForDrag()
+      setIsPageDragActive(true)
+      setIsDragOverComposerZone(isDropInsideComposerZone(event.clientX, event.clientY))
+    }
+
+    const handleWindowDragLeave = (event: DragEvent) => {
+      if (!hasFileDragData(event.dataTransfer)) return
+      const isLeavingWindow = (
+        event.clientX <= 0 ||
+        event.clientY <= 0 ||
+        event.clientX >= window.innerWidth ||
+        event.clientY >= window.innerHeight
+      )
+      if (!isLeavingWindow) return
+      clearPageDragState()
+      collapseDesktopComposerIfEmpty()
+    }
+
+    const handleWindowDrop = (event: DragEvent) => {
+      if (!hasFileDragData(event.dataTransfer)) return
+      const droppedInsideComposer = isDropInsideComposerZone(event.clientX, event.clientY)
+      if (droppedInsideComposer) return
+
+      event.preventDefault()
+      clearPageDragState()
+      collapseDesktopComposerIfEmpty()
+    }
+
+    window.addEventListener('dragenter', handleWindowDragEnter)
+    window.addEventListener('dragover', handleWindowDragOver)
+    window.addEventListener('dragleave', handleWindowDragLeave)
+    window.addEventListener('drop', handleWindowDrop)
+
+    return () => {
+      window.removeEventListener('dragenter', handleWindowDragEnter)
+      window.removeEventListener('dragover', handleWindowDragOver)
+      window.removeEventListener('dragleave', handleWindowDragLeave)
+      window.removeEventListener('drop', handleWindowDrop)
+    }
+  }, [
+    isDesktopViewport,
+    hasFileDragData,
+    clearPageDragState,
+    ensureDesktopComposerExpandedForDrag,
+    collapseDesktopComposerIfEmpty,
+    isDropInsideComposerZone,
+  ])
+
   const columns = useMemo(() => {
     const columnItems: Item[][] = Array.from({ length: columnCount }, () => [])
 
@@ -467,40 +640,63 @@ export default function InboxPage() {
     await retryMutation.mutateAsync(id)
   }
 
+  const handleCloseDetailModal = useCallback(() => {
+    setIsDetailModalOpen(false)
+    setIsDetailEditing(false)
+  }, [])
+
   // 查看详情
   const handleViewDetail = (item: Item) => {
     setSelectedItem(item)
+    setIsDetailEditing(false)
     setIsDetailModalOpen(true)
   }
 
   // 编辑条目
   const handleEdit = (item: Item) => {
-    setEditingItem(item)
-    setIsEditDialogOpen(true)
+    setSelectedItem(item)
+    setIsDetailEditing(true)
+    setIsDetailModalOpen(true)
   }
 
-  // 重分类 mutation
-  const reclassifyMutation = useMutation({
-    mutationFn: async (id: string) => {
-      await inboxApi.reclassifyItem(id)
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, content, category }: { id: string; content: string; category: string }) => {
+      const response = await inboxApi.updateItem(id, { content, category })
+      if (!response.success) {
+        throw new Error(response.error || response.message || 'Failed to update item')
+      }
+      return response.data
     },
-    onSuccess: () => {
+    onSuccess: (updatedItem) => {
       queryClient.invalidateQueries({ queryKey: ['inbox'] })
+      if (updatedItem) {
+        setSelectedItem(updatedItem)
+      }
+      setIsDetailEditing(false)
       toast({
-        title: t('toast.reclassifySuccess.title'),
-        description: t('toast.reclassifySuccess.description'),
+        title: t('toast.updateSuccess.title'),
+        description: t('toast.updateSuccess.description'),
+        channel: 'development',
       })
     },
     onError: (error) => {
       toast({
-        title: t('toast.reclassifyFailure.title'),
+        title: t('toast.updateFailure.title'),
         description: getApiErrorMessage(error, errors, common('unknownError')),
         variant: 'destructive',
       })
     },
   })
 
-  // 重新分发 mutation
+  const handleSaveItemEdits = useCallback(async (payload: { content: string; category: string }) => {
+    if (!selectedItem) return
+    await updateMutation.mutateAsync({
+      id: selectedItem.id,
+      content: payload.content,
+      category: payload.category,
+    })
+  }, [selectedItem, updateMutation])
+
   const redistributeMutation = useMutation({
     mutationFn: async (id: string) => {
       await inboxApi.distributeItem(id)
@@ -572,6 +768,14 @@ export default function InboxPage() {
     return () => clearTimeout(timeout)
   }, [createdItemId, items])
 
+  useEffect(() => {
+    if (!selectedItem) return
+    const latestItem = items.find((item) => item.id === selectedItem.id)
+    if (latestItem && latestItem !== selectedItem) {
+      setSelectedItem(latestItem)
+    }
+  }, [items, selectedItem])
+
   // 获取当前分类标签
   const currentCategoryLabel = useMemo(() => {
     if (searchFilters.category) {
@@ -587,20 +791,64 @@ export default function InboxPage() {
     : normalizedQuery
 
   return (
-    <div className="h-full flex flex-col bg-[#f5f5f7] dark:bg-[#0b0b0f]">
+    <div className="relative h-full flex flex-col bg-[#f5f5f7] dark:bg-[#0b0b0f]">
       {/* 顶部区域：标题、搜索、类型筛选 */}
       {/* playground 风格：移除固定容器限制，让输入框可以自由定位 */}
-      <div className="hidden md:block shrink-0 px-4 md:px-6 pt-6 pb-4 bg-white/50 dark:bg-[#0b0b0f]/50 backdrop-blur-xl relative">
+      <div
+        ref={desktopDropZoneRef}
+        className="hidden md:block shrink-0 px-4 md:px-6 pt-6 pb-4 bg-white/50 dark:bg-[#0b0b0f]/50 backdrop-blur-xl relative"
+        onDragEnter={handleComposerDragEnter}
+        onDragOver={handleComposerDragOver}
+        onDragLeave={handleComposerDragLeave}
+        onDrop={handleComposerDrop}
+      >
+        <AnimatePresence>
+          {isPageDragActive && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.16, ease: 'easeOut' }}
+              className="pointer-events-none absolute inset-0 z-[28]"
+            >
+              <div className="absolute inset-0 bg-black/45 backdrop-blur-[1.5px]" />
+              <div className="absolute inset-3 rounded-2xl border border-dashed border-white/30 bg-white/[0.03] dark:bg-white/[0.025] md:inset-4" />
+              <div className="absolute inset-0 flex items-center justify-center px-6">
+                <motion.p
+                  animate={isDragOverComposerZone
+                    ? { opacity: 1, scale: 1 }
+                    : { opacity: [0.38, 0.72, 0.38], scale: [0.992, 1, 0.992] }}
+                  transition={isDragOverComposerZone
+                    ? { duration: 0.14, ease: 'easeOut' }
+                    : { duration: 1.75, repeat: Infinity, ease: 'easeInOut' }}
+                  className={cn(
+                    'px-6 py-2.5 text-base font-semibold tracking-[0.08em] transition-colors duration-150',
+                    isDragOverComposerZone
+                      ? 'text-white [text-shadow:0_0_18px_rgba(255,255,255,0.38)]'
+                      : 'text-white/46 [text-shadow:0_0_10px_rgba(255,255,255,0.12)]'
+                  )}
+                >
+                  {t('dragOverlay.title')}
+                </motion.p>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         <ExpandableInput
+          ref={desktopComposerRef}
           onSubmit={handleCreate}
           isSubmitting={createMutation.isPending}
+          dropTargetActive={isDragOverComposerZone}
         />
       </div>
 
       <div className="md:hidden">
         <ExpandableInput
+          ref={mobileComposerRef}
           onSubmit={handleCreate}
           isSubmitting={createMutation.isPending}
+          dropTargetActive={false}
         />
       </div>
 
@@ -718,7 +966,6 @@ export default function InboxPage() {
                         onDelete={handleDelete}
                         onRetry={handleRetry}
                         onEdit={handleEdit}
-                        onReclassify={(id) => reclassifyMutation.mutate(id)}
                         onRedistribute={(id) => redistributeMutation.mutate(id)}
                         onViewDetail={handleViewDetail}
                         onHeightChange={handleItemHeightChange}
@@ -736,11 +983,17 @@ export default function InboxPage() {
             <DetailModal
               item={selectedItem}
               isOpen={isDetailModalOpen}
-              onClose={() => setIsDetailModalOpen(false)}
-              onEdit={handleEdit}
-              onReclassify={(id) => reclassifyMutation.mutate(id)}
+              isEditing={isDetailEditing}
+              isSavingEdit={updateMutation.isPending}
+              categoryMetaMap={categoryMetaMap}
+              categoryOptions={activeCategories.map((category) => ({
+                key: category.key,
+                name: category.name,
+              }))}
+              onClose={handleCloseDetailModal}
+              onEditingChange={setIsDetailEditing}
+              onSaveEdit={handleSaveItemEdits}
               onRedistribute={(id) => redistributeMutation.mutate(id)}
-              reclassifying={reclassifyMutation.isPending}
               redistributing={redistributeMutation.isPending}
             />
 

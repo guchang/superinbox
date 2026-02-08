@@ -263,7 +263,7 @@
       "unknownTool": "未知工具"
     },
     "actions": {
-      "copy": "复制",
+      "copy": "复制文案",
       "viewDetails": "查看详情",
       "edit": "编辑",
       "detail": "详情",
@@ -319,6 +319,13 @@
       },
       "createFailure": {
         "title": "创建失败"
+      },
+      "updateSuccess": {
+        "title": "保存成功",
+        "description": "条目内容已更新"
+      },
+      "updateFailure": {
+        "title": "保存失败"
       }
     },
     "emptyContentError": "请输入内容或选择文件",
@@ -328,6 +335,10 @@
     "voiceComingSoon": "语音输入即将推出",
     "captureButton": "记一下",
     "inputHint": "按 Cmd/Ctrl + Enter 提交，ESC 取消",
+    "dragOverlay": {
+      "title": "文件拖至此处，松开即可上传",
+      "description": "文件会作为新条目进入收件箱并触发路由分发"
+    },
     "sections": {
       "content": "原始内容",
       "attachments": "附件",
@@ -358,7 +369,14 @@
       "reclassify": "重新分类",
       "redistribute": "重新分发",
       "refresh": "刷新",
-      "editContent": "编辑内容"
+      "editContent": "编辑内容",
+      "cancelEdit": "取消",
+      "saveEdit": "保存",
+      "openInPage": "在详情页打开"
+    },
+    "edit": {
+      "placeholder": "输入条目内容...",
+      "shortcutHint": "按 Cmd/Ctrl + Enter 保存"
     },
     "categories": {
       "todo": "待办",
@@ -387,9 +405,12 @@
       "content": "原始内容",
       "attachments": "附件",
       "aiAnalysis": "AI 分析",
+      "analysis": "AI 分析",
+      "distribution": "分发",
       "distributionTargets": "分发目标",
       "routingProgress": "路由进度",
-      "rules": "规则"
+      "rules": "规则",
+      "properties": "属性"
     },
     "analysis": {
       "analyzing": "正在分析内容...",

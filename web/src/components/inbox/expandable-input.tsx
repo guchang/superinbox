@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useCallback, useEffect } from 'react'
+import { useState, useRef, useCallback, useEffect, forwardRef, useImperativeHandle } from 'react'
 import { useTranslations } from 'next-intl'
 import { useTheme } from 'next-themes'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -9,10 +9,18 @@ import { cn } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
 import { useIsMobile } from '@/hooks/use-is-mobile'
 import { useSidebar } from '@/components/ui/sidebar'
+import { ImageGallery } from '@/components/inbox/image-gallery'
 
 interface ExpandableInputProps {
   onSubmit: (content: string, files?: File[]) => void
   isSubmitting?: boolean
+  dropTargetActive?: boolean
+}
+
+export interface ExpandableInputHandle {
+  appendFiles: (files: File[]) => void
+  focusComposer: () => void
+  collapseComposerIfEmpty: () => void
 }
 
 type AnimationPhase = 'idle' | 'absorbing' | 'collapsing' | 'diving'
@@ -31,7 +39,14 @@ const getUploadPreviewType = (file: File): UploadPreviewType => {
   return 'file'
 }
 
-export function ExpandableInput({ onSubmit, isSubmitting = false }: ExpandableInputProps) {
+export const ExpandableInput = forwardRef<ExpandableInputHandle, ExpandableInputProps>(function ExpandableInput(
+  {
+    onSubmit,
+    isSubmitting = false,
+    dropTargetActive = false,
+  },
+  ref
+) {
   const t = useTranslations('inbox')
   const common = useTranslations('common')
   const { toast } = useToast()
@@ -72,6 +87,28 @@ export function ExpandableInput({ onSubmit, isSubmitting = false }: ExpandableIn
       setIsMobilePanelOpen(true)
     }
   }, [isMobile])
+
+  const focusComposerTextarea = useCallback((retryDelay = 120) => {
+    const focusInput = () => {
+      const textarea = textareaRef.current
+      if (!textarea) return
+
+      textarea.focus()
+      const cursorPosition = textarea.value.length
+      try {
+        textarea.setSelectionRange(cursorPosition, cursorPosition)
+      } catch {
+        // ignore selection errors for unsupported input methods
+      }
+    }
+
+    requestAnimationFrame(() => {
+      focusInput()
+      if (retryDelay > 0) {
+        setTimeout(focusInput, retryDelay)
+      }
+    })
+  }, [])
 
   const closeInputPanel = useCallback(() => {
     setIsFocused(false)
@@ -119,29 +156,47 @@ export function ExpandableInput({ onSubmit, isSubmitting = false }: ExpandableIn
     setAnimationPhase('idle')
   }, [content, selectedFiles, onSubmit, toast, common, t, closeInputPanel])
 
+  const appendSelectedFiles = useCallback((files: File[]) => {
+    if (files.length === 0) return
+
+    const nextUploads: SelectedUpload[] = files.map((file) => {
+      const previewType = getUploadPreviewType(file)
+      return {
+        file,
+        previewType,
+        previewUrl: previewType === 'image' || previewType === 'video'
+          ? URL.createObjectURL(file)
+          : undefined,
+      }
+    })
+
+    setSelectedFiles((prev) => [...prev, ...nextUploads])
+  }, [])
+
   // 处理文件选择
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || [])
-    if (files.length > 0) {
-      const nextUploads: SelectedUpload[] = files.map((file) => {
-        const previewType = getUploadPreviewType(file)
-        return {
-          file,
-          previewType,
-          previewUrl: previewType === 'image' || previewType === 'video'
-            ? URL.createObjectURL(file)
-            : undefined,
-        }
-      })
-
-      setSelectedFiles(prev => [...prev, ...nextUploads])
-      toast({
-        title: t('fileSelected'),
-        description: files.map(f => f.name).join(', '),
-      })
-    }
+    appendSelectedFiles(files)
     e.target.value = ''
-  }, [toast, t])
+  }, [appendSelectedFiles])
+
+  useImperativeHandle(ref, () => ({
+    appendFiles: (files: File[]) => {
+      if (files.length === 0) return
+      appendSelectedFiles(files)
+      openInputPanel()
+      focusComposerTextarea()
+    },
+    focusComposer: () => {
+      openInputPanel()
+      focusComposerTextarea()
+    },
+    collapseComposerIfEmpty: () => {
+      if (content.trim().length > 0 || selectedFiles.length > 0) return
+      closeInputPanel()
+      textareaRef.current?.blur()
+    },
+  }), [appendSelectedFiles, openInputPanel, focusComposerTextarea, content, selectedFiles, closeInputPanel])
 
   // 移除已选文件
   const removeFile = useCallback((index: number) => {
@@ -164,7 +219,6 @@ export function ExpandableInput({ onSubmit, isSubmitting = false }: ExpandableIn
     }
   }, [handleSubmit, isExpanded, closeInputPanel])
 
-  const isAnimating = animationPhase !== 'idle'
   const isCollapsing = animationPhase === 'collapsing'
 
 
@@ -229,7 +283,7 @@ export function ExpandableInput({ onSubmit, isSubmitting = false }: ExpandableIn
     ? {
         initial: { opacity: 0, scale: 0.96, y: 12, height: 56, borderRadius: 28 },
         animate: { opacity: 1, scale: 1, y: 0, height: 220, borderRadius: 32 },
-        exit: { opacity: 0, scale: 0.98, y: 12, transition: { duration: 0.18, ease: 'easeOut' } },
+        exit: { opacity: 0, scale: 0.98, y: 12, transition: { duration: 0.18, ease: 'easeOut' as const } },
         transition: { type: 'spring' as const, stiffness: 400, damping: 30 },
       }
     : {
@@ -295,7 +349,12 @@ export function ExpandableInput({ onSubmit, isSubmitting = false }: ExpandableIn
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.9 }}
             transition={{ duration: 0.18, ease: 'easeOut' }}
-            onClick={openInputPanel}
+            onClick={() => {
+              openInputPanel()
+              if (isMobile) {
+                focusComposerTextarea()
+              }
+            }}
             aria-label={t('captureButton')}
             className={cn(
               "fixed bottom-[calc(env(safe-area-inset-bottom)+16px)] right-4 flex h-12 items-center gap-2 rounded-full px-4 md:hidden",
@@ -330,9 +389,15 @@ export function ExpandableInput({ onSubmit, isSubmitting = false }: ExpandableIn
           >
             <motion.div
               {...panelMotionProps}
+              data-drop-target="compose"
               className={cn(
                 'relative border overflow-hidden shadow-2xl cursor-text transition-colors flex flex-col mx-auto w-full',
-                isDark ? 'bg-[#12121a] border-white/[0.1]' : 'bg-white border-black/[0.08]'
+                isDark ? 'bg-[#12121a] border-white/[0.1]' : 'bg-white border-black/[0.08]',
+                dropTargetActive && (
+                  isDark
+                    ? 'border-white/[0.14]'
+                    : 'border-black/[0.12]'
+                )
               )}
               onClick={(event) => {
                 if (isExpanded) {
@@ -382,15 +447,16 @@ export function ExpandableInput({ onSubmit, isSubmitting = false }: ExpandableIn
                 className="shrink-0 px-5 pb-3"
               >
                 <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pr-1">
-                  {selectedFiles.map((entry, index) => (
-                    <motion.div
-                      key={`${entry.file.name}-${index}`}
-                      initial={{ scale: 0.94, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      exit={{ scale: 0.94, opacity: 0 }}
-                      className="relative shrink-0"
-                    >
-                      <div className="group flex h-9 min-w-[180px] max-w-[230px] items-center gap-2 rounded-lg bg-accent/60 px-1.5 pr-2 text-xs">
+                  {selectedFiles.map((entry, index) => {
+                    const isPreviewableImage = entry.previewType === 'image' && Boolean(entry.previewUrl)
+
+                    const fileChip = (
+                      <div
+                        className={cn(
+                          'group flex h-9 min-w-[180px] max-w-[230px] items-center gap-2 rounded-lg bg-accent/60 px-1.5 pr-2 text-xs',
+                          isPreviewableImage && 'cursor-zoom-in'
+                        )}
+                      >
                         <div className="relative h-7 w-7 shrink-0 overflow-hidden rounded-md bg-background/70">
                           {entry.previewType === 'image' && entry.previewUrl ? (
                             <img
@@ -422,14 +488,58 @@ export function ExpandableInput({ onSubmit, isSubmitting = false }: ExpandableIn
 
                         <button
                           type="button"
-                          onClick={() => removeFile(index)}
+                          onClick={(event) => {
+                            event.stopPropagation()
+                            removeFile(index)
+                          }}
                           className="text-muted-foreground transition-colors hover:text-destructive"
                         >
                           <X className="h-3 w-3" />
                         </button>
                       </div>
-                    </motion.div>
-                  ))}
+                    )
+
+                    return (
+                      <motion.div
+                        key={`${entry.file.name}-${index}`}
+                        initial={{ scale: 0.94, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        exit={{ scale: 0.94, opacity: 0 }}
+                        className="relative shrink-0"
+                      >
+                        {isPreviewableImage && entry.previewUrl ? (
+                          <ImageGallery
+                            images={[
+                              {
+                                id: `composer-image-${index}`,
+                                src: entry.previewUrl,
+                                alt: entry.file.name,
+                              },
+                            ]}
+                            layout="thumb"
+                            renderTrigger={(openPreview) => (
+                              <div
+                                role="button"
+                                tabIndex={0}
+                                onClick={() => openPreview()}
+                                onKeyDown={(event) => {
+                                  if (event.key === 'Enter' || event.key === ' ') {
+                                    event.preventDefault()
+                                    openPreview()
+                                  }
+                                }}
+                                className="outline-none focus-visible:ring-2 focus-visible:ring-primary/40 rounded-lg"
+                              >
+                                {fileChip}
+                              </div>
+                            )}
+                          />
+                        ) : (
+                          fileChip
+                        )}
+                      </motion.div>
+                    )
+                  })}
                 </div>
               </motion.div>
             )}
@@ -527,4 +637,4 @@ export function ExpandableInput({ onSubmit, isSubmitting = false }: ExpandableIn
       )}
     </div>
   )
-}
+})
