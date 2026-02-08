@@ -76,3 +76,7 @@ package.json
 
 # Kiro IDE config
 .kiro/
+
+# 本地 worktree / 同步备份目录
+worktrees/
+.sync-backup-from-worktree-*/
