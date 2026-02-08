@@ -750,7 +750,7 @@ const tools = await mcpAdapter.listTools(true);
 - [MCP 规范](https://modelcontextprotocol.io/)
 - [Todoist MCP Server](https://github.com/Doist/todoist-ai)
 - [Notion MCP Server](https://github.com/notionhq/notion-mcp-server)
-- [SuperInbox 架构文档](/Users/wudao/SuperInbox/CLAUDE.md)
+- [SuperInbox 文档中心](../../../../docs/README.md)
 
 ---
 

@@ -72,9 +72,8 @@ See [`.env.example`](./.env.example) for all available configuration options.
 
 ## Documentation
 
-- [Development Guide](./docs/development-guide.md)
-- [API Reference](./docs/api-reference.md)
-- [Deployment Guide](./docs/deployment.md)
+- [Project Documentation](../docs/README.md)
+- [Backend README](../backend/README.md)
 
 ## Contributing
 

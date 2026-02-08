@@ -1,276 +1,223 @@
 # SuperInbox CLI
 
-SuperInbox 命令行工具 - 快速发送内容到你的智能收件箱
+SuperInbox 命令行工具，用于在终端中快速写入、浏览和管理收件箱条目。
 
 ## 安装
 
 ```bash
-# 克隆或进入项目目录
 cd /path/to/SuperInbox/cli
-
-# 安装依赖
 npm install
-
-# 全局链接（可以在任何地方使用 sinbox 命令）
 npm link
 ```
 
-## 配置
-
-首次使用前需要配置 API 地址：
+## 快速开始
 
 ```bash
-# 设置后端 API 地址（默认：http://localhost:3000）
-sinbox config set api.url http://localhost:3000
+# 1) 启动服务（在仓库根目录）
+./start.sh
 
-# 如果需要认证，设置 API 密钥
-sinbox config set api.key your-api-key
-
-# 验证配置
+# 2) 检查连通性
 sinbox status
-```
 
-## 使用
+# 3) 首次使用先登录（或先注册）
+sinbox register
+sinbox login
 
-### 快速开始
-
-```bash
-# 发送内容到收件箱
-sinbox add "明天下午3点开会"
-
-# 使用编辑器输入长内容
-sinbox edit
-
-# 查看最近的条目
+# 4) 添加并查看条目
+sinbox add "明天下午 3 点开会"
 sinbox list
-
-# 查看单个条目详情
-sinbox show <id>
-
-# 查看服务状态
-sinbox status
 ```
 
-### 命令详解
+## 认证与配置
 
-#### `add` - 发送内容到收件箱
-
-快速发送文本内容到收件箱，AI 会自动分析意图并分类。
+### 认证命令
 
 ```bash
-# 基本使用（显示创建结果后立即返回，AI 在后台处理）
-sinbox add "明天下午3点开会"
+# 注册（打开网页注册入口）
+sinbox register
 
-# 记录支出
-sinbox add "买咖啡花了25元" -t expense
+# 登录
+sinbox login
+sinbox login <username>
 
-# 从 Telegram 发送
-sinbox add "重要想法" -s telegram
+# 退出登录
+sinbox logout
+```
 
-# 等待 AI 处理完成并查看详细结果
+说明：`list` / `show` / `delete` / `add` / `edit` 需要已登录。未登录时会提示执行 `sinbox login`。
+
+### 配置命令
+
+```bash
+# 进入交互式配置向导
+sinbox config
+```
+
+可在配置向导中调整：
+- 语言（中文/英文）
+- API 地址与超时
+- 默认 source/type
+- 展示偏好与行为设置
+
+## 命令总览
+
+- `sinbox add [content]`：新增条目（支持 `--file`）
+- `sinbox edit`：打开编辑器输入多行内容
+- `sinbox list` / `sinbox ls`：列表查询（支持筛选）
+- `sinbox show [id]`：查看详情（不传 id 时交互选择）
+- `sinbox delete [id]` / `sinbox rm [id]`：删除条目（不传 id 时交互选择）
+- `sinbox status`：检查服务状态
+- `sinbox config`：打开配置向导
+- `sinbox register` / `sinbox login` / `sinbox logout`：账号相关命令
+
+## 交互式模式
+
+CLI 的 `list`、`show`、`delete` 支持交互式流程（TTY 环境下）。
+
+### `list` 交互操作
+
+执行 `sinbox list` 后可选择：
+- 查看详情
+- 删除条目
+- 刷新列表
+- 退出
+
+### `show` 交互操作
+
+执行 `sinbox show`（不传 ID）会先让你选择条目，查看后可选择：
+- 编辑条目（当前仅提示进行中）
+- 删除条目
+- 返回列表
+- 退出
+
+### `delete` 交互操作
+
+执行 `sinbox delete`（不传 ID）会先让你选择条目，然后：
+1. 展示条目摘要（内容/分类/状态/摘要）
+2. 二次确认删除
+3. 删除后可选择返回列表、继续删除、退出
+
+### 何时禁用交互
+
+以下场景会自动按非交互模式执行：
+- 管道/脚本环境（非 TTY）
+- `list --json` 输出模式
+
+## 命令详解
+
+### `add` - 发送内容到收件箱
+
+```bash
+# 基本使用
+sinbox add "明天下午 3 点开会"
+
+# 指定类型和来源
+sinbox add "买咖啡花了 25 元" -t text -s cli
+
+# 上传文件（content 可选）
+sinbox add --file ./note.md
+sinbox add "会议纪要" --file ./meeting.txt
+
+# 等待 AI 处理完成
 sinbox add "整理文档" -w
 ```
 
-**选项：**
-- `-t, --type <type>` - 内容类型（text, image, url, audio），默认 text
-- `-s, --source <source>` - 来源标识，默认 cli
-- `-w, --wait` - 等待 AI 处理完成并显示详细结果（包括提取的信息、建议等）
+选项：
+- `-t, --type <type>`：内容类型（`text` / `image` / `url` / `audio`）
+- `-s, --source <source>`：来源标识
+- `-w, --wait`：等待 AI 处理结果
+- `-f, --file <path>`：上传文件
 
----
-
-#### `edit` - 打开编辑器输入内容
-
-使用系统默认编辑器输入长文本或多行内容，适合编写会议纪要、长篇想法、文章草稿等。
+### `edit` - 打开编辑器输入内容
 
 ```bash
-# 打开编辑器
 sinbox edit
-
-# 指定类型和来源
-sinbox edit -t note -s journal
-
-# 等待 AI 处理
+sinbox edit -t text -s cli
 sinbox edit -w
 ```
 
-**选项：**
-- `-t, --type <type>` - 内容类型，默认 text
-- `-s, --source <source>` - 来源标识，默认 cli
-- `-w, --wait` - 等待 AI 处理完成
+使用流程：
+1. 打开系统默认编辑器
+2. 输入内容并保存
+3. 自动发送到收件箱
 
-**使用流程：**
-1. 执行命令后会打开系统默认编辑器（vim/nano/vscode 等）
-2. 在编辑器中输入内容，以 `#` 开头的行会被忽略
-3. 保存并关闭编辑器
-4. 内容自动发送到收件箱，AI 开始处理
-
-**适用场景：**
-- 需要输入多行文本或长内容
-- 需要仔细编辑和修改内容
-- 复制粘贴大段文字
-- 编写结构化的笔记或文档
-
----
-
-#### `list` (别名: `ls`) - 查看条目列表
-
-查看收件箱中的条目，支持多种筛选和排序。
+### `list` / `ls` - 查看条目列表
 
 ```bash
-# 查看最近 20 条（默认）
+# 默认最近 20 条
 sinbox list
-sinbox ls  # 使用别名
 
-# 查看最近 10 条
+# 数量与分页
 sinbox ls -n 10
-
-# 分页查看（跳过前 20 条）
 sinbox ls -o 20
 
-# 查看所有待办事项
-sinbox ls --intent todo
-
-# 查看已完成的条目
+# 按分类 / 状态 / 来源筛选
+sinbox ls --category todo
 sinbox ls --status completed
-
-# 查看来自 Telegram 的消息
 sinbox ls --source telegram
 
-# 组合筛选：查看已完成的支出记录
-sinbox ls --intent expense --status completed
+# 组合筛选
+sinbox ls --category expense --status completed
 
-# 以 JSON 格式输出
+# JSON 输出
 sinbox ls -j
-
-# 查看最近 5 条待办事项
-sinbox ls -n 5 --intent todo
 ```
 
-**选项：**
-- `-n, --limit <number>` - 显示数量，默认 20
-- `-o, --offset <number>` - 偏移量（用于分页）
-- `--intent <intent>` - 按意图筛选（todo, idea, expense, note, bookmark, schedule）
-- `--status <status>` - 按状态筛选（pending, processing, completed, failed）
-- `--source <source>` - 按来源筛选
-- `-j, --json` - 以 JSON 格式输出
+选项：
+- `-n, --limit <number>`：显示数量
+- `-o, --offset <number>`：偏移量
+- `--category <category>`：分类筛选（`todo` / `idea` / `expense` / `note` / `bookmark` / `schedule`）
+- `--status <status>`：状态筛选（`pending` / `processing` / `completed` / `failed`）
+- `--source <source>`：来源筛选
+- `-j, --json`：JSON 输出
 
----
-
-#### `show` - 查看条目详情
-
-查看单个条目的完整信息，包括 AI 分析结果。
+### `show` - 查看条目详情
 
 ```bash
-# 查看指定条目
-sinbox show abc123
+# 指定 ID
+sinbox show <id>
 
-# 查看条目的所有字段
-sinbox show 1a2b3c4d
+# 不传 ID，交互选择
+sinbox show
 ```
 
-**参数：**
-- `<id>` - 条目 ID（必需）
+### `delete` / `rm` - 删除条目
 
----
+```bash
+# 指定 ID 删除
+sinbox delete <id>
+sinbox rm <id>
 
-#### `status` - 查看服务状态
+# 不传 ID，交互选择
+sinbox delete
+```
 
-检查 SuperInbox 后端服务是否正常运行。
+### `status` - 检查服务状态
 
 ```bash
 sinbox status
 ```
 
-显示信息包括：
-- API 连接状态
-- 服务版本
-- 响应时间
+会展示服务版本、状态、接口地址和当前登录状态。
 
----
-
-#### `config` - 管理配置
-
-配置 CLI 工具的设置，如 API 地址、认证信息等。
+### `help` - 查看帮助
 
 ```bash
-# 查看所有配置
-sinbox config get
-
-# 查看特定配置
-sinbox config get api.url
-
-# 设置 API 地址
-sinbox config set api.url http://localhost:3000
-
-# 设置 API 密钥
-sinbox config set api.key your-api-key
-
-# 重置所有配置
-sinbox config reset
-```
-
-**参数：**
-- `<action>` - 操作类型（get, set, reset）
-- `[key]` - 配置键（可选）
-- `[value]` - 配置值（可选）
-
----
-
-#### `help` - 帮助信息
-
-显示命令帮助信息。
-
-```bash
-# 显示所有命令
 sinbox help
-
-# 显示特定命令帮助
-sinbox add --help
 sinbox list --help
 ```
 
-## 使用场景
-
-### 场景 1：快速记录待办事项
+## 脚本与自动化示例
 
 ```bash
-# 直接添加
-sinbox add "明天下午3点开会讨论项目进度"
+# 输出分类字段
+sinbox list --json | jq '.[] | .category'
 
-# 查看所有待办
-sinbox ls --intent todo
-```
+# 过滤待办
+sinbox list --json | jq '.[] | select(.category == "todo")'
 
-### 场景 2：记录支出
-
-```bash
-# 记录支出
-sinbox add "午餐花了45元" -t expense
-sinbox add "打车回家30元" -t expense
-
-# 查看所有支出记录
-sinbox ls --intent expense
-```
-
-### 场景 3：保存灵感和想法
-
-```bash
-# 使用编辑器输入长文本
-sinbox edit -t note
-
-# 快速记录想法
-sinbox add "可以做一个自动化工具来..."
-```
-
-### 场景 4：从不同来源收集信息
-
-```bash
-# 标记来源
-sinbox add "重要链接" -s telegram
-sinbox add "会议纪要" -s email
-
-# 按来源查看
-sinbox ls --source telegram
+# 文本处理
+sinbox list --limit 5 | grep todo
 ```
 
 ## 常见问题
@@ -278,62 +225,39 @@ sinbox ls --source telegram
 ### 无法连接到服务器
 
 ```bash
-# 检查服务状态
 sinbox status
-
-# 确认 API 地址配置正确
-sinbox config get api.url
-
-# 重新设置 API 地址
-sinbox config set api.url http://localhost:3000
+sinbox config
 ```
+
+确认服务已启动，且配置中的 API 地址可访问。
 
 ### 命令找不到
 
-如果提示 `sinbox: command not found`：
-
 ```bash
-# 重新链接
 cd /path/to/SuperInbox/cli
 npm link
-
-# 或者使用 npx 运行
-npx sinbox add "测试"
+# 或
+npx sinbox status
 ```
 
-### 查看详细错误信息
+### 提示需要登录
 
 ```bash
-# 使用 --help 查看命令用法
-sinbox add --help
-
-# 查看配置
-sinbox config get
+sinbox login
 ```
+
+如果已有会话过期，可先执行 `sinbox logout` 后重新登录。
 
 ## 开发
 
 ```bash
-# 安装依赖
 npm install
-
-# 构建
 npm run build
-
-# 本地测试
 npm link
 ```
-
-## 技术栈
-
-- Node.js
-- TypeScript
-- Commander.js - CLI 框架
-- Chalk - 终端颜色
-- Ora - 加载动画
 
 ## 相关链接
 
 - [SuperInbox 后端 API](../backend/README.md)
-- [SuperInbox Web 界面](../web/README.md)
+- [SuperInbox 文档中心](../docs/README.md)
 - [项目文档](../README.md)
