@@ -764,6 +764,7 @@ function MemoryCardComponent({
             "text-[16px] font-semibold leading-[1.58] sm:text-[17px]",
             isAnalyzing ? 'text-muted-foreground italic' : (isDark ? 'text-white/92' : 'text-slate-900'),
             item.contentType === ContentType.URL ? 'break-all' : 'break-words',
+            'whitespace-pre-wrap',
             "line-clamp-3"
           )}>
             <LinkifiedText

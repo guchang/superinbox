@@ -15,6 +15,8 @@ import {
   Settings2,
   Share2,
   Maximize2,
+  Copy,
+  Check,
 } from 'lucide-react'
 import { cn, formatRelativeTime } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -128,9 +130,11 @@ export function DetailModal({
   const detailT = useTranslations('inboxDetail')
   const inboxT = useTranslations('inbox')
   const time = useTranslations('time')
+  const common = useTranslations('common')
 
   const [draftContent, setDraftContent] = useState('')
   const [draftCategory, setDraftCategory] = useState('unknown')
+  const [copiedContent, setCopiedContent] = useState(false)
 
   const { resolvedTheme } = useTheme()
   const isDark = resolvedTheme === 'dark'
@@ -150,6 +154,10 @@ export function DetailModal({
     setDraftContent(itemContent)
     setDraftCategory(itemCategory)
   }, [itemId, itemContent, itemCategory])
+
+  useEffect(() => {
+    setCopiedContent(false)
+  }, [itemId, isOpen])
 
   const normalizedCategoryOptions = useMemo(() => {
     const fallback = [
@@ -347,6 +355,36 @@ export function DetailModal({
     }
   }, [onClose])
 
+  const handleCopyRawContent = useCallback(async () => {
+    if (!itemContent) return
+
+    try {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(itemContent)
+      } else {
+        const textarea = document.createElement('textarea')
+        textarea.value = itemContent
+        textarea.style.position = 'fixed'
+        textarea.style.opacity = '0'
+        document.body.appendChild(textarea)
+        textarea.focus()
+        textarea.select()
+        const copied = document.execCommand('copy')
+        document.body.removeChild(textarea)
+
+        if (!copied) {
+          throw new Error('Fallback copy failed')
+        }
+      }
+
+      setCopiedContent(true)
+      window.setTimeout(() => setCopiedContent(false), 1500)
+    } catch (error) {
+      setCopiedContent(false)
+      console.error('Failed to copy content:', error)
+    }
+  }, [itemContent])
+
   if (!item) return null
 
   return (
@@ -382,11 +420,26 @@ export function DetailModal({
           <div className="grid gap-6 md:grid-cols-12 lg:gap-8">
             <div className="md:col-span-8 flex flex-col gap-6">
               <Card>
-                <CardHeader>
+                <CardHeader className="flex-row items-center justify-between gap-3 space-y-0">
                   <CardTitle className="flex items-center gap-2">
                     <FileText className="h-4 w-4 text-muted-foreground" />
                     {detailT('sections.content')}
                   </CardTitle>
+                  {!isEditing && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        void handleCopyRawContent()
+                      }}
+                      disabled={!itemContent}
+                      className="h-8 gap-1.5 px-2 text-xs font-medium"
+                    >
+                      {copiedContent ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                      {copiedContent ? common('copied') : inboxT('actions.copy')}
+                    </Button>
+                  )}
                 </CardHeader>
                 <CardContent>
                   {isEditing ? (
