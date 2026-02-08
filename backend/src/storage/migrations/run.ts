@@ -416,6 +416,68 @@ const migrations = [
     version: '016',
     name: 'add_ai_quality_fields_and_feedback',
     up: '-- handled in code for idempotency'
+  },
+  {
+    version: '017',
+    name: 'add_user_llm_configs_table',
+    up: `
+      CREATE TABLE IF NOT EXISTS user_llm_configs (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        name TEXT,
+        provider TEXT,
+        model TEXT,
+        base_url TEXT,
+        api_key TEXT,
+        timeout INTEGER,
+        max_tokens INTEGER,
+        is_active INTEGER NOT NULL DEFAULT 1,
+        priority INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_user_llm_configs_user_id ON user_llm_configs(user_id);
+      CREATE INDEX IF NOT EXISTS idx_user_llm_configs_active_priority ON user_llm_configs(user_id, is_active, priority);
+
+      INSERT INTO user_llm_configs (
+        id,
+        user_id,
+        name,
+        provider,
+        model,
+        base_url,
+        api_key,
+        timeout,
+        max_tokens,
+        is_active,
+        priority,
+        created_at,
+        updated_at
+      )
+      SELECT
+        lower(hex(randomblob(16))),
+        us.user_id,
+        'Primary',
+        us.llm_provider,
+        us.llm_model,
+        us.llm_base_url,
+        us.llm_api_key,
+        us.llm_timeout,
+        us.llm_max_tokens,
+        1,
+        0,
+        COALESCE(us.created_at, strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        COALESCE(us.updated_at, us.created_at, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+      FROM user_settings us
+      WHERE us.llm_provider IS NOT NULL
+        AND us.llm_model IS NOT NULL
+        AND us.llm_api_key IS NOT NULL
+        AND NOT EXISTS (
+          SELECT 1 FROM user_llm_configs c WHERE c.user_id = us.user_id
+        );
+    `
   }
 ];
 

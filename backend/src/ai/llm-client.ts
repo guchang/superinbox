@@ -5,8 +5,10 @@
 import axios, { type AxiosInstance } from 'axios';
 import { randomUUID } from 'crypto';
 import type { LLMConfig } from '../types/index.js';
-import { config } from '../config/index.js';
 import { getDatabase } from '../storage/database.js';
+
+const DEFAULT_LLM_TIMEOUT = 30000;
+const DEFAULT_LLM_MAX_TOKENS = 2000;
 
 export interface LLMMessage {
   role: 'system' | 'user' | 'assistant';
@@ -32,25 +34,68 @@ export interface ChatOptions {
   sessionType?: string;
 }
 
+interface LLMClientEntry {
+  config: LLMConfig;
+  provider: string;
+  client: AxiosInstance;
+}
+
+const normalizeRuntimeLlmConfig = (raw: {
+  provider: string | null;
+  model: string | null;
+  baseUrl: string | null;
+  apiKey: string | null;
+  timeout: number | null;
+  maxTokens: number | null;
+}): LLMConfig | null => {
+  const provider = raw.provider?.trim();
+  const model = raw.model?.trim();
+  const apiKey = raw.apiKey?.trim();
+
+  if (!provider || !model || !apiKey) {
+    return null;
+  }
+
+  const baseUrl = raw.baseUrl?.trim();
+
+  return {
+    provider,
+    model,
+    apiKey,
+    baseUrl: baseUrl && baseUrl.length > 0 ? baseUrl : undefined,
+    timeout: raw.timeout ?? DEFAULT_LLM_TIMEOUT,
+    maxTokens: raw.maxTokens ?? DEFAULT_LLM_MAX_TOKENS,
+  };
+};
+
 export class LLMClient {
-  private client: AxiosInstance;
-  private config: LLMConfig;
-  private provider: string;
+  private entries: LLMClientEntry[];
   private userId?: string;
+  private lastSuccessfulEntryIndex = 0;
 
-  constructor(llmConfig?: LLMConfig, options?: { userId?: string }) {
-    this.config = llmConfig ?? config.llm;
-    this.provider = this.config.provider || 'openai';
-    this.userId = options?.userId;
+  constructor(llmConfigs: LLMConfig | LLMConfig[], options?: { userId?: string }) {
+    const configs = Array.isArray(llmConfigs) ? llmConfigs : [llmConfigs];
+    if (configs.length === 0) {
+      throw new Error('At least one LLM config is required');
+    }
 
-    this.client = axios.create({
-      baseURL: this.config.baseUrl ?? 'https://api.openai.com/v1',
-      headers: {
-        'Authorization': `Bearer ${this.config.apiKey}`,
-        'Content-Type': 'application/json'
-      },
-      timeout: this.config.timeout
+    this.entries = configs.map((cfg) => {
+      const provider = cfg.provider || 'openai';
+      return {
+        config: cfg,
+        provider,
+        client: axios.create({
+          baseURL: cfg.baseUrl ?? 'https://api.openai.com/v1',
+          headers: {
+            'Authorization': `Bearer ${cfg.apiKey}`,
+            'Content-Type': 'application/json'
+          },
+          timeout: cfg.timeout
+        })
+      };
     });
+
+    this.userId = options?.userId;
   }
 
   /**
@@ -59,7 +104,6 @@ export class LLMClient {
    */
   private estimateTokens(messages: LLMMessage[]): number {
     const text = messages.map(m => m.content).join(' ');
-    // Conservative estimate: 1 token ≈ 4 characters
     return Math.ceil(text.length / 4);
   }
 
@@ -67,6 +111,7 @@ export class LLMClient {
    * Log LLM usage asynchronously (non-blocking)
    */
   private logLlmUsage(
+    entry: LLMClientEntry,
     messages: LLMMessage[],
     response: LLMResponse | null,
     error: Error | null,
@@ -76,53 +121,39 @@ export class LLMClient {
       sessionType?: string;
     }
   ): void {
-    // Use setImmediate to log asynchronously without blocking
     setImmediate(() => {
       try {
         const db = getDatabase();
         db.createLlmUsageLog({
           id: randomUUID(),
           userId: options?.userId ?? this.userId,
-          model: this.config.model,
-          provider: this.provider,
+          model: entry.config.model,
+          provider: entry.provider,
           requestMessages: JSON.stringify(messages),
-          responseContent: response?.content ?? null,
+          responseContent: response?.content ?? undefined,
           promptTokens: response?.usage?.promptTokens ?? 0,
           completionTokens: response?.usage?.completionTokens ?? 0,
           totalTokens: response?.usage?.totalTokens ?? 0,
           status: error ? 'error' : 'success',
-          errorMessage: error?.message ?? null,
-          sessionId: options?.sessionId ?? null,
-          sessionType: options?.sessionType ?? null,
+          errorMessage: error?.message ?? undefined,
+          sessionId: options?.sessionId ?? undefined,
+          sessionType: options?.sessionType ?? undefined,
         });
       } catch (logError) {
-        // Silently fail to not affect the main flow
         console.error('[LLM] Failed to log usage:', logError);
       }
     });
   }
 
-  /**
-   * Delay helper for retry mechanism
-   */
   private async delay(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
 
-  /**
-   * Check if an error is retryable
-   */
   private isRetryableError(error: unknown): boolean {
     if (axios.isAxiosError(error)) {
       const status = error.response?.status;
       const code = error.code;
 
-      // Retry on:
-      // - 429 (rate limit)
-      // - 500, 502, 503, 504 (server errors)
-      // - ECONNABORTED (timeout)
-      // - ECONNRESET (connection reset)
-      // - ETIMEDOUT (operation timed out)
       return status === 429 ||
              (status !== undefined && status >= 500 && status < 600) ||
              code === 'ECONNABORTED' ||
@@ -133,16 +164,14 @@ export class LLMClient {
     return false;
   }
 
-  /**
-   * Execute a single LLM API call (without retry logic)
-   */
   private async executeChatRequest(
+    entry: LLMClientEntry,
     requestBody: any,
     messages: LLMMessage[],
     chatOptions: any,
     userId?: string
   ): Promise<LLMResponse> {
-    const response = await this.client.post('/chat/completions', requestBody);
+    const response = await entry.client.post('/chat/completions', requestBody);
 
     const choice = response.data.choices[0];
     const maxTokensUsed = requestBody.max_tokens;
@@ -157,8 +186,7 @@ export class LLMClient {
       }
     };
 
-    // Log successful request
-    this.logLlmUsage(messages, result, null, {
+    this.logLlmUsage(entry, messages, result, null, {
       userId: userId ?? this.userId,
       sessionId: chatOptions?.sessionId,
       sessionType: chatOptions?.sessionType
@@ -167,31 +195,25 @@ export class LLMClient {
     return result;
   }
 
-  /**
-   * Chat completion request with exponential backoff retry
-   */
-  async chat(
+  private async chatWithEntry(
+    entry: LLMClientEntry,
     messages: LLMMessage[],
     options?: ChatOptions & { userId?: string }
   ): Promise<LLMResponse> {
     const { userId, ...chatOptions } = options ?? {};
-    // Ensure every call has a session for statistics grouping.
     const sessionId = chatOptions?.sessionId ?? randomUUID();
     const sessionType = chatOptions?.sessionType ?? 'general';
     const normalizedChatOptions = { ...chatOptions, sessionId, sessionType };
 
-    // Build request body outside try block so it's accessible in catch block
     const requestBody: any = {
-      model: this.config.model,
+      model: entry.config.model,
       messages,
       temperature: chatOptions?.temperature ?? 0.3,
-      max_tokens: chatOptions?.maxTokens ?? this.config.maxTokens ?? 2000
+      max_tokens: chatOptions?.maxTokens ?? entry.config.maxTokens ?? DEFAULT_LLM_MAX_TOKENS
     };
 
-    // Add JSON mode if supported and requested
-    // Note: Some providers (like NVIDIA's OpenAI-compatible API) don't support response_format properly
-    const baseUrl = this.config.baseUrl ?? '';
-    const modelName = this.config.model ?? '';
+    const baseUrl = entry.config.baseUrl ?? '';
+    const modelName = entry.config.model ?? '';
     const supportsJsonMode = !baseUrl.includes('api.nvidia.com') &&
                             !modelName.includes('gpt-oss') &&
                             !modelName.includes('nvidia');
@@ -204,13 +226,11 @@ export class LLMClient {
 
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
-        return await this.executeChatRequest(requestBody, messages, normalizedChatOptions, userId);
+        return await this.executeChatRequest(entry, requestBody, messages, normalizedChatOptions, userId);
       } catch (error) {
         lastError = error as Error;
 
-        // Check if error is retryable
         if (!this.isRetryableError(error) || attempt === maxRetries) {
-          // Not retryable or max retries reached, fall through to error handling
           break;
         }
 
@@ -220,7 +240,6 @@ export class LLMClient {
            error.code === 'ETIMEDOUT' ||
            error.message?.includes('timeout'));
 
-        // Calculate delay: for 429/timeout use longer delays (5s, 10s, 20s), otherwise use exponential (1s, 2s, 4s)
         const baseDelay = (isRateLimit || isTimeout) ? 5000 : 1000;
         const delay = baseDelay * Math.pow(2, attempt);
 
@@ -228,17 +247,15 @@ export class LLMClient {
         if (isRateLimit) errorType = 'Rate limited';
         if (isTimeout) errorType = 'Request timed out';
 
-        console.warn(`[LLM] ${errorType} (attempt ${attempt + 1}/${maxRetries + 1}), retrying after ${delay}ms`);
+        console.warn(`[LLM] ${errorType} (${entry.provider}/${entry.config.model}, attempt ${attempt + 1}/${maxRetries + 1}), retrying after ${delay}ms`);
 
         await this.delay(delay);
       }
     }
 
-    // All retries exhausted or non-retryable error - handle error logging
     let partialResponse: LLMResponse | null = null;
 
     if (axios.isAxiosError(lastError)) {
-      // Some LLM providers return usage info even in error responses
       const errorData = lastError.response?.data;
       if (errorData?.usage) {
         partialResponse = {
@@ -252,7 +269,6 @@ export class LLMClient {
           }
         };
       } else {
-        // Fallback: estimate prompt tokens if API didn't return usage
         const estimatedPromptTokens = this.estimateTokens(messages);
         partialResponse = {
           content: '',
@@ -266,7 +282,6 @@ export class LLMClient {
         };
       }
     } else {
-      // Non-axios errors: still try to estimate
       const estimatedPromptTokens = this.estimateTokens(messages);
       partialResponse = {
         content: '',
@@ -280,8 +295,7 @@ export class LLMClient {
       };
     }
 
-    // Log failed request with partial/estimated usage data
-    this.logLlmUsage(messages, partialResponse, lastError, {
+    this.logLlmUsage(entry, messages, partialResponse, lastError, {
       userId: userId ?? this.userId,
       sessionId,
       sessionType,
@@ -292,7 +306,35 @@ export class LLMClient {
         `LLM API Error: ${lastError.response?.data?.error?.message ?? lastError.message}`
       );
     }
-    throw lastError;
+    throw (lastError ?? new Error('Unknown LLM error'));
+  }
+
+  /**
+   * Chat completion request with fallback across active configs
+   */
+  async chat(
+    messages: LLMMessage[],
+    options?: ChatOptions & { userId?: string }
+  ): Promise<LLMResponse> {
+    const errors: string[] = [];
+
+    for (let index = 0; index < this.entries.length; index += 1) {
+      const entry = this.entries[index];
+      try {
+        const response = await this.chatWithEntry(entry, messages, options);
+        this.lastSuccessfulEntryIndex = index;
+        return response;
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        errors.push(`[${entry.provider}/${entry.config.model}] ${errorMessage}`);
+
+        if (index < this.entries.length - 1) {
+          console.warn(`[LLM] Fallback to next config after failure: ${entry.provider}/${entry.config.model}`);
+        }
+      }
+    }
+
+    throw new Error(`All active LLM configs failed: ${errors.join(' | ')}`);
   }
 
   /**
@@ -311,11 +353,7 @@ export class LLMClient {
 
     try {
       let content = response.content.trim();
-
-      // Remove <thinking>...</thinking> tags and their content (Claude thinking mode)
       content = content.replace(/<thinking>[\s\S]*?<\/thinking>/g, '').trim();
-
-      // Use the smart JSON extraction method (same as used in parsePlannerOutput)
       const jsonStr = this.extractJsonString(content);
 
       return JSON.parse(jsonStr) as T;
@@ -326,15 +364,10 @@ export class LLMClient {
     }
   }
 
-  /**
-   * Extract JSON string from content using bracket matching
-   * (Same logic as used in rules.routes.ts parsePlannerOutput)
-   */
   private extractJsonString(content: string): string {
-    // Try to find a complete JSON object using bracket matching
     const firstBrace = content.indexOf('{');
     if (firstBrace === -1) {
-      return content; // No JSON found
+      return content;
     }
 
     let braceCount = 0;
@@ -365,20 +398,15 @@ export class LLMClient {
         } else if (char === '}') {
           braceCount--;
           if (braceCount === 0) {
-            // Found matching closing brace
             return content.substring(firstBrace, i + 1);
           }
         }
       }
     }
 
-    // Fallback: return from first brace to end
     return content.substring(firstBrace);
   }
 
-  /**
-   * Simple completion request
-   */
   async complete(prompt: string): Promise<string> {
     const messages: LLMMessage[] = [
       { role: 'user', content: prompt }
@@ -389,16 +417,15 @@ export class LLMClient {
   }
 
   getModelName(): string {
-    return this.config.model;
+    const entry = this.entries[this.lastSuccessfulEntryIndex] ?? this.entries[0];
+    return entry.config.model;
   }
 
   getProviderName(): string {
-    return this.provider;
+    const entry = this.entries[this.lastSuccessfulEntryIndex] ?? this.entries[0];
+    return entry.provider;
   }
 
-  /**
-   * Health check
-   */
   async healthCheck(): Promise<boolean> {
     try {
       await this.chat([{ role: 'user', content: 'ping' }]);
@@ -409,40 +436,20 @@ export class LLMClient {
   }
 }
 
-/**
- * Default LLM client instance
- */
-let llmInstance: LLMClient | null = null;
-
 export const getLLMClient = (): LLMClient => {
-  if (!llmInstance) {
-    llmInstance = new LLMClient();
-  }
-  return llmInstance;
+  return getUserLLMClient('default-user');
 };
 
-/**
- * Get LLM client with user-specific config
- */
 export const getUserLLMClient = (userId?: string): LLMClient => {
-  // Check if user has custom LLM config
-  const userConfig = userId ? getDatabase().getUserLlmConfig(userId) : null;
+  const resolvedUserId = userId ?? 'default-user';
+  const configs = getDatabase()
+    .listActiveUserLlmConfigs(resolvedUserId)
+    .map(normalizeRuntimeLlmConfig)
+    .filter((config): config is LLMConfig => config !== null);
 
-  // If user has custom config, create client with it
-  if (userConfig && userConfig.provider) {
-    return new LLMClient(
-      {
-        provider: userConfig.provider,
-        model: userConfig.model || config.llm.model,
-        apiKey: userConfig.apiKey || config.llm.apiKey,
-        baseUrl: userConfig.baseUrl || config.llm.baseUrl,
-        timeout: userConfig.timeout || config.llm.timeout,
-        maxTokens: userConfig.maxTokens || config.llm.maxTokens
-      },
-      { userId }
-    );
+  if (configs.length === 0) {
+    throw new Error('No active LLM configuration found. Please add and activate at least one complete LLM config in settings.');
   }
 
-  // Use default client with userId for logging
-  return new LLMClient(undefined, { userId });
+  return new LLMClient(configs, { userId: resolvedUserId });
 };

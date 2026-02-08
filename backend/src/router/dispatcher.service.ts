@@ -12,7 +12,6 @@ import { mcpAdapter } from './adapters/mcp-adapter.js';
 import { getLLMMappingService } from './mcp/llm-mapping.service.js';
 import { getDatabase } from '../storage/database.js';
 import { logger } from '../middleware/logger.js';
-import { config as appConfig } from '../config/index.js';
 
 /**
  * Helper to safely resolve a positive integer from unknown value
@@ -213,11 +212,9 @@ export class DispatcherService {
       const processingInstructions = instructions || this.getDefaultInstructions(adapterRow.server_type);
 
       // 8. Get LLM config
-      const userLlmConfig = db.getUserLlmConfig(userId);
-      const effectiveMaxTokens = resolvePositiveInt(
-        userLlmConfig.maxTokens,
-        resolvePositiveInt(appConfig.llm.maxTokens, 2000)
-      );
+      const activeLlmConfigs = db.listActiveUserLlmConfigs(userId);
+      const firstMaxTokens = activeLlmConfigs.length > 0 ? activeLlmConfigs[0].maxTokens : null;
+      const effectiveMaxTokens = resolvePositiveInt(firstMaxTokens, 2000);
       const maxChunkLength = Math.max(1000, Math.floor(effectiveMaxTokens * 3.5));
 
       // 9. Build context for LLM

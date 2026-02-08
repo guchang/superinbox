@@ -68,6 +68,23 @@ export class DatabaseManager {
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
       );
 
+      CREATE TABLE IF NOT EXISTS user_llm_configs (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        name TEXT,
+        provider TEXT,
+        model TEXT,
+        base_url TEXT,
+        api_key TEXT,
+        timeout INTEGER,
+        max_tokens INTEGER,
+        is_active INTEGER NOT NULL DEFAULT 1,
+        priority INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      );
+
       CREATE TABLE IF NOT EXISTS refresh_tokens (
         id TEXT PRIMARY KEY,
         user_id TEXT NOT NULL,
@@ -167,6 +184,8 @@ export class DatabaseManager {
 
       CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
       CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+      CREATE INDEX IF NOT EXISTS idx_user_llm_configs_user_id ON user_llm_configs(user_id);
+      CREATE INDEX IF NOT EXISTS idx_user_llm_configs_active_priority ON user_llm_configs(user_id, is_active, priority);
       CREATE INDEX IF NOT EXISTS idx_refresh_tokens_token ON refresh_tokens(token);
       CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user_id ON refresh_tokens(user_id);
       CREATE INDEX IF NOT EXISTS idx_items_user_id ON items(user_id);
@@ -819,7 +838,137 @@ export class DatabaseManager {
   }
 
   /**
-   * Get user LLM configuration overrides
+   * List user LLM configurations ordered by priority
+   */
+  listUserLlmConfigs(userId: string): Array<{
+    id: string;
+    name: string | null;
+    provider: string | null;
+    model: string | null;
+    baseUrl: string | null;
+    apiKey: string | null;
+    timeout: number | null;
+    maxTokens: number | null;
+    isActive: boolean;
+    priority: number;
+    createdAt: string;
+    updatedAt: string;
+  }> {
+    const stmt = this.db.prepare(`
+      SELECT
+        id,
+        name,
+        provider,
+        model,
+        base_url,
+        api_key,
+        timeout,
+        max_tokens,
+        is_active,
+        priority,
+        created_at,
+        updated_at
+      FROM user_llm_configs
+      WHERE user_id = ?
+      ORDER BY priority ASC, created_at ASC
+    `);
+    const rows = stmt.all(userId) as Array<any>;
+
+    return rows.map((row) => ({
+      id: row.id,
+      name: row.name ?? null,
+      provider: row.provider ?? null,
+      model: row.model ?? null,
+      baseUrl: row.base_url ?? null,
+      apiKey: row.api_key ?? null,
+      timeout: row.timeout ?? null,
+      maxTokens: row.max_tokens ?? null,
+      isActive: row.is_active === 1,
+      priority: row.priority ?? 0,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    }));
+  }
+
+  /**
+   * Get one user LLM configuration by id
+   */
+  getUserLlmConfigById(userId: string, id: string): {
+    id: string;
+    name: string | null;
+    provider: string | null;
+    model: string | null;
+    baseUrl: string | null;
+    apiKey: string | null;
+    timeout: number | null;
+    maxTokens: number | null;
+    isActive: boolean;
+    priority: number;
+    createdAt: string;
+    updatedAt: string;
+  } | null {
+    const stmt = this.db.prepare(`
+      SELECT
+        id,
+        name,
+        provider,
+        model,
+        base_url,
+        api_key,
+        timeout,
+        max_tokens,
+        is_active,
+        priority,
+        created_at,
+        updated_at
+      FROM user_llm_configs
+      WHERE user_id = ? AND id = ?
+      LIMIT 1
+    `);
+    const row = stmt.get(userId, id) as any;
+
+    if (!row) {
+      return null;
+    }
+
+    return {
+      id: row.id,
+      name: row.name ?? null,
+      provider: row.provider ?? null,
+      model: row.model ?? null,
+      baseUrl: row.base_url ?? null,
+      apiKey: row.api_key ?? null,
+      timeout: row.timeout ?? null,
+      maxTokens: row.max_tokens ?? null,
+      isActive: row.is_active === 1,
+      priority: row.priority ?? 0,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    };
+  }
+
+  /**
+   * List active user LLM configurations ordered by priority
+   */
+  listActiveUserLlmConfigs(userId: string): Array<{
+    id: string;
+    name: string | null;
+    provider: string | null;
+    model: string | null;
+    baseUrl: string | null;
+    apiKey: string | null;
+    timeout: number | null;
+    maxTokens: number | null;
+    isActive: boolean;
+    priority: number;
+    createdAt: string;
+    updatedAt: string;
+  }> {
+    return this.listUserLlmConfigs(userId).filter((config) => config.isActive);
+  }
+
+  /**
+   * Get first active LLM configuration for compatibility
    */
   getUserLlmConfig(userId: string): {
     provider: string | null;
@@ -829,42 +978,112 @@ export class DatabaseManager {
     timeout: number | null;
     maxTokens: number | null;
   } {
-    const stmt = this.db.prepare(`
-      SELECT
-        llm_provider,
-        llm_model,
-        llm_base_url,
-        llm_api_key,
-        llm_timeout,
-        llm_max_tokens
-      FROM user_settings
-      WHERE user_id = ?
-    `);
-    const row = stmt.get(userId) as any;
+    const firstActiveConfig = this.listActiveUserLlmConfigs(userId)[0];
+
+    if (!firstActiveConfig) {
+      return {
+        provider: null,
+        model: null,
+        baseUrl: null,
+        apiKey: null,
+        timeout: null,
+        maxTokens: null,
+      };
+    }
 
     return {
-      provider: row?.llm_provider ?? null,
-      model: row?.llm_model ?? null,
-      baseUrl: row?.llm_base_url ?? null,
-      apiKey: row?.llm_api_key ?? null,
-      timeout: row?.llm_timeout ?? null,
-      maxTokens: row?.llm_max_tokens ?? null,
+      provider: firstActiveConfig.provider,
+      model: firstActiveConfig.model,
+      baseUrl: firstActiveConfig.baseUrl,
+      apiKey: firstActiveConfig.apiKey,
+      timeout: firstActiveConfig.timeout,
+      maxTokens: firstActiveConfig.maxTokens,
     };
   }
 
   /**
-   * Update or create user LLM configuration overrides
+   * Create a user LLM configuration
    */
-  setUserLlmConfig(userId: string, updates: {
+  createUserLlmConfig(userId: string, payload: {
+    name?: string | null;
+    provider: string | null;
+    model: string | null;
+    baseUrl?: string | null;
+    apiKey: string | null;
+    timeout?: number | null;
+    maxTokens?: number | null;
+    isActive?: boolean;
+    priority?: number;
+  }): { id: string; updatedAt: string } {
+    const now = new Date().toISOString();
+    const id = crypto.randomUUID();
+    const maxPriorityRow = this.db
+      .prepare('SELECT COALESCE(MAX(priority), -1) AS maxPriority FROM user_llm_configs WHERE user_id = ?')
+      .get(userId) as { maxPriority?: number } | undefined;
+    const nextPriority = typeof payload.priority === 'number'
+      ? payload.priority
+      : ((maxPriorityRow?.maxPriority ?? -1) + 1);
+
+    const stmt = this.db.prepare(`
+      INSERT INTO user_llm_configs (
+        id,
+        user_id,
+        name,
+        provider,
+        model,
+        base_url,
+        api_key,
+        timeout,
+        max_tokens,
+        is_active,
+        priority,
+        created_at,
+        updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    stmt.run(
+      id,
+      userId,
+      payload.name ?? null,
+      payload.provider,
+      payload.model,
+      payload.baseUrl ?? null,
+      payload.apiKey,
+      payload.timeout ?? null,
+      payload.maxTokens ?? null,
+      payload.isActive === undefined ? 1 : (payload.isActive ? 1 : 0),
+      nextPriority,
+      now,
+      now
+    );
+
+    return { id, updatedAt: now };
+  }
+
+  /**
+   * Update a user LLM configuration
+   */
+  updateUserLlmConfig(userId: string, id: string, updates: {
+    name?: string | null;
     provider?: string | null;
     model?: string | null;
     baseUrl?: string | null;
     apiKey?: string | null;
     timeout?: number | null;
     maxTokens?: number | null;
-  }): { updatedAt: string } {
+    isActive?: boolean;
+    priority?: number;
+  }): { updatedAt: string } | null {
+    const existing = this.db
+      .prepare('SELECT id FROM user_llm_configs WHERE id = ? AND user_id = ?')
+      .get(id, userId);
+
+    if (!existing) {
+      return null;
+    }
+
     const now = new Date().toISOString();
-    const existing = this.db.prepare('SELECT user_id FROM user_settings WHERE user_id = ?').get(userId);
     const fields: string[] = [];
     const params: unknown[] = [];
 
@@ -875,54 +1094,127 @@ export class DatabaseManager {
       }
     };
 
-    pushUpdate('llm_provider', updates.provider);
-    pushUpdate('llm_model', updates.model);
-    pushUpdate('llm_base_url', updates.baseUrl);
-    pushUpdate('llm_api_key', updates.apiKey);
-    pushUpdate('llm_timeout', updates.timeout);
-    pushUpdate('llm_max_tokens', updates.maxTokens);
+    pushUpdate('name', updates.name);
+    pushUpdate('provider', updates.provider);
+    pushUpdate('model', updates.model);
+    pushUpdate('base_url', updates.baseUrl);
+    pushUpdate('api_key', updates.apiKey);
+    pushUpdate('timeout', updates.timeout);
+    pushUpdate('max_tokens', updates.maxTokens);
+    if (updates.isActive !== undefined) {
+      pushUpdate('is_active', updates.isActive ? 1 : 0);
+    }
+    pushUpdate('priority', updates.priority);
 
-    if (existing) {
-      if (fields.length > 0) {
-        fields.push('updated_at = ?');
-        params.push(now);
-        const stmt = this.db.prepare(`
-          UPDATE user_settings
-          SET ${fields.join(', ')}
-          WHERE user_id = ?
-        `);
-        stmt.run(...params, userId);
-      }
-    } else {
-      const insertStmt = this.db.prepare(`
-        INSERT INTO user_settings (
-          user_id,
-          timezone,
-          llm_provider,
-          llm_model,
-          llm_base_url,
-          llm_api_key,
-          llm_timeout,
-          llm_max_tokens,
-          created_at,
-          updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    if (fields.length > 0) {
+      fields.push('updated_at = ?');
+      params.push(now);
+      const stmt = this.db.prepare(`
+        UPDATE user_llm_configs
+        SET ${fields.join(', ')}
+        WHERE id = ? AND user_id = ?
       `);
-      insertStmt.run(
-        userId,
-        null,
-        updates.provider ?? null,
-        updates.model ?? null,
-        updates.baseUrl ?? null,
-        updates.apiKey ?? null,
-        updates.timeout ?? null,
-        updates.maxTokens ?? null,
-        now,
-        now
-      );
+      stmt.run(...params, id, userId);
     }
 
     return { updatedAt: now };
+  }
+
+  /**
+   * Delete a user LLM configuration
+   */
+  deleteUserLlmConfig(userId: string, id: string): boolean {
+    const stmt = this.db.prepare('DELETE FROM user_llm_configs WHERE id = ? AND user_id = ?');
+    const result = stmt.run(id, userId);
+    return result.changes > 0;
+  }
+
+  /**
+   * Reorder user LLM configurations
+   */
+  reorderUserLlmConfigs(userId: string, orderedIds: string[]): { updatedAt: string } {
+    const existingConfigs = this.listUserLlmConfigs(userId);
+    const existingIds = existingConfigs.map((config) => config.id);
+
+    if (existingIds.length !== orderedIds.length) {
+      throw new Error('Invalid reorder payload length');
+    }
+
+    const existingSet = new Set(existingIds);
+    const orderedSet = new Set(orderedIds);
+    if (existingSet.size !== orderedSet.size) {
+      throw new Error('Duplicate ids in reorder payload');
+    }
+
+    for (const id of orderedIds) {
+      if (!existingSet.has(id)) {
+        throw new Error('Reorder payload contains unknown config id');
+      }
+    }
+
+    const now = new Date().toISOString();
+    const stmt = this.db.prepare(`
+      UPDATE user_llm_configs
+      SET priority = ?, updated_at = ?
+      WHERE id = ? AND user_id = ?
+    `);
+
+    const tx = this.db.transaction((ids: string[]) => {
+      ids.forEach((id, index) => {
+        stmt.run(index, now, id, userId);
+      });
+    });
+
+    tx(orderedIds);
+    return { updatedAt: now };
+  }
+
+  /**
+   * Update or create user LLM configuration overrides (legacy compatibility)
+   */
+  setUserLlmConfig(userId: string, updates: {
+    provider?: string | null;
+    model?: string | null;
+    baseUrl?: string | null;
+    apiKey?: string | null;
+    timeout?: number | null;
+    maxTokens?: number | null;
+  }): { updatedAt: string } {
+    const firstConfig = this.listUserLlmConfigs(userId)[0];
+
+    if (!firstConfig) {
+      if (!updates.provider || !updates.model || !updates.apiKey) {
+        throw new Error('provider, model and apiKey are required to create the first LLM configuration');
+      }
+
+      const created = this.createUserLlmConfig(userId, {
+        name: 'Primary',
+        provider: updates.provider,
+        model: updates.model,
+        baseUrl: updates.baseUrl,
+        apiKey: updates.apiKey,
+        timeout: updates.timeout,
+        maxTokens: updates.maxTokens,
+        isActive: true,
+        priority: 0,
+      });
+      return { updatedAt: created.updatedAt };
+    }
+
+    const updated = this.updateUserLlmConfig(userId, firstConfig.id, {
+      provider: updates.provider,
+      model: updates.model,
+      baseUrl: updates.baseUrl,
+      apiKey: updates.apiKey,
+      timeout: updates.timeout,
+      maxTokens: updates.maxTokens,
+    });
+
+    if (!updated) {
+      throw new Error('Failed to update LLM configuration');
+    }
+
+    return { updatedAt: updated.updatedAt };
   }
 
   // ========== Refresh Token Methods ==========

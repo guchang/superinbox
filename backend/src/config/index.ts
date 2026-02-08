@@ -29,7 +29,7 @@ const configSchema = z.object({
 
   // LLM
   LLM_PROVIDER: z.string().default('openai'),
-  LLM_API_KEY: z.string().min(1, 'LLM_API_KEY is required'),
+  LLM_API_KEY: z.string().default(''),
   LLM_MODEL: z.string().default('gpt-4'),
   LLM_BASE_URL: z.string().optional(),
   LLM_TIMEOUT: z.string().transform(Number).default('30000'),
