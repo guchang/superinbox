@@ -80,3 +80,9 @@ package.json
 # 本地 worktree / 同步备份目录
 worktrees/
 .sync-backup-from-worktree-*/
+
+# Local-only docs/scripts
+/test_auth_permissions.py
+/DEPLOYMENT_GUIDE.md
+/web/TEST_GUIDE.md
+/web/BACKEND_AUTH_IMPLEMENTATION.md
