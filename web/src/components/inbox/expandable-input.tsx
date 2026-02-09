@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef, useCallback, useEffect, forwardRef, useImperativeHandle } from 'react'
+import Image from 'next/image'
 import { useTranslations } from 'next-intl'
 import { useTheme } from 'next-themes'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -459,9 +460,12 @@ export const ExpandableInput = forwardRef<ExpandableInputHandle, ExpandableInput
                       >
                         <div className="relative h-7 w-7 shrink-0 overflow-hidden rounded-md bg-background/70">
                           {entry.previewType === 'image' && entry.previewUrl ? (
-                            <img
+                            <Image
                               src={entry.previewUrl}
                               alt={entry.file.name}
+                              width={28}
+                              height={28}
+                              unoptimized
                               className="h-full w-full object-cover"
                             />
                           ) : entry.previewType === 'video' && entry.previewUrl ? (

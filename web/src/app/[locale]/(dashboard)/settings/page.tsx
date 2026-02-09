@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { Check, AlertCircle, ArrowUp, ArrowDown, Trash2, Plus, Loader2, Pencil } from 'lucide-react'
 
@@ -98,11 +98,11 @@ export default function SettingsPage() {
     [llmConfigs]
   )
 
-  const applyLlmConfigResponse = (configs: LlmConfigItem[] | undefined) => {
+  const applyLlmConfigResponse = useCallback((configs: LlmConfigItem[] | undefined) => {
     setLlmConfigs(configs || [])
-  }
+  }, [])
 
-  const loadLlmConfigs = async () => {
+  const loadLlmConfigs = useCallback(async () => {
     setLlmLoading(true)
     try {
       const response = await settingsApi.getLlmConfigs()
@@ -112,7 +112,7 @@ export default function SettingsPage() {
     } finally {
       setLlmLoading(false)
     }
-  }
+  }, [applyLlmConfigResponse])
 
   useEffect(() => {
     settingsApi.getTimezone()
@@ -126,7 +126,7 @@ export default function SettingsPage() {
       })
 
     loadLlmConfigs()
-  }, [])
+  }, [loadLlmConfigs])
 
   useEffect(() => {
     if (!dialogOpen || !dialogConnectionFeedback) return

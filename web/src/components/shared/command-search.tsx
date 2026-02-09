@@ -234,6 +234,8 @@ export function CommandSearch({
     })
   }, [])
 
+  const initialFiltersRef = React.useRef(filters)
+
   const getCategoryDisplayLabel = React.useCallback((categoryKey: string, fallbackLabel: string) => {
     switch (categoryKey) {
       case CategoryType.TODO:
@@ -263,12 +265,13 @@ export function CommandSearch({
 
   // 初始化输入值和选中索引
   React.useEffect(() => {
+    const initialFilters = initialFiltersRef.current
     const parts: string[] = []
-    if (filters.category) parts.push(`category:${filters.category}`)
-    if (filters.status) parts.push(`status:${filters.status}`)
-    if (filters.source) parts.push(`source:${filters.source}`)
-    if (filters.hasType) parts.push(`hastype:${filters.hasType}`)
-    if (filters.query) parts.push(filters.query)
+    if (initialFilters.category) parts.push(`category:${initialFilters.category}`)
+    if (initialFilters.status) parts.push(`status:${initialFilters.status}`)
+    if (initialFilters.source) parts.push(`source:${initialFilters.source}`)
+    if (initialFilters.hasType) parts.push(`hastype:${initialFilters.hasType}`)
+    if (initialFilters.query) parts.push(initialFilters.query)
     setInputValue(parts.join(' '))
     // 初始化选中索引为第一个选项
     setSelectedIndex(0)

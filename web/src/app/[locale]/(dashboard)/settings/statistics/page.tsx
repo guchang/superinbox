@@ -40,7 +40,7 @@ import {
   Bot,
   MoreHorizontal,
 } from 'lucide-react'
-import { Fragment, useEffect, useMemo, useState } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { useQuery } from '@tanstack/react-query'
 import {
@@ -273,7 +273,7 @@ export default function LlmStatisticsPage() {
   })
 
   // Toggle session expansion
-  const toggleSessionExpanded = (sessionId: string) => {
+  const toggleSessionExpanded = useCallback((sessionId: string) => {
     setExpandedSessions(prev => {
       const next = new Set(prev)
       if (next.has(sessionId)) {
@@ -283,15 +283,15 @@ export default function LlmStatisticsPage() {
       }
       return next
     })
-  }
+  }, [])
 
   // Simple hash function for content
-  const hashContent = (content: string) => {
+  const hashContent = useCallback((content: string) => {
     return content.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
-  }
+  }, [])
 
   // Open conversation dialog
-  const openConversationDialog = async (session: LlmSession) => {
+  const openConversationDialog = useCallback(async (session: LlmSession) => {
     setSelectedSession(session)
     setDialogOpen(true)
 
@@ -336,7 +336,7 @@ export default function LlmStatisticsPage() {
       console.error('Failed to fetch session logs:', error)
       setSessionLogs([])
     }
-  }
+  }, [dateRange, hashContent])
 
   const openDetail = (log: LlmUsageLog) => {
     setSelectedLog(log)

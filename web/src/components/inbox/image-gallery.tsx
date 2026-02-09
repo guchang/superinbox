@@ -1,5 +1,6 @@
 "use client"
 
+import Image from "next/image"
 import React, { useEffect, useRef, useState } from "react"
 import { ChevronLeft, ChevronRight, Download, X } from "lucide-react"
 
@@ -404,12 +405,15 @@ export function ImageGallery({
 
         <div className="relative w-full h-full overflow-hidden rounded-[24px] bg-zinc-900/80" data-card-ignore-click>
           <div className="absolute inset-0 overflow-hidden">
-            <img
+            <Image
               key={`bg-${activeImage.id}`}
               src={activeImage.src}
               alt=""
+              fill
+              sizes="100vw"
               aria-hidden="true"
-              onError={activeImage.onError}
+              unoptimized
+              onError={() => activeImage.onError?.()}
               className="absolute inset-0 h-full w-full object-cover scale-110 blur-3xl opacity-55"
             />
             <div className="absolute inset-0 bg-black/45" />
@@ -433,14 +437,19 @@ export function ImageGallery({
             onLostPointerCapture={finishDrag}
             onWheel={handleWheel}
           >
-            <img
-              key={`main-${activeImage.id}`}
-              src={activeImage.src}
-              alt={activeImage.alt}
-              onError={activeImage.onError}
-              className="h-full w-auto max-w-full object-contain select-none"
-              draggable={false}
-            />
+            <div className="relative h-full w-full">
+              <Image
+                key={`main-${activeImage.id}`}
+                src={activeImage.src}
+                alt={activeImage.alt}
+                fill
+                sizes="100vw"
+                unoptimized
+                onError={() => activeImage.onError?.()}
+                className="h-full w-auto max-w-full object-contain select-none"
+                draggable={false}
+              />
+            </div>
           </div>
 
           <div
@@ -564,11 +573,14 @@ export function ImageGallery({
                   )}
                   onClick={() => openAt(displayIndex)}
                 >
-                  <img
+                  <Image
                     src={image.src}
                     alt={image.alt}
+                    fill
+                    sizes="(max-width: 768px) 100vw, 50vw"
+                    unoptimized
                     className="h-full w-full object-cover transition-transform duration-300 group-hover/tile:scale-[1.03]"
-                    onError={image.onError}
+                    onError={() => image.onError?.()}
                   />
                   {isOverflowTile && (
                     <div className="absolute inset-0 z-10 pointer-events-none bg-black/55 flex items-center justify-center">
@@ -609,10 +621,13 @@ export function ImageGallery({
         className={cn(triggerClassName, className)}
         onClick={() => openAt(0)}
       >
-        <img
+        <Image
           src={images[0].src}
           alt={images[0].alt}
-          onError={images[0].onError}
+          fill
+          sizes="(max-width: 768px) 100vw, 320px"
+          unoptimized
+          onError={() => images[0].onError?.()}
           className="h-full w-full object-cover transition-transform duration-300 group-hover/card:scale-[1.03] group-hover/thumb:scale-[1.03]"
         />
       </button>

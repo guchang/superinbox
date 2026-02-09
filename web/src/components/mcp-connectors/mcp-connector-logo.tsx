@@ -13,7 +13,8 @@
  * <MCPConnectorLogo name="My Todoist" logoColor="#4ECDC4" />
  */
 
-import { useMemo } from 'react'
+import Image from 'next/image'
+import { useEffect, useMemo, useState } from 'react'
 import { cn } from '@/lib/utils'
 
 interface MCPConnectorLogoProps {
@@ -69,25 +70,26 @@ export function MCPConnectorLogo({
 
   // Get background color
   const bgColor = logoColor || '#94a3b8' // Default slate-400
+  const [logoLoadFailed, setLogoLoadFailed] = useState(false)
 
-  if (officialLogo) {
+  useEffect(() => {
+    setLogoLoadFailed(false)
+  }, [officialLogo])
+
+  if (officialLogo && !logoLoadFailed) {
     return (
       <div className={cn('flex items-center justify-center', sizeClasses[size], className)}>
-        <img
-          src={officialLogo}
-          alt={serverType}
-          className="h-2/3 w-2/3 object-contain"
-          onError={(e) => {
-            // Fallback to initial if image fails to load
-            e.currentTarget.style.display = 'none'
-            const parent = e.currentTarget.parentElement
-            if (parent) {
-              parent.style.backgroundColor = bgColor
-              parent.style.color = '#fff'
-              parent.textContent = letter
-            }
-          }}
-        />
+        <div className="relative h-2/3 w-2/3">
+          <Image
+            src={officialLogo}
+            alt={serverType ?? 'connector logo'}
+            fill
+            sizes="40px"
+            unoptimized
+            className="object-contain"
+            onError={() => setLogoLoadFailed(true)}
+          />
+        </div>
       </div>
     )
   }

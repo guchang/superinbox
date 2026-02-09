@@ -168,9 +168,9 @@ export default function RoutingPage() {
   const [editOpen, setEditOpen] = useState(false)
   const [createOpen, setCreateOpen] = useState(false)
 
-  const rules = rulesData?.data || []
-  const categories = categoriesData?.data || []
-  const mcpConnectors = mcpConnectorsData?.data || []
+  const rules = useMemo(() => rulesData?.data ?? [], [rulesData?.data])
+  const categories = useMemo(() => categoriesData?.data ?? [], [categoriesData?.data])
+  const mcpConnectors = useMemo(() => mcpConnectorsData?.data ?? [], [mcpConnectorsData?.data])
   const sortedRules = useMemo(
     () => [...rules].sort((a, b) => b.priority - a.priority),
     [rules]

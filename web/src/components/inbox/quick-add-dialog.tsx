@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import Image from "next/image"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { Loader2, Plus, Upload, X, File } from "lucide-react"
 import { useQueryClient } from "@tanstack/react-query"
 import { useTranslations } from 'next-intl'
@@ -51,6 +52,7 @@ export function QuickAddDialog({ trigger }: QuickAddDialogProps) {
 
   const queryClient = useQueryClient()
   const { toast } = useToast()
+  const handleSubmitRef = useRef<() => void>(() => {})
 
   // Validate file size
   const validateFileSize = useCallback((file: File): boolean => {
@@ -67,7 +69,7 @@ export function QuickAddDialog({ trigger }: QuickAddDialogProps) {
       return false
     }
     return true
-  }, [toast])
+  }, [t, toast])
 
   // 键盘快捷键支持
   useEffect(() => {
@@ -88,7 +90,7 @@ export function QuickAddDialog({ trigger }: QuickAddDialogProps) {
       if (open && (e.metaKey || e.ctrlKey) && e.key === 'Enter') {
         e.preventDefault()
         if ((content.trim() || files.length > 0) && !isUploading) {
-          handleSubmit()
+          handleSubmitRef.current()
         }
       }
       
@@ -146,7 +148,7 @@ export function QuickAddDialog({ trigger }: QuickAddDialogProps) {
       document.removeEventListener('keydown', handleKeyDown)
       document.removeEventListener('paste', handlePaste)
     }
-  }, [open, content, files, isUploading, toast, validateFileSize])
+  }, [content, files, isUploading, open, t, toast, validateFileSize])
 
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = Array.from(e.target.files || [])
@@ -182,7 +184,7 @@ export function QuickAddDialog({ trigger }: QuickAddDialogProps) {
 
     // Reset input so same files can be selected again if needed
     e.target.value = ''
-  }, [toast, validateFileSize])
+  }, [t, toast, validateFileSize])
 
   const handleRemoveFile = useCallback((index: number) => {
     setFiles((prev) => {
@@ -227,13 +229,13 @@ export function QuickAddDialog({ trigger }: QuickAddDialogProps) {
         })
       }
     }
-  }, [toast, validateFileSize])
+  }, [t, toast, validateFileSize])
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault()
   }, [])
 
-  const handleSubmit = async () => {
+  const handleSubmit = useCallback(async () => {
     if (!content.trim() && files.length === 0) {
       toast({
         title: t('toast.empty.title'),
@@ -322,7 +324,9 @@ export function QuickAddDialog({ trigger }: QuickAddDialogProps) {
     } finally {
       setIsUploading(false)
     }
-  }
+  }, [content, errors, files, queryClient, t, toast])
+
+  handleSubmitRef.current = handleSubmit
 
   const defaultTrigger = (
     <Button
@@ -417,9 +421,12 @@ export function QuickAddDialog({ trigger }: QuickAddDialogProps) {
                   className="relative group border rounded-lg overflow-hidden bg-muted/30"
                 >
                   {filePreview.preview ? (
-                    <img
+                    <Image
                       src={filePreview.preview}
                       alt={filePreview.file.name}
+                      width={80}
+                      height={80}
+                      unoptimized
                       className="w-full h-20 object-cover"
                     />
                   ) : (

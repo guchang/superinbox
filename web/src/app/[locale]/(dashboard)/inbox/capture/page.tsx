@@ -2,6 +2,7 @@
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import Image from "next/image"
 import { useTranslations } from "next-intl"
 import { AnimatePresence, motion } from "framer-motion"
 import { Link } from "@/i18n/navigation"
@@ -773,9 +774,12 @@ export default function InboxCapturePage() {
                   className="flex min-w-[180px] items-center gap-2 rounded-lg border bg-muted/40 px-2 py-2"
                 >
                   {filePreview.preview ? (
-                    <img
+                    <Image
                       src={filePreview.preview}
                       alt={filePreview.file.name}
+                      width={40}
+                      height={40}
+                      unoptimized
                       className="h-10 w-10 rounded-md object-cover"
                     />
                   ) : (
