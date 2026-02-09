@@ -86,3 +86,8 @@ worktrees/
 /DEPLOYMENT_GUIDE.md
 /web/TEST_GUIDE.md
 /web/BACKEND_AUTH_IMPLEMENTATION.md
+
+# Docker production deploy secrets/artifacts
+deploy/env/.env.prod
+deploy/certbot/conf/
+deploy/certbot/www/
