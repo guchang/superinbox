@@ -311,31 +311,17 @@ const migrations = [
   {
     version: '010',
     name: 'add_llm_config_to_user_settings',
-    up: `
-      ALTER TABLE user_settings ADD COLUMN llm_provider TEXT;
-      ALTER TABLE user_settings ADD COLUMN llm_model TEXT;
-      ALTER TABLE user_settings ADD COLUMN llm_base_url TEXT;
-      ALTER TABLE user_settings ADD COLUMN llm_api_key TEXT;
-      ALTER TABLE user_settings ADD COLUMN llm_timeout INTEGER;
-      ALTER TABLE user_settings ADD COLUMN llm_max_tokens INTEGER;
-    `
+    up: '-- handled in code for idempotency'
   },
   {
     version: '011',
     name: 'add_session_tracking_to_llm_logs',
-    up: `
-      ALTER TABLE llm_usage_logs ADD COLUMN session_id TEXT;
-      ALTER TABLE llm_usage_logs ADD COLUMN session_type TEXT;
-      CREATE INDEX IF NOT EXISTS idx_llm_usage_logs_session_id ON llm_usage_logs(session_id);
-      CREATE INDEX IF NOT EXISTS idx_llm_usage_logs_session_type ON llm_usage_logs(session_type);
-    `
+    up: '-- handled in code for idempotency'
   },
   {
     version: '012',
     name: 'add_rule_name_to_distribution_results',
-    up: `
-      ALTER TABLE distribution_results ADD COLUMN rule_name TEXT;
-    `
+    up: '-- handled in code for idempotency'
   },
   {
     version: '013',
@@ -356,6 +342,7 @@ const migrations = [
         summary TEXT,
         suggested_title TEXT,
         status TEXT NOT NULL,
+        routing_status TEXT DEFAULT 'pending',
         distributed_targets TEXT,
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL,
@@ -366,12 +353,12 @@ const migrations = [
       INSERT INTO items_new (
         id, user_id, original_content, content_type, source,
         category, entities, summary, suggested_title,
-        status, distributed_targets, created_at, updated_at, processed_at
+        status, routing_status, distributed_targets, created_at, updated_at, processed_at
       )
       SELECT
         id, user_id, original_content, content_type, source,
         category, entities, summary, suggested_title,
-        status, distributed_targets, created_at, updated_at, processed_at
+        status, COALESCE(routing_status, 'pending') as routing_status, distributed_targets, created_at, updated_at, processed_at
       FROM items;
 
       DROP TABLE items;
@@ -478,6 +465,11 @@ const migrations = [
           SELECT 1 FROM user_llm_configs c WHERE c.user_id = us.user_id
         );
     `
+  },
+  {
+    version: '018',
+    name: 'ensure_legacy_schema_compatibility',
+    up: '-- handled in code for idempotency'
   }
 ];
 
@@ -491,10 +483,18 @@ export const runMigrations = async (): Promise<void> => {
 
     if (!alreadyApplied) {
       console.log(`Applying migration: ${migration.version} - ${migration.name}`);
-      if (migration.version === '015') {
+      if (migration.version === '010') {
+        ensureUserSettingsLlmColumns(db);
+      } else if (migration.version === '011') {
+        ensureLlmUsageSessionColumns(db);
+      } else if (migration.version === '012') {
+        ensureDistributionResultRuleNameColumn(db);
+      } else if (migration.version === '015') {
         ensureAiCategoryAppearanceColumns(db);
       } else if (migration.version === '016') {
         ensureAiQualityColumnsAndFeedbackTable(db);
+      } else if (migration.version === '018') {
+        ensureLegacySchemaCompatibility(db);
       } else {
         (db as any).db.exec(migration.up);
       }
@@ -526,6 +526,79 @@ const recordMigration = (version: string, name: string): void => {
     'INSERT INTO migrations (version, name, applied_at) VALUES (?, ?, ?)'
   );
   stmt.run(version, name, new Date().toISOString());
+};
+
+const tableExists = (database: any, tableName: string): boolean => {
+  const stmt = database.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?");
+  return stmt.get(tableName) !== undefined;
+};
+
+const ensureTableColumns = (
+  database: any,
+  tableName: string,
+  columns: Array<{ name: string; definition: string }>
+): void => {
+  if (!tableExists(database, tableName)) return;
+
+  const rows = database.prepare(`PRAGMA table_info(${tableName})`).all() as Array<{ name: string }>;
+  const existingColumns = new Set(rows.map((row) => row.name));
+
+  for (const column of columns) {
+    if (!existingColumns.has(column.name)) {
+      database.exec(`ALTER TABLE ${tableName} ADD COLUMN ${column.name} ${column.definition}`);
+    }
+  }
+};
+
+const ensureUserSettingsLlmColumns = (db: ReturnType<typeof getDatabase>): void => {
+  const database = (db as any).db;
+  ensureTableColumns(database, 'user_settings', [
+    { name: 'llm_provider', definition: 'TEXT' },
+    { name: 'llm_model', definition: 'TEXT' },
+    { name: 'llm_base_url', definition: 'TEXT' },
+    { name: 'llm_api_key', definition: 'TEXT' },
+    { name: 'llm_timeout', definition: 'INTEGER' },
+    { name: 'llm_max_tokens', definition: 'INTEGER' },
+  ]);
+};
+
+const ensureLlmUsageSessionColumns = (db: ReturnType<typeof getDatabase>): void => {
+  const database = (db as any).db;
+  ensureTableColumns(database, 'llm_usage_logs', [
+    { name: 'session_id', definition: 'TEXT' },
+    { name: 'session_type', definition: 'TEXT' },
+  ]);
+
+  if (tableExists(database, 'llm_usage_logs')) {
+    database.exec('CREATE INDEX IF NOT EXISTS idx_llm_usage_logs_session_id ON llm_usage_logs(session_id)');
+    database.exec('CREATE INDEX IF NOT EXISTS idx_llm_usage_logs_session_type ON llm_usage_logs(session_type)');
+  }
+};
+
+const ensureDistributionResultRuleNameColumn = (db: ReturnType<typeof getDatabase>): void => {
+  const database = (db as any).db;
+  ensureTableColumns(database, 'distribution_results', [
+    { name: 'rule_name', definition: 'TEXT' },
+  ]);
+};
+
+const ensureItemsRoutingStatus = (db: ReturnType<typeof getDatabase>): void => {
+  const database = (db as any).db;
+  ensureTableColumns(database, 'items', [
+    { name: 'routing_status', definition: "TEXT DEFAULT 'pending'" },
+  ]);
+
+  if (tableExists(database, 'items')) {
+    database.exec("UPDATE items SET routing_status = 'pending' WHERE routing_status IS NULL OR routing_status = ''");
+    database.exec('CREATE INDEX IF NOT EXISTS idx_items_routing_status ON items(routing_status)');
+  }
+};
+
+const ensureLegacySchemaCompatibility = (db: ReturnType<typeof getDatabase>): void => {
+  ensureUserSettingsLlmColumns(db);
+  ensureLlmUsageSessionColumns(db);
+  ensureDistributionResultRuleNameColumn(db);
+  ensureItemsRoutingStatus(db);
 };
 
 const ensureAiCategoryAppearanceColumns = (db: ReturnType<typeof getDatabase>): void => {
