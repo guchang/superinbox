@@ -16,9 +16,9 @@ async function migrate() {
 
     // Get all items with category='unknown' and status='completed'
     const rows = db.prepare(`
-      SELECT * FROM items
+      SELECT id, original_content FROM items
       WHERE category = 'unknown' AND status = 'completed'
-    `).all();
+    `).all() as Array<{ id: string; original_content: string }>;
 
     console.log(`Found ${rows.length} items to migrate\n`);
 

@@ -13,7 +13,7 @@ import { getParseResult, updateParseResult } from '../controllers/parse.controll
 const router = Router();
 
 // Placeholder routes for prompt templates
-router.get('/prompts', authenticate, (req, res) => {
+router.get('/prompts', authenticate, (_req, res) => {
   res.json({
     success: true,
     data: [
@@ -72,7 +72,7 @@ router.put('/prompts/:id', authenticate, (req, res) => {
   });
 });
 
-router.delete('/prompts/:id', authenticate, (req, res) => {
+router.delete('/prompts/:id', authenticate, (_req, res) => {
   res.json({ success: true });
 });
 

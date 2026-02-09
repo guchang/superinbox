@@ -123,6 +123,19 @@ export interface AIFailedEvent extends RoutingProgressEvent {
   }
 }
 
+
+// Dispatcher 细粒度步骤事件
+export interface RoutingStepEvent extends RoutingProgressEvent {
+  type: 'step:start' | 'step:planned' | 'step:executing' | 'step:complete' | 'step:error'
+  data: Record<string, unknown>
+}
+
+// Dispatcher 完成事件（透传）
+export interface RoutingDispatcherCompleteEvent extends RoutingProgressEvent {
+  type: 'complete'
+  data: Record<string, unknown>
+}
+
 // 联合类型
 export type RoutingProgressEventType = 
   | RoutingStartEvent
@@ -136,6 +149,8 @@ export type RoutingProgressEventType =
   | RoutingErrorEvent
   | AICompletedEvent
   | AIFailedEvent
+  | RoutingStepEvent
+  | RoutingDispatcherCompleteEvent
 
 // 进度回调函数类型
 export type RoutingProgressCallback = (event: RoutingProgressEventType) => void

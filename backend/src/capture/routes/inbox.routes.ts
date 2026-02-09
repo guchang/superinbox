@@ -6,7 +6,6 @@ import { Router } from 'express';
 import { inboxController } from '../controllers/inbox.controller.js';
 import { batchRedistributeController } from '../controllers/bredistribute.controller.js';
 import { authenticate } from '../../middleware/auth.js';
-import { validateRequest } from '../../middleware/validation.js';
 import { uploadSingle, uploadMultiple } from '../../middleware/upload';
 
 const router = Router();

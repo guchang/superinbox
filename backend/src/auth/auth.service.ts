@@ -31,6 +31,7 @@ export interface AuthResponse {
     username: string;
     email: string;
     role: string;
+    scopes?: string[];
     createdAt: Date;
     lastLoginAt?: Date;
   };
@@ -262,6 +263,7 @@ export async function getMe(userId: string): Promise<{
   username: string;
   email: string;
   role: string;
+  scopes?: string[];
   createdAt: Date;
   lastLoginAt?: Date;
 } | null> {

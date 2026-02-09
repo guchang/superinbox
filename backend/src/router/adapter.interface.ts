@@ -4,7 +4,7 @@
 
 import { v4 as uuidv4 } from 'uuid';
 import axios, { type AxiosInstance } from 'axios';
-import type { IAdapter, Item, DistributionResult, DistributionConfig, AdapterType } from '../types/index.js';
+import type { IAdapter, Item, DistributionResult, AdapterType } from '../types/index.js';
 import { logger } from '../middleware/logger.js';
 
 /**

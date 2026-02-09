@@ -116,6 +116,10 @@ export interface DispatchResult {
       done: boolean;
       plan?: string[];
     };
+    llmRaw?: {
+      input: string;
+      output: unknown;
+    };
   }>;
   error?: string;
   result?: unknown; // Final result from the tool execution
@@ -141,6 +145,7 @@ export class DispatcherService {
 
     // Progress callback (noop if not provided)
     const progress = onProgress || (() => {});
+    const steps: NonNullable<DispatchResult['steps']> = [];
 
     try {
       // 1. Load MCP adapter configuration
@@ -193,6 +198,9 @@ export class DispatcherService {
 
       // 6. Get tools and schemas
       const tools = await mcpAdapter.listTools(true);
+      const availableTools = tools
+        .map((tool: { name?: string }) => tool?.name)
+        .filter((name): name is string => typeof name === 'string' && name.length > 0);
       const toolSchemas = tools
         .filter((tool: { name?: string }) => typeof tool?.name === 'string')
         .reduce<Record<string, Record<string, unknown>>>((acc, tool: { name?: string; inputSchema?: Record<string, unknown> }) => {
@@ -204,7 +212,7 @@ export class DispatcherService {
 
       progress('tools', {
         defaultToolName,
-        availableTools: tools.map((t: { name?: string }) => t?.name).filter(Boolean),
+        availableTools,
         toolCount: tools.length
       });
 
@@ -221,16 +229,15 @@ export class DispatcherService {
       const context = {
         params: params || {},
         defaultToolName,
-        availableTools: tools.map((tool: { name?: string }) => tool?.name).filter(Boolean),
+        availableTools,
         toolSchemas
       };
 
       // 10. Build system prompt (same as test-dispatch)
-      const serializedSchemas = JSON.stringify(context.toolSchemas, null, 2);
       const systemPrompt = this.buildSystemPrompt(context);
 
       // 11. Initialize chat history
-      const messages: Array<{ role: string; content: string }> = [];
+      const messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [];
       messages.push({ role: 'system', content: systemPrompt });
 
       // 12. Build initial user message
@@ -243,7 +250,6 @@ export class DispatcherService {
 
       // 14. Multi-round LLM conversation loop
       const llmService = getLLMMappingService();
-      const steps: DispatchResult['steps'] = [];
       let consecutiveErrors = 0;
       let finalStatus: 'success' | 'failed' = 'success';
       let currentPlan: string[] | undefined = undefined;

@@ -41,7 +41,7 @@ export class HttpMcpClient {
         throw new Error(`Failed to list tools: ${response.status} ${response.statusText}`);
       }
 
-      const data = await response.json();
+      const data = await response.json() as { tools?: MCPTool[] };
       const tools: MCPTool[] = data.tools || [];
 
       // Cache the results

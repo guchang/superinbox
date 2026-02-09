@@ -1,24 +1,6 @@
 import type { Viewport } from 'next'
-import { Inter, Outfit, DM_Sans } from 'next/font/google'
 import { getLocale } from 'next-intl/server'
 import './globals.css'
-
-const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })
-
-// Login page fonts with display swap for better performance
-const outfit = Outfit({
-  subsets: ['latin'],
-  variable: '--font-outfit',
-  display: 'swap',
-  preload: true,
-})
-
-const dmSans = DM_Sans({
-  subsets: ['latin'],
-  variable: '--font-dm-sans',
-  display: 'swap',
-  preload: true,
-})
 
 export const viewport: Viewport = {
   width: 'device-width',
@@ -40,7 +22,7 @@ export default async function RootLayout({
 
   return (
     <html lang={locale} suppressHydrationWarning>
-      <body className={`${inter.variable} ${outfit.variable} ${dmSans.variable} font-sans`}>
+      <body className="font-sans">
         {children}
       </body>
     </html>

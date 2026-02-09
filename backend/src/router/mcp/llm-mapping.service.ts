@@ -4,29 +4,8 @@
  */
 
 import type { Item } from '../../types/index.js';
-import { getUserLLMClient } from '../../ai/llm-client.js';
+import { getUserLLMClient, type LLMMessage } from '../../ai/llm-client.js';
 import { logger } from '../../middleware/logger.js';
-
-const extractResponseContent = (content: string): string | null => {
-  if (!content) return null;
-
-  // Try to parse as JSON first
-  try {
-    const parsed = JSON.parse(content);
-    if (typeof parsed === 'object' && parsed !== null) {
-      return JSON.stringify(parsed);
-    }
-  } catch {
-    // Not JSON, return as-is
-  }
-
-  // Remove markdown code blocks if present
-  let cleaned = content.trim();
-  cleaned = cleaned.replace(/```json\s*/g, '').replace(/```\s*/g, '');
-  cleaned = cleaned.trim();
-
-  return cleaned || null;
-};
 
 interface TransformOptions {
   instructions: string;
@@ -153,7 +132,7 @@ export class LLMMappingService {
    * Returns the content string (for backward compatibility)
    */
   async chat(
-    messages: Array<{ role: string; content: string }>,
+    messages: LLMMessage[],
     options?: {
       temperature?: number;
       maxTokens?: number;
@@ -182,7 +161,7 @@ export class LLMMappingService {
   private async callLLM(prompt: string, userId?: string): Promise<string> {
     const llmClient = getUserLLMClient(userId);
 
-    const messages = [
+    const messages: LLMMessage[] = [
       {
         role: 'system',
         content: 'You are a helpful assistant that converts data according to instructions. Always respond with valid JSON only, no markdown formatting.'
@@ -234,7 +213,6 @@ export class LLMMappingService {
   ): void {
     // Basic validation - check required fields
     if (schema.type === 'object' && schema.properties) {
-      const properties = schema.properties as Record<string, Record<string, unknown>>;
       const required = schema.required as string[] || [];
 
       for (const field of required) {

@@ -14,14 +14,12 @@ import { formatDateInTimeZone } from '../../utils/timezone.js';
 import { sendError } from '../../utils/error-response.js';
 import { sseManager } from '../../services/sse-manager.js';
 import type {
-  CreateItemRequest,
   CreateItemResponse,
   Item,
   ItemFileType,
-  ItemStatus,
   QueryFilter
 } from '../../types/index.js';
-import { ContentType } from '../../types/index.js';
+import { ContentType, ItemStatus } from '../../types/index.js';
 import { logger } from '../../middleware/logger.js';
 
 /**
@@ -61,15 +59,6 @@ const updateItemSchema = z.object({
   status: z.enum(['pending', 'processing', 'completed', 'failed', 'archived']).optional()
 });
 
-const batchCreateSchema = z.object({
-  entries: z.array(z.object({
-    content: z.string().min(1, 'Content is required').max(10000),
-    type: z.enum(['text', 'image', 'url', 'audio', 'file', 'mixed']).optional(),
-    source: z.string().max(100).optional(),
-    metadata: z.record(z.unknown()).optional()
-  })).min(1, 'At least one entry is required')
-});
-
 const searchSchema = z.object({
   q: z.string().min(1, 'Query parameter is required'),
   category: z.string().min(1).optional(),
@@ -100,7 +89,7 @@ export class InboxController {
         source: body.source ?? 'api',
         category: 'unknown' as any,
         entities: {},
-        status: 'pending' as ItemStatus,
+        status: ItemStatus.PENDING,
         distributedTargets: [],
         distributionResults: [],
         routingStatus: 'pending',
@@ -484,7 +473,7 @@ export class InboxController {
             source: validatedEntry.source ?? 'api',
             category: 'unknown' as any,
             entities: {},
-            status: 'pending' as ItemStatus,
+            status: ItemStatus.PENDING,
             distributedTargets: [],
             distributionResults: [],
             routingStatus: 'pending',
@@ -603,7 +592,7 @@ export class InboxController {
       logger.info(`[AI Processing] Starting for item ${itemId}`);
 
       // Update status to processing
-      this.db.updateItem(itemId, { status: 'processing' });
+      this.db.updateItem(itemId, { status: ItemStatus.PROCESSING });
 
       // Get item
       const item = this.db.getItemById(itemId);
@@ -652,7 +641,7 @@ export class InboxController {
         aiPromptVersion: analysis.metadata?.promptVersion,
         aiModel: analysis.metadata?.model,
         aiParseStatus: shouldMarkAsFailed ? 'failed' : 'success',
-        status: shouldMarkAsFailed ? 'failed' : 'completed',
+        status: shouldMarkAsFailed ? ItemStatus.FAILED : ItemStatus.COMPLETED,
         processedAt: new Date()
       });
 
@@ -693,7 +682,7 @@ export class InboxController {
         logger.error(`[AI Processing] Error details: ${error.message}\n${error.stack}`);
       }
       this.db.updateItem(itemId, {
-        status: 'failed',
+        status: ItemStatus.FAILED,
         aiParseStatus: 'failed',
         processedAt: new Date()
       });
@@ -783,9 +772,10 @@ export class InboxController {
 
       // Get successful rule names
       const successRuleNames = results
-        .filter(r => r.status === 'success')
-        .map(r => r.ruleName)
-        .filter(Boolean);
+        .filter((r): r is typeof r & { ruleName: string } =>
+          r.status === 'success' && typeof r.ruleName === 'string' && r.ruleName.length > 0
+        )
+        .map((r) => r.ruleName);
 
       const totalAttempts = successCount + failedCount;
 
@@ -1063,7 +1053,7 @@ export class InboxController {
           fileSize: file.size,
           mimeType: file.mimetype
         },
-        status: 'pending' as ItemStatus,
+        status: ItemStatus.PENDING,
         distributedTargets: [],
         distributionResults: [],
         routingStatus: 'pending',
@@ -1170,7 +1160,7 @@ export class InboxController {
           // Store all files info
           allFiles: filesInfo
         },
-        status: 'pending' as ItemStatus,
+        status: ItemStatus.PENDING,
         distributedTargets: [],
         distributionResults: [],
         routingStatus: 'pending',
@@ -1423,7 +1413,7 @@ export class InboxController {
 
       // Reset status to pending and trigger processing
       this.db.updateItem(id, { 
-        status: 'pending',
+        status: ItemStatus.PENDING,
         updatedAt: new Date()
       });
 
@@ -1497,7 +1487,7 @@ export class InboxController {
 
       // Reset status and derived fields, keep file metadata
       this.db.updateItem(id, {
-        status: 'pending',
+        status: ItemStatus.PENDING,
         category: 'unknown' as any,
         entities: fileMetadata,
         summary: undefined,
@@ -1528,7 +1518,7 @@ export class InboxController {
    * Get routing progress via SSE
    * GET /v1/inbox/:id/routing-progress
    */
-  getRoutingProgress = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  getRoutingProgress = async (req: Request, res: Response): Promise<void> => {
     try {
       const { id } = req.params;
       const userId = (req as any).user?.id;

@@ -8,6 +8,7 @@ import type { Request, Response } from 'express';
 import { getDatabase } from '../../storage/database.js';
 import { sendError } from '../../utils/error-response.js';
 import { randomUUID } from 'crypto';
+import { ItemStatus } from '../../types/index.js';
 
 /**
  * GET /v1/intelligence/parse/:id
@@ -82,6 +83,7 @@ export async function updateParseResult(req: Request, res: Response): Promise<vo
 
     const correctedCategory = typeof category === 'string' ? category : item.category;
     const correctedEntities = entities && typeof entities === 'object' ? entities : item.entities;
+    const correctedEntitiesRecord = correctedEntities as Record<string, unknown>;
 
     // Update item with corrected data
     const updatedItem = db.updateItem(id, {
@@ -92,7 +94,7 @@ export async function updateParseResult(req: Request, res: Response): Promise<vo
       aiReasoning: item.aiReasoning,
       aiPromptVersion: item.aiPromptVersion,
       aiModel: item.aiModel,
-      status: 'completed',
+      status: ItemStatus.COMPLETED,
       processedAt: new Date()
     });
 
@@ -112,8 +114,8 @@ export async function updateParseResult(req: Request, res: Response): Promise<vo
       userId,
       originalCategory: item.category,
       correctedCategory,
-      originalEntities: item.entities,
-      correctedEntities,
+      originalEntities: item.entities as Record<string, unknown>,
+      correctedEntities: correctedEntitiesRecord,
       feedback: typeof feedback === 'string' ? feedback : undefined,
     });
 

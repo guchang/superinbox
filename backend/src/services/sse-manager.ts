@@ -5,7 +5,7 @@
 
 import { Response } from 'express'
 import { logger } from '../middleware/logger.js'
-import type { RoutingProgressEventType, SSESender } from '../types/routing-progress.js'
+import type { RoutingProgressEventType } from '../types/routing-progress.js'
 
 interface SSEConnection {
   id: string

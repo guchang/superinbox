@@ -372,7 +372,7 @@ export const disableApiKeyController = async (req: Request, res: Response): Prom
       return;
     }
 
-    const updated = db.updateApiKey(id, { isActive: false });
+    const updated = db.toggleApiKeyStatus(id, false);
 
     res.json({
       success: true,
@@ -426,7 +426,7 @@ export const enableApiKeyController = async (req: Request, res: Response): Promi
       return;
     }
 
-    const updated = db.updateApiKey(id, { isActive: true });
+    const updated = db.toggleApiKeyStatus(id, true);
 
     res.json({
       success: true,

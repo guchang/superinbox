@@ -14,7 +14,7 @@ import { sendError } from '../../utils/error-response.js';
 export async function dispatchItem(req: Request, res: Response): Promise<void> {
   try {
     const { id } = req.params;
-    const { adapters, force = false } = req.body;
+    const { adapters } = req.body;
     const userId = req.user?.userId ?? 'default-user';
     const db = getDatabase();
 

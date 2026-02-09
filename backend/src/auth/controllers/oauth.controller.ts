@@ -25,7 +25,7 @@ export const authorize = async (req: Request, res: Response) => {
 export const callback = async (req: Request, res: Response) => {
   try {
     const { provider } = req.params;
-    const { code, state, error } = req.query;
+    const { code, error } = req.query;
 
     if (error) {
       throw new Error(`Provider returned error: ${error}`);

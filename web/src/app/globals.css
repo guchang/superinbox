@@ -94,10 +94,10 @@
 
   /* Login page fonts */
   .font-login-heading {
-    font-family: var(--font-outfit), sans-serif;
+    font-family: var(--font-outfit, 'Avenir Next'), 'Segoe UI', sans-serif;
   }
   .font-login-body {
-    font-family: var(--font-dm-sans), sans-serif;
+    font-family: var(--font-dm-sans, 'Helvetica Neue'), 'Segoe UI', sans-serif;
   }
 
   /* Login page animations */

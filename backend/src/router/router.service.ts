@@ -3,7 +3,8 @@
  */
 
 import { v4 as uuidv4 } from 'uuid';
-import type { Item, DistributionResult, DistributionConfig, MCPAdapterConfig, AdapterType } from '../types/index.js';
+import { AdapterType } from '../types/index.js';
+import type { Item, DistributionResult, DistributionConfig, MCPAdapterConfig } from '../types/index.js';
 import { adapterRegistry, type AdapterRegistry } from './adapter.interface.js';
 import { getDatabase } from '../storage/database.js';
 import { logger } from '../middleware/logger.js';
@@ -71,8 +72,8 @@ export class RouterService {
         let result: DistributionResult;
 
         // Handle MCP adapters specially
-        if (config.adapterType === 'mcp_http' && config.mcpAdapterId) {
-          result = await this.distributeViaMCP(item, config);
+        if (config.adapterType === AdapterType.MCP_HTTP && config.mcpAdapterId) {
+          result = await this.distributeViaMCP(item, { ...config, mcpAdapterId: config.mcpAdapterId });
         } else {
           // Traditional adapter
           const adapter = this.registry.get(config.adapterType);
@@ -626,7 +627,7 @@ export class RouterService {
             id: this.generateId(),
             itemId: item.id,
             targetId: rule.id,
-            adapterType: 'rule', // Routing rule result
+            adapterType: AdapterType.RULE, // Routing rule result
             status: 'failed',
             error: error instanceof Error ? error.message : 'Unknown error',
             timestamp: new Date(),
@@ -672,7 +673,7 @@ export class RouterService {
           id: this.generateId(),
           itemId: item.id,
           targetId: ruleId,
-          adapterType: 'rule',
+          adapterType: AdapterType.RULE,
           status: 'success',
           timestamp: new Date(),
           message: `Updated item: ${JSON.stringify(action.updates)}`
@@ -684,7 +685,7 @@ export class RouterService {
           id: this.generateId(),
           itemId: item.id,
           targetId: ruleId,
-          adapterType: 'rule',
+          adapterType: AdapterType.RULE,
           status: 'success',
           timestamp: new Date(),
           message: 'Distribution skipped by rule'
@@ -793,7 +794,7 @@ export class RouterService {
       id: this.generateId(),
       itemId: item.id,
       targetId: mcpAdapterId,
-      adapterType: 'mcp_http',
+      adapterType: AdapterType.MCP_HTTP,
       status: dispatchResult.success ? 'success' : 'failed',
       timestamp: new Date(),
       ruleName: rule.name

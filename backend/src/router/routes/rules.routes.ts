@@ -492,6 +492,7 @@ router.post('/rules/test-dispatch', authenticate, async (req, res) => {
       status: ItemStatus.PENDING,
       distributedTargets: [],
       distributionResults: [],
+      routingStatus: 'pending' as const,
       createdAt: new Date(),
       updatedAt: new Date()
     };

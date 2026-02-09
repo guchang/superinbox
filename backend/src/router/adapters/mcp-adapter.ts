@@ -92,7 +92,7 @@ export class MCPAdapter extends BaseAdapter {
    * Initialize the adapter
    */
   async initialize(config: Record<string, unknown>): Promise<void> {
-    this.mcpConfig = config as MCPAdapterConfig;
+    this.mcpConfig = config as unknown as MCPAdapterConfig;
     this.transportType = (this.mcpConfig.transportType || 'http') as 'http' | 'stdio';
 
     if (this.transportType === 'stdio') {
@@ -253,15 +253,20 @@ export class MCPAdapter extends BaseAdapter {
 
       // Step 3: Call MCP tool
       const logTag = `[${this.mcpConfig!.serverType} MCP]`;
+      const configuredToolArgs =
+        this.distributionConfig?.config?.toolArgs && typeof this.distributionConfig.config.toolArgs === 'object'
+          ? this.distributionConfig.config.toolArgs as Record<string, unknown>
+          : {};
+
       logger.info(`${logTag} Calling tool: ${toolName} with args:`, {
-        ...this.distributionConfig?.config?.toolArgs,
+        ...configuredToolArgs,
         ...transformedData
       });
 
       const result = await this.mcpClient!.callTool({
         name: toolName,
         arguments: {
-          ...this.distributionConfig?.config?.toolArgs,
+          ...configuredToolArgs,
           ...transformedData
         }
       });
@@ -567,13 +572,15 @@ export class MCPAdapter extends BaseAdapter {
   /**
    * Extract external ID from MCP tool result
    */
-  private extractExternalId(result: Record<string, unknown>): string | undefined {
-    if (typeof result.id === 'string') {
-      return result.id;
+  private extractExternalId(result: MCPToolCallResponse): string | undefined {
+    const record = result as unknown as Record<string, unknown>;
+
+    if (typeof record.id === 'string') {
+      return record.id;
     }
 
-    if (result.content && typeof result.content === 'object') {
-      const content = result.content as Record<string, unknown>;
+    if (record.content && typeof record.content === 'object') {
+      const content = record.content as Record<string, unknown>;
       if (typeof content.id === 'string') {
         return content.id;
       }
@@ -585,13 +592,15 @@ export class MCPAdapter extends BaseAdapter {
   /**
    * Extract external URL from MCP tool result
    */
-  private extractExternalUrl(result: Record<string, unknown>): string | undefined {
-    if (typeof result.url === 'string') {
-      return result.url;
+  private extractExternalUrl(result: MCPToolCallResponse): string | undefined {
+    const record = result as unknown as Record<string, unknown>;
+
+    if (typeof record.url === 'string') {
+      return record.url;
     }
 
-    if (result.content && typeof result.content === 'object') {
-      const content = result.content as Record<string, unknown>;
+    if (record.content && typeof record.content === 'object') {
+      const content = record.content as Record<string, unknown>;
       if (typeof content.url === 'string') {
         return content.url;
       }
