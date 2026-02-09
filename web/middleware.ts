@@ -5,6 +5,10 @@ import { routing } from './src/i18n/routing'
 
 const intlMiddleware = createMiddleware(routing)
 
+const localeAliasMap = new Map(
+  routing.locales.map((locale) => [locale.toLowerCase(), locale]),
+)
+
 // 公开路由（不需要认证）
 const publicRoutes = ['/login', '/register']
 
@@ -24,11 +28,14 @@ export function middleware(request: NextRequest) {
     })
   }
 
-  const localeSegment = new RegExp(`^/(${routing.locales.join('|')})(?=/|$)`)
-  const localeMatch = pathname.match(localeSegment)
+  const localeMatch = pathname.match(/^\/([^/]+)(?=\/|$)/)
+  const matchedLocale = localeMatch?.[1]
+  const locale = matchedLocale
+    ? localeAliasMap.get(matchedLocale.toLowerCase())
+    : undefined
   const token = request.cookies.get('superinbox_auth_token')?.value
 
-  if (!localeMatch) {
+  if (!locale) {
     if (pathname === '/') {
       const redirectUrl = request.nextUrl.clone()
       redirectUrl.pathname = token
@@ -39,8 +46,13 @@ export function middleware(request: NextRequest) {
     return intlMiddleware(request)
   }
 
-  const locale = localeMatch[1]
-  const pathnameWithoutLocale = pathname.replace(localeSegment, '') || '/'
+  if (matchedLocale !== locale) {
+    const redirectUrl = request.nextUrl.clone()
+    redirectUrl.pathname = pathname.replace(/^\/[^/]+/, `/${locale}`)
+    return NextResponse.redirect(redirectUrl)
+  }
+
+  const pathnameWithoutLocale = pathname.slice(`/${locale}`.length) || '/'
   if (pathnameWithoutLocale === '/') {
     const redirectUrl = request.nextUrl.clone()
     redirectUrl.pathname = token ? `/${locale}/inbox` : `/${locale}/login`

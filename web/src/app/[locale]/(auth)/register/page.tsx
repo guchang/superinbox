@@ -58,7 +58,7 @@ export default function RegisterPage() {
       })
       toast.success(t('toast.success'))
       // 注册成功后跳转到首页
-      router.push("/")
+      router.push('/inbox')
       router.refresh()
     } catch (error) {
       toast.error(getApiErrorMessage(error, errors, t('toast.failure')))

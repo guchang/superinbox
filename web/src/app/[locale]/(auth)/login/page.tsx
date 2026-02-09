@@ -46,7 +46,7 @@ export default function LoginPage() {
     try {
       await login(data)
       toast.success(t('toast.success'))
-      router.push("/")
+      router.push('/inbox')
       router.refresh()
     } catch (error) {
       toast.error(getApiErrorMessage(error, errors, t('toast.failure')))
