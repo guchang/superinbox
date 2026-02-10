@@ -121,6 +121,23 @@ This project provides a stdio MCP server for Codex or Claude Code.
 }
 ```
 
+If you publish the MCP server as an npm executable package (`@superinbox/mcp-server`), users can use:
+
+```json
+{
+  "mcpServers": {
+    "superinbox": {
+      "command": "npx",
+      "args": ["-y", "@superinbox/mcp-server"],
+      "env": {
+        "SUPERINBOX_BASE_URL": "https://superinbox.top",
+        "SUPERINBOX_API_KEY": "sk_xxx"
+      }
+    }
+  }
+}
+```
+
 ## Documentation
 
 - [中文主文档](./README.zh-CN.md) - 项目中文介绍

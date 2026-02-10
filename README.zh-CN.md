@@ -115,6 +115,23 @@ sinbox list
 }
 ```
 
+如果你将 MCP Server 发布为 npm 可执行包（`@superinbox/mcp-server`），用户可以直接这样配置：
+
+```json
+{
+  "mcpServers": {
+    "superinbox": {
+      "command": "npx",
+      "args": ["-y", "@superinbox/mcp-server"],
+      "env": {
+        "SUPERINBOX_BASE_URL": "https://superinbox.top",
+        "SUPERINBOX_API_KEY": "sk_xxx"
+      }
+    }
+  }
+}
+```
+
 
 ## 文档
 
