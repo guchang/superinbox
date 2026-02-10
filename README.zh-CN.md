@@ -95,10 +95,44 @@ sinbox list
 
 ## MCP (Codex / Claude Code)
 
-本项目提供 stdio MCP Server，供 Codex 或 Claude Code 调用。使用方式：
+SuperInbox 已发布 stdio MCP Server npm 包：`@superinbox/mcp-server`。
 
 1) 先启动后端服务（确保 `http://127.0.0.1:3000` 可访问）
-2) 在你的 MCP 配置里新增如下服务（请替换为你的绝对路径和 API Key）：
+2) 在你的 MCP 配置里新增如下服务（按需替换 API Key）：
+
+```json
+{
+  "mcpServers": {
+    "superinbox": {
+      "command": "npx",
+      "args": ["-y", "@superinbox/mcp-server"],
+      "env": {
+        "SUPERINBOX_BASE_URL": "http://127.0.0.1:3000",
+        "SUPERINBOX_API_KEY": "sk_xxx"
+      }
+    }
+  }
+}
+```
+
+可选：固定到具体版本，保证可复现：
+
+```json
+{
+  "mcpServers": {
+    "superinbox": {
+      "command": "npx",
+      "args": ["-y", "@superinbox/mcp-server@0.1.0"],
+      "env": {
+        "SUPERINBOX_BASE_URL": "http://127.0.0.1:3000",
+        "SUPERINBOX_API_KEY": "sk_xxx"
+      }
+    }
+  }
+}
+```
+
+本地开发/调试时，也可以直接运行源码版 MCP Server：
 
 ```json
 {
@@ -115,30 +149,13 @@ sinbox list
 }
 ```
 
-如果你将 MCP Server 发布为 npm 可执行包（`@superinbox/mcp-server`），用户可以直接这样配置：
-
-```json
-{
-  "mcpServers": {
-    "superinbox": {
-      "command": "npx",
-      "args": ["-y", "@superinbox/mcp-server"],
-      "env": {
-        "SUPERINBOX_BASE_URL": "https://superinbox.top",
-        "SUPERINBOX_API_KEY": "sk_xxx"
-      }
-    }
-  }
-}
-```
-
-
 ## 文档
 
 - [启动工具使用说明](./docs/guides/启动工具使用说明.md) - 启动工具统一指南
 - [文档中心](./docs/README.md) - 所有文档入口
 - [SuperInbox Core API 文档](./docs/api/SuperInbox-Core-API文档.md) - 后端 API 接口
 - [SuperInbox CLI 文档（中英双语）](./cli/README.md) - CLI 安装、配置、命令与 FAQ
+- [MCP Server 包文档](./packages/mcp-server/README.md) - npm MCP 接入与排障
 
 ## 项目结构
 
@@ -147,6 +164,7 @@ SuperInbox/
 ├── backend/        # 后端服务 (Express + SQLite)
 ├── web/            # 前端界面 (Next.js + React)
 ├── cli/            # CLI 工具
+├── packages/       # 可发布包（含 MCP Server）
 ├── start.sh        # Bash 启动脚本
 ├── start.js        # Node.js 启动脚本
 └── README.md       # 本文件

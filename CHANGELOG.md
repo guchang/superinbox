@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- Updated MCP docs across root README (EN/zh-CN), docs index, and package README to make npm usage (`@superinbox/mcp-server`) the default integration path.
+- Added version-pinning and local debug MCP config examples, plus troubleshooting guidance for MCP setup.
+- Documented `packages/` in CONTRIBUTING and clarified doc-sync expectations for package releases.
 - Reworked `cli/README.md` into a concise bilingual (Chinese/English) guide, covering installation, config, commands, interactive behavior, automation examples, and FAQ.
 - Exposed CLI documentation in root `README.md` with a new "CLI 工具（配套）" section and direct link to `./cli/README.md`.
 - Added a brief CLI introduction in root docs to clarify positioning and quick-start workflow for terminal users.

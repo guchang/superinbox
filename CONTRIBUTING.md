@@ -25,6 +25,7 @@ SuperInbox/
 ├── web/       # Frontend app (Next.js)
 ├── cli/       # Command-line client
 ├── docs/      # Project documentation
+├── packages/  # Publishable packages (including MCP server)
 ├── start.sh   # One-command startup script (macOS/Linux)
 └── start.js   # One-command startup script (cross-platform)
 ```
@@ -105,6 +106,7 @@ refactor(backend): simplify auth middleware
 
 - Follow existing project style and structure.
 - Update documentation when behavior or APIs change.
+- If you release a package (e.g. MCP server), sync root/docs/package READMEs in the same PR.
 - Include minimal runnable examples for new commands, scripts, or configuration keys.
 
 ## Pull Request Checklist

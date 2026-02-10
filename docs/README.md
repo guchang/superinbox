@@ -21,6 +21,7 @@ This index contains technical docs, usage guides, and product references for Sup
 | [启动工具使用说明.md](./guides/启动工具使用说明.md) | 启动工具统一指南（含快速开始与排障） |
 | [CLI README](../cli/README.md) | CLI usage and interactive workflow（中英双语） |
 | [Deploy README](../deploy/README.md) | Docker production deployment（中英双语） |
+| [MCP Server README](../packages/mcp-server/README.md) | MCP package setup, config, and troubleshooting |
 
 ---
 
@@ -57,6 +58,7 @@ This index contains technical docs, usage guides, and product references for Sup
 3. [CLI README](../cli/README.md)
 4. [Backend README](../backend/README.md)
 5. [Channel Bot README](../channel-bot/README.md)
+6. [MCP Server README](../packages/mcp-server/README.md)
 
 ---
 

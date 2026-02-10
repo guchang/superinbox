@@ -101,10 +101,44 @@ See full CLI docs (bilingual): [`cli/README.md`](./cli/README.md)
 
 ## MCP (Codex / Claude Code)
 
-This project provides a stdio MCP server for Codex or Claude Code.
+SuperInbox publishes a stdio MCP server package: `@superinbox/mcp-server`.
 
 1) Start backend first (ensure `http://127.0.0.1:3000` is reachable)
-2) Add the server to your MCP config (replace with your absolute paths and API key):
+2) Add the server to your MCP config (replace API key as needed):
+
+```json
+{
+  "mcpServers": {
+    "superinbox": {
+      "command": "npx",
+      "args": ["-y", "@superinbox/mcp-server"],
+      "env": {
+        "SUPERINBOX_BASE_URL": "http://127.0.0.1:3000",
+        "SUPERINBOX_API_KEY": "sk_xxx"
+      }
+    }
+  }
+}
+```
+
+Optional: pin to an exact package version for reproducibility:
+
+```json
+{
+  "mcpServers": {
+    "superinbox": {
+      "command": "npx",
+      "args": ["-y", "@superinbox/mcp-server@0.1.0"],
+      "env": {
+        "SUPERINBOX_BASE_URL": "http://127.0.0.1:3000",
+        "SUPERINBOX_API_KEY": "sk_xxx"
+      }
+    }
+  }
+}
+```
+
+For local development/debugging, you can still run the source server directly:
 
 ```json
 {
@@ -121,23 +155,6 @@ This project provides a stdio MCP server for Codex or Claude Code.
 }
 ```
 
-If you publish the MCP server as an npm executable package (`@superinbox/mcp-server`), users can use:
-
-```json
-{
-  "mcpServers": {
-    "superinbox": {
-      "command": "npx",
-      "args": ["-y", "@superinbox/mcp-server"],
-      "env": {
-        "SUPERINBOX_BASE_URL": "https://superinbox.top",
-        "SUPERINBOX_API_KEY": "sk_xxx"
-      }
-    }
-  }
-}
-```
-
 ## Documentation
 
 - [中文主文档](./README.zh-CN.md) - 项目中文介绍
@@ -145,6 +162,7 @@ If you publish the MCP server as an npm executable package (`@superinbox/mcp-ser
 - [Docs Index](./docs/README.md) - documentation entry point
 - [SuperInbox Core API](./docs/api/SuperInbox-Core-API文档.md) - backend APIs
 - [SuperInbox CLI (Bilingual)](./cli/README.md) - CLI setup, commands, and FAQ
+- [MCP Server Package](./packages/mcp-server/README.md) - npm MCP setup and troubleshooting
 
 ## Project Structure
 
@@ -153,6 +171,7 @@ SuperInbox/
 ├── backend/        # Backend service (Express + SQLite)
 ├── web/            # Frontend app (Next.js + React)
 ├── cli/            # CLI tool
+├── packages/       # Publishable packages (including MCP server)
 ├── start.sh        # Bash startup script
 ├── start.js        # Node.js startup script
 └── README.md       # English README (this file)
