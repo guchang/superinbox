@@ -78,7 +78,8 @@ async function configureApiConnection(): Promise<void> {
         name: 'action',
         message: t('config.apiConnection.title'),
         choices: [
-          { name: t('config.apiConnection.setBaseUrl'), value: 'baseUrl' },
+          { name: t('config.apiConnection.setApiBaseUrl'), value: 'apiBaseUrl' },
+          { name: t('config.apiConnection.setWebBaseUrl'), value: 'webBaseUrl' },
           { name: t('config.apiConnection.setTimeout'), value: 'timeout' },
           { name: t('config.apiConnection.resetToDefaults'), value: 'reset' },
           { name: t('config.apiConnection.back'), value: 'back' },
@@ -87,24 +88,33 @@ async function configureApiConnection(): Promise<void> {
     ]);
 
     switch (action) {
-      case 'baseUrl': {
+      case 'apiBaseUrl': {
         const { value } = await inquirer.prompt([
           {
             type: 'input',
             name: 'value',
-            message: t('config.apiConnection.baseUrlPrompt'),
+            message: t('config.apiConnection.apiBaseUrlPrompt'),
             default: config.get().api.baseUrl,
-            validate: (input: string) => {
-              try {
-                new URL(input);
-                return true;
-              } catch {
-                return t('config.common.invalidValue');
-              }
-            },
+            validate: validateBackendApiBaseUrl,
           },
         ]);
-        config.set('api.baseUrl', value);
+
+        config.set('api.baseUrl', normalizeBackendApiBaseUrl(value));
+        display.success(t('config.common.success'));
+        break;
+      }
+      case 'webBaseUrl': {
+        const { value } = await inquirer.prompt([
+          {
+            type: 'input',
+            name: 'value',
+            message: t('config.apiConnection.webBaseUrlPrompt'),
+            default: config.get().web?.baseUrl ?? '',
+            validate: validateFrontendWebBaseUrl,
+          },
+        ]);
+
+        config.set('web.baseUrl', normalizeFrontendWebBaseUrl(value));
         display.success(t('config.common.success'));
         break;
       }
@@ -132,8 +142,8 @@ async function configureApiConnection(): Promise<void> {
           },
         ]);
         if (confirm) {
-          config.set('api.baseUrl', 'http://localhost:3001/v1');
-          config.set('api.timeout', 30000);
+          config.set('api.baseUrl', '');
+          config.set('web.baseUrl', '');
           display.success(t('config.common.resetSuccess'));
         } else {
           display.info(t('config.common.cancelled'));
@@ -145,6 +155,64 @@ async function configureApiConnection(): Promise<void> {
         break;
     }
   }
+}
+
+function validateBackendApiBaseUrl(input: string): true | string {
+  try {
+    normalizeBackendApiBaseUrl(input);
+    return true;
+  } catch {
+    return t('config.apiConnection.apiBaseUrlInvalid');
+  }
+}
+
+function normalizeBackendApiBaseUrl(input: string): string {
+  const trimmed = input.trim();
+  const parsed = new URL(trimmed);
+
+  if (parsed.search || parsed.hash) {
+    throw new Error('invalid backend api url');
+  }
+
+  const normalizedPath = parsed.pathname.replace(/\/+$/, '');
+  if (!normalizedPath || !normalizedPath.endsWith('/v1')) {
+    throw new Error('invalid backend api url');
+  }
+
+  parsed.pathname = normalizedPath;
+  parsed.search = '';
+  parsed.hash = '';
+
+  return parsed.toString().replace(/\/+$/, '');
+}
+
+function validateFrontendWebBaseUrl(input: string): true | string {
+  try {
+    normalizeFrontendWebBaseUrl(input);
+    return true;
+  } catch {
+    return t('config.apiConnection.webBaseUrlInvalid');
+  }
+}
+
+function normalizeFrontendWebBaseUrl(input: string): string {
+  const trimmed = input.trim();
+  const parsed = new URL(trimmed);
+
+  if (parsed.search || parsed.hash) {
+    throw new Error('invalid frontend web url');
+  }
+
+  const normalizedPath = parsed.pathname.replace(/\/+$/, '');
+  if (normalizedPath !== '') {
+    throw new Error('invalid frontend web url');
+  }
+
+  parsed.pathname = '/';
+  parsed.search = '';
+  parsed.hash = '';
+
+  return parsed.toString().replace(/\/+$/, '');
 }
 
 async function configureDefaultValues(): Promise<void> {

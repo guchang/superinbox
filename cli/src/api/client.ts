@@ -6,7 +6,7 @@ import axios, { type AxiosInstance, type AxiosError } from 'axios';
 import FormData from 'form-data';
 import fs from 'fs';
 import { config } from '../config/manager.js';
-import type { ApiResponse, Item, CreateItemResponse, ListOptions, LoginRequest, LoginResponse } from '../types/index.js';
+import type { ApiResponse, Item, CreateItemResponse, ListOptions, ListResult, LoginRequest, LoginResponse } from '../types/index.js';
 
 export class ApiClient {
   private client: AxiosInstance;
@@ -21,12 +21,14 @@ export class ApiClient {
     });
 
     // Add request interceptor to add auth header dynamically
-    this.client.interceptors.request.use((config) => {
+    this.client.interceptors.request.use((requestConfig) => {
+      requestConfig.baseURL = this.getApiBaseUrl();
+
       const cfg = this.getConfig();
       if (cfg.auth?.token) {
-        config.headers['Authorization'] = `Bearer ${cfg.auth.token}`;
+        requestConfig.headers['Authorization'] = `Bearer ${cfg.auth.token}`;
       }
-      return config;
+      return requestConfig;
     });
 
     // Add response interceptor to handle token refresh
@@ -72,6 +74,35 @@ export class ApiClient {
    */
   private getConfig() {
     return config.get();
+  }
+
+  /**
+   * Ensure backend API base URL is configured and valid
+   */
+  private getApiBaseUrl(): string {
+    const baseUrl = (this.getConfig().api.baseUrl || '').trim();
+
+    if (!baseUrl) {
+      throw new Error('Backend API URL is not configured. Run: sinbox config -> API Connection -> Set Backend API URL (/v1).');
+    }
+
+    let parsed: URL;
+    try {
+      parsed = new URL(baseUrl);
+    } catch {
+      throw new Error('Backend API URL is invalid. It must be a full URL ending with /v1. Example: http://localhost:3001/v1');
+    }
+
+    const normalizedPath = parsed.pathname.replace(/\/+$/, '');
+    if (!normalizedPath || !normalizedPath.endsWith('/v1')) {
+      throw new Error('Backend API URL is invalid. It must end with /v1. Example: http://localhost:3001/v1');
+    }
+
+    parsed.pathname = normalizedPath;
+    parsed.search = '';
+    parsed.hash = '';
+
+    return parsed.toString().replace(/\/+$/, '');
   }
 
   /**
@@ -144,6 +175,53 @@ export class ApiClient {
   }
 
   /**
+   * Normalize inbox entry payload to CLI Item shape
+   */
+  private mapInboxEntryToItem(entry: any): Item {
+    const now = new Date().toISOString();
+
+    return {
+      id: String(entry?.id ?? ''),
+      userId: String(entry?.userId ?? ''),
+      originalContent: String(entry?.content ?? entry?.originalContent ?? ''),
+      contentType: String(entry?.contentType ?? 'text'),
+      source: String(entry?.source ?? 'api'),
+      category: String(entry?.category ?? 'unknown'),
+      entities: entry?.entities ?? {},
+      summary: typeof entry?.summary === 'string' ? entry.summary : undefined,
+      suggestedTitle: typeof entry?.suggestedTitle === 'string' ? entry.suggestedTitle : undefined,
+      status: String(entry?.status ?? 'pending'),
+      distributedTargets: Array.isArray(entry?.distributedTargets)
+        ? entry.distributedTargets
+        : Array.isArray(entry?.routedTo)
+          ? entry.routedTo
+          : [],
+      createdAt: String(entry?.createdAt ?? now),
+      updatedAt: String(entry?.updatedAt ?? entry?.createdAt ?? now),
+      processedAt: typeof entry?.processedAt === 'string' ? entry.processedAt : undefined
+    };
+  }
+
+  /**
+   * Normalize inbox detail payload to CLI Item shape
+   */
+  private mapInboxDetailToItem(detail: any): Item {
+    const parsed = detail?.parsed ?? {};
+
+    const normalized = this.mapInboxEntryToItem({
+      ...detail,
+      category: parsed?.category ?? detail?.category,
+      entities: parsed?.entities ?? detail?.entities
+    });
+
+    if (!normalized.summary && typeof detail?.reasoning === 'string') {
+      normalized.summary = detail.reasoning;
+    }
+
+    return normalized;
+  }
+
+  /**
    * Create a new item
    */
   async createItem(
@@ -203,19 +281,24 @@ export class ApiClient {
    * Get item by ID
    */
   async getItem(id: string): Promise<Item> {
-    const response = await this.client.get<ApiResponse<Item>>(`/items/${id}`);
+    const response = await this.client.get(`/inbox/${id}`);
+    const payload = response.data as any;
 
-    if (!response.data.success || !response.data.data) {
-      throw new Error(response.data.error?.message ?? 'Failed to get item');
+    if (payload?.success && payload?.data) {
+      return payload.data as Item;
     }
 
-    return response.data.data;
+    if (payload?.id && (payload?.content !== undefined || payload?.originalContent !== undefined)) {
+      return this.mapInboxDetailToItem(payload);
+    }
+
+    throw new Error(payload?.error?.message ?? 'Failed to get item');
   }
 
   /**
-   * List items
+   * List items with pagination metadata
    */
-  async listItems(options: ListOptions = {}): Promise<Item[]> {
+  async listItemsResult(options: ListOptions = {}): Promise<ListResult> {
     const params = new URLSearchParams();
 
     if (options.limit) params.append('limit', options.limit.toString());
@@ -224,33 +307,91 @@ export class ApiClient {
     if (options.status) params.append('status', options.status);
     if (options.source) params.append('source', options.source);
 
-    const response = await this.client.get<ApiResponse<Item[]>>(`/items?${params}`);
+    const response = await this.client.get(`/inbox?${params}`);
+    const payload = response.data as any;
 
-    if (!response.data.success || !response.data.data) {
-      throw new Error(response.data.error?.message ?? 'Failed to list items');
+    if (payload?.success && Array.isArray(payload?.data)) {
+      const limit = options.limit ?? payload.data.length ?? 20;
+      const offset = options.offset ?? 0;
+      const safeLimit = Math.max(1, Number(limit) || 20);
+      const total = Number(payload.total ?? payload.data.length ?? 0);
+      const page = Math.max(1, Math.floor(offset / safeLimit) + 1);
+
+      return {
+        items: payload.data as Item[],
+        total,
+        page,
+        limit: safeLimit,
+        offset
+      };
     }
 
-    return response.data.data;
+    if (Array.isArray(payload?.entries)) {
+      const items = payload.entries.map((entry: any) => this.mapInboxEntryToItem(entry));
+      const limit = Number((payload.limit ?? options.limit ?? items.length) || 20);
+      const safeLimit = Math.max(1, limit);
+      const page = Math.max(1, Number(payload.page) || Math.floor((options.offset ?? 0) / safeLimit) + 1);
+      const offset = options.offset ?? (page - 1) * safeLimit;
+      const total = Number(payload.total ?? items.length);
+
+      return {
+        items,
+        total,
+        page,
+        limit: safeLimit,
+        offset
+      };
+    }
+
+    throw new Error(payload?.error?.message ?? 'Failed to list items');
+  }
+
+  /**
+   * List items (backward compatibility)
+   */
+  async listItems(options: ListOptions = {}): Promise<Item[]> {
+    const result = await this.listItemsResult(options);
+    return result.items;
   }
 
   /**
    * Delete item
    */
   async deleteItem(id: string): Promise<boolean> {
-    const response = await this.client.delete<ApiResponse<{ deleted: boolean }>>(`/items/${id}`);
+    const response = await this.client.delete(`/inbox/${id}`);
+    const payload = response.data as any;
 
-    if (!response.data.success || !response.data.data) {
-      throw new Error(response.data.error?.message ?? 'Failed to delete item');
+    if (payload?.success === true && payload?.data && typeof payload.data.deleted === 'boolean') {
+      return payload.data.deleted;
     }
 
-    return response.data.data.deleted;
+    if (payload?.success === true) {
+      return true;
+    }
+
+    if (typeof payload?.deleted === 'boolean') {
+      return payload.deleted;
+    }
+
+    throw new Error(payload?.error?.message ?? 'Failed to delete item');
   }
 
   /**
    * Health check
    */
   async healthCheck(): Promise<{ status: string; version: string }> {
-    const response = await axios.get(`${config.get().api.baseUrl.replace('/v1', '')}/health`);
+    const apiBaseUrl = this.getApiBaseUrl();
+    const parsed = new URL(apiBaseUrl);
+    const apiPath = parsed.pathname.replace(/\/+$/, '');
+
+    parsed.pathname = apiPath.replace(/\/v1$/, '') || '/';
+    parsed.search = '';
+    parsed.hash = '';
+
+    const healthBaseUrl = parsed.toString().replace(/\/+$/, '');
+    const response = await axios.get(`${healthBaseUrl}/health`, {
+      timeout: this.getConfig().api.timeout
+    });
 
     return {
       status: response.data.status,

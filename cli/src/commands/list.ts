@@ -13,7 +13,14 @@ export async function list(options: ListOptions = {}): Promise<void> {
   try {
     await requireAuth();
 
-    const items = await api.listItems(options);
+    const normalizedOptions: ListOptions = {
+      ...options,
+      limit: options.limit ?? 20,
+      offset: options.offset ?? 0,
+    };
+
+    const result = await api.listItemsResult(normalizedOptions);
+    const items = result.items;
 
     if (items.length === 0) {
       display.info(t('commands.list.empty'));
@@ -23,20 +30,23 @@ export async function list(options: ListOptions = {}): Promise<void> {
     if (options.json) {
       console.log(JSON.stringify(items, null, 2));
       return;
-    } else {
-      display.table(items, options.limit !== undefined && options.limit > 10);
     }
 
+    display.table(items, (normalizedOptions.limit ?? 20) > 10);
+
+    const pageSize = Math.max(1, result.limit);
+    const totalItems = Math.max(0, result.total);
+    const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+    const currentPage = Math.min(totalPages, Math.max(1, result.page));
+
     console.log('');
-    display.info(`${t('commands.list.total')}: ${items.length}`);
+    display.info(`${t('commands.list.total')}: ${totalItems} | ${t('commands.list.pageInfo')}: ${currentPage}/${totalPages}`);
 
     // 交互式操作提示
     if (!process.stdin.isTTY && !options.json) {
-      // 非交互模式，不提示
       return;
     }
 
-    // 询问是否要查看详情或进行其他操作
     const inquirer = (await import('inquirer')).default;
     const { action } = await inquirer.prompt([
       {
@@ -46,6 +56,9 @@ export async function list(options: ListOptions = {}): Promise<void> {
         choices: [
           { name: t('commands.list.viewDetails'), value: 'show' },
           { name: t('commands.list.deleteItem'), value: 'delete' },
+          { name: t('commands.list.prevPage'), value: 'prev' },
+          { name: t('commands.list.nextPage'), value: 'next' },
+          { name: t('commands.list.gotoPage'), value: 'goto' },
           { name: t('commands.list.refresh'), value: 'refresh' },
           { name: t('commands.list.exit'), value: 'exit' },
         ],
@@ -53,7 +66,7 @@ export async function list(options: ListOptions = {}): Promise<void> {
     ]);
 
     switch (action) {
-      case 'show':
+      case 'show': {
         const { itemId } = await inquirer.prompt([
           {
             type: 'list',
@@ -68,8 +81,9 @@ export async function list(options: ListOptions = {}): Promise<void> {
         const { show } = await import('./show.js');
         await show(itemId);
         break;
+      }
 
-      case 'delete':
+      case 'delete': {
         const { deleteItemId } = await inquirer.prompt([
           {
             type: 'list',
@@ -82,12 +96,68 @@ export async function list(options: ListOptions = {}): Promise<void> {
           },
         ]);
         const { deleteItem } = await import('./delete.js');
-        await deleteItem(deleteItemId, true); // 传递 true，删除后返回列表
+        await deleteItem(deleteItemId, true);
         break;
+      }
+
+      case 'prev': {
+        if (currentPage <= 1) {
+          display.info(t('commands.list.noPrevPage'));
+          break;
+        }
+
+        await list({
+          ...normalizedOptions,
+          limit: pageSize,
+          offset: Math.max(0, result.offset - pageSize),
+        });
+        break;
+      }
+
+      case 'next': {
+        if (currentPage >= totalPages) {
+          display.info(t('commands.list.noNextPage'));
+          break;
+        }
+
+        await list({
+          ...normalizedOptions,
+          limit: pageSize,
+          offset: result.offset + pageSize,
+        });
+        break;
+      }
+
+      case 'goto': {
+        const { pageInput } = await inquirer.prompt([
+          {
+            type: 'input',
+            name: 'pageInput',
+            message: t('commands.list.gotoPrompt'),
+            validate: (input: string) => {
+              const target = Number(input);
+              const isValid = Number.isInteger(target) && target >= 1 && target <= totalPages;
+              return isValid || `${t('commands.list.invalidPage')}: 1-${totalPages}`;
+            },
+          },
+        ]);
+
+        const targetPage = Number(pageInput);
+        await list({
+          ...normalizedOptions,
+          limit: pageSize,
+          offset: (targetPage - 1) * pageSize,
+        });
+        break;
+      }
 
       case 'refresh':
         console.log(chalk.gray(t('commands.list.refreshing')));
-        await list(options);
+        await list({
+          ...normalizedOptions,
+          limit: pageSize,
+          offset: result.offset,
+        });
         break;
 
       case 'exit':
@@ -97,7 +167,7 @@ export async function list(options: ListOptions = {}): Promise<void> {
 
   } catch (error) {
     if (error === 'EXIT') {
-      return; // 用户主动退出
+      return;
     }
     display.error(error instanceof Error ? error.message : 'Failed to list items');
     process.exit(1);

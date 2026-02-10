@@ -7,6 +7,9 @@ export interface Config {
     baseUrl: string;
     timeout: number;
   };
+  web: {
+    baseUrl: string;
+  };
   auth?: {
     token?: string;
     refreshToken?: string;
@@ -89,4 +92,12 @@ export interface ListOptions {
   status?: string;
   source?: string;
   json?: boolean;
+}
+
+export interface ListResult {
+  items: Item[];
+  total: number;
+  page: number;
+  limit: number;
+  offset: number;
 }

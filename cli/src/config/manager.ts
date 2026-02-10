@@ -25,8 +25,11 @@ for (const envPath of envPaths) {
 
 const defaultConfig: Config = {
   api: {
-    baseUrl: process.env.API_BASE_URL ?? 'http://localhost:3001/v1',
+    baseUrl: process.env.API_BASE_URL ?? '',
     timeout: parseInt(process.env.API_TIMEOUT ?? '30000')
+  },
+  web: {
+    baseUrl: process.env.WEB_BASE_URL ?? ''
   },
   defaults: {
     source: process.env.DEFAULT_SOURCE ?? 'cli'

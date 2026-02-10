@@ -21,13 +21,17 @@ interface Translations {
     };
     apiConnection: {
       title: string;
-      setBaseUrl: string;
+      setApiBaseUrl: string;
+      setWebBaseUrl: string;
       setTimeout: string;
       resetToDefaults: string;
       back: string;
-      baseUrlPrompt: string;
+      apiBaseUrlPrompt: string;
+      webBaseUrlPrompt: string;
       timeoutPrompt: string;
       resetConfirm: string;
+      apiBaseUrlInvalid: string;
+      webBaseUrlInvalid: string;
     };
     defaultValues: {
       title: string;
@@ -59,9 +63,17 @@ interface Translations {
       description: string;
       empty: string;
       total: string;
+      pageInfo: string;
       selectAction: string;
       viewDetails: string;
       deleteItem: string;
+      prevPage: string;
+      nextPage: string;
+      gotoPage: string;
+      gotoPrompt: string;
+      invalidPage: string;
+      noPrevPage: string;
+      noNextPage: string;
       refresh: string;
       exit: string;
       selectItem: string;
@@ -135,6 +147,7 @@ interface Translations {
       openBrowser: string;
       afterRegister: string;
       loginCommand: string;
+      webBaseUrlRequired: string;
     };
     config: {
       description: string;
@@ -166,14 +179,18 @@ const translations: Record<Language, Translations> = {
         prompt: 'Select language:',
       },
       apiConnection: {
-        title: 'Configure API Connection',
-        setBaseUrl: 'Set Base URL',
+        title: 'Configure API/Web Connection',
+        setApiBaseUrl: 'Set Backend API URL (/v1)',
+        setWebBaseUrl: 'Set Frontend Web URL',
         setTimeout: 'Set Timeout',
-        resetToDefaults: 'Reset API Connection to Defaults',
+        resetToDefaults: 'Clear API/Web URL Configuration',
         back: 'Back to Main Menu',
-        baseUrlPrompt: 'Enter API base URL:',
+        apiBaseUrlPrompt: 'Enter backend API base URL (must include /v1):',
+        webBaseUrlPrompt: 'Enter frontend web base URL (protocol + host + port):',
         timeoutPrompt: 'Enter timeout (ms):',
-        resetConfirm: 'Reset API connection to defaults?',
+        resetConfirm: 'Clear backend/frontend URL configuration?',
+        apiBaseUrlInvalid: 'Invalid backend API URL. Example: http://localhost:3001/v1',
+        webBaseUrlInvalid: 'Invalid frontend web URL. Example: http://localhost:3000',
       },
       defaultValues: {
         title: 'Configure Default Values',
@@ -204,9 +221,17 @@ const translations: Record<Language, Translations> = {
         description: 'List all items',
         empty: 'No items found',
         total: 'Total',
+        pageInfo: 'Page',
         selectAction: 'Select action:',
         viewDetails: 'View details',
         deleteItem: 'Delete item',
+        prevPage: 'Previous page',
+        nextPage: 'Next page',
+        gotoPage: 'Go to page',
+        gotoPrompt: 'Enter page number:',
+        invalidPage: 'Invalid page number',
+        noPrevPage: 'Already at the first page',
+        noNextPage: 'Already at the last page',
         refresh: 'Refresh list',
         exit: 'Exit',
         selectItem: 'Select an item to view:',
@@ -280,6 +305,7 @@ const translations: Record<Language, Translations> = {
         openBrowser: 'Open in browser',
         afterRegister: 'After registration, use the following command to login:',
         loginCommand: 'sinbox login <username>',
+        webBaseUrlRequired: 'Frontend Web URL is not configured. Please run: sinbox config -> API Connection -> Set Frontend Web URL',
       },
       config: {
         description: 'Interactive configuration wizard',
@@ -308,14 +334,18 @@ const translations: Record<Language, Translations> = {
         prompt: '选择语言:',
       },
       apiConnection: {
-        title: '配置 API 连接',
-        setBaseUrl: '设置 API 地址',
+        title: '配置前后端地址',
+        setApiBaseUrl: '设置后端 API 地址 (/v1)',
+        setWebBaseUrl: '设置前端 Web 地址',
         setTimeout: '设置超时时间',
-        resetToDefaults: '恢复 API 连接默认值',
+        resetToDefaults: '清空前后端地址配置',
         back: '返回主菜单',
-        baseUrlPrompt: '请输入 API 地址:',
+        apiBaseUrlPrompt: '请输入后端 API 地址（必须包含 /v1）:',
+        webBaseUrlPrompt: '请输入前端 Web 地址（协议 + 主机 + 端口）:',
         timeoutPrompt: '请输入超时时间 (毫秒):',
-        resetConfirm: '是否恢复 API 连接默认值？',
+        resetConfirm: '是否清空前后端地址配置？',
+        apiBaseUrlInvalid: '后端 API 地址无效。示例: http://localhost:3001/v1',
+        webBaseUrlInvalid: '前端 Web 地址无效。示例: http://localhost:3000',
       },
       defaultValues: {
         title: '配置默认值',
@@ -346,9 +376,17 @@ const translations: Record<Language, Translations> = {
         description: '查看所有条目',
         empty: '暂无条目',
         total: '总计',
+        pageInfo: '页码',
         selectAction: '选择操作:',
         viewDetails: '查看详情',
         deleteItem: '删除条目',
+        prevPage: '上一页',
+        nextPage: '下一页',
+        gotoPage: '跳转页',
+        gotoPrompt: '请输入页码:',
+        invalidPage: '页码无效',
+        noPrevPage: '已经是第一页',
+        noNextPage: '已经是最后一页',
         refresh: '刷新列表',
         exit: '退出',
         selectItem: '选择要查看的条目:',
@@ -422,6 +460,7 @@ const translations: Record<Language, Translations> = {
         openBrowser: '在浏览器中打开',
         afterRegister: '注册成功后，使用以下命令登录:',
         loginCommand: 'sinbox login <用户名>',
+        webBaseUrlRequired: '前端 Web 地址未配置，请先执行: sinbox config -> API 连接 -> 设置前端 Web 地址',
       },
       config: {
         description: '交互式配置向导',

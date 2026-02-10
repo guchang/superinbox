@@ -16,14 +16,17 @@ npm link
 # 1) 启动服务（在仓库根目录）
 ./start.sh
 
-# 2) 检查连通性
+# 2) 首次使用先配置前后端地址
+sinbox config
+
+# 3) 检查连通性
 sinbox status
 
-# 3) 首次使用先登录（或先注册）
+# 4) 首次使用先登录（或先注册）
 sinbox register
 sinbox login
 
-# 4) 添加并查看条目
+# 5) 添加并查看条目
 sinbox add "明天下午 3 点开会"
 sinbox list
 ```
@@ -55,9 +58,18 @@ sinbox config
 
 可在配置向导中调整：
 - 语言（中文/英文）
-- API 地址与超时
-- 默认 source/type
-- 展示偏好与行为设置
+- 后端 API 地址（必须包含 `/v1`）
+- 前端 Web 地址（用于 `sinbox register`）
+- API 超时
+- 默认 source
+
+也可以通过 `.env` 预填：
+```bash
+API_BASE_URL=http://localhost:3001/v1
+WEB_BASE_URL=http://localhost:3000
+```
+
+说明：CLI 不再自动推断前后端地址；若地址缺失会直接提示先执行 `sinbox config`。
 
 ## 命令总览
 
@@ -79,6 +91,9 @@ CLI 的 `list`、`show`、`delete` 支持交互式流程（TTY 环境下）。
 执行 `sinbox list` 后可选择：
 - 查看详情
 - 删除条目
+- 上一页
+- 下一页
+- 跳转页
 - 刷新列表
 - 退出
 

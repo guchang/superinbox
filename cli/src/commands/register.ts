@@ -5,7 +5,7 @@
 import chalk from 'chalk';
 import { api } from '../api/client.js';
 import { config } from '../config/manager.js';
-import { t } from '../utils/i18n.js';
+import { t, getLanguage } from '../utils/i18n.js';
 
 export async function register(): Promise<void> {
   // Check if already logged in with a usable session
@@ -17,16 +17,22 @@ export async function register(): Promise<void> {
     return;
   }
 
-  // Get web app URL from API base URL
-  const apiBaseUrl = config.get().api.baseUrl;
-  const webUrl = apiBaseUrl.replace('/v1', '').replace(':3001', ':3000');
+  const webBaseUrl = (config.get().web?.baseUrl || '').trim().replace(/\/+$/, '');
+  if (!webBaseUrl) {
+    console.log('');
+    console.log(chalk.red(`  ${t('commands.register.webBaseUrlRequired')}`));
+    console.log(chalk.gray('  sinbox config'));
+    console.log('');
+    process.exit(1);
+  }
 
   console.log('');
   console.log(chalk.cyan(`  ${t('commands.register.title')}`));
   console.log('');
   console.log(chalk.gray(`  ${t('commands.register.instructions')}`));
   console.log('');
-  console.log(chalk.cyan(`  ${webUrl}/register`));
+  const localePath = getLanguage() === 'zh' ? 'zh-CN' : 'en';
+  console.log(chalk.cyan(`  ${webBaseUrl}/${localePath}/register`));
   console.log('');
   console.log(chalk.gray(`  ${t('commands.register.afterRegister')}`));
   console.log(chalk.white(`    ${t('commands.register.loginCommand')}`));
