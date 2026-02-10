@@ -47,3 +47,31 @@ docker compose -f docker-compose.prod.yml --env-file deploy/env/.env.prod down
 # rebuild and restart
 docker compose -f docker-compose.prod.yml --env-file deploy/env/.env.prod up -d --build
 ```
+
+## 6) Channel Bot 独立部署（可选）
+
+Channel Bot 推荐独立部署，不与主站 web/backend 绑定发布。
+
+```bash
+# 首次准备配置
+cp deploy/channel-bot/.env.prod.example deploy/channel-bot/.env.prod
+
+# 填写关键变量（至少 CORE_API_URL / CORE_API_KEY / TELEGRAM_BOT_TOKEN）
+vi deploy/channel-bot/.env.prod
+
+# 启动或更新 Channel Bot
+./deploy/channel-bot/update.sh
+```
+
+常用命令：
+
+```bash
+# 查看状态
+docker compose -f deploy/channel-bot/docker-compose.yml --env-file deploy/channel-bot/.env.prod ps
+
+# 查看日志
+docker compose -f deploy/channel-bot/docker-compose.yml --env-file deploy/channel-bot/.env.prod logs -f channel-bot
+
+# 停止服务
+docker compose -f deploy/channel-bot/docker-compose.yml --env-file deploy/channel-bot/.env.prod down
+```

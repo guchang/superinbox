@@ -70,6 +70,35 @@ npm start
 
 See [`.env.example`](./.env.example) for all available configuration options.
 
+## Deployment (Docker, standalone)
+
+Channel Bot is designed as an optional standalone service. It can be deployed independently from web/backend.
+
+```bash
+# from repo root
+cp deploy/channel-bot/.env.prod.example deploy/channel-bot/.env.prod
+
+# edit required variables
+# CORE_API_URL, CORE_API_KEY, TELEGRAM_BOT_TOKEN (or Lark creds)
+vi deploy/channel-bot/.env.prod
+
+# deploy / update
+./deploy/channel-bot/update.sh
+```
+
+Useful commands:
+
+```bash
+# status
+docker compose -f deploy/channel-bot/docker-compose.yml --env-file deploy/channel-bot/.env.prod ps
+
+# logs
+docker compose -f deploy/channel-bot/docker-compose.yml --env-file deploy/channel-bot/.env.prod logs -f channel-bot
+
+# stop
+docker compose -f deploy/channel-bot/docker-compose.yml --env-file deploy/channel-bot/.env.prod down
+```
+
 ## Documentation
 
 - [Project Documentation](../docs/README.md)
