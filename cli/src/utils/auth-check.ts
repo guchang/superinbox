@@ -10,7 +10,8 @@ import { t } from './i18n.js';
  * Check if user is logged in, if not show login prompt and exit
  */
 export async function requireAuth(): Promise<void> {
-  if (!api.isLoggedIn()) {
+  const session = await api.ensureSession();
+  if (!session.loggedIn) {
     console.log('');
     console.log(chalk.yellow(`  ${t('commands.auth.required')}`));
     console.log('');

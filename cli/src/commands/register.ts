@@ -3,15 +3,17 @@
  */
 
 import chalk from 'chalk';
+import { api } from '../api/client.js';
 import { config } from '../config/manager.js';
+import { t } from '../utils/i18n.js';
 
 export async function register(): Promise<void> {
-  // Check if already logged in
-  const { api } = await import('../api/client.js');
-  if (api.isLoggedIn()) {
+  // Check if already logged in with a usable session
+  const session = await api.ensureSession();
+  if (session.loggedIn) {
     const user = api.getCurrentUserFromCache();
-    console.log(chalk.yellow(`已登录为: ${user?.username} (${user?.email})`));
-    console.log(chalk.gray('如需注册新账户，请先退出登录: sinbox logout'));
+    console.log(chalk.yellow(`${t('commands.register.alreadyLoggedIn')}: ${user?.username} (${user?.email})`));
+    console.log(chalk.gray(t('commands.register.logoutFirst')));
     return;
   }
 
@@ -20,13 +22,13 @@ export async function register(): Promise<void> {
   const webUrl = apiBaseUrl.replace('/v1', '').replace(':3001', ':3000');
 
   console.log('');
-  console.log(chalk.cyan('  SuperInbox 注册'));
+  console.log(chalk.cyan(`  ${t('commands.register.title')}`));
   console.log('');
-  console.log(chalk.gray('  请在浏览器中打开以下链接完成注册:'));
+  console.log(chalk.gray(`  ${t('commands.register.instructions')}`));
   console.log('');
   console.log(chalk.cyan(`  ${webUrl}/register`));
   console.log('');
-  console.log(chalk.gray('  注册成功后，使用以下命令登录:'));
-  console.log(chalk.white('    sinbox login <用户名>'));
+  console.log(chalk.gray(`  ${t('commands.register.afterRegister')}`));
+  console.log(chalk.white(`    ${t('commands.register.loginCommand')}`));
   console.log('');
 }

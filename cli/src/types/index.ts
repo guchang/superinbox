@@ -5,7 +5,6 @@
 export interface Config {
   api: {
     baseUrl: string;
-    key: string;
     timeout: number;
   };
   auth?: {
@@ -15,18 +14,9 @@ export interface Config {
   };
   defaults: {
     source: string;
-    type: string;
   };
   display: {
     language: 'en' | 'zh';
-    compact: boolean;
-    color: boolean;
-    dateFormat: 'relative' | 'absolute';
-    maxItems: number;
-  };
-  behavior: {
-    autoWait: boolean;
-    confirmDelete: boolean;
   };
 }
 

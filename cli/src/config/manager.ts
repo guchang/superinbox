@@ -26,23 +26,13 @@ for (const envPath of envPaths) {
 const defaultConfig: Config = {
   api: {
     baseUrl: process.env.API_BASE_URL ?? 'http://localhost:3001/v1',
-    key: process.env.API_KEY ?? 'dev-key-change-this-in-production',
     timeout: parseInt(process.env.API_TIMEOUT ?? '30000')
   },
   defaults: {
-    source: process.env.DEFAULT_SOURCE ?? 'cli',
-    type: process.env.DEFAULT_TYPE ?? 'text'
+    source: process.env.DEFAULT_SOURCE ?? 'cli'
   },
   display: {
-    language: 'en',
-    compact: false,
-    color: true,
-    dateFormat: 'relative',
-    maxItems: 20
-  },
-  behavior: {
-    autoWait: false,
-    confirmDelete: true
+    language: 'en'
   }
 };
 
@@ -76,11 +66,6 @@ export class ConfigManager {
     target[keys[keys.length - 1]] = value;
     this.conf.set(current);
   }
-
-  getApiKey(): string {
-    return this.conf.store.api.key;
-  }
-
   getBaseUrl(): string {
     return this.conf.store.api.baseUrl;
   }

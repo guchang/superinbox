@@ -14,6 +14,7 @@ export async function status(): Promise<void> {
 
   try {
     const health = await api.healthCheck();
+    const session = await api.ensureSession();
     spinner.succeed(t('commands.status.running'));
 
     console.log('');
@@ -22,7 +23,7 @@ export async function status(): Promise<void> {
     console.log(chalk.gray(`${t('commands.status.endpoint')} `) + chalk.cyan(config.get().api.baseUrl));
 
     // Show login status
-    if (api.isLoggedIn()) {
+    if (session.loggedIn) {
       const user = api.getCurrentUserFromCache();
       console.log(chalk.gray(`${t('commands.status.user')}     `) + chalk.green(`${user?.username} (${user?.email})`));
     } else {

@@ -34,9 +34,11 @@ export class ApiClient {
       (response) => response,
       async (error) => {
         const originalRequest = error.config;
+        const requestUrl = originalRequest?.url || '';
+        const skipRefresh = this.shouldSkipAutoRefresh(requestUrl);
         
         // If we get a 401 and haven't already tried to refresh
-        if (error.response?.status === 401 && !originalRequest._retry) {
+        if (error.response?.status === 401 && !skipRefresh && originalRequest && !originalRequest._retry) {
           originalRequest._retry = true;
           
           const cfg = this.getConfig();
@@ -46,14 +48,13 @@ export class ApiClient {
               // Retry the original request with new token
               const newCfg = this.getConfig();
               if (newCfg.auth?.token) {
+                originalRequest.headers = originalRequest.headers || {};
                 originalRequest.headers['Authorization'] = `Bearer ${newCfg.auth.token}`;
                 return this.client(originalRequest);
               }
             } catch (refreshError) {
               // Refresh failed, clear auth data
-              config.delete('auth.token');
-              config.delete('auth.refreshToken');
-              config.delete('auth.user');
+              this.clearAuthCache();
               throw new Error('Session expired. Please login again with: sinbox login');
             }
           } else {
@@ -74,6 +75,75 @@ export class ApiClient {
   }
 
   /**
+   * Skip auto refresh for auth endpoints
+   */
+  private shouldSkipAutoRefresh(url?: string): boolean {
+    if (!url) return false;
+    return ['/auth/login', '/auth/register', '/auth/refresh'].some((path) => url.includes(path));
+  }
+
+  /**
+   * Clear local auth cache
+   */
+  private clearAuthCache(): void {
+    config.delete('auth.token');
+    config.delete('auth.refreshToken');
+    config.delete('auth.user');
+  }
+
+  /**
+   * Decode JWT exp (seconds)
+   */
+  private decodeJwtExp(token: string): number | null {
+    const parts = token.split('.');
+    if (parts.length < 2) return null;
+
+    try {
+      const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8')) as { exp?: number };
+      return typeof payload.exp === 'number' ? payload.exp : null;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Check if token is expired
+   */
+  private isTokenExpired(token: string, skewSeconds = 30): boolean {
+    const exp = this.decodeJwtExp(token);
+    if (!exp) return true;
+
+    const now = Math.floor(Date.now() / 1000);
+    return exp <= now + skewSeconds;
+  }
+
+  /**
+   * Ensure current auth session is usable
+   */
+  async ensureSession(): Promise<{ loggedIn: boolean; refreshed: boolean }> {
+    const cfg = this.getConfig();
+    const accessToken = cfg.auth?.token;
+
+    if (accessToken && !this.isTokenExpired(accessToken) && cfg.auth?.user) {
+      return { loggedIn: true, refreshed: false };
+    }
+
+    const refreshToken = cfg.auth?.refreshToken;
+    if (!refreshToken) {
+      this.clearAuthCache();
+      return { loggedIn: false, refreshed: false };
+    }
+
+    try {
+      await this.refreshToken();
+      return { loggedIn: true, refreshed: true };
+    } catch {
+      this.clearAuthCache();
+      return { loggedIn: false, refreshed: false };
+    }
+  }
+
+  /**
    * Create a new item
    */
   async createItem(
@@ -82,7 +152,7 @@ export class ApiClient {
   ): Promise<CreateItemResponse> {
     const response = await this.client.post<ApiResponse<CreateItemResponse>>('/inbox', {
       content,
-      type: options.type ?? config.get().defaults.type,
+      type: options.type ?? 'text',
       source: options.source ?? config.get().defaults.source
     });
 
@@ -242,10 +312,7 @@ export class ApiClient {
     try {
       await this.client.post('/auth/logout');
     } finally {
-      // Clear auth data from config by deleting individual properties
-      config.delete('auth.token');
-      config.delete('auth.refreshToken');
-      config.delete('auth.user');
+      this.clearAuthCache();
     }
   }
 
@@ -268,6 +335,14 @@ export class ApiClient {
   isLoggedIn(): boolean {
     const cfg = config.get();
     return !!(cfg.auth?.token && cfg.auth?.user);
+  }
+
+  /**
+   * Check if local auth cache exists
+   */
+  hasAuthCache(): boolean {
+    const cfg = config.get();
+    return !!(cfg.auth?.token || cfg.auth?.refreshToken || cfg.auth?.user);
   }
 
   /**

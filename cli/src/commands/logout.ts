@@ -9,13 +9,14 @@ import { t, getLanguage } from '../utils/i18n.js';
 import { display } from '../utils/display.js';
 
 export async function logout() {
-  // Check if logged in
-  if (!api.isLoggedIn()) {
+  // Check if login-related cache exists
+  if (!api.hasAuthCache()) {
     console.log(chalk.yellow(getLanguage() === 'zh' ? '未登录，无需退出' : 'Not logged in'));
     return;
   }
 
   const user = api.getCurrentUserFromCache();
+  const username = user?.username || (getLanguage() === 'zh' ? '当前账户' : 'current account');
 
   // Confirm logout
   const inquirer = (await import('inquirer')).default;
@@ -23,7 +24,7 @@ export async function logout() {
     {
       type: 'confirm',
       name: 'confirm',
-      message: `${t('commands.logout.confirm')} (${user?.username})`,
+      message: `${t('commands.logout.confirm')} (${username})`,
       default: false
     }
   ]);

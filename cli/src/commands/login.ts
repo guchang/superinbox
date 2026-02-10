@@ -9,18 +9,29 @@ import { t } from '../utils/i18n.js';
 import type { LoginRequest } from '../types/index.js';
 
 export async function login(username?: string) {
-  // Check if already logged in
-  if (api.isLoggedIn()) {
+  const inquirer = (await import('inquirer')).default;
+
+  // Check if already logged in with a usable session
+  const session = await api.ensureSession();
+  if (session.loggedIn) {
     const user = api.getCurrentUserFromCache();
     console.log(chalk.yellow(`${t('commands.login.alreadyLoggedIn')}: ${user?.username} (${user?.email})`));
-    console.log(chalk.gray(t('commands.login.switchAccount')));
-    return;
+
+    const { shouldSwitch } = await inquirer.prompt([
+      {
+        type: 'confirm',
+        name: 'shouldSwitch',
+        message: t('commands.login.switchAccount'),
+        default: false,
+      }
+    ]);
+
+    if (!shouldSwitch) {
+      return;
+    }
   }
 
   let credentials: LoginRequest;
-
-  // Always use interactive prompt for credentials
-  const inquirer = (await import('inquirer')).default;
 
   // If username provided as argument, only prompt for password
   if (username) {

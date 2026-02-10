@@ -145,27 +145,6 @@ export const display = {
 
     console.log('');
   },
-
-  /**
-   * Display configuration
-   */
-  config(cfg: any): void {
-    console.log('');
-    console.log(chalk.bold.white('SuperInbox CLI Configuration'));
-    console.log('');
-
-    console.log(chalk.gray('API:'));
-    console.log(chalk.cyan('  Base URL:     ') + chalk.white(cfg.api.baseUrl));
-    console.log(chalk.cyan('  API Key:      ') + chalk.white(maskApiKey(cfg.api.key)));
-    console.log(chalk.cyan('  Timeout:      ') + chalk.white(`${cfg.api.timeout}ms`));
-
-    console.log('');
-    console.log(chalk.gray('Defaults:'));
-    console.log(chalk.cyan('  Source:       ') + chalk.white(cfg.defaults.source));
-    console.log(chalk.cyan('  Type:         ') + chalk.white(cfg.defaults.type));
-
-    console.log('');
-  }
 };
 
 /**
@@ -223,10 +202,3 @@ function formatDate(dateStr: string): string {
   return date.toLocaleDateString();
 }
 
-/**
- * Mask API key for display
- */
-function maskApiKey(key: string): string {
-  if (key.length <= 8) return '*'.repeat(key.length);
-  return key.substring(0, 4) + '*'.repeat(key.length - 8) + key.substring(key.length - 4);
-}

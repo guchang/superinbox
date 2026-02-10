@@ -14,9 +14,6 @@ interface Translations {
       language: string;
       apiConnection: string;
       defaultValues: string;
-      displayPreferences: string;
-      behaviorSettings: string;
-      viewConfig: string;
       exit: string;
     };
     language: {
@@ -35,35 +32,9 @@ interface Translations {
     defaultValues: {
       title: string;
       setSource: string;
-      setType: string;
       resetToDefaults: string;
       back: string;
       sourcePrompt: string;
-      typePrompt: string;
-      resetConfirm: string;
-    };
-    displayPreferences: {
-      title: string;
-      setCompact: string;
-      setColor: string;
-      setDateFormat: string;
-      setMaxItems: string;
-      resetToDefaults: string;
-      back: string;
-      compactPrompt: string;
-      colorPrompt: string;
-      dateFormatPrompt: string;
-      maxItemsPrompt: string;
-      resetConfirm: string;
-    };
-    behaviorSettings: {
-      title: string;
-      setAutoWait: string;
-      setConfirmDelete: string;
-      resetToDefaults: string;
-      back: string;
-      autoWaitPrompt: string;
-      confirmDeletePrompt: string;
       resetConfirm: string;
     };
     common: {
@@ -189,9 +160,6 @@ const translations: Record<Language, Translations> = {
         language: 'Language / 语言',
         apiConnection: 'API Connection',
         defaultValues: 'Default Values',
-        displayPreferences: 'Display Preferences',
-        behaviorSettings: 'Behavior Settings',
-        viewConfig: 'View Current Config',
         exit: 'Exit',
       },
       language: {
@@ -210,36 +178,10 @@ const translations: Record<Language, Translations> = {
       defaultValues: {
         title: 'Configure Default Values',
         setSource: 'Set Default Source',
-        setType: 'Set Default Type',
         resetToDefaults: 'Reset Default Values to Defaults',
         back: 'Back to Main Menu',
         sourcePrompt: 'Enter default source:',
-        typePrompt: 'Enter default type:',
         resetConfirm: 'Reset default values to defaults?',
-      },
-      displayPreferences: {
-        title: 'Configure Display Preferences',
-        setCompact: 'Set Compact Mode',
-        setColor: 'Set Color Output',
-        setDateFormat: 'Set Date Format',
-        setMaxItems: 'Set Max Items to Display',
-        resetToDefaults: 'Reset Display Preferences to Defaults',
-        back: 'Back to Main Menu',
-        compactPrompt: 'Enable compact mode?',
-        colorPrompt: 'Enable color output?',
-        dateFormatPrompt: 'Select date format:',
-        maxItemsPrompt: 'Enter max items to display:',
-        resetConfirm: 'Reset display preferences to defaults?',
-      },
-      behaviorSettings: {
-        title: 'Configure Behavior Settings',
-        setAutoWait: 'Set Auto Wait for AI Processing',
-        setConfirmDelete: 'Set Confirm Before Delete',
-        resetToDefaults: 'Reset Behavior Settings to Defaults',
-        back: 'Back to Main Menu',
-        autoWaitPrompt: 'Auto wait for AI processing after adding items?',
-        confirmDeletePrompt: 'Confirm before deleting items?',
-        resetConfirm: 'Reset behavior settings to defaults?',
       },
       common: {
         success: 'Configuration updated successfully',
@@ -301,7 +243,7 @@ const translations: Record<Language, Translations> = {
       login: {
         description: 'Login to your account',
         alreadyLoggedIn: 'Already logged in as',
-        switchAccount: 'To switch accounts, please logout first: sinbox logout',
+        switchAccount: 'Switch to another account now?',
         usernamePrompt: 'Username:',
         passwordPrompt: 'Password:',
         usernameRequired: 'Please enter username',
@@ -360,9 +302,6 @@ const translations: Record<Language, Translations> = {
         language: 'Language / 语言',
         apiConnection: 'API 连接',
         defaultValues: '默认值',
-        displayPreferences: '显示偏好',
-        behaviorSettings: '行为设置',
-        viewConfig: '查看当前配置',
         exit: '退出',
       },
       language: {
@@ -381,36 +320,10 @@ const translations: Record<Language, Translations> = {
       defaultValues: {
         title: '配置默认值',
         setSource: '设置默认来源',
-        setType: '设置默认类型',
         resetToDefaults: '恢复默认值',
         back: '返回主菜单',
         sourcePrompt: '请输入默认来源:',
-        typePrompt: '请输入默认类型:',
         resetConfirm: '是否恢复默认值？',
-      },
-      displayPreferences: {
-        title: '配置显示偏好',
-        setCompact: '设置紧凑模式',
-        setColor: '设置彩色输出',
-        setDateFormat: '设置日期格式',
-        setMaxItems: '设置最大显示条目数',
-        resetToDefaults: '恢复显示偏好默认值',
-        back: '返回主菜单',
-        compactPrompt: '是否启用紧凑模式？',
-        colorPrompt: '是否启用彩色输出？',
-        dateFormatPrompt: '选择日期格式:',
-        maxItemsPrompt: '请输入最大显示条目数:',
-        resetConfirm: '是否恢复显示偏好默认值？',
-      },
-      behaviorSettings: {
-        title: '配置行为设置',
-        setAutoWait: '设置自动等待 AI 处理',
-        setConfirmDelete: '设置删除前确认',
-        resetToDefaults: '恢复行为设置默认值',
-        back: '返回主菜单',
-        autoWaitPrompt: '添加条目后自动等待 AI 处理？',
-        confirmDeletePrompt: '删除条目前需要确认？',
-        resetConfirm: '是否恢复行为设置默认值？',
       },
       common: {
         success: '配置更新成功',
@@ -472,7 +385,7 @@ const translations: Record<Language, Translations> = {
       login: {
         description: '登录账户',
         alreadyLoggedIn: '已登录为',
-        switchAccount: '如需切换账户，请先退出登录: sinbox logout',
+        switchAccount: '是否现在切换到其他账户？',
         usernamePrompt: '用户名:',
         passwordPrompt: '密码:',
         usernameRequired: '请输入用户名',
