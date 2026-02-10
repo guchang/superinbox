@@ -799,16 +799,10 @@ export class ChannelManager {
         const date = new Date(entry.createdAt);
         const dateStr = `${date.getMonth() + 1}/${date.getDate()} ${date.getHours()}:${String(date.getMinutes()).padStart(2, '0')}`;
 
-        // Format status emoji
-        const statusEmoji = entry.status === 'completed' ? '✅' :
-                           entry.status === 'processing' ? '⏳' :
-                           entry.status === 'failed' ? '❌' : '📝';
-
         listMessage += getMessage(language, 'listItem', {
           index: (page - 1) * response.limit + i + 1,
-          content: `${statusEmoji} ${content}`,
+          content,
           category: entry.category || 'unknown',
-          status: entry.status,
           date: dateStr
         }) + '\n';
       }

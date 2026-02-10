@@ -21,7 +21,6 @@ interface AppConfig {
   port: number;
   nodeEnv: string;
   coreApiUrl: string;
-  coreApiKey: string;
   databasePath: string;
   enabledChannels: ChannelType[];
   telegramBotToken?: string;
@@ -38,7 +37,6 @@ function loadConfig(): AppConfig {
     port: parseInt(process.env.PORT || '3002', 10),
     nodeEnv: process.env.NODE_ENV || 'development',
     coreApiUrl: process.env.CORE_API_URL || 'http://localhost:3001/v1',
-    coreApiKey: process.env.CORE_API_KEY || '',
     databasePath: process.env.DATABASE_PATH,
     enabledChannels: (process.env.ENABLED_CHANNELS?.split(',') || [
       'telegram',
@@ -56,10 +54,6 @@ function loadConfig(): AppConfig {
  * Validate configuration
  */
 function validateConfig(config: AppConfig): void {
-  if (!config.coreApiKey) {
-    throw new Error('CORE_API_KEY is required');
-  }
-
   if (!config.coreApiUrl) {
     throw new Error('CORE_API_URL is required');
   }
@@ -151,7 +145,6 @@ async function main(): Promise<void> {
     const userMapper = getUserMapper(config.databasePath);
     const coreApiClient = getCoreApiClient({
       baseURL: config.coreApiUrl,
-      apiKey: config.coreApiKey,
     });
 
     // Check Core API health

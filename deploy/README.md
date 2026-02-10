@@ -12,10 +12,7 @@ Edit `deploy/env/.env.prod` and make sure these are set:
 
 - `DOMAIN`
 - `LETSENCRYPT_EMAIL`
-- `LLM_API_KEY`
-- `DEFAULT_API_KEY`
 - `JWT_SECRET`
-- `ENCRYPTION_KEY`
 
 ## 2) Bootstrap HTTPS certificate and start stack
 
@@ -56,7 +53,7 @@ Channel Bot 推荐独立部署，不与主站 web/backend 绑定发布。
 # 首次准备配置
 cp deploy/channel-bot/.env.prod.example deploy/channel-bot/.env.prod
 
-# 填写关键变量（至少 CORE_API_URL / CORE_API_KEY / TELEGRAM_BOT_TOKEN）
+# 填写关键变量（至少 CORE_API_URL；Telegram 填 TELEGRAM_BOT_TOKEN；Lark 填 LARK_APP_ID/LARK_APP_SECRET，长连接模式下 LARK_VERIFICATION_TOKEN 可留空）
 vi deploy/channel-bot/.env.prod
 
 # 启动或更新 Channel Bot

@@ -22,8 +22,8 @@ export { CoreApiError };
 export interface CoreApiClientConfig {
   /** Base URL of Core API (e.g., http://localhost:3001/v1) */
   baseURL: string;
-  /** API key for authentication */
-  apiKey: string;
+  /** Optional default API key for authentication */
+  apiKey?: string;
   /** Request timeout in milliseconds */
   timeout?: number;
 }
@@ -36,15 +36,19 @@ export class CoreApiClient implements ICoreApiClient {
   private apiKey: string;
 
   constructor(config: CoreApiClientConfig) {
-    this.apiKey = config.apiKey;
+    this.apiKey = config.apiKey || '';
+
+    const defaultHeaders: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (this.apiKey) {
+      defaultHeaders.Authorization = `Bearer ${this.apiKey}`;
+    }
 
     this.client = axios.create({
       baseURL: config.baseURL,
       timeout: config.timeout || 30000,
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${this.apiKey}`,
-      },
+      headers: defaultHeaders,
       proxy: false,  // Disable proxy for localhost connections
     });
 

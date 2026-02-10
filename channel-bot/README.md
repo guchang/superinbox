@@ -79,7 +79,7 @@ Channel Bot is designed as an optional standalone service. It can be deployed in
 cp deploy/channel-bot/.env.prod.example deploy/channel-bot/.env.prod
 
 # edit required variables
-# CORE_API_URL, CORE_API_KEY, TELEGRAM_BOT_TOKEN (or Lark creds)
+# CORE_API_URL, TELEGRAM_BOT_TOKEN (or Lark creds)
 vi deploy/channel-bot/.env.prod
 
 # deploy / update
