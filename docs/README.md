@@ -1,60 +1,71 @@
-# SuperInbox 文档中心
+# SuperInbox Docs Index / SuperInbox 文档中心
 
-本文档中心包含 SuperInbox 项目的技术文档、使用指南和产品说明。
-
----
-
-## 📚 文档导航
-
-### 🔌 API 文档
-
-| 文档 | 说明 |
-|------|------|
-| [SuperInbox-Core-API文档.md](./api/SuperInbox-Core-API文档.md) | 中文版 API 文档（当前实现），包含端点、参数和响应格式 |
-| [SuperInbox-Core-API.en.md](./api/SuperInbox-Core-API.en.md) | English API documentation (current implementation), including endpoints, parameters, and response formats |
+This index contains technical docs, usage guides, and product references for SuperInbox.  
+这里汇总 SuperInbox 的技术文档、使用指南和产品说明。
 
 ---
 
-### 📖 使用指南
+## API Docs / API 文档
 
-| 文档 | 说明 |
-|------|------|
-| [启动工具使用说明.md](./guides/启动工具使用说明.md) | 启动工具统一指南（含快速开始、命令速查与排障） |
-| [CLI README](../cli/README.md) | CLI 使用与交互式操作指南 |
-
----
-
-### 📝 项目总览
-
-| 文档 | 说明 |
-|------|------|
-| [README.md](../README.md) | 项目定位、核心价值、快速开始与使用入口 |
+| Document | Description |
+|---|---|
+| [SuperInbox-Core-API文档.md](./api/SuperInbox-Core-API文档.md) | 中文 API 文档（当前实现） |
+| [SuperInbox-Core-API.en.md](./api/SuperInbox-Core-API.en.md) | English API docs (current implementation) |
 
 ---
 
-### 🔧 功能文档
+## Guides / 使用指南
 
-| 文档 | 说明 |
-|------|------|
+| Document | Description |
+|---|---|
+| [启动工具使用说明.md](./guides/启动工具使用说明.md) | 启动工具统一指南（含快速开始与排障） |
+| [CLI README](../cli/README.md) | CLI usage and interactive workflow（中英双语） |
+| [Deploy README](../deploy/README.md) | Docker production deployment（中英双语） |
+
+---
+
+## Project Overview / 项目总览
+
+| Document | Description |
+|---|---|
+| [README.md](../README.md) | English project overview |
+| [README.zh-CN.md](../README.zh-CN.md) | 中文项目总览 |
+| [Backend README](../backend/README.md) | Backend module overview（中英双语） |
+| [Channel Bot README](../channel-bot/README.md) | Channel Bot module overview（中英双语） |
+
+---
+
+## Feature Docs / 功能文档
+
+| Document | Description |
+|---|---|
 | [分类提示词使用指南.md](./features/分类提示词使用指南.md) | 分类管理提示词与使用建议 |
 
 ---
 
-## 🗂️ 按角色索引
+## Role-based Entry / 按角色索引
 
-**新用户：**
-1. [README.md](../README.md) - 了解产品定位与核心能力
-2. [启动工具使用说明.md](./guides/启动工具使用说明.md) - 快速上手与启动项目
+**For new users / 新用户：**
 
-**开发者：**
-1. [SuperInbox-Core-API文档.md](./api/SuperInbox-Core-API文档.md) - API 参考（中文）
-2. [SuperInbox-Core-API.en.md](./api/SuperInbox-Core-API.en.md) - API Reference (English)
-3. [CLI README](../cli/README.md) - CLI 使用方式
+1. [README.md](../README.md) / [README.zh-CN.md](../README.zh-CN.md)
+2. [启动工具使用说明.md](./guides/启动工具使用说明.md)
+
+**For developers / 开发者：**
+
+1. [SuperInbox-Core-API文档.md](./api/SuperInbox-Core-API文档.md)
+2. [SuperInbox-Core-API.en.md](./api/SuperInbox-Core-API.en.md)
+3. [CLI README](../cli/README.md)
+4. [Backend README](../backend/README.md)
+5. [Channel Bot README](../channel-bot/README.md)
 
 ---
 
-## 📌 维护说明
+## Maintenance Notes / 维护说明
 
-- 本页仅保留当前仓库实际存在的文档入口
-- 文档迁移或归档后，请同步更新对应链接
-- 新增文档请按目录分类后再加入本索引
+- Keep only valid links that exist in this repo.
+- Update this index after doc migration/archive.
+- Classify new docs before adding them here.
+
+- 本页仅保留仓库中实际存在的文档入口。
+- 文档迁移或归档后，请同步更新索引。
+- 新增文档请先按目录分类，再加入本页。

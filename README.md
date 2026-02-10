@@ -1,79 +1,110 @@
 # SuperInbox
 
-## 产品定位
-**采集摩擦**是阻碍人们进行数字化管理的最大痛点。当一个人产生灵感时，如果需要思考“该打开哪个APP”，这个灵感往往转瞬即逝。
-SuperInbox 致力于降低信息记录门槛，让你无压地输入一切想输入的信息，交给 AI 在后台完成分类、提取和分发。
+Language: **English** | [简体中文](./README.zh-CN.md)
 
-## 核心价值
+## Product Positioning
 
-- **多端采集**：支持 Web、CLI、Bot、API、MCP等多入口，让你可以随时随地记录。
-- **AI处理**：自动分类、提取信息，无需手动打标签，快速释放大脑内存。
-- **灵活分发**：按规则自动分发到 Notion、Todoist、飞书等常用的知识管理平台。
-- **自主可控**：核心引擎完全开源，支持本地私有化部署，确保您完全掌控自己的数据资。
+Reducing capture friction is the core goal of SuperInbox.  
+When ideas appear, users should not have to think about which app to open first.
 
-## 典型场景
+SuperInbox lowers the input barrier so you can capture anything quickly, while AI handles classification, extraction, and routing in the background.
 
-### 🧠 个人知识管理
+## Core Value
 
-> **场景**：随时记录灵感和想法
+- **Multi-entry capture**: Web, CLI, Bot, API, and MCP entry points.
+- **AI processing**: Automatic classification and information extraction.
+- **Flexible routing**: Route to Notion, Todoist, Feishu, and other downstream tools.
+- **Self-host friendly**: Open-source core with local/private deployment support.
 
-> **流程**：通过快捷指令快速输入 → AI 识别为 `灵感` → 自动保存到 **Notion** 灵感库
+## Typical Scenarios
 
-### 📥 信息收藏
+### 🧠 Personal Knowledge Management
 
-> **场景**：手机浏览文章或网页时，随手转发
+> **Scenario**: Capture ideas instantly
 
-> **流程**：转发至 `Telegram Bot` → AI 识别为 `收藏` → 分发到 **Notion** 剪藏
+> **Flow**: Quick input → AI categorizes as `idea` → auto-save to Notion
 
-### ✅ 任务管理
+### 📥 Information Collection
 
-> **场景**：快速创建待办事项
+> **Scenario**: Forward links while browsing on mobile
 
-> **流程**：输入 "明天下午3点开会" → AI 提取时间 → 创建 **Todoist** 任务
+> **Flow**: Send to Telegram Bot → AI categorizes as `bookmark` → distribute to Notion
 
-### 💰 财务记录
+### ✅ Task Management
 
-> **场景**：支出记录自动分类
+> **Scenario**: Create tasks quickly
 
-> **流程**：输入 "买咖啡花了25元" → AI 识别金额和消费项目 → 记录到 **飞书** 记账表格
+> **Flow**: Input "Meeting at 3 PM tomorrow" → AI extracts time → create Todoist task
 
-## 快速开始
+### 💰 Expense Logging
 
-### 一键启动
+> **Scenario**: Auto-categorized spending records
+
+> **Flow**: Input "Spent 25 yuan on coffee" → AI extracts amount/context → write to Feishu sheet
+
+## Quick Start
+
+### One-Command Startup
 
 **macOS / Linux:**
+
 ```bash
 ./start.sh
 ```
 
-启动工具会自动:
-- ✅ 检查依赖
-- ✅ 检测端口占用并提供处理选项
-- ✅ 启动前后端服务
+Startup script automatically:
 
-**服务地址:**
-- 前端: http://localhost:3001
-- 后端: http://localhost:3000/v1
+- ✅ Checks dependencies
+- ✅ Detects port conflicts and offers handling options
+- ✅ Starts backend and frontend services
 
-## 常用命令
+**Service URLs:**
+
+- Frontend: http://localhost:3001
+- Backend API: http://localhost:3000/v1
+
+## Common Commands
 
 ```bash
-# 查看状态
+# Check status
 ./start.sh status
 
-# 停止服务
+# Stop services
 ./start.sh stop
 
-# 重启服务
+# Restart services
 ./start.sh restart
 ```
 
+## CLI Companion
+
+SuperInbox includes a companion CLI tool: `sinbox`. It is optimized for terminal-first and script-friendly capture workflows.
+
+Quick example:
+
+```bash
+# Install CLI
+cd ./cli
+npm install
+npm link
+
+# Configure and verify
+sinbox config
+sinbox status
+
+# Add and list
+sinbox add "Meeting at 3 PM tomorrow"
+sinbox list
+```
+
+See full CLI docs (bilingual): [`cli/README.md`](./cli/README.md)
+
 ## MCP (Codex / Claude Code)
 
-本项目提供 stdio MCP Server，供 Codex 或 Claude Code 调用。使用方式：
+This project provides a stdio MCP server for Codex or Claude Code.
 
-1) 先启动后端服务（确保 `http://127.0.0.1:3000` 可访问）
-2) 在你的 MCP 配置里新增如下服务（请替换为你的绝对路径和 API Key）：
+1) Start backend first (ensure `http://127.0.0.1:3000` is reachable)
+2) Add the server to your MCP config (replace with your absolute paths and API key):
 
 ```json
 {
@@ -90,42 +121,45 @@ SuperInbox 致力于降低信息记录门槛，让你无压地输入一切想输
 }
 ```
 
+## Documentation
 
-## 文档
+- [中文主文档](./README.zh-CN.md) - 项目中文介绍
+- [Startup Guide](./docs/guides/启动工具使用说明.md) - unified startup guide
+- [Docs Index](./docs/README.md) - documentation entry point
+- [SuperInbox Core API](./docs/api/SuperInbox-Core-API文档.md) - backend APIs
+- [SuperInbox CLI (Bilingual)](./cli/README.md) - CLI setup, commands, and FAQ
 
-- [启动工具使用说明](./docs/guides/启动工具使用说明.md) - 启动工具统一指南
-- [文档中心](./docs/README.md) - 所有文档入口
-- [SuperInbox Core API 文档](./docs/api/SuperInbox-Core-API文档.md) - 后端 API 接口
+## Project Structure
 
-## 项目结构
-
-```
+```text
 SuperInbox/
-├── backend/        # 后端服务 (Express + SQLite)
-├── web/            # 前端界面 (Next.js + React)
-├── cli/            # CLI 工具
-├── start.sh        # Bash 启动脚本
-├── start.js        # Node.js 启动脚本
-└── README.md       # 本文件
+├── backend/        # Backend service (Express + SQLite)
+├── web/            # Frontend app (Next.js + React)
+├── cli/            # CLI tool
+├── start.sh        # Bash startup script
+├── start.js        # Node.js startup script
+└── README.md       # English README (this file)
 ```
 
-## 端口配置
+## Ports
 
-默认端口:
-- 后端: 3000
-- 前端: 3001
+Default ports:
 
-自定义端口:
+- Backend: 3000
+- Frontend: 3001
+
+Custom ports:
+
 ```bash
 BACKEND_PORT=8080 FRONTEND_PORT=8081 ./start.sh
 ```
 
-## 系统要求
+## System Requirements
 
 - Node.js >= 18.0.0
 - npm
 - macOS / Linux / Windows
 
-## 许可证
+## License
 
 MIT

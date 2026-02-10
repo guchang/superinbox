@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+- Reworked `cli/README.md` into a concise bilingual (Chinese/English) guide, covering installation, config, commands, interactive behavior, automation examples, and FAQ.
+- Exposed CLI documentation in root `README.md` with a new "CLI 工具（配套）" section and direct link to `./cli/README.md`.
+- Added a brief CLI introduction in root docs to clarify positioning and quick-start workflow for terminal users.
+- Split root project documentation into language-specific files: `README.md` (English) and `README.zh-CN.md` (Chinese), with cross-language links.
+- Updated subproject READMEs to bilingual Chinese/English format: `channel-bot/README.md`, `backend/README.md`, `deploy/README.md`, `docs/README.md`.
+- Added `web/README.md` as a new bilingual module README for the frontend subproject.
+
 ## [0.1.0] - 2026-02-08
 
 ### Added

@@ -1,108 +1,110 @@
-# SuperInbox Core Backend
+# SuperInbox Core Backend / SuperInbox 核心后端
 
-SuperInbox Core 是一个"数字化信息的统一入口与智能路由系统"的核心后端服务。
+SuperInbox Core is the backend service for unified capture and intelligent routing.  
+SuperInbox Core 是“统一采集 + 智能路由”能力的核心后端服务。
 
-## 核心功能
+## Core Capabilities / 核心能力
 
-- **多端采集层**: 接收来自各种渠道的原始数据（文本、图片、链接、音频）
-- **AI 处理引擎**: 意图识别、实体提取、智能分类
-- **存储层**: 本地 SQLite 数据库存储
-- **分发路由层**: 自动分发到 Notion、Obsidian、Webhook 等目标平台
+- **Multi-source capture / 多端采集**: receive raw data (text/image/link/audio)
+- **AI processing / AI 处理**: intent detection, entity extraction, smart categorization
+- **Storage / 存储层**: local SQLite persistence
+- **Routing / 分发路由**: dispatch to Notion, Obsidian, Webhook, etc.
 
-## 快速开始
+## Quick Start / 快速开始
 
-### 安装依赖
+### 1) Install dependencies / 安装依赖
 
-\`\`\`bash
+```bash
 npm install
-\`\`\`
+```
 
-### 配置环境变量
+### 2) Configure env / 配置环境变量
 
-\`\`\`bash
+```bash
 cp .env.example .env
-# 编辑 .env 文件，填入必要的配置
-\`\`\`
+# edit .env with required values / 编辑必要配置
+```
 
-### 初始化数据库
+### 3) Initialize database / 初始化数据库
 
-\`\`\`bash
+```bash
 npm run db:migrate
 npm run db:seed
-\`\`\`
+```
 
-### 启动开发服务器
+### 4) Start development server / 启动开发服务
 
-\`\`\`bash
+```bash
 npm run dev
-\`\`\`
+```
 
-## 项目结构
+## Project Structure / 项目结构
 
-\`\`\`
+```text
 backend/
 ├── src/
-│   ├── capture/          # 捕获层 - API 接收端点
-│   ├── ai/               # AI 处理引擎
-│   ├── storage/          # 存储层 - 数据库操作
-│   ├── router/           # 分发路由层 - 适配器
-│   ├── middleware/       # Express 中间件
-│   ├── config/           # 配置管理
-│   ├── types/            # TypeScript 类型定义
-│   └── index.ts          # 应用入口
-├── tests/                # 测试文件
+│   ├── capture/          # Capture endpoints / 采集入口
+│   ├── ai/               # AI processing engine / AI 处理引擎
+│   ├── storage/          # Storage layer / 存储层
+│   ├── router/           # Routing adapters / 分发路由适配器
+│   ├── middleware/       # Express middleware
+│   ├── config/           # Configuration
+│   ├── types/            # TypeScript types
+│   └── index.ts          # App entry
+├── tests/                # Tests
 └── package.json
-\`\`\`
+```
 
-## API 文档
+## API Documentation / API 文档
 
-详细的 API 文档请参考 \`SuperInbox-Core-API文档.md\`
+- Chinese: [`../docs/api/SuperInbox-Core-API文档.md`](../docs/api/SuperInbox-Core-API文档.md)
+- English: [`../docs/api/SuperInbox-Core-API.en.md`](../docs/api/SuperInbox-Core-API.en.md)
 
-### 核心端点
+### Core Endpoints / 核心接口
 
-- `POST /v1/inbox` - 接收并处理输入内容
-- `GET /v1/inbox` - 获取所有项目
-- `GET /v1/inbox/:id` - 获取单个项目详情
-- `PUT /v1/inbox/:id` - 更新项目
-- `DELETE /v1/inbox/:id` - 删除项目
-- `POST /v1/routing/dispatch/:id` - 手动触发分发
+- `POST /v1/inbox` - create and process input
+- `GET /v1/inbox` - list items
+- `GET /v1/inbox/:id` - get item detail
+- `PUT /v1/inbox/:id` - update item
+- `DELETE /v1/inbox/:id` - delete item
+- `POST /v1/routing/dispatch/:id` - trigger dispatch manually
 
-## 技术栈
+## Tech Stack / 技术栈
 
-- **运行时**: Node.js 18+
-- **语言**: TypeScript
-- **框架**: Express.js
-- **数据库**: SQLite (better-sqlite3)
-- **AI**: 直接调用 LLM API (OpenAI/DeepSearch/智谱)
-- **验证**: Zod
+- Runtime: Node.js 18+
+- Language: TypeScript
+- Framework: Express.js
+- Database: SQLite (`better-sqlite3`)
+- AI: LLM APIs (OpenAI / DeepSearch / 智谱)
+- Validation: Zod
 
-## 开发指南
+## Development / 开发指南
 
-### 运行测试
+### Tests / 测试
 
-\`\`\`bash
+```bash
 npm test
 npm run test:coverage
-\`\`\`
+```
 
-### 代码检查
+### Lint / 代码检查
 
-\`\`\`bash
+```bash
 npm run lint
-\`\`\`
+```
 
-### 构建
+### Build / 构建
 
-\`\`\`bash
+```bash
 npm run build
-\`\`\`
+```
 
-## Docker 部署
+## Docker / Docker 部署
 
-\`\`\`bash
+```bash
 docker-compose up -d
-\`\`\`
+```
 
-## License
+## License / 许可证
 
 MIT
