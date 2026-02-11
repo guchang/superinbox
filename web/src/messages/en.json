@@ -840,16 +840,18 @@
     },
     "timezone": {
       "title": "Timezone",
-      "description": "Set your region to return local times",
-      "current": {
-        "label": "Current timezone",
-        "set": "Set",
-        "unset": "Not set",
-        "utcHint": "UTC will be used"
+      "description": "Set your timezone for local time display",
+      "select": {
+        "label": "Select timezone",
+        "placeholder": "Choose your timezone",
+        "browserGroup": "Browser Timezone",
+        "browserHint": "Auto-detected",
+        "commonGroup": "Common Timezones",
+        "allGroup": "All Timezones"
       },
-      "new": {
-        "label": "Set timezone",
-        "helper": "Use IANA timezone format, e.g. Asia/Shanghai, America/Los_Angeles"
+      "current": {
+        "status": "Current: {timezone}",
+        "notSet": "Not set. UTC will be used."
       }
     },
     "actions": {

@@ -2,13 +2,22 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { Check, AlertCircle, ArrowUp, ArrowDown, Trash2, Plus, Loader2, Pencil } from 'lucide-react'
+import { Check, AlertCircle, ArrowUp, ArrowDown, Trash2, Plus, Loader2, Pencil, Globe } from 'lucide-react'
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import {
   Dialog,
   DialogContent,
@@ -67,6 +76,21 @@ const parsePositiveIntOrNull = (value: string): number | null | 'invalid' => {
   return parsed
 }
 
+const COMMON_TIMEZONE_CANDIDATES = [
+  'Asia/Shanghai',
+  'Asia/Tokyo',
+  'Asia/Singapore',
+  'Europe/London',
+  'Europe/Berlin',
+  'America/New_York',
+  'America/Chicago',
+  'America/Denver',
+  'America/Los_Angeles',
+  'America/Phoenix',
+  'Australia/Sydney',
+  'Pacific/Auckland',
+]
+
 export default function SettingsPage() {
   const t = useTranslations('settings')
   const common = useTranslations('common')
@@ -74,6 +98,8 @@ export default function SettingsPage() {
   const { toast } = useToast()
 
   const [timezoneInput, setTimezoneInput] = useState('')
+  const [browserTimezone, setBrowserTimezone] = useState<string | null>(null)
+  const [timezoneOptions, setTimezoneOptions] = useState<string[]>([])
   const [currentTimezone, setCurrentTimezone] = useState<string | null>(null)
   const [timezoneLoading, setTimezoneLoading] = useState(false)
 
@@ -97,6 +123,15 @@ export default function SettingsPage() {
     () => llmConfigs.filter((config) => config.isActive).length,
     [llmConfigs]
   )
+  const quickTimezoneOptions = useMemo(() => {
+    if (timezoneOptions.length === 0) {
+      return COMMON_TIMEZONE_CANDIDATES
+    }
+
+    const optionSet = new Set(timezoneOptions)
+    const preferred = COMMON_TIMEZONE_CANDIDATES.filter((zone) => optionSet.has(zone))
+    return preferred.length > 0 ? preferred : timezoneOptions.slice(0, 12)
+  }, [timezoneOptions])
 
   const applyLlmConfigResponse = useCallback((configs: LlmConfigItem[] | undefined) => {
     setLlmConfigs(configs || [])
@@ -115,6 +150,13 @@ export default function SettingsPage() {
   }, [applyLlmConfigResponse])
 
   useEffect(() => {
+    const detected = Intl.DateTimeFormat().resolvedOptions().timeZone
+    setBrowserTimezone(detected || null)
+    const intlWithSupportedValues = Intl as typeof Intl & {
+      supportedValuesOf?: (key: 'timeZone') => string[]
+    }
+    setTimezoneOptions(intlWithSupportedValues.supportedValuesOf?.('timeZone') ?? COMMON_TIMEZONE_CANDIDATES)
+
     settingsApi.getTimezone()
       .then((response) => {
         const timezone = response.data?.timezone ?? null
@@ -472,8 +514,8 @@ export default function SettingsPage() {
     }
   }
 
-  const handleSaveTimezone = async () => {
-    const trimmed = timezoneInput.trim()
+  const handleSaveTimezone = async (timezone?: string) => {
+    const trimmed = (timezone ?? timezoneInput).trim()
     if (!trimmed) {
       toast({
         title: t('toast.timezoneEmpty.title'),
@@ -488,6 +530,7 @@ export default function SettingsPage() {
       const response = await settingsApi.updateTimezone(trimmed)
       const timezone = response.data?.timezone ?? trimmed
       setCurrentTimezone(timezone)
+      setTimezoneInput(timezone)
       toast({
         title: t('toast.timezoneSaved.title'),
         description: t('toast.timezoneSaved.description', { timezone }),
@@ -504,8 +547,9 @@ export default function SettingsPage() {
   }
 
   const handleUseBrowserTimezone = () => {
-    const detected = Intl.DateTimeFormat().resolvedOptions().timeZone
-    setTimezoneInput(detected)
+    const detected = browserTimezone || Intl.DateTimeFormat().resolvedOptions().timeZone
+    setTimezoneInput(detected || '')
+    void handleSaveTimezone(detected)
   }
 
   const editingDialogBusy = dialogMode === 'edit' && editingConfigId
@@ -755,58 +799,86 @@ export default function SettingsPage() {
       </Dialog>
 
       <Card>
-        <CardHeader>
+        <CardHeader className="pb-4">
           <CardTitle>{t('timezone.title')}</CardTitle>
           <CardDescription>{t('timezone.description')}</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="space-y-2">
-            <Label>{t('timezone.current.label')}</Label>
-            <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
-              {currentTimezone ? (
-                <>
-                  <Check className="h-5 w-5 text-green-500" />
-                  <div className="flex-1">
-                    <span className="text-sm font-medium">{t('timezone.current.set')}</span>
-                    <p className="text-xs text-muted-foreground mt-1">{currentTimezone}</p>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <AlertCircle className="h-5 w-5 text-yellow-500" />
-                  <div className="flex-1">
-                    <span className="text-sm font-medium">{t('timezone.current.unset')}</span>
-                    <p className="text-xs text-muted-foreground mt-1">{t('timezone.current.utcHint')}</p>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="timezone">{t('timezone.new.label')}</Label>
-            <div className="flex gap-2">
-              <Input
-                id="timezone"
-                placeholder="Asia/Shanghai"
-                value={timezoneInput}
-                onChange={(e) => setTimezoneInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') handleSaveTimezone()
+        <CardContent className="space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-end gap-3">
+            <div className="flex-1 space-y-2">
+              <Label>{t('timezone.select.label')}</Label>
+              <Select
+                value={timezoneInput || ''}
+                onValueChange={(value) => {
+                  if (value === '__browser__') {
+                    handleUseBrowserTimezone()
+                  } else {
+                    setTimezoneInput(value)
+                  }
                 }}
-                className="flex-1"
-              />
-              <Button onClick={handleSaveTimezone} disabled={timezoneLoading}>
-                {t('actions.save')}
-              </Button>
+                disabled={timezoneLoading}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder={t('timezone.select.placeholder')} />
+                </SelectTrigger>
+                <SelectContent className="max-h-80">
+                  {browserTimezone && (
+                    <SelectGroup>
+                      <SelectLabel className="flex items-center gap-2">
+                        <Globe className="h-3.5 w-3.5" />
+                        {t('timezone.select.browserGroup')}
+                      </SelectLabel>
+                      <SelectItem value="__browser__">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">{browserTimezone}</span>
+                          <span className="text-xs text-muted-foreground">({t('timezone.select.browserHint')})</span>
+                        </div>
+                      </SelectItem>
+                    </SelectGroup>
+                  )}
+                  <SelectGroup>
+                    <SelectLabel>{t('timezone.select.commonGroup')}</SelectLabel>
+                    {quickTimezoneOptions.map((zone) => (
+                      <SelectItem key={zone} value={zone}>
+                        {zone}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                  <SelectGroup>
+                    <SelectLabel>{t('timezone.select.allGroup')}</SelectLabel>
+                    {timezoneOptions
+                      .filter((zone) => !quickTimezoneOptions.includes(zone))
+                      .map((zone) => (
+                        <SelectItem key={zone} value={zone}>
+                          {zone}
+                        </SelectItem>
+                      ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
             </div>
-            <p className="text-xs text-muted-foreground">{t('timezone.new.helper')}</p>
+            <Button
+              onClick={() => void handleSaveTimezone()}
+              disabled={timezoneLoading || !timezoneInput.trim()}
+              className="shrink-0"
+            >
+              {timezoneLoading ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : null}
+              {t('actions.save')}
+            </Button>
           </div>
 
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={handleUseBrowserTimezone}>
-              {t('actions.useBrowserTimezone')}
-            </Button>
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            {currentTimezone ? (
+              <>
+                <Check className="h-4 w-4 text-green-500" />
+                <span>{t('timezone.current.status', { timezone: currentTimezone })}</span>
+              </>
+            ) : (
+              <>
+                <AlertCircle className="h-4 w-4 text-yellow-500" />
+                <span>{t('timezone.current.notSet')}</span>
+              </>
+            )}
           </div>
         </CardContent>
       </Card>

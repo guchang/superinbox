@@ -841,16 +841,18 @@
     },
     "timezone": {
       "title": "时区设置",
-      "description": "设置用户所在地区，用于返回当地时间",
-      "current": {
-        "label": "当前时区",
-        "set": "已设置",
-        "unset": "未设置",
-        "utcHint": "将使用 UTC 时间"
+      "description": "设置时区，用于显示本地时间",
+      "select": {
+        "label": "选择时区",
+        "placeholder": "选择您的时区",
+        "browserGroup": "浏览器时区",
+        "browserHint": "自动检测",
+        "commonGroup": "常用时区",
+        "allGroup": "所有时区"
       },
-      "new": {
-        "label": "设置时区",
-        "helper": "使用 IANA 时区格式，如 Asia/Shanghai、America/Los_Angeles"
+      "current": {
+        "status": "当前时区：{timezone}",
+        "notSet": "未设置时区，将使用 UTC 时间"
       }
     },
     "actions": {
