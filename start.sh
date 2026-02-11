@@ -5,6 +5,11 @@
 
 set -e
 
+# Prefer Node 22 LTS when installed via Homebrew.
+if [ -x "/opt/homebrew/opt/node@22/bin/node" ]; then
+    export PATH="/opt/homebrew/opt/node@22/bin:$PATH"
+fi
+
 # 颜色定义
 RED='\033[0;31m'
 GREEN='\033[0;32m'

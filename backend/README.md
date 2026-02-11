@@ -12,6 +12,16 @@ SuperInbox Core 是“统一采集 + 智能路由”能力的核心后端服务�
 
 ## Quick Start / 快速开始
 
+### 0) Use supported Node.js version / 使用受支持的 Node.js 版本
+
+Node.js 18/20/22 LTS are supported.  
+仅支持 Node.js 18/20/22 LTS。
+
+```bash
+nvm install 22
+nvm use 22
+```
+
 ### 1) Install dependencies / 安装依赖
 
 ```bash
@@ -71,7 +81,7 @@ backend/
 
 ## Tech Stack / 技术栈
 
-- Runtime: Node.js 18+
+- Runtime: Node.js 18/20/22 (LTS)
 - Language: TypeScript
 - Framework: Express.js
 - Database: SQLite (`better-sqlite3`)
