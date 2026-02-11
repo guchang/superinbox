@@ -60,7 +60,12 @@ const updateItemSchema = z.object({
   content: z.string().min(1).max(UPDATE_CONTENT_MAX_LENGTH).optional(),
   category: z.string().min(1).max(100).optional(),
   status: z.enum(['pending', 'processing', 'completed', 'manual', 'failed', 'archived']).optional()
-});
+}).refine(
+  (data) => data.content !== undefined || data.category !== undefined || data.status !== undefined,
+  {
+    message: 'At least one field (content, category, status) must be provided'
+  }
+);
 
 const searchSchema = z.object({
   q: z.string().min(1, 'Query parameter is required'),

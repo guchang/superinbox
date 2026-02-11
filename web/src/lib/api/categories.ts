@@ -6,6 +6,13 @@ import type {
 } from '@/types'
 
 export type CategoryInput = Omit<Category, 'id' | 'createdAt' | 'updatedAt'>
+export type CategoryDeleteMeta = {
+  migratedCount: number
+  migratedTo: 'trash'
+}
+export type CategoryDeleteResponse = ApiResponse<Category> & {
+  meta?: CategoryDeleteMeta
+}
 
 export type CategoryPromptGenerateMode = 'low_cost' | 'high_precision' | 'custom'
 export type CategoryPromptGenerateLanguage = string
@@ -23,8 +30,9 @@ export const categoriesApi = {
     return apiClient.put<Category>(`/categories/${id}`, data)
   },
 
-  async delete(id: string): Promise<ApiResponse<void>> {
-    return apiClient.delete<void>(`/categories/${id}`)
+  async delete(id: string): Promise<CategoryDeleteResponse> {
+    const response = await apiClient.delete<Category>(`/categories/${id}`)
+    return response as CategoryDeleteResponse
   },
 
   async getPrompt(): Promise<ApiResponse<CategoryPrompt>> {

@@ -89,6 +89,8 @@
 - 代码中存在作用域检查能力（如 `admin:full`、`content:all`）。
 - 当前多数业务路由主要依赖“是否登录/是否有有效 key”。
 - 管理类接口（尤其访问日志统计）依赖 `admin:full`。
+- 分类管理接口使用 `category:read` / `category:write`。
+- 兼容一个版本：旧 `read` / `write` 仍可访问分类接口，后续版本将移除兼容。
 
 ---
 
@@ -408,6 +410,11 @@ SSE 实时流。
 `POST /v1/categories` 关键字段：
 - 必填：`key`、`name`
 - 可选：`description`、`examples`、`icon`、`color`、`sortOrder`、`isActive`
+
+`DELETE /v1/categories/:id` 行为说明：
+- 系统分类 `unknown`、`trash` 不可删除。
+- 删除普通分类时，会先将该分类下记录迁移到系统分类 `trash`。
+- 返回 `meta`：`{ "migratedCount": number, "migratedTo": "trash" }`。
 
 ### 分类 Prompt 管理
 

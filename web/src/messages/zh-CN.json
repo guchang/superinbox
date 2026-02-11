@@ -711,6 +711,7 @@
         "basic": "基础权限",
         "ai": "AI 处理权限",
         "routing": "路由管理权限",
+        "category": "分类管理权限",
         "content": "内容分类权限",
         "admin": "管理员权限"
       },
@@ -742,6 +743,14 @@
         "routingWrite": {
           "label": "管理路由规则",
           "description": "创建和修改路由规则"
+        },
+        "categoryRead": {
+          "label": "读取分类",
+          "description": "查看分类列表和分类提示词"
+        },
+        "categoryWrite": {
+          "label": "管理分类",
+          "description": "创建、修改、删除分类及提示词"
         },
         "contentAll": {
           "label": "所有类型",

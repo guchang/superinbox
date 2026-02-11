@@ -91,6 +91,8 @@ Two identity modes are currently supported:
 - Scope checks exist in code (for example: `admin:full`, `content:all`).
 - Most business routes currently gate access by authentication validity.
 - Admin operations (especially log statistics) rely on `admin:full`.
+- Category routes use `category:read` / `category:write`.
+- One-version compatibility is enabled: legacy `read` / `write` scopes are still accepted for category routes and will be removed later.
 
 ---
 
@@ -396,6 +398,11 @@ These endpoints currently return mock/placeholder payloads for integration:
 `POST /v1/categories` key fields:
 - Required: `key`, `name`
 - Optional: `description`, `examples`, `icon`, `color`, `sortOrder`, `isActive`
+
+`DELETE /v1/categories/:id` behavior:
+- System categories `unknown` and `trash` cannot be deleted.
+- Deleting a normal category first migrates its records to the system `trash` category.
+- Response includes `meta`: `{ "migratedCount": number, "migratedTo": "trash" }`.
 
 ### Category Prompt Management
 

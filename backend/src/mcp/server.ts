@@ -58,7 +58,7 @@ const applyLocalTimestamps = (payload: unknown): unknown => {
 };
 
 const request = async <T>(
-  method: 'GET' | 'POST',
+  method: 'GET' | 'POST' | 'PUT' | 'DELETE',
   url: string,
   options?: { params?: Record<string, unknown>; data?: Record<string, unknown> }
 ): Promise<{ ok: true; data: T } | { ok: false; message: string }> => {
@@ -124,6 +124,29 @@ const searchItemsSchema = z.object({
   limit: z.number().int().positive().max(100).optional()
 });
 const getItemSchema = z.object({
+  id: z.string().min(1)
+});
+const updateItemSchema = z.object({
+  id: z.string().min(1),
+  content: z.string().min(1).optional(),
+  category: z.string().min(1).optional()
+}).refine(
+  (data) => data.content !== undefined || data.category !== undefined,
+  { message: 'At least one of content or category is required' }
+);
+const deleteItemSchema = z.object({
+  id: z.string().min(1)
+});
+const categoryListSchema = z.object({});
+const createCategorySchema = z.object({
+  key: z.string().min(1),
+  name: z.string().min(1)
+});
+const updateCategorySchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1)
+});
+const deleteCategorySchema = z.object({
   id: z.string().min(1)
 });
 
@@ -240,6 +263,186 @@ mcpServer.registerTool(
   },
   async ({ id }) => {
     const result = await request('GET', `/v1/inbox/${id}`);
+    if (!result.ok) {
+      return toolError(result.message);
+    }
+    return toolOk(applyLocalTimestamps(result.data));
+  }
+);
+
+mcpServer.registerTool(
+  'inbox.update',
+  {
+    description: 'Update inbox item content or category by id.',
+    inputSchema: updateItemSchema
+  },
+  async ({ id, ...updates }) => {
+    const result = await request('PUT', `/v1/inbox/${id}`, { data: updates });
+    if (!result.ok) {
+      return toolError(result.message);
+    }
+    return toolOk(applyLocalTimestamps(result.data));
+  }
+);
+
+mcpServer.registerTool(
+  'inbox_update',
+  {
+    description: 'Update inbox item content or category by id.',
+    inputSchema: updateItemSchema
+  },
+  async ({ id, ...updates }) => {
+    const result = await request('PUT', `/v1/inbox/${id}`, { data: updates });
+    if (!result.ok) {
+      return toolError(result.message);
+    }
+    return toolOk(applyLocalTimestamps(result.data));
+  }
+);
+
+mcpServer.registerTool(
+  'inbox.delete',
+  {
+    description: 'Delete an inbox item by id.',
+    inputSchema: deleteItemSchema
+  },
+  async ({ id }) => {
+    const result = await request('DELETE', `/v1/inbox/${id}`);
+    if (!result.ok) {
+      return toolError(result.message);
+    }
+    return toolOk(applyLocalTimestamps(result.data));
+  }
+);
+
+mcpServer.registerTool(
+  'inbox_delete',
+  {
+    description: 'Delete an inbox item by id.',
+    inputSchema: deleteItemSchema
+  },
+  async ({ id }) => {
+    const result = await request('DELETE', `/v1/inbox/${id}`);
+    if (!result.ok) {
+      return toolError(result.message);
+    }
+    return toolOk(applyLocalTimestamps(result.data));
+  }
+);
+
+mcpServer.registerTool(
+  'category.list',
+  {
+    description: 'List categories.',
+    inputSchema: categoryListSchema
+  },
+  async () => {
+    const result = await request('GET', '/v1/categories');
+    if (!result.ok) {
+      return toolError(result.message);
+    }
+    return toolOk(applyLocalTimestamps(result.data));
+  }
+);
+
+mcpServer.registerTool(
+  'category_list',
+  {
+    description: 'List categories.',
+    inputSchema: categoryListSchema
+  },
+  async () => {
+    const result = await request('GET', '/v1/categories');
+    if (!result.ok) {
+      return toolError(result.message);
+    }
+    return toolOk(applyLocalTimestamps(result.data));
+  }
+);
+
+mcpServer.registerTool(
+  'category.create',
+  {
+    description: 'Create a category with key and name.',
+    inputSchema: createCategorySchema
+  },
+  async (args) => {
+    const result = await request('POST', '/v1/categories', { data: args });
+    if (!result.ok) {
+      return toolError(result.message);
+    }
+    return toolOk(applyLocalTimestamps(result.data));
+  }
+);
+
+mcpServer.registerTool(
+  'category_create',
+  {
+    description: 'Create a category with key and name.',
+    inputSchema: createCategorySchema
+  },
+  async (args) => {
+    const result = await request('POST', '/v1/categories', { data: args });
+    if (!result.ok) {
+      return toolError(result.message);
+    }
+    return toolOk(applyLocalTimestamps(result.data));
+  }
+);
+
+mcpServer.registerTool(
+  'category.update',
+  {
+    description: 'Rename category by id.',
+    inputSchema: updateCategorySchema
+  },
+  async ({ id, name }) => {
+    const result = await request('PUT', `/v1/categories/${id}`, { data: { name } });
+    if (!result.ok) {
+      return toolError(result.message);
+    }
+    return toolOk(applyLocalTimestamps(result.data));
+  }
+);
+
+mcpServer.registerTool(
+  'category_update',
+  {
+    description: 'Rename category by id.',
+    inputSchema: updateCategorySchema
+  },
+  async ({ id, name }) => {
+    const result = await request('PUT', `/v1/categories/${id}`, { data: { name } });
+    if (!result.ok) {
+      return toolError(result.message);
+    }
+    return toolOk(applyLocalTimestamps(result.data));
+  }
+);
+
+mcpServer.registerTool(
+  'category.delete',
+  {
+    description: 'Delete category by id.',
+    inputSchema: deleteCategorySchema
+  },
+  async ({ id }) => {
+    const result = await request('DELETE', `/v1/categories/${id}`);
+    if (!result.ok) {
+      return toolError(result.message);
+    }
+    return toolOk(applyLocalTimestamps(result.data));
+  }
+);
+
+mcpServer.registerTool(
+  'category_delete',
+  {
+    description: 'Delete category by id.',
+    inputSchema: deleteCategorySchema
+  },
+  async ({ id }) => {
+    const result = await request('DELETE', `/v1/categories/${id}`);
     if (!result.ok) {
       return toolError(result.message);
     }

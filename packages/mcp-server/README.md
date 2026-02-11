@@ -55,6 +55,12 @@ For deterministic environments, pin to an exact version:
 - `inbox.list` / `inbox_list`: list items with filters and pagination
 - `inbox.search` / `inbox_search`: search items by keyword
 - `inbox.get` / `inbox_get`: fetch one item by `id`
+- `inbox.update` / `inbox_update`: update item `content` and/or `category` by `id`
+- `inbox.delete` / `inbox_delete`: delete one item by `id`
+- `category.list` / `category_list`: list categories
+- `category.create` / `category_create`: create category with `key` and `name`
+- `category.update` / `category_update`: rename category by `id`
+- `category.delete` / `category_delete`: delete category by `id` (records are migrated to `trash`)
 
 ## Troubleshooting
 

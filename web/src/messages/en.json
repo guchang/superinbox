@@ -710,6 +710,7 @@
         "basic": "Basic",
         "ai": "AI",
         "routing": "Routing",
+        "category": "Category",
         "content": "Content",
         "admin": "Admin"
       },
@@ -741,6 +742,14 @@
         "routingWrite": {
           "label": "Manage routing rules",
           "description": "Create and update routing rules"
+        },
+        "categoryRead": {
+          "label": "Read categories",
+          "description": "View category list and prompt settings"
+        },
+        "categoryWrite": {
+          "label": "Manage categories",
+          "description": "Create, update, and delete categories and prompts"
         },
         "contentAll": {
           "label": "All content",

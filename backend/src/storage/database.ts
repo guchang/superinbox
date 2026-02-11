@@ -585,6 +585,30 @@ export class DatabaseManager {
   }
 
   /**
+   * Reassign items from one category to another for a specific user.
+   */
+  reassignItemsCategory(userId: string, fromCategory: string, toCategory: string): number {
+    if (fromCategory === toCategory) {
+      return 0;
+    }
+
+    const stmt = this.db.prepare(`
+      UPDATE items
+      SET category = ?, updated_at = ?
+      WHERE user_id = ? AND category = ?
+    `);
+
+    const result = stmt.run(
+      toCategory,
+      new Date().toISOString(),
+      userId,
+      fromCategory
+    );
+
+    return result.changes;
+  }
+
+  /**
    * Add distribution result
    */
   addDistributionResult(result: any): void {

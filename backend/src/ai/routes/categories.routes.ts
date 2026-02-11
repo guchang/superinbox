@@ -3,7 +3,7 @@
  */
 
 import { Router } from 'express';
-import { authenticate } from '../../middleware/auth.js';
+import { authenticate, requireAnyScope } from '../../middleware/auth.js';
 import {
   createCategory,
   getCategoryPrompt,
@@ -17,11 +17,14 @@ import {
 } from '../store.js';
 import { sendError } from '../../utils/error-response.js';
 import { getAIService } from '../service.js';
+import { getDatabase } from '../../storage/database.js';
 
 const router = Router();
 
 const requiredFields = ['key', 'name'];
 const UNKNOWN_CATEGORY_KEY = 'unknown';
+const TRASH_CATEGORY_KEY = 'trash';
+const SYSTEM_CATEGORY_KEYS = new Set([UNKNOWN_CATEGORY_KEY, TRASH_CATEGORY_KEY]);
 const MAX_PROMPT_LENGTH = 20000;
 const REQUIRED_PROMPT_PLACEHOLDERS = [
   '{{NOW_ISO}}',
@@ -33,8 +36,11 @@ const REQUIRED_PROMPT_PLACEHOLDERS = [
   '{{FALLBACK_CATEGORY_KEY}}',
 ];
 
-const isUnknownCategory = (key?: string): boolean => {
-  return String(key ?? '').trim().toLowerCase() === UNKNOWN_CATEGORY_KEY;
+const requireCategoryReadScope = requireAnyScope('category:read', 'read');
+const requireCategoryWriteScope = requireAnyScope('category:write', 'write');
+
+const isSystemCategory = (key?: string): boolean => {
+  return SYSTEM_CATEGORY_KEYS.has(String(key ?? '').trim().toLowerCase());
 };
 
 const parseSortOrder = (value: unknown): number | undefined => {
@@ -93,13 +99,13 @@ export const validateCategoryPromptContent = (prompt: string): { message?: strin
   return {};
 };
 
-router.get('/', authenticate, (req, res) => {
+router.get('/', authenticate, requireCategoryReadScope, (req, res) => {
   const userId = req.user?.userId ?? 'default-user';
   const data = listCategories(userId);
   res.json({ success: true, data });
 });
 
-router.post('/', authenticate, (req, res) => {
+router.post('/', authenticate, requireCategoryWriteScope, (req, res) => {
   const userId = req.user?.userId ?? 'default-user';
   const payload = req.body as Partial<CategoryRecord>;
 
@@ -144,13 +150,13 @@ router.post('/', authenticate, (req, res) => {
   res.json({ success: true, data: record });
 });
 
-router.get('/prompt', authenticate, (req, res) => {
+router.get('/prompt', authenticate, requireCategoryReadScope, (req, res) => {
   const userId = req.user?.userId ?? 'default-user';
   const data = getCategoryPrompt(userId);
   res.json({ success: true, data });
 });
 
-router.put('/prompt', authenticate, (req, res) => {
+router.put('/prompt', authenticate, requireCategoryWriteScope, (req, res) => {
   const userId = req.user?.userId ?? 'default-user';
   const payload = req.body as { prompt?: unknown };
   const prompt = typeof payload.prompt === 'string' ? payload.prompt.trim() : '';
@@ -182,7 +188,7 @@ router.put('/prompt', authenticate, (req, res) => {
   res.json({ success: true, data });
 });
 
-router.post('/prompt/generate', authenticate, async (req, res) => {
+router.post('/prompt/generate', authenticate, requireCategoryWriteScope, async (req, res) => {
   const userId = req.user?.userId ?? 'default-user';
   const payload = req.body as { mode?: unknown; requirement?: unknown; language?: unknown };
   const mode = typeof payload.mode === 'string' ? payload.mode.trim() : '';
@@ -253,13 +259,13 @@ router.post('/prompt/generate', authenticate, async (req, res) => {
   }
 });
 
-router.post('/prompt/reset', authenticate, (req, res) => {
+router.post('/prompt/reset', authenticate, requireCategoryWriteScope, (req, res) => {
   const userId = req.user?.userId ?? 'default-user';
   const data = resetCategoryPrompt(userId);
   res.json({ success: true, data });
 });
 
-router.post('/prompt/rollback', authenticate, (req, res) => {
+router.post('/prompt/rollback', authenticate, requireCategoryWriteScope, (req, res) => {
   const userId = req.user?.userId ?? 'default-user';
   const data = rollbackCategoryPrompt(userId);
 
@@ -275,7 +281,7 @@ router.post('/prompt/rollback', authenticate, (req, res) => {
   res.json({ success: true, data });
 });
 
-router.put('/:id', authenticate, (req, res) => {
+router.put('/:id', authenticate, requireCategoryWriteScope, (req, res) => {
   const userId = req.user?.userId ?? 'default-user';
   const id = req.params.id;
   const payload = req.body as Partial<CategoryRecord>;
@@ -291,17 +297,20 @@ router.put('/:id', authenticate, (req, res) => {
     return;
   }
 
-  if (isUnknownCategory(current.key)) {
+  if (isSystemCategory(current.key)) {
     const nextKey = payload.key ? String(payload.key).trim() : current.key;
+    const normalizedCurrentKey = String(current.key).trim().toLowerCase();
+    const normalizedNextKey = String(nextKey).trim().toLowerCase();
     if (
-      !isUnknownCategory(nextKey) ||
-      payload.isActive === false ||
+      normalizedNextKey !== normalizedCurrentKey ||
+      payload.name !== undefined ||
+      payload.isActive !== undefined ||
       payload.sortOrder !== undefined
     ) {
       sendError(res, {
         statusCode: 400,
         code: 'AI.SYSTEM_CATEGORY_IMMUTABLE',
-        message: 'System fallback category cannot be renamed, disabled, or deleted',
+        message: 'System categories cannot be renamed, disabled, or deleted',
         params: { key: current.key }
       });
       return;
@@ -348,7 +357,7 @@ router.put('/:id', authenticate, (req, res) => {
   res.json({ success: true, data: record });
 });
 
-router.delete('/:id', authenticate, (req, res) => {
+router.delete('/:id', authenticate, requireCategoryWriteScope, (req, res) => {
   const userId = req.user?.userId ?? 'default-user';
   const id = req.params.id;
 
@@ -363,16 +372,32 @@ router.delete('/:id', authenticate, (req, res) => {
     return;
   }
 
-  if (isUnknownCategory(current.key)) {
+  if (isSystemCategory(current.key)) {
     sendError(res, {
       statusCode: 400,
       code: 'AI.SYSTEM_CATEGORY_IMMUTABLE',
-      message: 'System fallback category cannot be renamed, disabled, or deleted',
+      message: 'System categories cannot be renamed, disabled, or deleted',
       params: { key: current.key }
     });
     return;
   }
 
+  const allCategories = listCategories(userId);
+  const trashCategory = allCategories.find(
+    (category) => String(category.key).trim().toLowerCase() === TRASH_CATEGORY_KEY
+  );
+  if (!trashCategory) {
+    sendError(res, {
+      statusCode: 500,
+      code: 'AI.SYSTEM_CATEGORY_MISSING',
+      message: 'System trash category is missing',
+      params: { key: TRASH_CATEGORY_KEY }
+    });
+    return;
+  }
+
+  const db = getDatabase();
+  const migratedCount = db.reassignItemsCategory(userId, current.key, TRASH_CATEGORY_KEY);
   const record = deleteCategory(userId, id);
 
   if (!record) {
@@ -385,7 +410,14 @@ router.delete('/:id', authenticate, (req, res) => {
     return;
   }
 
-  res.json({ success: true, data: record });
+  res.json({
+    success: true,
+    data: record,
+    meta: {
+      migratedCount,
+      migratedTo: TRASH_CATEGORY_KEY
+    }
+  });
 });
 
 export default router;

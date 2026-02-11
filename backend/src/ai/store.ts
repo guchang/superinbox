@@ -45,6 +45,8 @@ export type CategoryPromptRecord = {
 };
 
 const UNKNOWN_CATEGORY_KEY = 'unknown';
+const TRASH_CATEGORY_KEY = 'trash';
+const SYSTEM_CATEGORY_KEYS = new Set([UNKNOWN_CATEGORY_KEY, TRASH_CATEGORY_KEY]);
 const CATEGORY_PROMPT_TEMPLATE_NAME = '__category_classifier_system_prompt__';
 const CATEGORY_PROMPT_TEMPLATE_DESCRIPTION = 'User editable classifier system prompt';
 const CATEGORY_PROMPT_PREVIOUS_TEMPLATE_NAME = '__category_classifier_system_prompt_previous__';
@@ -83,11 +85,25 @@ const normalizeSortOrder = (value: unknown): number | undefined => {
 };
 
 const compareCategoryOrder = (a: CategoryRecord, b: CategoryRecord): number => {
-  const aIsUnknown = String(a.key ?? '').trim().toLowerCase() === UNKNOWN_CATEGORY_KEY;
-  const bIsUnknown = String(b.key ?? '').trim().toLowerCase() === UNKNOWN_CATEGORY_KEY;
+  const normalizeKey = (key: string | undefined): string =>
+    String(key ?? '').trim().toLowerCase();
+  const keyOrder = (key: string): number => {
+    if (key === TRASH_CATEGORY_KEY) return 1;
+    if (key === UNKNOWN_CATEGORY_KEY) return 2;
+    return 0;
+  };
 
-  if (aIsUnknown !== bIsUnknown) {
-    return aIsUnknown ? 1 : -1;
+  const aKey = normalizeKey(a.key);
+  const bKey = normalizeKey(b.key);
+  const aIsSystem = SYSTEM_CATEGORY_KEYS.has(aKey);
+  const bIsSystem = SYSTEM_CATEGORY_KEYS.has(bKey);
+
+  if (aIsSystem !== bIsSystem) {
+    return aIsSystem ? 1 : -1;
+  }
+
+  if (aIsSystem && bIsSystem) {
+    return keyOrder(aKey) - keyOrder(bKey);
   }
 
   const aSortOrder = normalizeSortOrder(a.sortOrder);
@@ -110,7 +126,8 @@ const compareCategoryOrder = (a: CategoryRecord, b: CategoryRecord): number => {
 
 const getNextCategorySortOrder = (categories: CategoryRecord[]): number => {
   return categories.reduce((max, item) => {
-    if (String(item.key ?? '').trim().toLowerCase() === UNKNOWN_CATEGORY_KEY) {
+    const normalizedKey = String(item.key ?? '').trim().toLowerCase();
+    if (SYSTEM_CATEGORY_KEYS.has(normalizedKey)) {
       return max;
     }
 
@@ -168,6 +185,13 @@ const defaultCategorySeed = () => {
       isActive: true,
     },
     {
+      key: 'trash',
+      name: '废纸篓',
+      description: '已删除分类的记录会被迁移到这里。',
+      examples: ['历史归档记录'],
+      isActive: false,
+    },
+    {
       key: 'unknown',
       name: '未知',
       description: '无法明确归类的内容。',
@@ -197,15 +221,48 @@ const ensureUserCategories = (userId: string): void => {
   const db = getDatabase();
   const existing = db.listAiCategories(userId) as CategoryRecord[];
   if (existing.length > 0) {
-    const orderedExisting = [...existing].sort(compareCategoryOrder);
+    const existingKeySet = new Set(
+      existing.map((item) => String(item.key ?? '').trim().toLowerCase())
+    );
+    const defaultCategories = defaultCategorySeed();
+    const missingSystemCategories = defaultCategories.filter(
+      (item) => SYSTEM_CATEGORY_KEYS.has(item.key) && !existingKeySet.has(item.key)
+    );
+
+    if (missingSystemCategories.length > 0) {
+      const now = new Date().toISOString();
+      missingSystemCategories.forEach((item) => {
+        db.createAiCategory({
+          id: createId('cat'),
+          userId,
+          key: item.key,
+          name: item.name,
+          description: item.description,
+          examples: item.examples,
+          icon: item.icon,
+          color: item.color,
+          sortOrder: item.sortOrder,
+          isActive: item.isActive,
+          createdAt: now,
+          updatedAt: now,
+        });
+      });
+    }
+
+    const refreshed = db.listAiCategories(userId) as CategoryRecord[];
+    if (refreshed.length === 0) {
+      return;
+    }
+
+    const orderedExisting = [...refreshed].sort(compareCategoryOrder);
     const knownCategoryRecords = orderedExisting.filter(
-      (item) => String(item.key ?? '').trim().toLowerCase() !== UNKNOWN_CATEGORY_KEY
+      (item) => !SYSTEM_CATEGORY_KEYS.has(String(item.key ?? '').trim().toLowerCase())
     );
     const fallbackSortOrderById = new Map(
       knownCategoryRecords.map((item, index) => [item.id, index + 1])
     );
 
-    for (const item of existing) {
+    for (const item of refreshed) {
       const patch: Partial<CategoryRecord> = {};
       const normalizedKey = String(item.key ?? '').trim().toLowerCase();
 
@@ -221,10 +278,14 @@ const ensureUserCategories = (userId: string): void => {
         patch.isActive = true;
       }
 
+      if (normalizedKey === TRASH_CATEGORY_KEY && item.isActive) {
+        patch.isActive = false;
+      }
+
       const normalizedSortOrder = normalizeSortOrder(item.sortOrder);
       const fallbackSortOrder = fallbackSortOrderById.get(item.id);
       if (
-        normalizedKey !== UNKNOWN_CATEGORY_KEY &&
+        !SYSTEM_CATEGORY_KEYS.has(normalizedKey) &&
         normalizedSortOrder === undefined &&
         typeof fallbackSortOrder === 'number'
       ) {

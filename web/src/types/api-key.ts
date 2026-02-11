@@ -73,6 +73,10 @@ export const AVAILABLE_SCOPES = {
   ROUTING_READ: 'routing:read',
   ROUTING_WRITE: 'routing:write',
 
+  // Category permissions
+  CATEGORY_READ: 'category:read',
+  CATEGORY_WRITE: 'category:write',
+
   // Admin permissions
   ADMIN_FULL: 'admin:full',
 
@@ -110,6 +114,13 @@ export const SCOPE_GROUPS = [
     scopes: [
       { value: AVAILABLE_SCOPES.ROUTING_READ, labelKey: 'scopes.routingRead.label', descriptionKey: 'scopes.routingRead.description' },
       { value: AVAILABLE_SCOPES.ROUTING_WRITE, labelKey: 'scopes.routingWrite.label', descriptionKey: 'scopes.routingWrite.description' },
+    ],
+  },
+  {
+    labelKey: 'groups.category',
+    scopes: [
+      { value: AVAILABLE_SCOPES.CATEGORY_READ, labelKey: 'scopes.categoryRead.label', descriptionKey: 'scopes.categoryRead.description' },
+      { value: AVAILABLE_SCOPES.CATEGORY_WRITE, labelKey: 'scopes.categoryWrite.label', descriptionKey: 'scopes.categoryWrite.description' },
     ],
   },
   {
