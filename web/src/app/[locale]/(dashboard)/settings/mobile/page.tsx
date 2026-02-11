@@ -53,8 +53,8 @@ export default function MobileSettingsPage() {
 
   const themeOptions = useMemo(
     () => [
-      { value: 'light', icon: Sun, label: headerT('theme.light') },
-      { value: 'dark', icon: Moon, label: headerT('theme.dark') },
+      { value: 'light' as const, icon: Sun, label: headerT('theme.light') },
+      { value: 'dark' as const, icon: Moon, label: headerT('theme.dark') },
     ],
     [headerT]
   )
