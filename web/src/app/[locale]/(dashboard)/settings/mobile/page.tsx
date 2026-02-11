@@ -12,7 +12,6 @@ import {
   BarChart3,
   Moon,
   Sun,
-  Monitor,
   Languages,
   Check,
   ChevronRight,
@@ -29,7 +28,6 @@ export default function MobileSettingsPage() {
   const t = useTranslations('settings.mobileMenu')
   const sidebarT = useTranslations('sidebar')
   const headerT = useTranslations('header')
-  const settingsThemeT = useTranslations('settings.theme')
   const pathname = usePathname()
   const locale = useLocale()
   const router = useRouter()
@@ -57,9 +55,8 @@ export default function MobileSettingsPage() {
     () => [
       { value: 'light', icon: Sun, label: headerT('theme.light') },
       { value: 'dark', icon: Moon, label: headerT('theme.dark') },
-      { value: 'system', icon: Monitor, label: settingsThemeT('system') },
     ],
-    [headerT, settingsThemeT]
+    [headerT]
   )
 
   const isActive = (href: string) => {
@@ -92,6 +89,8 @@ export default function MobileSettingsPage() {
       })
     }
   }
+
+  const handleThemeChange = (value: 'light' | 'dark') => setTheme(value)
 
   return (
     <div className="w-full space-y-4 px-4 py-5 md:px-6">
@@ -138,7 +137,7 @@ export default function MobileSettingsPage() {
               type="button"
               variant="ghost"
               className={cn('h-11 w-full justify-start rounded-xl', mounted && theme === option.value && 'bg-accent')}
-              onClick={() => setTheme(option.value)}
+              onClick={() => handleThemeChange(option.value)}
             >
               <option.icon className="mr-2 h-4 w-4" />
               <span>{option.label}</span>

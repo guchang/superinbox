@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Moon, Sun, Monitor } from "lucide-react"
+import { Moon, Sun } from "lucide-react"
 import { useTheme } from "next-themes"
 import { useTranslations } from "next-intl"
 
@@ -27,10 +27,11 @@ export function ThemeSettings() {
     return null // Avoid hydration mismatch
   }
 
+  const handleThemeChange = (value: "light" | "dark") => setTheme(value)
+
   const themes = [
     { value: "light", label: t('light'), icon: Sun },
     { value: "dark", label: t('dark'), icon: Moon },
-    { value: "system", label: t('system'), icon: Monitor },
   ] as const
 
   return (
@@ -40,13 +41,13 @@ export function ThemeSettings() {
         <CardDescription>{t('description')}</CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 gap-4">
           {themes.map(({ value, label, icon: Icon }) => (
             <Button
               key={value}
               variant={theme === value ? "default" : "outline"}
               className="flex flex-col gap-2 h-24"
-              onClick={() => setTheme(value)}
+              onClick={() => handleThemeChange(value)}
             >
               <Icon className="h-5 w-5" />
               <span className="text-sm">{label}</span>

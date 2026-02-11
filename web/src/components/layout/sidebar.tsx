@@ -154,7 +154,7 @@ export function AppSidebar({ className }: AppSidebarProps) {
   const { setOpenMobile } = useSidebar()
   const { authState, logout } = useAuth()
   const { toast } = useToast()
-  const { theme, setTheme } = useTheme()
+  const { resolvedTheme, setTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
   const [isDesktopViewport, setIsDesktopViewport] = useState(false)
   const [isIntentSortMode, setIsIntentSortMode] = useState(false)
@@ -203,7 +203,7 @@ export function AppSidebar({ className }: AppSidebarProps) {
     router.push(path)
   }
 
-  const isDark = mounted && theme === "dark"
+  const isDark = mounted && resolvedTheme === "dark"
   const userName = authState.user?.username || headerT('userFallback')
   const userEmail = authState.user?.email || headerT('userFallback')
   const userInitials = userName.slice(0, 2).toUpperCase()
