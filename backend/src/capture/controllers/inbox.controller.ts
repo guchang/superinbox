@@ -46,15 +46,18 @@ const parseDateFilter = (dateStr: string, isEndDate = false): Date => {
 };
 
 // Validation schemas
+const CREATE_CONTENT_MAX_LENGTH = 10_000;
+const UPDATE_CONTENT_MAX_LENGTH = 500_000;
+
 const createItemSchema = z.object({
-  content: z.string().min(1, 'Content is required').max(10000),
+  content: z.string().min(1, 'Content is required').max(CREATE_CONTENT_MAX_LENGTH),
   type: z.enum(['text', 'image', 'url', 'audio', 'file', 'mixed']).optional(),
   source: z.string().max(100).optional(),
   metadata: z.record(z.unknown()).optional()
 });
 
 const updateItemSchema = z.object({
-  content: z.string().min(1).max(10000).optional(),
+  content: z.string().min(1).max(UPDATE_CONTENT_MAX_LENGTH).optional(),
   category: z.string().min(1).max(100).optional(),
   status: z.enum(['pending', 'processing', 'completed', 'failed', 'archived']).optional()
 });

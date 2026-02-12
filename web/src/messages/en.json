@@ -360,6 +360,10 @@
     "title": "Item details",
     "subtitle": "ID: {id}",
     "backToInbox": "Back to inbox",
+    "breadcrumb": {
+      "inbox": "Inbox",
+      "detail": "Item details"
+    },
     "notFound": "Item not found",
     "confirmDelete": "Delete this item?",
     "actions": {
@@ -371,6 +375,7 @@
       "editContent": "Edit content",
       "cancelEdit": "Cancel",
       "saveEdit": "Save",
+      "copyRaw": "Copy raw text",
       "openInPage": "Open in detail page"
     },
     "edit": {
@@ -380,7 +385,14 @@
         "write": "Write",
         "preview": "Preview"
       },
-      "previewEmpty": "Nothing to preview yet"
+      "previewEmpty": "Nothing to preview yet",
+      "autoSave": {
+        "saving": "Saving...",
+        "saved": "Saved automatically",
+        "pending": "Changes will be saved automatically",
+        "error": "Auto-save failed. Keep typing to retry.",
+        "disabled": "Processing, editing is temporarily disabled"
+      }
     },
     "categories": {
       "todo": "Todo",
@@ -430,6 +442,7 @@
     "metadata": {
       "status": "Status",
       "category": "Category",
+      "unclassified": "Unclassified",
       "source": "Source",
       "id": "ID",
       "contentType": "Content type",
@@ -437,9 +450,24 @@
       "updatedAt": "Updated",
       "processedAt": "Processed"
     },
+    "details": {
+      "show": "Show details",
+      "hide": "Hide details"
+    },
     "distribution": {
       "success": "Success",
-      "failure": "Failed"
+      "failure": "Failed",
+      "processing": "Processing",
+      "pending": "Pending",
+      "skipped": "Skipped",
+      "empty": "No distribution records",
+      "none": "N/A",
+      "breakdown": {
+        "success": "{count} success",
+        "failed": "{count} failed",
+        "processing": "{count} processing",
+        "pending": "{count} pending"
+      }
     },
     "toast": {
       "deleteSuccess": {

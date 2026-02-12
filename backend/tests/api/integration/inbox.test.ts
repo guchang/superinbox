@@ -250,6 +250,45 @@ describe('GET /v1/inbox/:id', () => {
   });
 });
 
+describe('PUT /v1/inbox/:id', () => {
+  it('should update item with long markdown content', async () => {
+    const createResponse = await request(app)
+      .post('/v1/inbox')
+      .set('Authorization', `Bearer ${testContext.testApiKey}`)
+      .send({ content: 'Original content', source: 'test' });
+
+    const itemId = createResponse.body.data.id;
+    const longMarkdown = `# Long markdown test
+
+${'Paragraph with markdown content.\n\n'.repeat(600)}
+- item 1
+- item 2
+- item 3
+`;
+
+    expect(longMarkdown.length).toBeGreaterThan(10000);
+
+    const updateResponse = await request(app)
+      .put(`/v1/inbox/${itemId}`)
+      .set('Authorization', `Bearer ${testContext.testApiKey}`)
+      .send({
+        content: longMarkdown,
+        category: 'note'
+      });
+
+    expect(updateResponse.status).toBe(200);
+    expect(updateResponse.body).toHaveProperty('success', true);
+    expect(updateResponse.body.data).toHaveProperty('category', 'note');
+
+    const getResponse = await request(app)
+      .get(`/v1/inbox/${itemId}`)
+      .set('Authorization', `Bearer ${testContext.testApiKey}`);
+
+    expect(getResponse.status).toBe(200);
+    expect(getResponse.body).toHaveProperty('content', longMarkdown);
+  });
+});
+
 // Task 5: DELETE /v1/inbox/:id
 describe('DELETE /v1/inbox/:id', () => {
   it('should delete an item', async () => {

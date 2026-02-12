@@ -497,70 +497,75 @@ export function DetailModal({
       <DialogContent
         className={cn(
           'w-[min(95vw,1380px)] max-w-none max-h-[88vh] overflow-hidden p-0 gap-0 flex flex-col sm:rounded-[24px]',
-          '[&>button:last-child]:top-4 [&>button:last-child]:right-3 sm:[&>button:last-child]:right-4'
+          '[&>button:last-child]:top-4 [&>button:last-child]:right-4'
         )}
       >
         <DialogTitle className="sr-only">{detailT('title')}</DialogTitle>
         <DialogDescription className="sr-only">{detailT('subtitle', { id: item.id })}</DialogDescription>
 
         {/* Header */}
-        <div className="border-b px-4 sm:px-6 pt-4 sm:pt-5 pb-3 sm:pb-4">
-          <div className="grid grid-cols-[auto_1fr_auto] items-center gap-x-3 sm:gap-x-4">
-            {/* 左侧：分类选择器 + 时间 + 来源 */}
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2">
-                <span className="text-[11px] font-medium text-muted-foreground/80 hidden sm:inline whitespace-nowrap">
-                  {detailT('metadata.category')}
-                </span>
-                <Select
-                  value={selectedCategoryKey}
-                  onValueChange={(nextCategory) => {
-                    void handleCategoryChange(nextCategory)
-                  }}
-                  disabled={Boolean(isSavingEdit) || isCategorySaving}
-                >
-                  <SelectTrigger className="h-7 px-2.5 py-1 min-w-[120px] sm:min-w-[140px] border border-border/50 bg-background/80 backdrop-blur-sm hover:bg-accent/50 focus:ring-1 focus:ring-ring/50 focus:ring-offset-0 transition-colors">
-                    <SelectValue className="text-xs" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {normalizedCategoryOptions.map((option) => (
-                      <SelectItem key={option.key} value={option.key} className="text-xs">
-                        {option.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                {item.createdAt && (
-                  <>
-                    <Clock className="h-3.5 w-3.5 shrink-0" />
-                    <span className="truncate">{formatRelativeTime(item.createdAtLocal ?? item.createdAt, time)}</span>
-                  </>
-                )}
-                {item.source && (
-                  <>
-                    <span className="w-1 h-1 shrink-0 rounded-full bg-border" />
-                    <span className="truncate hidden sm:inline">{item.source}</span>
-                  </>
+        <div className="border-b px-6 pt-5 pb-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
+              <div className="flex items-center gap-2 rounded-full border border-border/70 bg-background px-2 py-1">
+                <span className="px-1 text-[11px] font-medium text-muted-foreground">{detailT('metadata.category')}</span>
+                {canEditCategory ? (
+                  <Select
+                    value={selectedCategoryKey}
+                    onValueChange={(nextCategory) => {
+                      void handleCategoryChange(nextCategory)
+                    }}
+                    disabled={Boolean(isSavingEdit) || isCategorySaving}
+                  >
+                    <SelectTrigger className="h-7 min-w-[130px] border-none bg-transparent px-2 py-0 text-xs font-semibold shadow-none focus:ring-0 focus:ring-offset-0">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {normalizedCategoryOptions.map((option) => (
+                        <SelectItem key={option.key} value={option.key} className="text-xs">
+                          {option.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <Badge
+                    variant="outline"
+                    className="border text-[11px] uppercase tracking-wide"
+                    style={categoryBadgeStyle}
+                  >
+                    {categoryLabel}
+                  </Badge>
                 )}
               </div>
+
+              <Badge variant="outline" className={cn('text-[11px] font-medium', getItemStatusToneClass(item.status))}>
+                {detailT('metadata.status')}: {isAnalyzing ? detailT('status.processing') : statusLabelMap[item.status]}
+              </Badge>
+
+              <Badge variant="outline" className="text-[11px] font-medium">
+                {detailT('metadata.source')}: {item.source || detailT('distribution.none')}
+              </Badge>
+
+              <Badge variant="outline" className="text-[11px] font-medium">
+                {detailT('sections.distribution')}: {distributionSummary}
+              </Badge>
             </div>
 
-            {/* 中间：空白区域，推开左右两侧 */}
-            <div />
-
-            {/* 右侧：放大按钮（在关闭按钮左侧） */}
-            <div className="flex items-center justify-end pr-10 sm:pr-11">
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Clock className="h-3.5 w-3.5" />
+                <span>{formatRelativeTime(item.createdAtLocal ?? item.createdAt, time)}</span>
+              </div>
               <Button
                 asChild
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8 hover:bg-accent/50"
+                className="h-8 w-8"
                 aria-label={detailT('actions.openInPage')}
               >
                 <Link href={`/inbox/${item.id}`} onClick={onClose}>
-                  <Maximize2 className="h-3.5 w-3.5" />
+                  <Maximize2 className="h-4 w-4" />
                 </Link>
               </Button>
             </div>
@@ -610,7 +615,7 @@ export function DetailModal({
               <div className="space-y-3 rounded-xl border border-border/70 bg-muted/20 p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2 text-sm font-medium">
-                    <Send className="h-3.5 w-3.5 text-muted-foreground" />
+                    <Send className="h-4 w-4 text-muted-foreground" />
                     <span>{detailT('sections.distribution')}</span>
                   </div>
                   <span className="text-xs text-muted-foreground">{distributionSummary}</span>
@@ -754,11 +759,11 @@ export function DetailModal({
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8 hover:bg-accent/50"
+                  className="h-8 w-8"
                   disabled={isAnalyzing}
                   aria-label={inboxT('actions.more')}
                 >
-                  <MoreHorizontal className="h-3.5 w-3.5" />
+                  <MoreHorizontal className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
@@ -768,7 +773,7 @@ export function DetailModal({
                   }}
                   disabled={!itemContent}
                 >
-                  {copiedContent ? <Check className="h-3.5 w-3.5 mr-2" /> : <Copy className="h-3.5 w-3.5 mr-2" />}
+                  {copiedContent ? <Check className="h-4 w-4 mr-2" /> : <Copy className="h-4 w-4 mr-2" />}
                   {detailT('actions.copyRaw')}
                 </DropdownMenuItem>
 
@@ -777,7 +782,7 @@ export function DetailModal({
                     onClick={() => onReclassify(item.id)}
                     disabled={isAnalyzing || reclassifying}
                   >
-                    <Sparkles className="h-3.5 w-3.5 mr-2" />
+                    <Sparkles className="h-4 w-4 mr-2" />
                     {detailT('actions.reclassify')}
                   </DropdownMenuItem>
                 )}

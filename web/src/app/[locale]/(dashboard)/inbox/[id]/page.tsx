@@ -1,10 +1,9 @@
 "use client"
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useMemo, useState, useEffect, useCallback } from 'react'
+import { useMemo, useState, useEffect, useCallback, useRef } from 'react'
 import { useParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { useTheme } from 'next-themes'
 import { Link, useRouter } from '@/i18n/navigation'
 import { categoriesApi } from '@/lib/api/categories'
 import { inboxApi } from '@/lib/api/inbox'
@@ -12,19 +11,20 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Textarea } from '@/components/ui/textarea'
 import { formatRelativeTime } from '@/lib/utils'
-import { CategoryType, ContentType, ItemStatus } from '@/types'
-import { ArrowLeft, RefreshCw, Sparkles, Trash2, Loader2, Share2, FileText, AlertCircle, Paperclip, Settings2, Pencil } from 'lucide-react'
+import { ContentType, ItemStatus } from '@/types'
+import { ArrowLeft, RefreshCw, Sparkles, Trash2, Loader2, Share2, FileText, AlertCircle, Paperclip, Settings2 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { FilePreview } from '@/components/file-preview'
 import { useAutoRefetch } from '@/hooks/use-auto-refetch'
 import { getApiErrorMessage } from '@/lib/i18n/api-errors'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog'
-import { getCategoryBadgeStyle, resolveCategoryColor, resolveCategoryIconName } from '@/lib/category-appearance'
 import { LinkifiedText } from '@/components/shared/linkified-text'
-import { MarkdownContent } from '@/components/shared/markdown-content'
+import { DetailMarkdownEditor } from '@/components/inbox/detail-markdown-editor'
+
+function normalizeDraftContent(value: string) {
+  return value.replace(/\r\n/g, '\n')
+}
 
 export default function InboxDetailPage() {
   const t = useTranslations('inboxDetail')
@@ -36,8 +36,6 @@ export default function InboxDetailPage() {
   const { toast } = useToast()
   const params = useParams()
   const id = params.id as string
-  const { resolvedTheme } = useTheme()
-  const isDark = resolvedTheme === 'dark'
 
   const { data: itemData, isLoading, refetch } = useQuery({
     queryKey: ['inbox', id],
@@ -51,29 +49,12 @@ export default function InboxDetailPage() {
   })
 
   const item = itemData?.data
-  const categoryMetaMap = useMemo(() => {
-    return new Map(
-      (categoriesData?.data || []).map((category) => [
-        category.key,
-        {
-          name: category.name,
-          icon: resolveCategoryIconName(category.key, category.icon),
-          color: resolveCategoryColor(category.key, category.color),
-        },
-      ])
-    )
-  }, [categoriesData])
-
-  const categoryLabelMap = useMemo(() => {
-    return new Map(
-      Array.from(categoryMetaMap.entries()).map(([key, meta]) => [key, meta.name])
-    )
-  }, [categoryMetaMap])
-
-  const [isEditing, setIsEditing] = useState(false)
   const [draftContent, setDraftContent] = useState('')
   const [draftCategory, setDraftCategory] = useState('unknown')
-  const [editModeTab, setEditModeTab] = useState<'write' | 'preview'>('write')
+  const [savedSnapshot, setSavedSnapshot] = useState<{ content: string; category: string } | null>(null)
+  const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
+  const queuedSnapshotRef = useRef<{ content: string; category: string } | null>(null)
+  const isPersistingRef = useRef(false)
   const currentItemId = item?.id ?? null
   const currentItemContent = item?.content ?? ''
   const currentItemCategory = item?.analysis?.category ?? 'unknown'
@@ -111,9 +92,15 @@ export default function InboxDetailPage() {
 
   useEffect(() => {
     if (!currentItemId) return
-    setDraftContent(currentItemContent)
-    setDraftCategory(currentItemCategory)
-    setEditModeTab('write')
+    const snapshot = {
+      content: normalizeDraftContent(currentItemContent),
+      category: currentItemCategory,
+    }
+    setDraftContent(snapshot.content)
+    setDraftCategory(snapshot.category)
+    setSavedSnapshot(snapshot)
+    setAutoSaveStatus('idle')
+    queuedSnapshotRef.current = null
   }, [currentItemId, currentItemContent, currentItemCategory])
 
   // Mutations
@@ -189,27 +176,104 @@ export default function InboxDetailPage() {
       return response.data
     },
     onSuccess: (updatedItem) => {
-      queryClient.invalidateQueries({ queryKey: ['inbox'] })
-      queryClient.invalidateQueries({ queryKey: ['inbox', id] })
+      queryClient.setQueryData(['inbox', id], (previous: any) => {
+        if (!previous || typeof previous !== 'object') return previous
 
-      setDraftContent(updatedItem.content ?? '')
-      setDraftCategory(updatedItem.analysis?.category ?? 'unknown')
-      setIsEditing(false)
-      setEditModeTab('write')
-
-      toast({
-        title: t('toast.updateSuccess.title'),
-        description: t('toast.updateSuccess.description'),
-      })
-    },
-    onError: (error) => {
-      toast({
-        title: t('toast.updateFailure.title'),
-        description: getApiErrorMessage(error, errors, common('unknownError')),
-        variant: 'destructive',
+        return {
+          ...previous,
+          data: {
+            ...previous.data,
+            ...updatedItem,
+            content: normalizeDraftContent(updatedItem.content ?? previous.data?.content ?? ''),
+            analysis: {
+              ...previous.data?.analysis,
+              ...updatedItem.analysis,
+            },
+          },
+        }
       })
     },
   })
+
+  const canEditItem = item != null && item.status !== ItemStatus.PROCESSING
+  const hasUnsavedChanges = savedSnapshot != null
+    && (
+      normalizeDraftContent(draftContent) !== savedSnapshot.content
+      || draftCategory !== savedSnapshot.category
+    )
+
+  const persistSnapshot = useCallback(
+    async (snapshot: { content: string; category: string }) => {
+      if (!canEditItem) return
+
+      if (isPersistingRef.current) {
+        queuedSnapshotRef.current = snapshot
+        return
+      }
+
+      isPersistingRef.current = true
+      setAutoSaveStatus('saving')
+      let nextSnapshot: { content: string; category: string } | null = null
+
+      try {
+        const updatedItem = await updateMutation.mutateAsync(snapshot)
+        const syncedSnapshot = {
+          content: normalizeDraftContent(updatedItem.content ?? snapshot.content),
+          category: updatedItem.analysis?.category ?? snapshot.category,
+        }
+
+        setSavedSnapshot(syncedSnapshot)
+        setAutoSaveStatus('saved')
+
+        const queuedSnapshot = queuedSnapshotRef.current
+        queuedSnapshotRef.current = null
+
+        if (
+          queuedSnapshot
+          && (
+            queuedSnapshot.content !== syncedSnapshot.content
+            || queuedSnapshot.category !== syncedSnapshot.category
+          )
+        ) {
+          nextSnapshot = queuedSnapshot
+        }
+      } catch (error) {
+        queuedSnapshotRef.current = null
+        setAutoSaveStatus('error')
+      } finally {
+        isPersistingRef.current = false
+      }
+
+      if (nextSnapshot) {
+        void persistSnapshot(nextSnapshot)
+      }
+    },
+    [canEditItem, updateMutation]
+  )
+
+  useEffect(() => {
+    if (!canEditItem || !savedSnapshot || !hasUnsavedChanges) return
+
+    const snapshot = {
+      content: normalizeDraftContent(draftContent),
+      category: draftCategory,
+    }
+
+    const timer = window.setTimeout(() => {
+      void persistSnapshot(snapshot)
+    }, 900)
+
+    return () => window.clearTimeout(timer)
+  }, [canEditItem, savedSnapshot, hasUnsavedChanges, draftContent, draftCategory, persistSnapshot])
+
+  const autoSaveLabel = useMemo(() => {
+    if (!canEditItem) return t('edit.autoSave.disabled')
+    if (autoSaveStatus === 'saving') return t('edit.autoSave.saving')
+    if (autoSaveStatus === 'error') return t('edit.autoSave.error')
+    if (hasUnsavedChanges) return t('edit.autoSave.pending')
+    if (autoSaveStatus === 'saved') return t('edit.autoSave.saved')
+    return ''
+  }, [autoSaveStatus, canEditItem, hasUnsavedChanges, t])
 
   // Smart auto-refetch: only poll when necessary
   // - When item is actively being processed (PROCESSING status)
@@ -225,29 +289,6 @@ export default function InboxDetailPage() {
       redistributeMutation.isPending
     ),
   })
-
-  const handleStartEdit = useCallback(() => {
-    if (!item) return
-    setDraftContent(item.content ?? '')
-    setDraftCategory(item.analysis?.category ?? 'unknown')
-    setEditModeTab('write')
-    setIsEditing(true)
-  }, [item])
-
-  const handleCancelEdit = useCallback(() => {
-    if (!item) return
-    setDraftContent(item.content ?? '')
-    setDraftCategory(item.analysis?.category ?? 'unknown')
-    setEditModeTab('write')
-    setIsEditing(false)
-  }, [item])
-
-  const handleSaveEdit = useCallback(async () => {
-    await updateMutation.mutateAsync({
-      content: draftContent,
-      category: draftCategory,
-    })
-  }, [updateMutation, draftContent, draftCategory])
 
   const contentTypeTags = useMemo(() => {
     if (!item) return []
@@ -348,26 +389,6 @@ export default function InboxDetailPage() {
     {}
   )
   const entityEntries = Object.entries(entityGroups)
-  const categoryKey = item.analysis?.category ?? 'unknown'
-  const selectedCategoryKey = isEditing ? draftCategory : categoryKey
-  const categoryLabel =
-    categoryOptions.find((option) => option.key === selectedCategoryKey)?.name ||
-    categoryLabelMap.get(selectedCategoryKey) ||
-    ({
-      [CategoryType.TODO]: t('categories.todo'),
-      [CategoryType.IDEA]: t('categories.idea'),
-      [CategoryType.EXPENSE]: t('categories.expense'),
-      [CategoryType.NOTE]: t('categories.note'),
-      [CategoryType.BOOKMARK]: t('categories.bookmark'),
-      [CategoryType.SCHEDULE]: t('categories.schedule'),
-      [CategoryType.UNKNOWN]: t('categories.unknown'),
-    }[selectedCategoryKey] || selectedCategoryKey)
-
-  const categoryBadgeStyle = getCategoryBadgeStyle(
-    selectedCategoryKey,
-    categoryMetaMap.get(selectedCategoryKey)?.color,
-    isDark ? 'dark' : 'light'
-  )
 
   const distributionEntries = (() => {
     const results = item.distributionResults
@@ -389,109 +410,70 @@ export default function InboxDetailPage() {
 
   return (
     <div className="container py-6 max-w-7xl animate-in fade-in duration-500">
-      {/* 1. Header Area: Explicit Back Button & Clean Title */}
+      {/* Header Area */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between mb-8">
-        <div className="flex flex-col gap-2">
-          {/* Back Button */}
-          <Link href="/inbox">
-            <Button variant="ghost" size="sm" className="-ml-3 gap-1 text-muted-foreground hover:text-foreground">
-              <ArrowLeft className="h-4 w-4" />
-              {t('backToInbox')}
-            </Button>
-          </Link>
-
-        </div>
+        {/* 页面标题（现在顶部 header 有面包屑了，这里可以简化） */}
+        <div />
 
         {/* Global Page Actions */}
-        <div className="flex items-center gap-2 mt-2 sm:mt-0">
-          {isEditing ? (
-            <>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleCancelEdit}
-                disabled={updateMutation.isPending}
-              >
-                {t('actions.cancelEdit')}
-              </Button>
-              <Button
-                size="sm"
-                onClick={() => {
-                  void handleSaveEdit()
-                }}
-                disabled={updateMutation.isPending || !draftContent.trim()}
-              >
-                {updateMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-2" /> : null}
-                {t('actions.saveEdit')}
-              </Button>
-            </>
-          ) : (
-            <>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleStartEdit}
-                disabled={item.status === ItemStatus.PROCESSING}
-              >
-                <Pencil className="h-3.5 w-3.5 mr-2" />
-                {t('actions.editContent')}
-              </Button>
+        <div className="flex items-center gap-2">
+          <span className="hidden sm:inline text-xs text-muted-foreground mr-1">
+            {autoSaveLabel}
+          </span>
 
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => refetch()}
+            disabled={isPolling}
+          >
+            <RefreshCw className={`h-3.5 w-3.5 mr-2 ${isPolling ? 'animate-spin' : ''}`} />
+            {t('actions.refresh')}
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => reclassifyMutation.mutate()}
+            disabled={reclassifyMutation.isPending || item.status === ItemStatus.PROCESSING}
+          >
+            {reclassifyMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-2" /> : <Sparkles className="h-3.5 w-3.5 mr-2" />}
+            {t('actions.reclassify')}
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => redistributeMutation.mutate()}
+            disabled={redistributeMutation.isPending || item.status === ItemStatus.PROCESSING}
+          >
+            {redistributeMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-2" /> : <Share2 className="h-3.5 w-3.5 mr-2" />}
+            {t('actions.redistribute')}
+          </Button>
+
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => refetch()}
-                disabled={isPolling}
+                className="text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/20"
+                disabled={deleteMutation.isPending}
               >
-                <RefreshCw className={`h-3.5 w-3.5 mr-2 ${isPolling ? 'animate-spin' : ''}`} />
-                {t('actions.refresh')}
+                {deleteMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-2" /> : <Trash2 className="h-3.5 w-3.5 mr-2" />}
+                {common('delete')}
               </Button>
-
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => reclassifyMutation.mutate()}
-                disabled={reclassifyMutation.isPending || item.status === ItemStatus.PROCESSING}
-              >
-                {reclassifyMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-2" /> : <Sparkles className="h-3.5 w-3.5 mr-2" />}
-                {t('actions.reclassify')}
-              </Button>
-
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => redistributeMutation.mutate()}
-                disabled={redistributeMutation.isPending || item.status === ItemStatus.PROCESSING}
-              >
-                {redistributeMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-2" /> : <Share2 className="h-3.5 w-3.5 mr-2" />}
-                {t('actions.redistribute')}
-              </Button>
-
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/20"
-                    disabled={deleteMutation.isPending}
-                  >
-                    {deleteMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-2" /> : <Trash2 className="h-3.5 w-3.5 mr-2" />}
-                    {common('delete')}
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>{t('confirmDelete')}</AlertDialogTitle>
-                    <AlertDialogDescription />
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>{common('cancel')}</AlertDialogCancel>
-                    <AlertDialogAction onClick={() => deleteMutation.mutate()}>{common('delete')}</AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            </>
-          )}
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>{t('confirmDelete')}</AlertDialogTitle>
+                <AlertDialogDescription />
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>{common('cancel')}</AlertDialogCancel>
+                <AlertDialogAction onClick={() => deleteMutation.mutate()}>{common('delete')}</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </div>
 
@@ -507,48 +489,16 @@ export default function InboxDetailPage() {
                 {t('sections.content')}
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              {isEditing ? (
-                <Tabs
-                  value={editModeTab}
-                  onValueChange={(value) => setEditModeTab(value as 'write' | 'preview')}
-                  className="grid gap-3"
-                >
-                  <TabsList className="h-8 w-fit">
-                    <TabsTrigger value="write" className="px-2 text-xs">
-                      {t('edit.mode.write')}
-                    </TabsTrigger>
-                    <TabsTrigger value="preview" className="px-2 text-xs">
-                      {t('edit.mode.preview')}
-                    </TabsTrigger>
-                  </TabsList>
-
-                  <TabsContent value="write" className="mt-0">
-                    <Textarea
-                      value={draftContent}
-                      onChange={(event) => setDraftContent(event.target.value)}
-                      className="min-h-[220px] border border-white/45 bg-background/70 text-sm leading-relaxed focus-visible:border-white/80 focus-visible:ring-white/30"
-                      placeholder={t('edit.placeholder')}
-                    />
-                  </TabsContent>
-
-                  <TabsContent value="preview" className="mt-0">
-                    <div className="min-h-[220px] rounded-md border border-border/80 bg-background/60 p-4">
-                      <MarkdownContent
-                        text={draftContent}
-                        emptyText={t('edit.previewEmpty')}
-                      />
-                    </div>
-                  </TabsContent>
-                </Tabs>
-              ) : (
-                <div className="min-h-[120px]">
-                  <MarkdownContent
-                    text={item.content ?? ''}
-                    emptyText={t('content.empty')}
-                  />
-                </div>
-              )}
+            <CardContent className="grid gap-2">
+              <div className="sm:hidden text-xs text-muted-foreground">
+                {autoSaveLabel}
+              </div>
+              <DetailMarkdownEditor
+                value={draftContent}
+                onChange={setDraftContent}
+                placeholder={t('edit.placeholder')}
+                disabled={!canEditItem}
+              />
             </CardContent>
           </Card>
 
@@ -640,34 +590,21 @@ export default function InboxDetailPage() {
                 </div>
               </div>
 
-              {categoryLabel && (
-                <div className="grid gap-1.5">
-                  <span className="text-xs text-muted-foreground">{t('metadata.category')}</span>
-                  {isEditing ? (
-                    <select
-                      value={draftCategory}
-                      onChange={(event) => setDraftCategory(event.target.value)}
-                      className="h-9 rounded-md border border-white/45 bg-background/70 px-3 text-sm outline-none transition-colors focus-visible:border-white/80 focus-visible:ring-2 focus-visible:ring-white/20"
-                    >
-                      {categoryOptions.map((option) => (
-                        <option key={option.key} value={option.key}>
-                          {option.name}
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    <div>
-                      <Badge
-                        variant="outline"
-                        className="border text-[11px] uppercase tracking-wide"
-                        style={categoryBadgeStyle}
-                      >
-                        {categoryLabel}
-                      </Badge>
-                    </div>
-                  )}
-                </div>
-              )}
+              <div className="grid gap-1.5">
+                <span className="text-xs text-muted-foreground">{t('metadata.category')}</span>
+                <select
+                  value={draftCategory}
+                  onChange={(event) => setDraftCategory(event.target.value)}
+                  className="h-9 rounded-md border border-white/45 bg-background/70 px-3 text-sm outline-none transition-colors focus-visible:border-white/80 focus-visible:ring-2 focus-visible:ring-white/20"
+                  disabled={!canEditItem}
+                >
+                  {categoryOptions.map((option) => (
+                    <option key={option.key} value={option.key}>
+                      {option.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
               {/* AI Confidence */}
               {item.analysis && (

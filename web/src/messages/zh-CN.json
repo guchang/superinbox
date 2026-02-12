@@ -360,6 +360,10 @@
     "title": "条目详情",
     "subtitle": "ID: {id}",
     "backToInbox": "返回收件箱",
+    "breadcrumb": {
+      "inbox": "收件箱",
+      "detail": "条目详情"
+    },
     "notFound": "条目不存在",
     "loading": "加载中...",
     "confirmDelete": "确定要删除这条记录吗？",
@@ -372,6 +376,7 @@
       "editContent": "编辑内容",
       "cancelEdit": "取消",
       "saveEdit": "保存",
+      "copyRaw": "复制原文",
       "openInPage": "在详情页打开"
     },
     "edit": {
@@ -381,7 +386,14 @@
         "write": "编辑",
         "preview": "预览"
       },
-      "previewEmpty": "暂无可预览内容"
+      "previewEmpty": "暂无可预览内容",
+      "autoSave": {
+        "saving": "自动保存中...",
+        "saved": "已自动保存",
+        "pending": "编辑后将自动保存",
+        "error": "自动保存失败，继续编辑后会重试",
+        "disabled": "处理中，暂不可编辑"
+      }
     },
     "categories": {
       "todo": "待办",
@@ -431,6 +443,7 @@
     "metadata": {
       "status": "状态",
       "category": "分类",
+      "unclassified": "未分类",
       "source": "来源",
       "id": "ID",
       "contentType": "内容类型",
@@ -438,9 +451,24 @@
       "updatedAt": "更新时间",
       "processedAt": "处理时间"
     },
+    "details": {
+      "show": "显示详细信息",
+      "hide": "隐藏详细信息"
+    },
     "distribution": {
       "success": "成功",
-      "failure": "失败"
+      "failure": "失败",
+      "processing": "处理中",
+      "pending": "待处理",
+      "skipped": "无需分发",
+      "empty": "暂无分发记录",
+      "none": "暂无",
+      "breakdown": {
+        "success": "{count} 成功",
+        "failed": "{count} 失败",
+        "processing": "{count} 处理中",
+        "pending": "{count} 待处理"
+      }
     },
     "toast": {
       "deleteSuccess": {

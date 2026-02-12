@@ -183,3 +183,53 @@
     scrollbar-width: none;
   }
 }
+
+@layer components {
+  .detail-markdown-editor-content {
+    min-height: 188px;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    outline: none;
+  }
+
+  .detail-markdown-editor-content ul[data-type='taskList'] {
+    list-style: none;
+    padding-left: 1.25rem;
+    margin: 0;
+  }
+
+  .detail-markdown-editor-content li[data-checked] {
+    list-style: none;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    margin: 0.25rem 0;
+  }
+
+  .detail-markdown-editor-content li[data-checked] > label {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: flex-start;
+    margin-top: 0.25rem;
+    margin-right: 0;
+  }
+
+  .detail-markdown-editor-content li[data-checked] > label > input {
+    width: 0.875rem;
+    height: 0.875rem;
+    margin: 0;
+  }
+
+  .detail-markdown-editor-content li[data-checked] > div {
+    flex: 1 1 0%;
+    min-width: 0;
+  }
+
+  .detail-markdown-editor-content li[data-checked] > div > p {
+    margin: 0;
+  }
+
+  .detail-markdown-editor-content li[data-checked] > div > ul[data-type='taskList'] {
+    margin-top: 0.25rem;
+  }
+}
