@@ -4,10 +4,19 @@
 
 import dotenv from 'dotenv';
 import { z } from 'zod';
+import { fileURLToPath } from 'url';
+import { isAbsolute, resolve } from 'path';
 import type { AppConfig } from '../types';
 
 // Load environment variables
 dotenv.config();
+
+const backendRoot = resolve(fileURLToPath(new URL('../../', import.meta.url)));
+
+const resolveBackendPath = (targetPath: string): string => {
+  if (!targetPath) return targetPath;
+  return isAbsolute(targetPath) ? targetPath : resolve(backendRoot, targetPath);
+};
 
 // Configuration Schema
 const configSchema = z.object({
@@ -57,6 +66,8 @@ const configSchema = z.object({
 const validateConfig = (): AppConfig => {
   try {
     const env = configSchema.parse(process.env);
+    const databasePath = resolveBackendPath(env.DATABASE_PATH);
+    const uploadDir = resolveBackendPath(env.UPLOAD_DIR);
 
     return {
       server: {
@@ -65,7 +76,7 @@ const validateConfig = (): AppConfig => {
         nodeEnv: env.NODE_ENV
       },
       database: {
-        path: env.DATABASE_PATH
+        path: databasePath
       },
       llm: {
         provider: env.LLM_PROVIDER,
@@ -87,7 +98,7 @@ const validateConfig = (): AppConfig => {
         origin: env.CORS_ORIGIN
       },
       storage: {
-        uploadDir: env.UPLOAD_DIR,
+        uploadDir,
         maxUploadSize: env.MAX_UPLOAD_SIZE,
         maxUploadFiles: env.MAX_UPLOAD_FILES
       }

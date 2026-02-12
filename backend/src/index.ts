@@ -8,7 +8,8 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import cookieParser from 'cookie-parser';
 import { config } from './config/index.js';
-import { getDatabase, closeDatabase } from './storage/database.js';
+import { closeDatabase } from './storage/database.js';
+import { runMigrations } from './storage/migrations/run.js';
 import { initializeAdapters } from './router/index.js';
 import { requestLogger, errorHandler, notFoundHandler, accessLogMiddleware } from './middleware/index.js';
 import inboxRoutes from './capture/routes/inbox.routes.js';
@@ -151,10 +152,10 @@ app.use(errorHandler);
 
 async function startServer(): Promise<void> {
   try {
-    // Initialize database
-    logger.info('Initializing database...');
-    getDatabase();
-    logger.info('Database initialized');
+    // Initialize database schema
+    logger.info('Running database migrations...');
+    await runMigrations();
+    logger.info('Database migrations completed');
 
     // Initialize adapters
     logger.info('Initializing adapters...');
