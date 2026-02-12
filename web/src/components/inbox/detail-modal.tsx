@@ -7,30 +7,35 @@ import {
   Sparkles,
   Send,
   Pencil,
-  Clock,
   CheckCircle2,
   Loader2,
   FileText,
   Paperclip,
-  Settings2,
-  Share2,
+  MoreHorizontal,
   Maximize2,
   Copy,
   Check,
+  ChevronDown,
+  Clock,
 } from 'lucide-react'
 import { cn, formatRelativeTime } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { Textarea } from '@/components/ui/textarea'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
 import { ContentType, Item, ItemStatus } from '@/types'
 import { FilePreview } from '@/components/file-preview'
 import { useRoutingProgress } from '@/hooks/use-routing-progress'
-import { LinkifiedText } from '@/components/shared/linkified-text'
+import { MarkdownContent } from '@/components/shared/markdown-content'
 import { Link } from '@/i18n/navigation'
 import { getCategoryBadgeStyle } from '@/lib/category-appearance'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 
 interface DetailModalProps {
   item: Item | null
@@ -86,20 +91,6 @@ const getDistributionTargetLabel = (target: unknown, index: number) => {
   return `Target ${index + 1}`
 }
 
-function RoutingProgressDots() {
-  return (
-    <div className="flex items-center gap-1" aria-hidden="true">
-      {Array.from({ length: 8 }).map((_, index) => (
-        <span
-          key={index}
-          className="h-1.5 w-1.5 rounded-[2px] bg-current opacity-40"
-          style={{ animation: `routing-dot-pulse 1.2s ease-in-out ${index * 0.08}s infinite` }}
-        />
-      ))}
-    </div>
-  )
-}
-
 const getStatusBadgeVariant = (status: ItemStatus): 'secondary' | 'outline' | 'default' | 'destructive' => {
   const variants: Record<ItemStatus, 'secondary' | 'outline' | 'default' | 'destructive'> = {
     [ItemStatus.PENDING]: 'secondary',
@@ -134,6 +125,7 @@ export function DetailModal({
 
   const [draftContent, setDraftContent] = useState('')
   const [draftCategory, setDraftCategory] = useState('unknown')
+  const [showMetadata, setShowMetadata] = useState(false)
   const [copiedContent, setCopiedContent] = useState(false)
 
   const { resolvedTheme } = useTheme()
@@ -213,13 +205,8 @@ export function DetailModal({
   )
 
   const isAnalyzing = item?.status === ItemStatus.PROCESSING
-  const liveRoutingTarget = String(routingProgress.matchedTargetName || '').trim()
-  const liveRoutingTitle = liveRoutingTarget
-    ? `${categoryLabel} → ${liveRoutingTarget}`
-    : categoryLabel
 
   const contentText = itemContent.trim()
-  const hasContentText = contentText.length > 0
 
   const statusLabelMap: Record<ItemStatus, string> = {
     [ItemStatus.PENDING]: detailT('status.pending'),
@@ -227,99 +214,6 @@ export function DetailModal({
     [ItemStatus.COMPLETED]: detailT('status.completed'),
     [ItemStatus.FAILED]: detailT('status.failed'),
   }
-
-  const contentTypeTags = useMemo(() => {
-    if (!item) return []
-
-    const tags = new Set<string>()
-    const content = item.content?.trim() ?? ''
-
-    if (item.contentType === ContentType.URL) {
-      tags.add(detailT('contentType.url'))
-    } else if (content) {
-      tags.add(detailT('contentType.text'))
-    }
-
-    const fileSources = item.allFiles && item.allFiles.length > 0
-      ? item.allFiles
-      : item.mimeType
-        ? [{ mimeType: item.mimeType }]
-        : []
-
-    for (const file of fileSources) {
-      const mimeType = file?.mimeType?.toLowerCase() ?? ''
-      if (mimeType.startsWith('image/')) {
-        tags.add(detailT('contentType.image'))
-      } else if (mimeType.startsWith('audio/')) {
-        tags.add(detailT('contentType.audio'))
-      } else if (mimeType.startsWith('video/')) {
-        tags.add(detailT('contentType.video'))
-      } else {
-        tags.add(detailT('contentType.file'))
-      }
-    }
-
-    if (tags.size === 0) {
-      if (item.contentType === ContentType.IMAGE) {
-        tags.add(detailT('contentType.image'))
-      } else if (item.contentType === ContentType.AUDIO) {
-        tags.add(detailT('contentType.audio'))
-      } else if (item.contentType === ContentType.VIDEO) {
-        tags.add(detailT('contentType.video'))
-      } else if (item.contentType === ContentType.FILE) {
-        tags.add(detailT('contentType.file'))
-      } else if (item.contentType === ContentType.TEXT) {
-        tags.add(detailT('contentType.text'))
-      }
-    }
-
-    return Array.from(tags)
-  }, [item, detailT])
-
-  const entityEntries = useMemo(() => {
-    const groups = (item?.analysis?.entities || []).reduce<Record<string, string[]>>(
-      (acc, entity) => {
-        if (!entity?.type || entity.type === 'customFields') return acc
-        const value = entity.value?.trim()
-        if (!value) return acc
-        if (!acc[entity.type]) acc[entity.type] = []
-        acc[entity.type].push(value)
-        return acc
-      },
-      {}
-    )
-
-    return Object.entries(groups)
-  }, [item?.analysis?.entities])
-
-  const distributionEntries = useMemo<DistributionEntry[]>(() => {
-    const results = item?.distributionResults
-
-    if (results) {
-      if (Array.isArray(results)) {
-        return results.map((result: any, index: number) => {
-          const target = getDistributionTargetLabel(result, index)
-          const status = result?.status || (result?.success ? 'success' : 'failed')
-          const isSuccess = status === 'success' || status === 'completed'
-          return { key: `${target}-${index}`, target, isSuccess }
-        })
-      }
-
-      return Object.entries(results).map(([target, result], index) => {
-        const status = (result as any)?.status || ((result as any)?.success ? 'success' : 'failed')
-        const isSuccess = status === 'success' || status === 'completed'
-        return { key: `${target}-${index}`, target, isSuccess }
-      })
-    }
-
-    const targets = item?.distributedTargets ?? []
-
-    return targets.map((target, index) => ({
-      key: `target-${index}`,
-      target: getDistributionTargetLabel(target, index),
-      isSuccess: true,
-    }))
-  }, [item?.distributionResults, item?.distributedTargets])
 
   const canEditInModal = Boolean(onEditingChange && onSaveEdit)
 
@@ -361,20 +255,6 @@ export function DetailModal({
     try {
       if (navigator?.clipboard?.writeText) {
         await navigator.clipboard.writeText(itemContent)
-      } else {
-        const textarea = document.createElement('textarea')
-        textarea.value = itemContent
-        textarea.style.position = 'fixed'
-        textarea.style.opacity = '0'
-        document.body.appendChild(textarea)
-        textarea.focus()
-        textarea.select()
-        const copied = document.execCommand('copy')
-        document.body.removeChild(textarea)
-
-        if (!copied) {
-          throw new Error('Fallback copy failed')
-        }
       }
 
       setCopiedContent(true)
@@ -391,306 +271,206 @@ export function DetailModal({
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogContent
         className={cn(
-          'max-w-6xl max-h-[92vh] overflow-hidden p-0 gap-0',
-          '[&>button:last-child]:h-9 [&>button:last-child]:w-9 [&>button:last-child]:rounded-full',
-          '[&>button:last-child]:right-4 [&>button:last-child]:top-4 [&>button:last-child]:opacity-75'
+          'max-w-3xl max-h-[92vh] overflow-hidden p-0 gap-0',
+          '[&>button:last-child]:top-4 [&>button:last-child]:right-4'
         )}
       >
         <DialogTitle className="sr-only">{detailT('title')}</DialogTitle>
         <DialogDescription className="sr-only">{detailT('subtitle', { id: item.id })}</DialogDescription>
 
-        <div className="relative px-4 pt-3.5 pb-2 sm:px-6">
-          <p className="truncate pr-20 text-base font-semibold text-foreground">{detailT('title')}</p>
-          <p className="truncate pr-20 text-xs text-muted-foreground">{item.id}</p>
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 pt-5 pb-3">
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <Clock className="h-3.5 w-3.5" />
+            <span className="text-xs">{formatRelativeTime(item.createdAtLocal ?? item.createdAt, time)}</span>
+          </div>
 
-          <Button
-            asChild
-            variant="ghost"
-            size="icon"
-            className="absolute right-14 top-3.5 h-9 w-9 rounded-full"
-            aria-label={detailT('actions.openInPage')}
-          >
-            <Link href={`/inbox/${item.id}`} onClick={onClose}>
-              <Maximize2 className="h-4 w-4" />
-            </Link>
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              asChild
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              aria-label={detailT('actions.openInPage')}
+            >
+              <Link href={`/inbox/${item.id}`} onClick={onClose}>
+                <Maximize2 className="h-4 w-4" />
+              </Link>
+            </Button>
+          </div>
         </div>
 
-        <div className="max-h-[calc(92vh-7.25rem)] overflow-y-auto px-4 py-4 sm:px-6 sm:py-6">
-          <div className="grid gap-6 md:grid-cols-12 lg:gap-8">
-            <div className="md:col-span-8 flex flex-col gap-6">
-              <Card>
-                <CardHeader className="flex-row items-center justify-between gap-3 space-y-0">
-                  <CardTitle className="flex items-center gap-2">
-                    <FileText className="h-4 w-4 text-muted-foreground" />
-                    {detailT('sections.content')}
-                  </CardTitle>
-                  {!isEditing && (
+        {/* Content Area */}
+        <div className="max-h-[calc(92vh-10rem)] overflow-y-auto px-6">
+          <div className="space-y-6 py-4">
+            {/* Main Content */}
+            <div className="space-y-4">
+              {isEditing ? (
+                <>
+                  <Textarea
+                    value={draftContent}
+                    onChange={(event) => setDraftContent(event.target.value)}
+                    className="min-h-[200px] resize-none border-0 bg-transparent p-0 text-base leading-relaxed focus-visible:ring-0 focus-visible:ring-offset-0"
+                    placeholder={detailT('edit.placeholder')}
+                    autoFocus
+                  />
+
+                  {/* Category Selector */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">{detailT('metadata.category')}</span>
+                    <select
+                      value={draftCategory}
+                      onChange={(event) => setDraftCategory(event.target.value)}
+                      className="h-7 rounded-md border-0 bg-transparent px-2 text-xs font-medium focus-visible:ring-0"
+                    >
+                      {normalizedCategoryOptions.map((option) => (
+                        <option key={option.key} value={option.key}>{option.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                </>
+              ) : (
+                <>
+                  {/* Content Display */}
+                  <div className="min-h-[120px] text-base leading-relaxed">
+                    <MarkdownContent
+                      text={contentText}
+                      emptyText={detailT('content.empty')}
+                    />
+                  </div>
+
+                  {/* File Preview */}
+                  {item.hasFile && (
+                    <div className="pt-2">
+                      <FilePreview
+                        itemId={item.id}
+                        fileName={item.fileName}
+                        mimeType={item.mimeType}
+                        allFiles={item.allFiles}
+                      />
+                    </div>
+                  )}
+
+                  {/* Metadata Footer */}
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-2 pt-2">
+                    {/* Category Badge */}
+                    <Badge
+                      variant="outline"
+                      className="border text-[11px] uppercase tracking-wide"
+                      style={categoryBadgeStyle}
+                    >
+                      {categoryLabel}
+                    </Badge>
+
+                    {/* Status */}
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      {isAnalyzing ? (
+                        <>
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                          <span>{detailT('status.processing')}</span>
+                        </>
+                      ) : (
+                        <span>{statusLabelMap[item.status]}</span>
+                      )}
+                    </div>
+
+                    {/* Source */}
+                    <span className="text-xs text-muted-foreground">{item.source}</span>
+
+                    {/* Copy Button */}
                     <Button
                       type="button"
                       variant="ghost"
                       size="sm"
-                      onClick={() => {
-                        void handleCopyRawContent()
-                      }}
+                      onClick={handleCopyRawContent}
                       disabled={!itemContent}
-                      className="h-8 gap-1.5 px-2 text-xs font-medium"
+                      className="h-6 gap-1 px-2 text-xs text-muted-foreground hover:text-foreground"
                     >
-                      {copiedContent ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-                      {copiedContent ? common('copied') : inboxT('actions.copy')}
+                      {copiedContent ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
                     </Button>
-                  )}
-                </CardHeader>
-                <CardContent>
-                  {isEditing ? (
-                    <Textarea
-                      value={draftContent}
-                      onChange={(event) => setDraftContent(event.target.value)}
-                      className="min-h-[140px] border border-white/45 bg-background/70 text-sm leading-relaxed focus-visible:border-white/80 focus-visible:ring-white/30"
-                      placeholder={detailT('edit.placeholder')}
-                    />
-                  ) : (
-                    <div className={cn(
-                      'text-sm leading-relaxed min-h-[120px]',
-                      item.contentType === ContentType.URL ? 'font-mono break-all text-blue-600' : 'whitespace-pre-wrap break-words'
-                    )}>
-                      {hasContentText ? (
-                        <LinkifiedText
-                          text={contentText}
-                          linkClassName="text-current hover:opacity-80"
-                        />
-                      ) : (
-                        <span className="text-muted-foreground italic">{detailT('content.empty')}</span>
-                      )}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              {item.hasFile && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Paperclip className="h-4 w-4 text-muted-foreground" />
-                      {detailT('sections.attachments')}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <FilePreview
-                      itemId={item.id}
-                      fileName={item.fileName}
-                      mimeType={item.mimeType}
-                      allFiles={item.allFiles}
-                    />
-                  </CardContent>
-                </Card>
-              )}
-
-              {(item.analysis?.summary || entityEntries.length > 0 || isAnalyzing) && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Sparkles className="h-4 w-4 text-muted-foreground" />
-                      {detailT('sections.analysis')}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="grid gap-6">
-                    {isAnalyzing ? (
-                      <div className="flex items-center gap-2 text-muted-foreground">
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        <span className="text-sm">{detailT('analysis.analyzing')}</span>
-                      </div>
-                    ) : (
-                      <>
-                        {item.analysis?.summary && (
-                          <div className="grid gap-2">
-                            <span className="text-sm font-medium text-muted-foreground">{detailT('analysis.summary')}</span>
-                            <p className="text-sm text-foreground leading-relaxed bg-muted/30 p-3 rounded-md">
-                              <LinkifiedText
-                                text={item.analysis.summary}
-                                linkClassName="text-primary hover:opacity-80"
-                              />
-                            </p>
-                          </div>
-                        )}
-
-                        {entityEntries.length > 0 && (
-                          <div className="grid gap-2">
-                            <span className="text-sm font-medium text-muted-foreground">{detailT('analysis.entities')}</span>
-                            <div className="flex flex-wrap gap-1.5">
-                              {entityEntries.flatMap(([type, values]) =>
-                                values.map((val, index) => (
-                                  <Badge key={`${type}-${index}`} variant="secondary" className="font-normal">
-                                    {val}
-                                  </Badge>
-                                ))
-                              )}
-                            </div>
-                          </div>
-                        )}
-                      </>
-                    )}
-                  </CardContent>
-                </Card>
+                  </div>
+                </>
               )}
             </div>
 
-            <div className="md:col-span-4 flex flex-col gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Settings2 className="h-4 w-4 text-muted-foreground" />
-                    {detailT('sections.properties')}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="grid gap-6">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="grid gap-1.5">
-                      <span className="text-xs text-muted-foreground">{detailT('metadata.source')}</span>
-                      <div><Badge variant="outline">{item.source}</Badge></div>
-                    </div>
-                    <div className="grid gap-1.5">
-                      <span className="text-xs text-muted-foreground">{detailT('metadata.status')}</span>
-                      <div><Badge variant={getStatusBadgeVariant(item.status)}>{statusLabelMap[item.status]}</Badge></div>
-                    </div>
-                  </div>
+            {/* Expandable Metadata */}
+            {!isEditing && (
+              <div className="pt-2">
+                <button
+                  onClick={() => setShowMetadata(!showMetadata)}
+                  className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <span>{showMetadata ? '隐藏' : '显示'}详细信息</span>
+                  <ChevronDown className={cn('h-3.5 w-3.5 transition-transform', showMetadata && 'rotate-180')} />
+                </button>
 
-                  <div className="grid gap-1.5">
-                    <span className="text-xs text-muted-foreground">{detailT('metadata.category')}</span>
-                    {isEditing ? (
-                      <select
-                        value={draftCategory}
-                        onChange={(event) => setDraftCategory(event.target.value)}
-                        className="h-9 rounded-md border border-white/45 bg-background/70 px-3 text-sm outline-none transition-colors focus-visible:border-white/80 focus-visible:ring-2 focus-visible:ring-white/20"
-                      >
-                        {normalizedCategoryOptions.map((option) => (
-                          <option key={option.key} value={option.key}>{option.name}</option>
-                        ))}
-                      </select>
-                    ) : (
-                      <div>
-                        <Badge
-                          variant="outline"
-                          className="border text-[11px] uppercase tracking-wide"
-                          style={categoryBadgeStyle}
-                        >
-                          {categoryLabel}
-                        </Badge>
-                      </div>
-                    )}
-                  </div>
-
-                  {typeof item.analysis?.confidence === 'number' && (
-                    <div className="grid gap-2">
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="text-muted-foreground">{detailT('analysis.confidence')}</span>
-                        <span className="font-medium text-muted-foreground">{(item.analysis.confidence * 100).toFixed(0)}%</span>
-                      </div>
-                      <div className="h-1 w-full bg-secondary rounded-full overflow-hidden">
-                        <div className="h-full bg-primary" style={{ width: `${Math.min(100, Math.max(0, item.analysis.confidence * 100))}%` }} />
-                      </div>
-                    </div>
-                  )}
-
-                  <Separator />
-
-                  <div className="grid gap-2">
-                    <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-                      <Share2 className="h-3 w-3" />
-                      {detailT('sections.distribution')}
-                    </div>
-
-                    {isRoutingProcessing && (
-                      <div className="rounded-md bg-muted/30 p-3">
-                        <div className="flex items-center gap-2 text-xs font-semibold text-primary">
-                          <span className="truncate">{categoryLabel}</span>
-                          <RoutingProgressDots />
-                          <span className="truncate" title={liveRoutingTitle}>
-                            {liveRoutingTarget || inboxT('routingStatus.processing')}
-                          </span>
-                        </div>
-                        <p className="mt-1 text-[11px] text-muted-foreground break-words">
-                          {routingProgress.message || inboxT('routingStatus.processing')}
-                        </p>
+                {showMetadata && (
+                  <div className="mt-4 space-y-4 text-xs text-muted-foreground">
+                    {/* Analysis Summary */}
+                    {item.analysis?.summary && (
+                      <div className="space-y-2">
+                        <span className="font-medium">{detailT('analysis.summary')}</span>
+                        <p className="leading-relaxed">{item.analysis.summary}</p>
                       </div>
                     )}
 
-                    {distributionEntries.length > 0 ? (
-                      <div className="bg-muted/30 rounded-md p-3 space-y-2">
-                        {distributionEntries.map((entry) => (
-                          <div key={entry.key} className="flex items-center gap-2.5 text-xs">
-                            {entry.isSuccess ? (
-                              <div className="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-green-500" />
-                            ) : (
-                              <div className="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-red-500" />
-                            )}
-                            <span className="flex-1 truncate text-muted-foreground">{entry.target}</span>
+                    {/* Distribution Info */}
+                    {(isRoutingProcessing || item.distributedTargets || item.distributionResults) && (
+                      <div className="space-y-2">
+                        <span className="font-medium">{detailT('sections.distribution')}</span>
+                        {isRoutingProcessing && (
+                          <div className="flex items-center gap-2">
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                            <span className="text-primary">{inboxT('routingStatus.processing')}</span>
                           </div>
-                        ))}
+                        )}
+                        {item.distributedTargets && item.distributedTargets.length > 0 && (
+                          <div className="space-y-1">
+                            {item.distributedTargets.map((target, index) => (
+                              <div key={index} className="flex items-center gap-2">
+                                <CheckCircle2 className="h-3 w-3 text-green-500" />
+                                <span>{getDistributionTargetLabel(target, index)}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                    ) : (
-                      <p className="text-xs text-muted-foreground italic pl-1">No distribution.</p>
                     )}
-                  </div>
 
-                  <Separator />
-
-                  <div className="grid gap-4 text-xs">
-                    <div className="grid gap-2">
-                      <span className="text-muted-foreground">{detailT('metadata.contentType')}</span>
-                      <div className="flex flex-wrap gap-2">
-                        {contentTypeTags.map((tag) => (
-                          <Badge key={tag} variant="secondary" className="text-[11px] px-2 py-0.5">
-                            {tag}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 gap-2">
-                      <div className="flex justify-between gap-3">
-                        <span className="text-muted-foreground">{detailT('metadata.createdAt')}</span>
-                        <span className="font-medium text-right">{formatRelativeTime(item.createdAtLocal ?? item.createdAt, time)}</span>
-                      </div>
-                      <div className="flex justify-between gap-3">
-                        <span className="text-muted-foreground">{detailT('metadata.updatedAt')}</span>
-                        <span className="font-medium text-right">{formatRelativeTime(item.updatedAtLocal ?? item.updatedAt, time)}</span>
-                      </div>
-                    </div>
-
-                    <Separator />
-
-                    <div className="grid gap-1">
-                      <span className="text-muted-foreground">{detailT('metadata.id')}</span>
-                      <code className="bg-muted rounded px-2 py-1 font-mono text-[10px] break-all select-all">
-                        {item.id}
-                      </code>
+                    {/* ID */}
+                    <div className="font-mono text-[10px] select-all break-all">
+                      ID: {item.id}
                     </div>
                   </div>
-                </CardContent>
-              </Card>
-            </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
-        <div className="px-4 pb-3 pt-2 sm:px-6">
-          <div className="flex flex-wrap items-center justify-end gap-2.5">
+        {/* Footer Actions */}
+        <Separator />
+
+        <div className="flex items-center justify-between px-6 py-3">
+          <div className="flex items-center gap-2">
             {isEditing ? (
               <>
                 <Button
                   onClick={handleCancelEdit}
-                  variant="outline"
-                  className="h-9 rounded-lg"
+                  variant="ghost"
+                  size="sm"
                   disabled={Boolean(isSavingEdit)}
+                  className="h-8 text-xs"
                 >
                   {detailT('actions.cancelEdit')}
                 </Button>
                 <Button
                   onClick={handleSaveEdit}
-                  className="h-9 rounded-lg"
+                  size="sm"
                   disabled={Boolean(isSavingEdit)}
+                  className="h-8 text-xs"
                 >
-                  {isSavingEdit ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                  {isSavingEdit ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
                   {detailT('actions.saveEdit')}
                 </Button>
               </>
@@ -699,54 +479,48 @@ export function DetailModal({
                 <Button
                   onClick={handleStartEdit}
                   disabled={isAnalyzing}
-                  variant="outline"
-                  className="h-9 rounded-lg border-white/80 bg-white text-slate-900 hover:bg-white/90 hover:text-slate-950 dark:border-white/90 dark:bg-white dark:text-slate-950 dark:hover:bg-white/90"
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 gap-1.5 text-xs font-medium"
                 >
-                  <Pencil className="h-4 w-4" />
+                  <Pencil className="h-3.5 w-3.5" />
                   {detailT('actions.editContent')}
                 </Button>
 
-                {onReclassify && (
-                  <Button
-                    onClick={() => onReclassify(item.id)}
-                    disabled={isAnalyzing || reclassifying}
-                    variant="outline"
-                    className="h-9 rounded-lg"
-                  >
-                    {reclassifying ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Sparkles className="h-4 w-4" />
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      disabled={isAnalyzing}
+                    >
+                      <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start">
+                    {onReclassify && (
+                      <DropdownMenuItem
+                        onClick={() => onReclassify(item.id)}
+                        disabled={isAnalyzing || reclassifying}
+                      >
+                        <Sparkles className="h-4 w-4 mr-2" />
+                        {detailT('actions.reclassify')}
+                      </DropdownMenuItem>
                     )}
-                    {detailT('actions.reclassify')}
-                  </Button>
-                )}
-
-                <Button
-                  onClick={() => onRedistribute?.(item.id)}
-                  disabled={isAnalyzing || redistributing}
-                  variant="outline"
-                  className="h-9 rounded-lg border-white/80 bg-white text-slate-900 hover:bg-white/90 hover:text-slate-950 dark:border-white/90 dark:bg-white dark:text-slate-950 dark:hover:bg-white/90"
-                >
-                  {redistributing ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Send className="h-4 w-4" />
-                  )}
-                  {detailT('actions.redistribute')}
-                </Button>
+                    <DropdownMenuItem
+                      onClick={() => onRedistribute?.(item.id)}
+                      disabled={isAnalyzing || redistributing}
+                    >
+                      <Send className="h-4 w-4 mr-2" />
+                      {detailT('actions.redistribute')}
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </>
             )}
           </div>
         </div>
-
-        <style jsx>{`
-          @keyframes routing-dot-pulse {
-            0% { opacity: 0.2; transform: scale(0.82); }
-            50% { opacity: 0.75; transform: scale(1); }
-            100% { opacity: 0.2; transform: scale(0.82); }
-          }
-        `}</style>
       </DialogContent>
     </Dialog>
   )

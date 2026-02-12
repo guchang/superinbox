@@ -376,7 +376,12 @@
     },
     "edit": {
       "placeholder": "输入条目内容...",
-      "shortcutHint": "按 Cmd/Ctrl + Enter 保存"
+      "shortcutHint": "按 Cmd/Ctrl + Enter 保存",
+      "mode": {
+        "write": "编辑",
+        "preview": "预览"
+      },
+      "previewEmpty": "暂无可预览内容"
     },
     "categories": {
       "todo": "待办",
@@ -458,6 +463,13 @@
       },
       "redistributeFailure": {
         "title": "重新分发失败"
+      },
+      "updateSuccess": {
+        "title": "保存成功",
+        "description": "条目内容已更新"
+      },
+      "updateFailure": {
+        "title": "保存失败"
       }
     }
   },

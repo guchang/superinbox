@@ -1,4 +1,7 @@
 import { test, expect } from '@playwright/test';
+import React from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { MarkdownContent } from '../src/components/shared/markdown-content';
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/v1';
 
@@ -149,5 +152,44 @@ test.describe('API Keys Authentication', () => {
     expect(testKey).toBeDefined();
     expect(testKey.lastUsedAt).not.toBeNull();
     expect(testKey.lastUsedAt).not.toBeUndefined();
+  });
+});
+
+test.describe('Markdown rendering (pure)', () => {
+  test('should render GFM task list and table', async () => {
+    const markdown = [
+      '# Demo',
+      '',
+      '- [x] done',
+      '- [ ] todo',
+      '',
+      '| Name | Value |',
+      '| --- | --- |',
+      '| A | 1 |',
+    ].join('\n');
+
+    const html = renderToStaticMarkup(
+      React.createElement(MarkdownContent, { text: markdown })
+    );
+
+    expect(html).toContain('<h1>Demo</h1>');
+    expect(html).toContain('<li class="task-list-item">');
+    expect(html).toContain('<table>');
+  });
+
+  test('should escape html and reject unsafe markdown links', async () => {
+    const markdown = [
+      '<script>alert(1)</script>',
+      '[x](javascript:alert(1))',
+      '[safe](https://example.com)',
+    ].join('\n');
+
+    const html = renderToStaticMarkup(
+      React.createElement(MarkdownContent, { text: markdown })
+    );
+
+    expect(html).toContain('&lt;script&gt;alert(1)&lt;/script&gt;');
+    expect(html).toContain('<a href="https://example.com/" target="_blank" rel="noopener noreferrer">safe</a>');
+    expect(html).not.toContain('javascript:alert(1)');
   });
 });

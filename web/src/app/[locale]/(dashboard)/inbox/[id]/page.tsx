@@ -1,7 +1,7 @@
 "use client"
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useMemo } from 'react'
+import { useMemo, useState, useEffect, useCallback } from 'react'
 import { useParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { useTheme } from 'next-themes'
@@ -12,9 +12,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Textarea } from '@/components/ui/textarea'
 import { formatRelativeTime } from '@/lib/utils'
 import { CategoryType, ContentType, ItemStatus } from '@/types'
-import { ArrowLeft, RefreshCw, Sparkles, Trash2, Loader2, Share2, Clock, FileText, CheckCircle2, XCircle, AlertCircle, Paperclip, Settings2 } from 'lucide-react'
+import { ArrowLeft, RefreshCw, Sparkles, Trash2, Loader2, Share2, FileText, AlertCircle, Paperclip, Settings2, Pencil } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { FilePreview } from '@/components/file-preview'
 import { useAutoRefetch } from '@/hooks/use-auto-refetch'
@@ -22,6 +24,7 @@ import { getApiErrorMessage } from '@/lib/i18n/api-errors'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog'
 import { getCategoryBadgeStyle, resolveCategoryColor, resolveCategoryIconName } from '@/lib/category-appearance'
 import { LinkifiedText } from '@/components/shared/linkified-text'
+import { MarkdownContent } from '@/components/shared/markdown-content'
 
 export default function InboxDetailPage() {
   const t = useTranslations('inboxDetail')
@@ -66,6 +69,52 @@ export default function InboxDetailPage() {
       Array.from(categoryMetaMap.entries()).map(([key, meta]) => [key, meta.name])
     )
   }, [categoryMetaMap])
+
+  const [isEditing, setIsEditing] = useState(false)
+  const [draftContent, setDraftContent] = useState('')
+  const [draftCategory, setDraftCategory] = useState('unknown')
+  const [editModeTab, setEditModeTab] = useState<'write' | 'preview'>('write')
+  const currentItemId = item?.id ?? null
+  const currentItemContent = item?.content ?? ''
+  const currentItemCategory = item?.analysis?.category ?? 'unknown'
+
+  const categoryOptions = useMemo(() => {
+    const fallback = [
+      { key: 'todo', name: t('categories.todo') },
+      { key: 'idea', name: t('categories.idea') },
+      { key: 'expense', name: t('categories.expense') },
+      { key: 'note', name: t('categories.note') },
+      { key: 'bookmark', name: t('categories.bookmark') },
+      { key: 'schedule', name: t('categories.schedule') },
+      { key: 'unknown', name: t('categories.unknown') },
+    ]
+
+    const activeCategories = (categoriesData?.data || []).filter((category) => category.isActive !== false)
+    const baseOptions = activeCategories.length > 0
+      ? activeCategories.map((category) => ({ key: category.key, name: category.name }))
+      : fallback
+
+    const optionMap = new Map<string, string>()
+    baseOptions.forEach((option) => {
+      const key = String(option.key ?? '').trim()
+      const name = String(option.name ?? '').trim()
+      if (!key) return
+      optionMap.set(key, name || key)
+    })
+
+    if (!optionMap.has('unknown')) {
+      optionMap.set('unknown', t('categories.unknown'))
+    }
+
+    return Array.from(optionMap.entries()).map(([key, name]) => ({ key, name }))
+  }, [categoriesData, t])
+
+  useEffect(() => {
+    if (!currentItemId) return
+    setDraftContent(currentItemContent)
+    setDraftCategory(currentItemCategory)
+    setEditModeTab('write')
+  }, [currentItemId, currentItemContent, currentItemCategory])
 
   // Mutations
   const deleteMutation = useMutation({
@@ -131,6 +180,37 @@ export default function InboxDetailPage() {
     },
   })
 
+  const updateMutation = useMutation({
+    mutationFn: async ({ content, category }: { content: string; category: string }) => {
+      const response = await inboxApi.updateItem(id, { content, category })
+      if (!response.success || !response.data) {
+        throw new Error(response.error || response.message || 'Failed to update item')
+      }
+      return response.data
+    },
+    onSuccess: (updatedItem) => {
+      queryClient.invalidateQueries({ queryKey: ['inbox'] })
+      queryClient.invalidateQueries({ queryKey: ['inbox', id] })
+
+      setDraftContent(updatedItem.content ?? '')
+      setDraftCategory(updatedItem.analysis?.category ?? 'unknown')
+      setIsEditing(false)
+      setEditModeTab('write')
+
+      toast({
+        title: t('toast.updateSuccess.title'),
+        description: t('toast.updateSuccess.description'),
+      })
+    },
+    onError: (error) => {
+      toast({
+        title: t('toast.updateFailure.title'),
+        description: getApiErrorMessage(error, errors, common('unknownError')),
+        variant: 'destructive',
+      })
+    },
+  })
+
   // Smart auto-refetch: only poll when necessary
   // - When item is actively being processed (PROCESSING status)
   // - When user manually triggers reclassify/redistribute operations
@@ -145,6 +225,29 @@ export default function InboxDetailPage() {
       redistributeMutation.isPending
     ),
   })
+
+  const handleStartEdit = useCallback(() => {
+    if (!item) return
+    setDraftContent(item.content ?? '')
+    setDraftCategory(item.analysis?.category ?? 'unknown')
+    setEditModeTab('write')
+    setIsEditing(true)
+  }, [item])
+
+  const handleCancelEdit = useCallback(() => {
+    if (!item) return
+    setDraftContent(item.content ?? '')
+    setDraftCategory(item.analysis?.category ?? 'unknown')
+    setEditModeTab('write')
+    setIsEditing(false)
+  }, [item])
+
+  const handleSaveEdit = useCallback(async () => {
+    await updateMutation.mutateAsync({
+      content: draftContent,
+      category: draftCategory,
+    })
+  }, [updateMutation, draftContent, draftCategory])
 
   const contentTypeTags = useMemo(() => {
     if (!item) return []
@@ -207,15 +310,6 @@ export default function InboxDetailPage() {
     [ItemStatus.FAILED]: t('status.failed'),
   }
 
-  const contentTypeLabelMap: Record<ContentType, string> = {
-    [ContentType.TEXT]: t('contentType.text'),
-    [ContentType.IMAGE]: t('contentType.image'),
-    [ContentType.URL]: t('contentType.url'),
-    [ContentType.AUDIO]: t('contentType.audio'),
-    [ContentType.VIDEO]: t('contentType.video'),
-    [ContentType.FILE]: t('contentType.file'),
-  }
-
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-32">
@@ -255,8 +349,10 @@ export default function InboxDetailPage() {
   )
   const entityEntries = Object.entries(entityGroups)
   const categoryKey = item.analysis?.category ?? 'unknown'
+  const selectedCategoryKey = isEditing ? draftCategory : categoryKey
   const categoryLabel =
-    categoryLabelMap.get(categoryKey) ||
+    categoryOptions.find((option) => option.key === selectedCategoryKey)?.name ||
+    categoryLabelMap.get(selectedCategoryKey) ||
     ({
       [CategoryType.TODO]: t('categories.todo'),
       [CategoryType.IDEA]: t('categories.idea'),
@@ -265,11 +361,11 @@ export default function InboxDetailPage() {
       [CategoryType.BOOKMARK]: t('categories.bookmark'),
       [CategoryType.SCHEDULE]: t('categories.schedule'),
       [CategoryType.UNKNOWN]: t('categories.unknown'),
-    }[categoryKey] || categoryKey)
+    }[selectedCategoryKey] || selectedCategoryKey)
 
   const categoryBadgeStyle = getCategoryBadgeStyle(
-    categoryKey,
-    categoryMetaMap.get(categoryKey)?.color,
+    selectedCategoryKey,
+    categoryMetaMap.get(selectedCategoryKey)?.color,
     isDark ? 'dark' : 'light'
   )
 
@@ -308,61 +404,94 @@ export default function InboxDetailPage() {
 
         {/* Global Page Actions */}
         <div className="flex items-center gap-2 mt-2 sm:mt-0">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => refetch()}
-            disabled={isPolling}
-          >
-            <RefreshCw className={`h-3.5 w-3.5 mr-2 ${isPolling ? 'animate-spin' : ''}`} />
-            {t('actions.refresh')}
-          </Button>
-
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => reclassifyMutation.mutate()}
-            disabled={reclassifyMutation.isPending || item.status === ItemStatus.PROCESSING}
-          >
-            {reclassifyMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-2" /> : <Sparkles className="h-3.5 w-3.5 mr-2" />}
-            {t('actions.reclassify')}
-          </Button>
-
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => redistributeMutation.mutate()}
-            disabled={redistributeMutation.isPending || item.status === ItemStatus.PROCESSING}
-          >
-            {redistributeMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-2" /> : <Share2 className="h-3.5 w-3.5 mr-2" />}
-            {t('actions.redistribute')}
-          </Button>
-
-          {/* Delete Dialog */}
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
+          {isEditing ? (
+            <>
               <Button
                 variant="outline"
                 size="sm"
-                className="text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/20"
-                disabled={deleteMutation.isPending}
+                onClick={handleCancelEdit}
+                disabled={updateMutation.isPending}
               >
-                {deleteMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-2" /> : <Trash2 className="h-3.5 w-3.5 mr-2" />}
-                {common('delete')}
+                {t('actions.cancelEdit')}
               </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>{t('confirmDelete')}</AlertDialogTitle>
-                <AlertDialogDescription>
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>{common('cancel')}</AlertDialogCancel>
-                <AlertDialogAction onClick={() => deleteMutation.mutate()}>{common('delete')}</AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+              <Button
+                size="sm"
+                onClick={() => {
+                  void handleSaveEdit()
+                }}
+                disabled={updateMutation.isPending || !draftContent.trim()}
+              >
+                {updateMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-2" /> : null}
+                {t('actions.saveEdit')}
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleStartEdit}
+                disabled={item.status === ItemStatus.PROCESSING}
+              >
+                <Pencil className="h-3.5 w-3.5 mr-2" />
+                {t('actions.editContent')}
+              </Button>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => refetch()}
+                disabled={isPolling}
+              >
+                <RefreshCw className={`h-3.5 w-3.5 mr-2 ${isPolling ? 'animate-spin' : ''}`} />
+                {t('actions.refresh')}
+              </Button>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => reclassifyMutation.mutate()}
+                disabled={reclassifyMutation.isPending || item.status === ItemStatus.PROCESSING}
+              >
+                {reclassifyMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-2" /> : <Sparkles className="h-3.5 w-3.5 mr-2" />}
+                {t('actions.reclassify')}
+              </Button>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => redistributeMutation.mutate()}
+                disabled={redistributeMutation.isPending || item.status === ItemStatus.PROCESSING}
+              >
+                {redistributeMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-2" /> : <Share2 className="h-3.5 w-3.5 mr-2" />}
+                {t('actions.redistribute')}
+              </Button>
+
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/20"
+                    disabled={deleteMutation.isPending}
+                  >
+                    {deleteMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-2" /> : <Trash2 className="h-3.5 w-3.5 mr-2" />}
+                    {common('delete')}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>{t('confirmDelete')}</AlertDialogTitle>
+                    <AlertDialogDescription />
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>{common('cancel')}</AlertDialogCancel>
+                    <AlertDialogAction onClick={() => deleteMutation.mutate()}>{common('delete')}</AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </>
+          )}
         </div>
       </div>
 
@@ -379,19 +508,47 @@ export default function InboxDetailPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className={`
-                text-sm leading-relaxed min-h-[120px]
-                ${item.contentType === ContentType.URL ? 'font-mono break-all text-blue-600' : 'whitespace-pre-wrap break-words'}
-              `}>
-                {item.content?.trim() ? (
-                  <LinkifiedText
-                    text={item.content.trim()}
-                    linkClassName="text-current hover:opacity-80"
+              {isEditing ? (
+                <Tabs
+                  value={editModeTab}
+                  onValueChange={(value) => setEditModeTab(value as 'write' | 'preview')}
+                  className="grid gap-3"
+                >
+                  <TabsList className="h-8 w-fit">
+                    <TabsTrigger value="write" className="px-2 text-xs">
+                      {t('edit.mode.write')}
+                    </TabsTrigger>
+                    <TabsTrigger value="preview" className="px-2 text-xs">
+                      {t('edit.mode.preview')}
+                    </TabsTrigger>
+                  </TabsList>
+
+                  <TabsContent value="write" className="mt-0">
+                    <Textarea
+                      value={draftContent}
+                      onChange={(event) => setDraftContent(event.target.value)}
+                      className="min-h-[220px] border border-white/45 bg-background/70 text-sm leading-relaxed focus-visible:border-white/80 focus-visible:ring-white/30"
+                      placeholder={t('edit.placeholder')}
+                    />
+                  </TabsContent>
+
+                  <TabsContent value="preview" className="mt-0">
+                    <div className="min-h-[220px] rounded-md border border-border/80 bg-background/60 p-4">
+                      <MarkdownContent
+                        text={draftContent}
+                        emptyText={t('edit.previewEmpty')}
+                      />
+                    </div>
+                  </TabsContent>
+                </Tabs>
+              ) : (
+                <div className="min-h-[120px]">
+                  <MarkdownContent
+                    text={item.content ?? ''}
+                    emptyText={t('content.empty')}
                   />
-                ) : (
-                  <span className="text-muted-foreground italic">{t('content.empty')}</span>
-                )}
-              </div>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -486,15 +643,29 @@ export default function InboxDetailPage() {
               {categoryLabel && (
                 <div className="grid gap-1.5">
                   <span className="text-xs text-muted-foreground">{t('metadata.category')}</span>
-                  <div>
-                    <Badge
-                      variant="outline"
-                      className="border text-[11px] uppercase tracking-wide"
-                      style={categoryBadgeStyle}
+                  {isEditing ? (
+                    <select
+                      value={draftCategory}
+                      onChange={(event) => setDraftCategory(event.target.value)}
+                      className="h-9 rounded-md border border-white/45 bg-background/70 px-3 text-sm outline-none transition-colors focus-visible:border-white/80 focus-visible:ring-2 focus-visible:ring-white/20"
                     >
-                      {categoryLabel}
-                    </Badge>
-                  </div>
+                      {categoryOptions.map((option) => (
+                        <option key={option.key} value={option.key}>
+                          {option.name}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <div>
+                      <Badge
+                        variant="outline"
+                        className="border text-[11px] uppercase tracking-wide"
+                        style={categoryBadgeStyle}
+                      >
+                        {categoryLabel}
+                      </Badge>
+                    </div>
+                  )}
                 </div>
               )}
 

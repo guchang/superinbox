@@ -375,7 +375,12 @@
     },
     "edit": {
       "placeholder": "Type item content...",
-      "shortcutHint": "Cmd/Ctrl + Enter to save"
+      "shortcutHint": "Cmd/Ctrl + Enter to save",
+      "mode": {
+        "write": "Write",
+        "preview": "Preview"
+      },
+      "previewEmpty": "Nothing to preview yet"
     },
     "categories": {
       "todo": "Todo",
@@ -457,6 +462,13 @@
       },
       "redistributeFailure": {
         "title": "Redistribution failed"
+      },
+      "updateSuccess": {
+        "title": "Saved",
+        "description": "Item content updated"
+      },
+      "updateFailure": {
+        "title": "Save failed"
       }
     }
   },
