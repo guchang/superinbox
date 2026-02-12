@@ -664,7 +664,7 @@ function MemoryCardComponent({
           </div>
 
           <div className="flex shrink-0 items-center gap-1">
-            <span className={cn('text-[10px] font-medium uppercase tracking-[0.08em]', isDark ? 'text-white/42' : 'text-slate-400')}>
+            <span className={cn('text-[10px] font-medium tracking-[0.02em]', isDark ? 'text-white/42' : 'text-slate-400')}>
               {relativeTimeLabel}
             </span>
 

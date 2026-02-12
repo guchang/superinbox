@@ -365,7 +365,7 @@ export const ExpandableInput = forwardRef<ExpandableInputHandle, ExpandableInput
             )}
           >
             <Plus size={16} strokeWidth={2.8} />
-            <span className="text-xs font-black uppercase tracking-wide">{t('captureButton')}</span>
+            <span className="text-xs font-semibold tracking-[0.02em]">{t('captureButton')}</span>
           </motion.button>
         )}
       </AnimatePresence>
@@ -586,7 +586,7 @@ export const ExpandableInput = forwardRef<ExpandableInputHandle, ExpandableInput
                   disabled={!hasInputContent && !hasSelectedFiles}
                   aria-label={t('captureButton')}
                   className={cn(
-                    'px-6 py-2 rounded-2xl text-[11px] font-black uppercase tracking-widest',
+                    'px-6 py-2 rounded-2xl text-[11px] font-semibold tracking-[0.03em]',
                     'flex items-center justify-center transition-all',
                     'bg-primary text-primary-foreground hover:bg-primary/90',
                     'disabled:opacity-30 disabled:cursor-not-allowed'

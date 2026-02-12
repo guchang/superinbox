@@ -886,7 +886,7 @@ export default function CategoryPage() {
                 const categoryColor = resolveCategoryColor(category.key, category.color)
 
                 return (
-                  <Card key={category.id} className="group relative overflow-hidden rounded-[24px] border border-black/[0.04] bg-white shadow-sm transition-all hover:shadow-xl dark:border-white/[0.06] dark:bg-white/[0.02] dark:hover:border-white/20">
+                  <Card key={category.id} className="group relative overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-shadow hover:shadow-md dark:border-border dark:bg-background/70 dark:hover:border-border">
                     <CardHeader className="pb-3">
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex min-w-0 flex-1 items-start gap-3">
