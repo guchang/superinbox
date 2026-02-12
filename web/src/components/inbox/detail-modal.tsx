@@ -519,7 +519,7 @@ export function DetailModal({
                   }}
                   disabled={Boolean(isSavingEdit) || isCategorySaving}
                 >
-                  <SelectTrigger className="h-7 px-2.5 py-1 min-w-[120px] sm:min-w-[140px] border border-border/50 bg-background/80 backdrop-blur-sm hover:bg-accent/50 focus:ring-1 focus:ring-ring/50 focus:ring-offset-0 transition-colors">
+                  <SelectTrigger className="h-7 px-2.5 py-1 min-w-[120px] sm:min-w-[140px] border border-border bg-background/80 backdrop-blur-sm hover:bg-accent/50 focus:ring-1 focus:ring-ring/50 focus:ring-offset-0 transition-colors">
                     <SelectValue className="text-xs" />
                   </SelectTrigger>
                   <SelectContent>
@@ -576,7 +576,7 @@ export function DetailModal({
                 <Textarea
                   value={draftContent}
                   onChange={(event) => setDraftContent(event.target.value)}
-                  className="min-h-[220px] resize-none border border-border/70 bg-background/40 p-4 text-base leading-relaxed focus-visible:ring-1 focus-visible:ring-ring"
+                  className="min-h-[220px] resize-none border border-border bg-background/40 p-4 text-base leading-relaxed focus-visible:ring-1 focus-visible:ring-ring"
                   placeholder={detailT('edit.placeholder')}
                   autoFocus
                 />
@@ -607,7 +607,7 @@ export function DetailModal({
 
             {/* Distribution Info */}
             {!isEditing && (
-              <div className="space-y-3 rounded-xl border border-border/70 bg-muted/20 p-4">
+              <div className="space-y-3 rounded-xl border border-border bg-muted/20 p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2 text-sm font-medium">
                     <Send className="h-3.5 w-3.5 text-muted-foreground" />
@@ -628,7 +628,7 @@ export function DetailModal({
                     {distributionEntries.map((entry) => (
                       <div
                         key={entry.key}
-                        className="grid gap-2 rounded-md border border-border/60 bg-background/70 px-3 py-2 text-sm sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-center"
+                        className="grid gap-2 rounded-md border border-border bg-background/70 px-3 py-2 text-sm sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-center"
                       >
                         <div className="min-w-0">
                           <p className="truncate font-medium">{entry.target}</p>
@@ -668,7 +668,7 @@ export function DetailModal({
                 </button>
 
                 {showMetadata && (
-                  <div className="mt-4 space-y-4 rounded-xl border border-border/70 bg-muted/20 p-4 text-xs text-muted-foreground">
+                  <div className="mt-4 space-y-4 rounded-xl border border-border bg-muted/20 p-4 text-xs text-muted-foreground">
                     {/* Analysis Summary */}
                     {item.analysis?.summary && (
                       <div className="space-y-2">

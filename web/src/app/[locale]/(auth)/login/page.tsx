@@ -61,7 +61,7 @@ export default function LoginPage() {
         <div className="absolute top-0 left-0 w-64 h-64 bg-gradient-to-br from-muted/70 to-transparent dark:from-muted/40 rounded-full blur-3xl opacity-60 dark:opacity-40 -translate-x-1/2 -translate-y-1/2" />
         <div className="absolute bottom-0 right-0 w-80 h-80 bg-gradient-to-tl from-muted/70 to-transparent dark:from-muted/40 rounded-full blur-3xl opacity-60 dark:opacity-40 translate-x-1/3 translate-y-1/3" />
 
-        <Card className="w-full max-w-md border-border/60 shadow-[0_2px_8px_rgba(0,0,0,0.04),0_8px_32px_rgba(0,0,0,0.04)] dark:shadow-[0_2px_12px_rgba(0,0,0,0.5)] bg-card/80 backdrop-blur-sm animate-fade-in-up">
+        <Card className="w-full max-w-md border-border shadow-[0_2px_8px_rgba(0,0,0,0.04),0_8px_32px_rgba(0,0,0,0.04)] dark:shadow-[0_2px_12px_rgba(0,0,0,0.5)] bg-card/80 backdrop-blur-sm animate-fade-in-up">
           <CardHeader className="space-y-3 pt-8 pb-4">
             {/* Brand mark */}
             <div className="flex justify-center mb-2 animate-fade-in-up delay-100">

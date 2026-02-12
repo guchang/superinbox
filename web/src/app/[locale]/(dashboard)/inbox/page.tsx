@@ -791,12 +791,12 @@ export default function InboxPage() {
     : normalizedQuery
 
   return (
-    <div className="relative h-full flex flex-col bg-[#f5f5f7] dark:bg-[#0b0b0f]">
+    <div className="relative h-full flex flex-col bg-background">
       {/* 顶部区域：标题、搜索、类型筛选 */}
       {/* playground 风格：移除固定容器限制，让输入框可以自由定位 */}
       <div
         ref={desktopDropZoneRef}
-        className="hidden md:block shrink-0 px-4 md:px-6 pt-6 pb-4 bg-white/50 dark:bg-[#0b0b0f]/50 backdrop-blur-xl relative"
+        className="hidden md:block shrink-0 px-4 md:px-6 pt-6 pb-4 bg-card/70 dark:bg-background/50 backdrop-blur-xl relative"
         onDragEnter={handleComposerDragEnter}
         onDragOver={handleComposerDragOver}
         onDragLeave={handleComposerDragLeave}
@@ -866,7 +866,7 @@ export default function InboxPage() {
       />
 
       {/* 结果区域 */}
-      <div className="flex-1 overflow-y-auto p-4 md:p-6 bg-black/[0.01] dark:bg-[#0b0b0f]/40">
+      <div className="flex-1 overflow-y-auto p-4 md:p-6 bg-muted/20 dark:bg-background/40">
         <div className="flex flex-col gap-2 pb-3.5 md:flex-row md:items-center md:justify-between md:gap-4 md:pb-4">
           <div className="flex items-center gap-2 min-w-0 flex-wrap md:flex-nowrap md:shrink-0">
             <span className="text-lg md:text-xl font-semibold tracking-tight shrink-0">

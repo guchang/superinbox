@@ -38,7 +38,7 @@ export const MARKDOWN_CONTENT_CLASSNAME = [
   '[&_table]:w-full [&_table]:border-collapse [&_table]:text-left',
   '[&_thead]:border-b [&_thead]:border-border',
   '[&_th]:px-2 [&_th]:py-1.5 [&_th]:text-xs [&_th]:font-semibold [&_th]:uppercase [&_th]:tracking-wide [&_th]:text-muted-foreground',
-  '[&_td]:border-b [&_td]:border-border/80 [&_td]:px-2 [&_td]:py-1.5',
+  '[&_td]:border-b [&_td]:border-border [&_td]:px-2 [&_td]:py-1.5',
 ].join(' ')
 
 export function MarkdownContent({ text, className, emptyText }: MarkdownContentProps) {

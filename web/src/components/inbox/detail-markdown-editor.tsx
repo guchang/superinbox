@@ -118,7 +118,7 @@ export function DetailMarkdownEditor({
   return (
     <div
       className={cn(
-        'relative min-h-[220px] rounded-md border border-border/80 bg-background/60 p-4 text-sm leading-relaxed',
+        'relative min-h-[220px] rounded-md border border-border bg-background/60 p-4 text-sm leading-relaxed',
         'focus-within:ring-2 focus-within:ring-ring/20',
         disabled && 'cursor-not-allowed opacity-70',
         className

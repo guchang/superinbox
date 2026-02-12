@@ -564,7 +564,7 @@ export default function InboxCapturePage() {
                         </span>
                       </div>
 
-                      <div className="relative overflow-hidden rounded-2xl rounded-tl-none border border-border/40 bg-card px-4 py-4 shadow-[0_10px_24px_rgba(15,23,42,0.06)] dark:border-white/10 dark:bg-card dark:shadow-[0_16px_40px_rgba(0,0,0,0.4)]">
+                      <div className="relative overflow-hidden rounded-2xl rounded-tl-none border border-border bg-card px-4 py-4 shadow-[0_10px_24px_rgba(15,23,42,0.06)] dark:border-white/10 dark:bg-card dark:shadow-[0_16px_40px_rgba(0,0,0,0.4)]">
                         <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/60 via-white/10 to-transparent opacity-20 dark:from-white/10 dark:via-white/5" />
                         {isEditing ? (
                           <div className="space-y-2">

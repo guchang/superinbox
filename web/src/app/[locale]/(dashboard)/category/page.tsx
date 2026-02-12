@@ -784,7 +784,7 @@ export default function CategoryPage() {
                       <TableCell className="min-w-[240px]">
                         <div className="flex min-w-0 items-center gap-3">
                           <span
-                            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-border/60"
+                            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-border"
                             style={iconStyle}
                           >
                             <CategoryIcon className="h-4 w-4" />
@@ -814,7 +814,7 @@ export default function CategoryPage() {
                                 <Badge
                                   key={`${category.id}-${index}`}
                                   variant="outline"
-                                  className="max-w-[220px] truncate border-border/70 bg-muted/30 text-xs text-muted-foreground"
+                                  className="max-w-[220px] truncate border-border bg-muted/30 text-xs text-muted-foreground"
                                   title={example}
                                 >
                                   {example}
@@ -823,7 +823,7 @@ export default function CategoryPage() {
                               {extraExamples > 0 && (
                                 <Badge
                                   variant="outline"
-                                  className="border-border/70 bg-muted/20 text-xs text-muted-foreground"
+                                  className="border-border bg-muted/20 text-xs text-muted-foreground"
                                 >
                                   +{extraExamples}
                                 </Badge>
@@ -891,7 +891,7 @@ export default function CategoryPage() {
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex min-w-0 flex-1 items-start gap-3">
                           <span
-                            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-border/60"
+                            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-border"
                             style={iconStyle}
                           >
                             <CategoryIcon className="h-4 w-4" />
@@ -926,7 +926,7 @@ export default function CategoryPage() {
                             <Badge
                               key={`${category.id}-${index}`}
                               variant="outline"
-                              className="h-6 w-full max-w-full truncate border-border/70 bg-transparent px-2.5 text-xs text-muted-foreground sm:w-auto sm:max-w-[280px]"
+                              className="h-6 w-full max-w-full truncate border-border bg-transparent px-2.5 text-xs text-muted-foreground sm:w-auto sm:max-w-[280px]"
                               title={example}
                             >
                               {example}
@@ -935,7 +935,7 @@ export default function CategoryPage() {
                           {(category.examples || []).length > 3 && (
                             <Badge
                               variant="outline"
-                              className="h-6 border-border/70 bg-transparent px-2.5 text-xs text-muted-foreground"
+                              className="h-6 border-border bg-transparent px-2.5 text-xs text-muted-foreground"
                             >
                               +{(category.examples || []).length - 3}
                             </Badge>
@@ -1230,7 +1230,7 @@ export default function CategoryPage() {
                     return (
                       <div
                         key={item.selectionKey}
-                        className="rounded border border-border/70 px-3 py-2"
+                        className="rounded border border-border px-3 py-2"
                       >
                         <div className="flex items-start justify-between gap-2">
                           <div className="flex min-w-0 items-center gap-2">

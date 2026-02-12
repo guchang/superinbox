@@ -671,7 +671,7 @@ export function AppSidebar({ className }: AppSidebarProps) {
                         <SidebarMenuItem key={category.id}>
                           <div
                             className={cn(
-                              'flex items-center gap-2 rounded-xl border border-border/70 bg-background/70 px-2 py-1.5 transition-colors',
+                              'flex items-center gap-2 rounded-xl border border-border bg-background/70 px-2 py-1.5 transition-colors',
                               isDesktopIntentSort && 'cursor-grab active:cursor-grabbing',
                               isDragging && 'opacity-45',
                               isDragOver && 'border-primary/60 bg-primary/10'
@@ -729,7 +729,7 @@ export function AppSidebar({ className }: AppSidebarProps) {
                     })}
                     {unknownActiveCategory && (
                       <SidebarMenuItem key={unknownActiveCategory.id}>
-                        <div className="flex items-center gap-2 rounded-xl border border-border/60 bg-muted/30 px-2 py-1.5 opacity-75">
+                        <div className="flex items-center gap-2 rounded-xl border border-border bg-muted/30 px-2 py-1.5 opacity-75">
                           <GripVertical className="h-3.5 w-3.5 text-muted-foreground/40" />
                           <div className="flex min-w-0 flex-1 items-center gap-2">
                             <span

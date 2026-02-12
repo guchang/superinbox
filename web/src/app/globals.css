@@ -5,7 +5,7 @@
 @layer base {
   :root {
     /* Anytype UI 风格 - 浅色模式: #f5f5f7 (冷灰白) */
-    --background: 0 0% 96%;
+    --background: 240 11% 96.5%;
     --foreground: 222.2 84% 4.9%;
     /* 卡片: 纯白 + 细边框 + 阴影效果 */
     --card: 0 0% 100%;
@@ -45,7 +45,7 @@
 
   .dark {
     /* Anytype UI 风格 - 深色模式: #0b0b0f (极深紫黑) */
-    --background: 240 20% 4%;
+    --background: 240 15% 5.1%;
     --foreground: 210 40% 98%;
     /* 卡片: 极低透明度 (0.02) + 细边框 */
     --card: 240 5% 100% / 0.02;

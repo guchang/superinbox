@@ -570,8 +570,8 @@ function MemoryCardComponent({
       onClick={handleCardClick}
       className={cn(
         "group relative mb-4 flex min-h-[132px] break-inside-avoid overflow-hidden rounded-2xl border p-3.5 transition-shadow duration-200 md:mb-2.5 md:min-h-[140px]",
-        "border-slate-200/80 bg-white shadow-[0_4px_14px_-12px_rgba(15,23,42,0.28)] hover:shadow-[0_12px_24px_-18px_rgba(15,23,42,0.32)]",
-        "dark:border-white/10 dark:bg-[#17181d] dark:hover:border-white/15 dark:shadow-[0_10px_20px_-14px_rgba(2,6,23,0.72)]",
+        "border-border bg-card shadow-sm hover:shadow-md",
+        "dark:border-border dark:bg-background/70 dark:hover:border-border",
         isAnalyzing && "ring-1"
       )}
     >
@@ -705,11 +705,11 @@ function MemoryCardComponent({
               </DropdownMenuTrigger>
               <DropdownMenuContent
                 align="end"
-                className="z-50 w-36 border border-black/10 bg-white text-[11px] font-semibold text-slate-700 dark:border-white/10 dark:bg-[#272729] dark:text-white/70"
+                className="z-50 w-36 border border-border bg-popover text-[11px] font-semibold text-popover-foreground"
               >
                 <DropdownMenuItem
                   onClick={() => handleCopyContent()}
-                  className="cursor-pointer gap-2 text-[11px] font-semibold text-slate-700 focus:bg-black/5 dark:text-white/70 dark:focus:bg-white/10"
+                  className="cursor-pointer gap-2 text-[11px] font-semibold focus:bg-accent"
                 >
                   {copied ? (
                     <Check className="h-3.5 w-3.5" />
@@ -721,7 +721,7 @@ function MemoryCardComponent({
                 {onEdit && (
                   <DropdownMenuItem
                     onClick={() => onEdit(item)}
-                    className="cursor-pointer gap-2 text-[11px] font-semibold text-slate-700 focus:bg-black/5 dark:text-white/70 dark:focus:bg-white/10"
+                    className="cursor-pointer gap-2 text-[11px] font-semibold focus:bg-accent"
                   >
                     <Pencil className="h-3.5 w-3.5" />
                     <span>{t('actions.editContent')}</span>
@@ -730,7 +730,7 @@ function MemoryCardComponent({
                 {onReclassify && (
                   <DropdownMenuItem
                     onClick={() => onReclassify(item.id)}
-                    className="cursor-pointer gap-2 text-[11px] font-semibold text-slate-700 focus:bg-black/5 dark:text-white/70 dark:focus:bg-white/10"
+                    className="cursor-pointer gap-2 text-[11px] font-semibold focus:bg-accent"
                   >
                     <Sparkles className="h-3.5 w-3.5" />
                     <span>{t('actions.reclassify')}</span>
@@ -739,7 +739,7 @@ function MemoryCardComponent({
                 {onRedistribute && (
                   <DropdownMenuItem
                     onClick={() => onRedistribute(item.id)}
-                    className="cursor-pointer gap-2 text-[11px] font-semibold text-slate-700 focus:bg-black/5 dark:text-white/70 dark:focus:bg-white/10"
+                    className="cursor-pointer gap-2 text-[11px] font-semibold focus:bg-accent"
                   >
                     <Send className="h-3.5 w-3.5" />
                     <span>{t('actions.redistribute')}</span>
@@ -747,7 +747,7 @@ function MemoryCardComponent({
                 )}
                 <DropdownMenuItem
                   onClick={() => onDelete(item.id)}
-                  className="cursor-pointer gap-2 text-[11px] font-semibold text-rose-500 focus:bg-black/5 focus:text-rose-500 dark:focus:bg-white/10"
+                  className="cursor-pointer gap-2 text-[11px] font-semibold text-destructive focus:bg-accent focus:text-destructive"
                   disabled={deletingId === item.id}
                 >
                   <Trash2 className="h-3.5 w-3.5" />
@@ -762,7 +762,7 @@ function MemoryCardComponent({
         <div className="mb-3 flex-1">
           <h3 className={cn(
             "text-[16px] font-semibold leading-[1.58] sm:text-[17px]",
-            isAnalyzing ? 'text-muted-foreground italic' : (isDark ? 'text-white/92' : 'text-slate-900'),
+            isAnalyzing ? 'text-muted-foreground italic' : 'text-foreground',
             item.contentType === ContentType.URL ? 'break-all' : 'break-words',
             'whitespace-pre-wrap',
             "line-clamp-3"
@@ -798,7 +798,7 @@ function MemoryCardComponent({
                 <div
                   className={cn(
                     "w-full aspect-video rounded-2xl overflow-hidden relative border shadow-sm group",
-                    isDark ? "bg-black/40 border-white/10" : "bg-black/5 border-black/5"
+                    "bg-muted/30 border-border dark:bg-background/70 dark:border-border"
                   )}
                 >
                   <video
@@ -828,7 +828,7 @@ function MemoryCardComponent({
                       <span
                         className={cn(
                           "h-12 w-12 rounded-full flex items-center justify-center shadow-lg border",
-                          isDark ? "bg-white/10 border-white/20 text-white" : "bg-white/85 border-black/10 text-black"
+                          "bg-background/85 border-border text-foreground"
                         )}
                       >
                         <Play className="h-5 w-5" fill="currentColor" />
@@ -840,7 +840,7 @@ function MemoryCardComponent({
                 <div
                   className={cn(
                     "w-full p-3 rounded-xl flex items-center justify-between border",
-                    isDark ? "bg-white/5 border-white/10" : "bg-black/5 border-black/5"
+                    "bg-muted/30 border-border"
                   )}
                 >
                   <div className="flex items-center gap-3 min-w-0">
@@ -872,7 +872,7 @@ function MemoryCardComponent({
                     aria-label={filePreview('download')}
                     className={cn(
                       "p-2 rounded-lg transition-colors",
-                      isDark ? "text-white/40 hover:bg-white/10" : "text-black/40 hover:bg-black/5"
+                      "text-muted-foreground hover:bg-muted/50"
                     )}
                   >
                     <Download className="h-4 w-4" />

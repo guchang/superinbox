@@ -361,9 +361,7 @@ export const ExpandableInput = forwardRef<ExpandableInputHandle, ExpandableInput
               "fixed bottom-[calc(env(safe-area-inset-bottom)+16px)] right-4 flex h-12 items-center gap-2 rounded-full px-4 md:hidden",
               openMobile ? 'z-30 opacity-0 pointer-events-none' : 'z-[60]',
               "ring-1 transition-all duration-200 active:scale-95",
-              isDark
-                ? 'border border-white bg-[#151922] text-white ring-white/30 shadow-[0_14px_30px_rgba(0,0,0,0.38)]'
-                : 'bg-[#0f172a] text-white ring-black/10 shadow-[0_12px_28px_rgba(15,23,42,0.28)]'
+              'border border-border bg-card text-foreground ring-ring/30 shadow-lg'
             )}
           >
             <Plus size={16} strokeWidth={2.8} />
@@ -393,12 +391,8 @@ export const ExpandableInput = forwardRef<ExpandableInputHandle, ExpandableInput
               data-drop-target="compose"
               className={cn(
                 'relative border overflow-hidden shadow-2xl cursor-text transition-colors flex flex-col mx-auto w-full',
-                isDark ? 'bg-[#12121a] border-white/[0.1]' : 'bg-white border-black/[0.08]',
-                dropTargetActive && (
-                  isDark
-                    ? 'border-white/[0.14]'
-                    : 'border-black/[0.12]'
-                )
+                'bg-card border-border',
+                dropTargetActive && 'border-ring/50'
               )}
               onClick={(event) => {
                 if (isExpanded) {
@@ -594,7 +588,7 @@ export const ExpandableInput = forwardRef<ExpandableInputHandle, ExpandableInput
                   className={cn(
                     'px-6 py-2 rounded-2xl text-[11px] font-black uppercase tracking-widest',
                     'flex items-center justify-center transition-all',
-                    isDark ? 'bg-white text-black hover:bg-white/90' : 'bg-black text-white hover:bg-black/90',
+                    'bg-primary text-primary-foreground hover:bg-primary/90',
                     'disabled:opacity-30 disabled:cursor-not-allowed'
                   )}
                 >
