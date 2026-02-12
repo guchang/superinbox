@@ -81,6 +81,7 @@ router.get('/statistics', authenticate, (req: Request, res: Response): void => {
       pending: 0,
       processing: 0,
       completed: 0,
+      manual: 0,
       failed: 0,
       archived: 0,
     };

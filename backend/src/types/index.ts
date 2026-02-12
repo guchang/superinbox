@@ -41,6 +41,7 @@ export enum ItemStatus {
   PENDING = 'pending',     // 等待处理
   PROCESSING = 'processing', // 处理中
   COMPLETED = 'completed', // 已完成
+  MANUAL = 'manual',       // 手动分类
   FAILED = 'failed',       // 失败
   ARCHIVED = 'archived'    // 已归档
 }

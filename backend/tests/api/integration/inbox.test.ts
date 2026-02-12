@@ -287,6 +287,55 @@ ${'Paragraph with markdown content.\n\n'.repeat(600)}
     expect(getResponse.status).toBe(200);
     expect(getResponse.body).toHaveProperty('content', longMarkdown);
   });
+
+  it('should set status to manual when category is changed without explicit status', async () => {
+    const created = createTestItem({
+      category: 'todo',
+      status: 'failed',
+    });
+
+    const response = await request(app)
+      .put(`/v1/inbox/${created.id}`)
+      .set('Authorization', `Bearer ${testContext.testApiKey}`)
+      .send({
+        category: 'idea',
+      });
+
+    expect(response.status).toBe(200);
+    expect(response.body).toHaveProperty('success', true);
+    expect(response.body.data).toHaveProperty('category', 'idea');
+    expect(response.body.data).toHaveProperty('status', 'manual');
+
+    const getResponse = await request(app)
+      .get(`/v1/inbox/${created.id}`)
+      .set('Authorization', `Bearer ${testContext.testApiKey}`);
+
+    expect(getResponse.status).toBe(200);
+    expect(getResponse.body).toHaveProperty('status', 'manual');
+
+    cleanupTestItem(created.id);
+  });
+
+  it('should respect explicit status when category is changed', async () => {
+    const created = createTestItem({
+      category: 'todo',
+      status: 'completed',
+    });
+
+    const response = await request(app)
+      .put(`/v1/inbox/${created.id}`)
+      .set('Authorization', `Bearer ${testContext.testApiKey}`)
+      .send({
+        category: 'idea',
+        status: 'failed',
+      });
+
+    expect(response.status).toBe(200);
+    expect(response.body).toHaveProperty('success', true);
+    expect(response.body.data).toHaveProperty('status', 'failed');
+
+    cleanupTestItem(created.id);
+  });
 });
 
 // Task 5: DELETE /v1/inbox/:id

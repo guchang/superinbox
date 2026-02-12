@@ -59,7 +59,7 @@ const createItemSchema = z.object({
 const updateItemSchema = z.object({
   content: z.string().min(1).max(UPDATE_CONTENT_MAX_LENGTH).optional(),
   category: z.string().min(1).max(100).optional(),
-  status: z.enum(['pending', 'processing', 'completed', 'failed', 'archived']).optional()
+  status: z.enum(['pending', 'processing', 'completed', 'manual', 'failed', 'archived']).optional()
 });
 
 const searchSchema = z.object({
@@ -181,7 +181,9 @@ export class InboxController {
       res.json({
         id: item.id,
         content: item.originalContent,
+        contentType: item.contentType,
         source: item.source,
+        status: item.status,
         parsed: {
           category: item.category,
           confidence: typeof item.aiConfidence === 'number' ? item.aiConfidence : 0,
@@ -204,6 +206,7 @@ export class InboxController {
         routingStatus: item.routingStatus,
         createdAt: item.createdAt.toISOString(),
         updatedAt: item.updatedAt.toISOString(),
+        processedAt: item.processedAt ? item.processedAt.toISOString() : undefined,
         createdAtLocal,
         updatedAtLocal
       });
@@ -368,6 +371,8 @@ export class InboxController {
       }
       if (body.status !== undefined) {
         updates.status = body.status as ItemStatus;
+      } else if (body.category !== undefined && body.category !== existing.category) {
+        updates.status = ItemStatus.MANUAL;
       }
 
       const updated = this.db.updateItem(id, updates);
