@@ -28,6 +28,7 @@ import { MemoryCard } from '@/components/inbox/memory-card'
 import { ExpandableInput, type ExpandableInputHandle } from '@/components/inbox/expandable-input'
 import { DetailModal } from '@/components/inbox/detail-modal'
 import { SearchDialog, SearchFilters } from '@/components/shared/search-dialog'
+import { DashboardFilterBar, FilterPillButton } from '@/components/shared/filter-bar'
 import { useAutoRefetch } from '@/hooks/use-auto-refetch'
 import { getApiErrorMessage } from '@/lib/i18n/api-errors'
 import { cn } from '@/lib/utils'
@@ -867,7 +868,7 @@ export default function InboxPage() {
 
       {/* 结果区域 */}
       <div className="flex-1 overflow-y-auto p-4 md:p-6 bg-muted/20 dark:bg-background/40">
-        <div className="flex flex-col gap-2 pb-3.5 md:flex-row md:items-center md:justify-between md:gap-4 md:pb-4">
+        <DashboardFilterBar className="gap-2 pb-3.5 md:gap-4 md:pb-4">
           <div className="flex items-center gap-2 min-w-0 flex-wrap md:flex-nowrap md:shrink-0">
             <span className="text-lg md:text-xl font-semibold tracking-tight shrink-0">
               {currentCategoryLabel}
@@ -877,7 +878,7 @@ export default function InboxPage() {
                 <button
                   type="button"
                   onClick={() => setIsSearchOpen(true)}
-                  className="flex h-full items-center gap-2 px-3 md:px-4 text-[10px] md:text-[11px] font-black text-foreground/75 dark:text-white/75"
+                  className="flex h-full items-center gap-2 px-3 md:px-4 text-[10px] md:text-[11px] font-semibold text-foreground/75 dark:text-white/75"
                   aria-label={searchT('title') || 'Search'}
                 >
                   <Search className="h-[11px] w-[11px] shrink-0" />
@@ -911,22 +912,18 @@ export default function InboxPage() {
           {/* 媒体类型筛选 Pills */}
           <div className="flex items-center gap-2 overflow-x-auto min-w-0 md:flex-1 md:justify-end">
             {contentTypeFilters.map((type) => (
-              <button
+              <FilterPillButton
                 key={type.id}
                 onClick={() => handleContentTypeFilterChange(type.id)}
-                className={cn(
-                  "whitespace-nowrap px-3 py-1.5 md:px-4 md:py-2 rounded-xl text-[10px] md:text-[11px] font-black uppercase flex items-center gap-2 transition-all shrink-0",
-                  activeType === type.id
-                    ? "bg-black text-white dark:bg-white dark:text-black"
-                    : "bg-black/5 opacity-40 hover:opacity-100 dark:bg-white/5"
-                )}
+                active={activeType === type.id}
+                className="flex items-center gap-2 shrink-0"
               >
                 <type.icon size={11} />
                 <span>{filtersT(type.id)}</span>
-              </button>
+              </FilterPillButton>
             ))}
           </div>
-        </div>
+        </DashboardFilterBar>
         {isLoading ? (
           <div className="flex items-center justify-center py-20">
             <div className="flex items-center gap-2 text-muted-foreground">

@@ -41,6 +41,7 @@ import { useIsMobile } from '@/hooks/use-is-mobile'
 import { LayoutGrid, List, MoreHorizontal, Plus, Pencil, Trash2 } from 'lucide-react'
 import { getApiErrorMessage, type ApiError } from '@/lib/i18n/api-errors'
 import { RetroactiveModeSelector } from '@/components/routing/retroactive-mode-selector'
+import { DashboardFilterBar } from '@/components/shared/filter-bar'
 import { RetroactiveMode } from '@/types'
 
 // Helper functions - defined before components that use them
@@ -275,7 +276,7 @@ export default function RoutingPage() {
 
       <Card className="border-0 shadow-none">
         <CardContent className="px-0 space-y-4">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <DashboardFilterBar>
               <div className="flex-1">
                 <Input
                   value={search}
@@ -306,7 +307,7 @@ export default function RoutingPage() {
                   </SelectContent>
                 </Select>
               </div>
-            </div>
+            </DashboardFilterBar>
 
             {isLoading ? (
               <div className="text-center py-8 text-muted-foreground">
@@ -416,7 +417,7 @@ export default function RoutingPage() {
                   return (
                     <Card
                       key={rule.id}
-                      className={`group relative overflow-hidden rounded-[24px] border border-black/[0.04] bg-white shadow-sm transition-all hover:shadow-xl dark:border-white/[0.06] dark:bg-white/[0.02] dark:hover:border-white/20 ${
+                      className={`group relative overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-shadow hover:shadow-md dark:border-border dark:bg-background/70 dark:hover:border-border ${
                         isSystemRule
                           ? 'ring-1 ring-amber-300/40 dark:ring-amber-700/40'
                           : ''
