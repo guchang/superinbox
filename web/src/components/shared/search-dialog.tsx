@@ -40,7 +40,13 @@ export function SearchDialog({
   // 全局键盘快捷键
   React.useEffect(() => {
     const down = (e: KeyboardEvent) => {
-      if (e.key === "/" && !open) {
+      const isCommandK =
+        (e.metaKey || e.ctrlKey) &&
+        !e.shiftKey &&
+        !e.altKey &&
+        e.key.toLowerCase() === "k"
+
+      if (isCommandK && !open) {
         e.preventDefault()
         setOpen(true)
       }

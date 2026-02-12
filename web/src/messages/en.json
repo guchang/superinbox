@@ -533,7 +533,7 @@
       "suggestions": "Suggestions"
     },
     "tabHint": "Press Tab to select",
-    "hint": "Press / to open search"
+    "hint": "Press Cmd/Ctrl + K to open search"
   },
   "filePreview": {
     "sections": {

@@ -534,7 +534,7 @@
       "suggestions": "建议"
     },
     "tabHint": "按 Tab 选中",
-    "hint": "按 / 唤起搜索框"
+    "hint": "按 Cmd/Ctrl + K 唤起搜索框"
   },
   "filePreview": {
     "sections": {

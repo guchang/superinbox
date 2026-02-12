@@ -303,7 +303,13 @@ export function CommandSearch({
 
   React.useEffect(() => {
     const down = (e: KeyboardEvent) => {
-      if (e.key === "/" && !open) {
+      const isCommandK =
+        (e.metaKey || e.ctrlKey) &&
+        !e.shiftKey &&
+        !e.altKey &&
+        e.key.toLowerCase() === "k"
+
+      if (isCommandK && !open) {
         e.preventDefault()
         const willOpen = !open
         setOpen(willOpen)
@@ -830,7 +836,7 @@ export function CommandSearch({
           </span>
         ) : (
           <kbd className="pointer-events-none shrink-0 h-5 select-none items-center gap-1 rounded border bg-background px-1.5 font-mono text-[10px] font-medium opacity-100 shadow-sm hidden sm:flex">
-            /
+            ⌘K
           </kbd>
         )
       )}
