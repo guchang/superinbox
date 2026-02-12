@@ -7,6 +7,7 @@ import { Toaster as ShadcnToaster } from '@/components/ui/toaster'
 import { Toaster } from 'sonner'
 import { AuthProvider } from '@/lib/hooks/use-auth'
 import { ThemeProvider } from '@/components/providers/theme-provider'
+import { DevExtensionErrorFilter } from '@/components/providers/dev-extension-error-filter'
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
@@ -32,6 +33,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
         <AuthProvider>
           {children}
         </AuthProvider>
+        <DevExtensionErrorFilter />
         <Toaster richColors position="top-right" />
         <ShadcnToaster />
         <ReactQueryDevtools initialIsOpen={false} />

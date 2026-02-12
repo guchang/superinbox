@@ -373,26 +373,31 @@
       "reclassify": "重新分类",
       "redistribute": "重新分发",
       "refresh": "刷新",
-      "editContent": "编辑内容",
-      "cancelEdit": "取消",
-      "saveEdit": "保存",
-      "copyRaw": "复制原文",
-      "openInPage": "在详情页打开"
+    "editContent": "编辑内容",
+    "cancelEdit": "取消",
+    "back": "返回",
+    "saveEdit": "保存",
+    "copyRaw": "复制原文",
+      "openInPage": "在详情页打开",
+      "more": "更多",
+      "viewProperties": "查看记录属性"
     },
     "edit": {
       "placeholder": "输入条目内容...",
       "shortcutHint": "按 Cmd/Ctrl + Enter 保存",
       "mode": {
         "write": "编辑",
-        "preview": "预览"
+        "preview": "预览",
+        "readOnly": "只读"
       },
       "previewEmpty": "暂无可预览内容",
-      "autoSave": {
-        "saving": "自动保存中...",
-        "saved": "已自动保存",
-        "pending": "编辑后将自动保存",
-        "error": "自动保存失败，继续编辑后会重试",
-        "disabled": "处理中，暂不可编辑"
+    "autoSave": {
+      "saving": "保存中...",
+      "saved": "已保存",
+      "pending": "编辑后将自动保存",
+      "error": "自动保存失败，继续编辑后会重试",
+      "disabled": "处理中，暂不可编辑",
+      "indicator": "自动保存"
       }
     },
     "categories": {

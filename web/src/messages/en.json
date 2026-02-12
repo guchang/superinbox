@@ -372,26 +372,31 @@
       "reclassify": "Reclassify",
       "redistribute": "Redistribute",
       "refresh": "Refresh",
-      "editContent": "Edit content",
-      "cancelEdit": "Cancel",
-      "saveEdit": "Save",
-      "copyRaw": "Copy raw text",
-      "openInPage": "Open in detail page"
+    "editContent": "Edit content",
+    "cancelEdit": "Cancel",
+    "back": "Back",
+    "saveEdit": "Save",
+    "copyRaw": "Copy raw text",
+      "openInPage": "Open in detail page",
+      "more": "More",
+      "viewProperties": "View item properties"
     },
     "edit": {
       "placeholder": "Type item content...",
       "shortcutHint": "Cmd/Ctrl + Enter to save",
       "mode": {
         "write": "Write",
-        "preview": "Preview"
+        "preview": "Preview",
+        "readOnly": "Read-only"
       },
       "previewEmpty": "Nothing to preview yet",
-      "autoSave": {
-        "saving": "Saving...",
-        "saved": "Saved automatically",
-        "pending": "Changes will be saved automatically",
-        "error": "Auto-save failed. Keep typing to retry.",
-        "disabled": "Processing, editing is temporarily disabled"
+    "autoSave": {
+      "saving": "Saving...",
+      "saved": "Saved",
+      "pending": "Changes will be saved automatically",
+      "error": "Auto-save failed. Keep typing to retry.",
+      "disabled": "Processing, editing is temporarily disabled",
+      "indicator": "Auto save"
       }
     },
     "categories": {
