@@ -412,6 +412,7 @@
       "pending": "Pending",
       "processing": "Processing",
       "completed": "Completed",
+      "manual": "Manual",
       "failed": "Failed"
     },
     "contentType": {
@@ -535,6 +536,7 @@
       "pending": "Pending",
       "processing": "Processing",
       "completed": "Completed",
+      "manual": "Manual",
       "failed": "Failed"
     },
     "contentTypes": {

@@ -413,6 +413,7 @@
       "pending": "待处理",
       "processing": "处理中",
       "completed": "已完成",
+      "manual": "手动",
       "failed": "失败"
     },
     "contentType": {
@@ -536,6 +537,7 @@
       "pending": "待处理",
       "processing": "处理中",
       "completed": "已完成",
+      "manual": "手动",
       "failed": "失败"
     },
     "contentTypes": {

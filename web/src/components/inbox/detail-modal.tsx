@@ -238,6 +238,10 @@ const getItemStatusToneClass = (status: ItemStatus) => {
     return 'border-emerald-300/80 bg-emerald-50 text-emerald-700 dark:border-emerald-400/30 dark:bg-emerald-500/10 dark:text-emerald-200'
   }
 
+  if (status === ItemStatus.MANUAL) {
+    return 'border-amber-300/80 bg-amber-50 text-amber-700 dark:border-amber-400/30 dark:bg-amber-500/10 dark:text-amber-200'
+  }
+
   if (status === ItemStatus.PROCESSING) {
     return 'border-blue-300/80 bg-blue-50 text-blue-700 dark:border-blue-400/30 dark:bg-blue-500/10 dark:text-blue-200'
   }
@@ -370,6 +374,7 @@ export function DetailModal({
     [ItemStatus.PENDING]: detailT('status.pending'),
     [ItemStatus.PROCESSING]: detailT('status.processing'),
     [ItemStatus.COMPLETED]: detailT('status.completed'),
+    [ItemStatus.MANUAL]: detailT('status.manual'),
     [ItemStatus.FAILED]: detailT('status.failed'),
   }
 

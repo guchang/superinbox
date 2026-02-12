@@ -429,6 +429,9 @@ export default function InboxCapturePage() {
     if (item.status === ItemStatus.PROCESSING) {
       return { label: t("status.analyzing"), className: "text-amber-600 dark:text-amber-400" }
     }
+    if (item.status === ItemStatus.MANUAL) {
+      return { label: tDetail("status.manual"), className: "text-amber-600 dark:text-amber-400" }
+    }
     if (item.status === ItemStatus.FAILED) {
       return { label: tDetail("status.failed"), className: "text-destructive" }
     }

@@ -152,6 +152,7 @@ export function CommandSearch({
         { value: ItemStatus.PENDING, label: t('status.pending') },
         { value: ItemStatus.PROCESSING, label: t('status.processing') },
         { value: ItemStatus.COMPLETED, label: t('status.completed') },
+        { value: ItemStatus.MANUAL, label: t('status.manual') },
         { value: ItemStatus.FAILED, label: t('status.failed') },
       ]
     },

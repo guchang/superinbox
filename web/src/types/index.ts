@@ -50,6 +50,7 @@ export enum ItemStatus {
   PENDING = 'pending',
   PROCESSING = 'processing',
   COMPLETED = 'completed',
+  MANUAL = 'manual',
   FAILED = 'failed',
 }
 
