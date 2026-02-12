@@ -8,7 +8,6 @@ import { Link, useRouter } from '@/i18n/navigation'
 import { useTheme } from 'next-themes'
 import { categoriesApi } from '@/lib/api/categories'
 import { inboxApi } from '@/lib/api/inbox'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -77,6 +76,13 @@ const AUTO_SAVE_MIN_OPEN_MS = 400
 const AUTO_SAVE_SUCCESS_HOLD_MS = 2000
 const MANUAL_SAVE_MIN_OPEN_MS = 1500
 const MANUAL_SAVE_SUCCESS_HOLD_MS = 3000
+const MAX_VISIBLE_ENTITY_VALUES = 6
+
+function formatEntityTypeLabel(type: string) {
+  const normalized = type.replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim()
+  if (!normalized) return type
+  return normalized.replace(/\b\w/g, (char) => char.toUpperCase())
+}
 
 function AutoSaveProgress({ state }: { state: Exclude<AutoSaveIndicatorState, 'hidden'> }) {
   const radius = 6
@@ -775,6 +781,7 @@ export default function InboxDetailPage() {
       [ItemStatus.PENDING]: 'secondary',
       [ItemStatus.PROCESSING]: 'outline',
       [ItemStatus.COMPLETED]: 'default',
+      [ItemStatus.MANUAL]: 'outline',
       [ItemStatus.FAILED]: 'destructive',
     }
     return variants[status] || 'outline'
@@ -784,6 +791,7 @@ export default function InboxDetailPage() {
     [ItemStatus.PENDING]: t('status.pending'),
     [ItemStatus.PROCESSING]: t('status.processing'),
     [ItemStatus.COMPLETED]: t('status.completed'),
+    [ItemStatus.MANUAL]: t('status.manual'),
     [ItemStatus.FAILED]: t('status.failed'),
   }
 
@@ -825,6 +833,26 @@ export default function InboxDetailPage() {
     return acc
   }, {})
   const entityEntries = Object.entries(entityGroups)
+    .map(([type, values]) => {
+      const uniqueValues = Array.from(new Set(values))
+      return {
+        type,
+        label: formatEntityTypeLabel(type),
+        visibleValues: uniqueValues.slice(0, MAX_VISIBLE_ENTITY_VALUES),
+        hiddenCount: Math.max(0, uniqueValues.length - MAX_VISIBLE_ENTITY_VALUES),
+      }
+    })
+    .sort((left, right) => left.label.localeCompare(right.label))
+  const analysisSummary = item.analysis?.summary?.trim() ?? ''
+  const hasAnalysisSummary = analysisSummary.length > 0
+  const analysisConfidence = item.analysis?.confidence
+  const hasAnalysisConfidence = typeof analysisConfidence === 'number' && Number.isFinite(analysisConfidence)
+  const clampedAnalysisConfidence = hasAnalysisConfidence
+    ? Math.max(0, Math.min(100, analysisConfidence * 100))
+    : 0
+  const isManualCategoryStatus = item.status === ItemStatus.MANUAL
+  const showCategoryConfidence = hasAnalysisConfidence && !isManualCategoryStatus
+  const hasAnalysisSection = hasAnalysisSummary || entityEntries.length > 0
 
   const distributionEntries = (() => {
     const results = item.distributionResults
@@ -1058,49 +1086,12 @@ export default function InboxDetailPage() {
                 fileName={item.fileName}
                 mimeType={item.mimeType}
                 allFiles={item.allFiles}
+                variant="detailTypeAware"
               />
             </section>
           </>
         )}
 
-        {item.analysis && (item.analysis.summary || entityEntries.length > 0) && (
-          <>
-            <Separator />
-            <Card className="rounded-2xl border border-border bg-card shadow-sm dark:bg-background/70">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-base font-semibold">
-                  <Sparkles className="h-4 w-4 text-muted-foreground" />
-                  {t('sections.analysis')}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="grid gap-6">
-                {item.analysis.summary && (
-                  <div className="grid gap-2">
-                    <span className="text-sm font-medium text-muted-foreground">{t('analysis.summary')}</span>
-                    <p className="rounded-xl bg-muted p-3 text-sm leading-relaxed text-foreground">
-                      <LinkifiedText text={item.analysis.summary} linkClassName="text-primary hover:opacity-80" />
-                    </p>
-                  </div>
-                )}
-
-                {entityEntries.length > 0 && (
-                  <div className="grid gap-2">
-                    <span className="text-sm font-medium text-muted-foreground">{t('analysis.entities')}</span>
-                    <div className="flex flex-wrap gap-1.5">
-                      {entityEntries.flatMap(([type, values]) =>
-                        values.map((val, index) => (
-                          <Badge key={`${type}-${index}`} variant="secondary" className="font-normal">
-                            {val}
-                          </Badge>
-                        ))
-                      )}
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </>
-        )}
       </div>
 
       <Sheet open={isPropertiesOpen} onOpenChange={setIsPropertiesOpen}>
@@ -1116,13 +1107,6 @@ export default function InboxDetailPage() {
           <div className="mt-4 space-y-6">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="grid gap-1.5">
-                <span className="text-xs text-muted-foreground">{t('metadata.source')}</span>
-                <div>
-                  <Badge variant="outline">{item.source || '-'}</Badge>
-                </div>
-              </div>
-
-              <div className="grid gap-1.5">
                 <span className="text-xs text-muted-foreground">{t('metadata.status')}</span>
                 <div>
                   <Badge variant={getStatusBadgeVariant(item.status)}>{statusLabelMap[item.status]}</Badge>
@@ -1131,28 +1115,69 @@ export default function InboxDetailPage() {
 
               <div className="grid gap-1.5 sm:col-span-2">
                 <span className="text-xs text-muted-foreground">{t('metadata.category')}</span>
-                <div>
-                  <Badge variant="secondary" className="font-medium">
+                <div className="grid gap-2">
+                  <Badge variant="secondary" className="w-fit font-medium">
                     {selectedCategoryLabel}
                   </Badge>
+
+                  {showCategoryConfidence && (
+                    <div className="grid gap-1.5">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-muted-foreground">{t('analysis.confidence')}</span>
+                        <span className="font-medium text-muted-foreground">{clampedAnalysisConfidence.toFixed(0)}%</span>
+                      </div>
+                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                        <div className="h-full bg-primary" style={{ width: `${clampedAnalysisConfidence}%` }} />
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
 
-            {item.analysis && (
+            {hasAnalysisSection && (
               <>
                 <Separator />
-                <div className="grid gap-2">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-muted-foreground">{t('analysis.confidence')}</span>
-                    <span className="font-medium text-muted-foreground">{(item.analysis.confidence * 100).toFixed(0)}%</span>
+                <div className="grid gap-3">
+                  <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                    <Sparkles className="h-3.5 w-3.5" />
+                    {t('sections.analysis')}
                   </div>
-                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
-                    <div
-                      className="h-full bg-primary"
-                      style={{ width: `${Math.max(0, Math.min(100, item.analysis.confidence * 100))}%` }}
-                    />
-                  </div>
+
+                  {hasAnalysisSummary && (
+                    <div className="grid gap-1.5">
+                      <span className="text-xs text-muted-foreground">{t('analysis.summary')}</span>
+                      <p className="rounded-xl border border-border bg-muted p-3 text-xs leading-relaxed text-foreground">
+                        <LinkifiedText text={analysisSummary} linkClassName="text-primary hover:opacity-80" />
+                      </p>
+                    </div>
+                  )}
+
+                  {entityEntries.length > 0 && (
+                    <div className="grid gap-1.5">
+                      <span className="text-xs text-muted-foreground">{t('analysis.entities')}</span>
+                      <div className="grid gap-2">
+                        {entityEntries.map((entry) => (
+                          <div key={entry.type} className="rounded-xl border border-border bg-muted/40 p-2.5">
+                            <div className="text-[11px] font-medium text-muted-foreground">{entry.label}</div>
+                            <div className="mt-1.5 flex flex-wrap gap-1.5">
+                              {entry.visibleValues.map((value, index) => (
+                                <Badge key={`${entry.type}-${index}`} variant="secondary" className="px-2 py-0.5 text-[11px] font-normal">
+                                  {value}
+                                </Badge>
+                              ))}
+                              {entry.hiddenCount > 0 ? (
+                                <Badge variant="outline" className="px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                                  +{entry.hiddenCount}
+                                </Badge>
+                              ) : null}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                 </div>
               </>
             )}
@@ -1195,6 +1220,13 @@ export default function InboxDetailPage() {
                     </Badge>
                   ))}
                 </div>
+
+                <div className="grid gap-1.5 pt-1">
+                  <span className="text-muted-foreground">{t('metadata.source')}</span>
+                  <Badge variant="outline" className="w-fit">
+                    {item.source || '-'}
+                  </Badge>
+                </div>
               </div>
 
               <div className="grid gap-2">
@@ -1206,13 +1238,6 @@ export default function InboxDetailPage() {
                   <span className="text-muted-foreground">{t('metadata.updatedAt')}</span>
                   <span className="text-right font-medium">{updatedAtLabel}</span>
                 </div>
-              </div>
-
-              <Separator />
-
-              <div className="grid gap-1">
-                <span className="text-muted-foreground">{t('metadata.id')}</span>
-                <code className="rounded bg-muted px-2 py-1 font-mono text-[10px] break-all select-all">{item.id}</code>
               </div>
             </div>
           </div>
