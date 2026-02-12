@@ -378,9 +378,14 @@
       "shortcutHint": "Cmd/Ctrl + Enter to save",
       "mode": {
         "write": "Write",
-        "preview": "Preview"
+        "preview": "Preview",
+        "rich": "Rich",
+        "markdown": "Markdown"
       },
-      "previewEmpty": "Nothing to preview yet"
+      "previewEmpty": "Nothing to preview yet",
+      "richPlaceholder": "Start writing... Markdown is supported",
+      "saving": "Saving...",
+      "unsaved": "Unsaved"
     },
     "categories": {
       "todo": "Todo",
@@ -435,7 +440,9 @@
       "contentType": "Content type",
       "createdAt": "Created",
       "updatedAt": "Updated",
-      "processedAt": "Processed"
+      "processedAt": "Processed",
+      "showMore": "Show details",
+      "hideMore": "Hide details"
     },
     "distribution": {
       "success": "Success",

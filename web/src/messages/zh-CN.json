@@ -379,9 +379,14 @@
       "shortcutHint": "按 Cmd/Ctrl + Enter 保存",
       "mode": {
         "write": "编辑",
-        "preview": "预览"
+        "preview": "预览",
+        "rich": "可视化",
+        "markdown": "Markdown"
       },
-      "previewEmpty": "暂无可预览内容"
+      "previewEmpty": "暂无可预览内容",
+      "richPlaceholder": "开始记录...支持 Markdown 语法",
+      "saving": "保存中...",
+      "unsaved": "未保存"
     },
     "categories": {
       "todo": "待办",
@@ -436,7 +441,9 @@
       "contentType": "内容类型",
       "createdAt": "创建时间",
       "updatedAt": "更新时间",
-      "processedAt": "处理时间"
+      "processedAt": "处理时间",
+      "showMore": "显示详细信息",
+      "hideMore": "隐藏详细信息"
     },
     "distribution": {
       "success": "成功",

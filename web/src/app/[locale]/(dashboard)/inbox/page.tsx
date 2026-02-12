@@ -128,7 +128,6 @@ export default function InboxPage() {
   const [activeType, setActiveType] = useState<string>('all')
   const [selectedItem, setSelectedItem] = useState<Item | null>(null)
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
-  const [isDetailEditing, setIsDetailEditing] = useState(false)
   const [createdItemId, setCreatedItemId] = useState<string | null>(null)
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const loadMoreRef = useRef<HTMLDivElement>(null)
@@ -642,20 +641,17 @@ export default function InboxPage() {
 
   const handleCloseDetailModal = useCallback(() => {
     setIsDetailModalOpen(false)
-    setIsDetailEditing(false)
   }, [])
 
   // 查看详情
   const handleViewDetail = (item: Item) => {
     setSelectedItem(item)
-    setIsDetailEditing(false)
     setIsDetailModalOpen(true)
   }
 
   // 编辑条目
   const handleEdit = (item: Item) => {
     setSelectedItem(item)
-    setIsDetailEditing(true)
     setIsDetailModalOpen(true)
   }
 
@@ -672,12 +668,6 @@ export default function InboxPage() {
       if (updatedItem) {
         setSelectedItem(updatedItem)
       }
-      setIsDetailEditing(false)
-      toast({
-        title: t('toast.updateSuccess.title'),
-        description: t('toast.updateSuccess.description'),
-        channel: 'development',
-      })
     },
     onError: (error) => {
       toast({
@@ -983,15 +973,11 @@ export default function InboxPage() {
             <DetailModal
               item={selectedItem}
               isOpen={isDetailModalOpen}
-              isEditing={isDetailEditing}
-              isSavingEdit={updateMutation.isPending}
-              categoryMetaMap={categoryMetaMap}
               categoryOptions={activeCategories.map((category) => ({
                 key: category.key,
                 name: category.name,
               }))}
               onClose={handleCloseDetailModal}
-              onEditingChange={setIsDetailEditing}
               onSaveEdit={handleSaveItemEdits}
               onRedistribute={(id) => redistributeMutation.mutate(id)}
               redistributing={redistributeMutation.isPending}
