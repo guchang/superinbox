@@ -1,11 +1,13 @@
 "use client"
 
+import Image from "next/image"
 import React, { useEffect, useRef, useState } from "react"
 import { useTranslations } from "next-intl"
 import { Button } from "@/components/ui/button"
-import { Download, Expand, File, X } from "lucide-react"
+import { ChevronLeft, ChevronRight, Download, Expand, File, FileAudio2, Play, X } from "lucide-react"
 import {
   Dialog,
+  DialogDescription,
   DialogContent,
   DialogTrigger,
   DialogTitle,
@@ -15,6 +17,7 @@ import { ImageGallery } from "@/components/inbox/image-gallery"
 import { AudioWavePlayer } from "@/components/inbox/audio-wave-player"
 import { inboxApi } from "@/lib/api/inbox"
 import { getApiBaseUrl } from "@/lib/api/base-url"
+import { cn } from "@/lib/utils"
 
 const VisuallyHidden = ({ children }: { children: React.ReactNode }) => (
   <span
@@ -45,6 +48,7 @@ interface FilePreviewProps {
     filePath: string
   }>
   imageLayout?: "thumb" | "card"
+  variant?: "default" | "detailTypeAware"
 }
 
 export function FilePreview({
@@ -53,11 +57,14 @@ export function FilePreview({
   mimeType,
   allFiles,
   imageLayout = "thumb",
+  variant = "default",
 }: FilePreviewProps) {
   const t = useTranslations("filePreview")
   const [mediaObjectUrls, setMediaObjectUrls] = useState<Record<string, string>>({})
   const mediaObjectUrlsRef = useRef<Record<string, string>>({})
   const mediaLoadAttempts = useRef<Set<string>>(new Set())
+  const [detailVideoPreviewIndex, setDetailVideoPreviewIndex] = useState<number | null>(null)
+  const [detailAudioPreviewIndex, setDetailAudioPreviewIndex] = useState<number | null>(null)
 
   const apiBaseUrl = getApiBaseUrl()
   const fileUrl = `${apiBaseUrl}/inbox/${itemId}/file`
@@ -173,6 +180,359 @@ export function FilePreview({
       && !lowerMimeType.startsWith("audio/")
       && !lowerMimeType.startsWith("video/")
   })
+
+  if (variant === "detailTypeAware") {
+    type DetailPreviewEntry = {
+      id: string
+      fileName: string
+      mimeType: string
+      fileSize: number
+      mediaUrl: string
+      mediaKey: string
+      onDownload: () => Promise<void>
+    }
+
+    const detailEntries: DetailPreviewEntry[] = indexedFiles.length > 0
+      ? indexedFiles.map(({ file, originalIndex }) => ({
+          id: `indexed-${originalIndex}`,
+          fileName: file.fileName,
+          mimeType: file.mimeType,
+          fileSize: file.fileSize,
+          mediaUrl: `${apiBaseUrl}/inbox/${itemId}/file/${originalIndex}`,
+          mediaKey: `detail-${originalIndex}`,
+          onDownload: () => downloadFileByIndex(originalIndex, file.fileName),
+        }))
+      : (fileName || mimeType)
+          ? [{
+              id: "single-file",
+              fileName: fileName || t("fileFallback"),
+              mimeType: mimeType || "application/octet-stream",
+              fileSize: 0,
+              mediaUrl: fileUrl,
+              mediaKey: "detail-single",
+              onDownload: handleDownload,
+            }]
+          : []
+
+    const detailImageEntries = detailEntries.filter((entry) => entry.mimeType.toLowerCase().startsWith("image/"))
+    const detailVideoEntries = detailEntries.filter((entry) => entry.mimeType.toLowerCase().startsWith("video/"))
+    const detailAudioEntries = detailEntries.filter((entry) => entry.mimeType.toLowerCase().startsWith("audio/"))
+    const detailFileEntries = detailEntries.filter((entry) => {
+      const lowerMimeType = entry.mimeType.toLowerCase()
+      return !lowerMimeType.startsWith("image/")
+        && !lowerMimeType.startsWith("video/")
+        && !lowerMimeType.startsWith("audio/")
+    })
+    const detailGalleryImages = detailImageEntries.map((entry) => ({
+      id: entry.id,
+      src: mediaObjectUrls[entry.mediaKey] || entry.mediaUrl,
+      alt: entry.fileName,
+      onError: () => void handleMediaError(entry.mediaKey, entry.mediaUrl),
+      onDownload: () => void entry.onDownload(),
+      downloadLabel: `${t("download")} ${entry.fileName}`,
+    }))
+
+    const videoPreviewIndex = detailVideoPreviewIndex ?? 0
+    const videoPreviewEntry = detailVideoEntries[videoPreviewIndex] ?? null
+    const audioPreviewEntry = detailAudioPreviewIndex == null
+      ? null
+      : detailAudioEntries[detailAudioPreviewIndex] ?? null
+
+    const mediaTileGroupClass = "flex justify-start gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden md:grid md:content-start md:justify-start md:grid-cols-[repeat(auto-fill,minmax(96px,96px))] md:gap-2 md:overflow-visible md:pb-0"
+    const mediaTileClass = "relative h-[96px] w-[96px] min-h-[96px] min-w-[96px] max-h-[96px] max-w-[96px] shrink-0 overflow-hidden rounded-xl border border-border bg-card"
+
+    if (detailEntries.length === 0) {
+      return null
+    }
+
+    return (
+      <div className="space-y-4 w-full max-w-full min-w-0">
+        {detailImageEntries.length > 0 && (
+          <div className="space-y-2">
+            <div className="text-xs font-medium text-muted-foreground">
+              {t("sections.images", { count: detailImageEntries.length })}
+            </div>
+            <ImageGallery
+              images={detailGalleryImages}
+              renderTrigger={(openAt) => (
+                <div className={mediaTileGroupClass}>
+                  {detailImageEntries.map((entry, index) => {
+                    const mediaSrc = mediaObjectUrls[entry.mediaKey] || entry.mediaUrl
+                    return (
+                      <div
+                        key={entry.id}
+                        role="button"
+                        tabIndex={0}
+                        data-card-ignore-click
+                        aria-label={entry.fileName}
+                        className={cn(mediaTileClass, "cursor-zoom-in")}
+                        onClick={() => openAt(index)}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter" || event.key === " ") {
+                            event.preventDefault()
+                            openAt(index)
+                          }
+                        }}
+                      >
+                        <Image
+                          src={mediaSrc}
+                          alt={entry.fileName}
+                          fill
+                          sizes="96px"
+                          unoptimized
+                          className="h-full w-full object-cover"
+                          onError={() => void handleMediaError(entry.mediaKey, entry.mediaUrl)}
+                        />
+                        <Button
+                          variant="secondary"
+                          size="icon"
+                          className="absolute right-1 top-1 h-6 w-6 rounded-md bg-black/55 text-white hover:bg-black/70"
+                          onClick={(event) => {
+                            event.stopPropagation()
+                            void entry.onDownload()
+                          }}
+                          aria-label={`${t("download")} ${entry.fileName}`}
+                        >
+                          <Download className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            />
+          </div>
+        )}
+
+        {detailVideoEntries.length > 0 && (
+          <div className="space-y-2">
+            <div className="text-xs font-medium text-muted-foreground">
+              {t("sections.video", { count: detailVideoEntries.length })}
+            </div>
+            <div className={mediaTileGroupClass}>
+              {detailVideoEntries.map((entry, index) => {
+                const mediaSrc = mediaObjectUrls[entry.mediaKey] || entry.mediaUrl
+                return (
+                  <button
+                    key={entry.id}
+                    type="button"
+                    data-card-ignore-click
+                    aria-label={entry.fileName}
+                    className={cn(mediaTileClass, "group cursor-zoom-in")}
+                    onClick={() => setDetailVideoPreviewIndex(index)}
+                  >
+                    <video
+                      preload="metadata"
+                      playsInline
+                      muted
+                      src={mediaSrc}
+                      className="h-full w-full object-cover"
+                      onError={() => void handleMediaError(entry.mediaKey, entry.mediaUrl)}
+                    />
+                    <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/35">
+                      <span className="flex h-7 w-7 items-center justify-center rounded-full border border-white/30 bg-black/40 text-white">
+                        <Play className="h-3.5 w-3.5" fill="currentColor" />
+                      </span>
+                    </div>
+                    <Button
+                      variant="secondary"
+                      size="icon"
+                      className="absolute right-1 top-1 h-6 w-6 rounded-md bg-black/55 text-white hover:bg-black/70"
+                      onClick={(event) => {
+                        event.stopPropagation()
+                        void entry.onDownload()
+                      }}
+                      aria-label={`${t("download")} ${entry.fileName}`}
+                    >
+                      <Download className="h-3.5 w-3.5" />
+                    </Button>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
+        {detailAudioEntries.length > 0 && (
+          <div className="space-y-2">
+            <div className="text-xs font-medium text-muted-foreground">
+              {t("sections.audio", { count: detailAudioEntries.length })}
+            </div>
+            <div className="space-y-2">
+              {detailAudioEntries.map((entry, index) => (
+                <button
+                  key={entry.id}
+                  type="button"
+                  data-card-ignore-click
+                  onClick={() => setDetailAudioPreviewIndex(index)}
+                  className="group flex w-full items-center gap-3 rounded-xl border border-border bg-card px-3 py-2 text-left transition-colors hover:bg-muted/40"
+                >
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                    <FileAudio2 className="h-4 w-4" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-foreground">{entry.fileName}</p>
+                    <p className="text-xs text-muted-foreground">{t("sections.audio", { count: 1 })}</p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 shrink-0"
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      void entry.onDownload()
+                    }}
+                    aria-label={`${t("download")} ${entry.fileName}`}
+                  >
+                    <Download className="h-4 w-4" />
+                  </Button>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {detailFileEntries.length > 0 && (
+          <div className="space-y-2">
+            <div className="text-xs font-medium text-muted-foreground">
+              {t("sections.files", { count: detailFileEntries.length })}
+            </div>
+            <div className="space-y-2">
+              {detailFileEntries.map((entry) => {
+                const extension = entry.fileName.includes(".")
+                  ? entry.fileName.split(".").pop()?.toUpperCase()
+                  : ""
+
+                return (
+                  <div
+                    key={entry.id}
+                    className="flex w-full items-center gap-3 rounded-xl border border-border bg-card px-3 py-2"
+                  >
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                      <File className="h-4 w-4" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium text-foreground">{entry.fileName}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {extension || t("fileFallback")}
+                        {entry.fileSize > 0 ? ` · ${(entry.fileSize / 1024).toFixed(1)}KB` : ""}
+                      </p>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 shrink-0"
+                      onClick={() => void entry.onDownload()}
+                      aria-label={`${t("download")} ${entry.fileName}`}
+                    >
+                      <Download className="h-4 w-4" />
+                    </Button>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
+        <Dialog open={detailVideoPreviewIndex != null} onOpenChange={(open) => !open && setDetailVideoPreviewIndex(null)}>
+          <DialogContent className="max-w-[92vw] border-none bg-transparent p-0 shadow-none">
+            <VisuallyHidden>
+              <DialogTitle>{videoPreviewEntry?.fileName || t("uploadedImage")}</DialogTitle>
+              <DialogDescription>{t("sections.video", { count: detailVideoEntries.length })}</DialogDescription>
+            </VisuallyHidden>
+            {videoPreviewEntry ? (
+              <div className="relative flex min-h-[70vh] items-center justify-center">
+                <div className="fixed inset-0 -z-10 bg-black/80 backdrop-blur-md" />
+                <DialogClose className="absolute right-4 top-4 z-30 flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-black/45 text-white hover:bg-white/20">
+                  <X className="h-5 w-5" />
+                  <span className="sr-only">Close</span>
+                </DialogClose>
+
+                {detailVideoEntries.length > 1 && (
+                  <Button
+                    variant="secondary"
+                    size="icon"
+                    className="absolute left-4 top-1/2 z-20 h-10 w-10 -translate-y-1/2 rounded-full bg-black/45 text-white hover:bg-white/20"
+                    onClick={() => setDetailVideoPreviewIndex((prev) => {
+                      if (prev == null) return 0
+                      return prev <= 0 ? detailVideoEntries.length - 1 : prev - 1
+                    })}
+                  >
+                    <ChevronLeft className="h-5 w-5" />
+                  </Button>
+                )}
+
+                {detailVideoEntries.length > 1 && (
+                  <Button
+                    variant="secondary"
+                    size="icon"
+                    className="absolute right-4 top-1/2 z-20 h-10 w-10 -translate-y-1/2 rounded-full bg-black/45 text-white hover:bg-white/20"
+                    onClick={() => setDetailVideoPreviewIndex((prev) => {
+                      if (prev == null) return 0
+                      return prev >= detailVideoEntries.length - 1 ? 0 : prev + 1
+                    })}
+                  >
+                    <ChevronRight className="h-5 w-5" />
+                  </Button>
+                )}
+
+                <div className="absolute left-4 top-4 z-20 flex items-center gap-2">
+                  <div className="max-w-[50vw] truncate rounded-full border border-white/10 bg-black/45 px-4 py-2 text-xs font-medium text-white">
+                    {videoPreviewEntry.fileName}
+                  </div>
+                  <Button
+                    variant="secondary"
+                    size="icon"
+                    className="h-9 w-9 rounded-full bg-black/45 text-white hover:bg-white/20"
+                    onClick={() => void videoPreviewEntry.onDownload()}
+                    aria-label={`${t("download")} ${videoPreviewEntry.fileName}`}
+                  >
+                    <Download className="h-4 w-4" />
+                  </Button>
+                </div>
+
+                <video
+                  controls
+                  preload="metadata"
+                  playsInline
+                  src={mediaObjectUrls[videoPreviewEntry.mediaKey] || videoPreviewEntry.mediaUrl}
+                  onError={() => void handleMediaError(videoPreviewEntry.mediaKey, videoPreviewEntry.mediaUrl)}
+                  className="max-h-[82vh] max-w-[92vw] object-contain"
+                />
+              </div>
+            ) : null}
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={detailAudioPreviewIndex != null} onOpenChange={(open) => !open && setDetailAudioPreviewIndex(null)}>
+          <DialogContent className="sm:max-w-lg">
+            <DialogTitle>{audioPreviewEntry?.fileName || t("fileFallback")}</DialogTitle>
+            <DialogDescription>{t("sections.audio", { count: 1 })}</DialogDescription>
+            {audioPreviewEntry ? (
+              <div className="space-y-4">
+                {renderAudioPlayer(
+                  mediaObjectUrls[audioPreviewEntry.mediaKey] || audioPreviewEntry.mediaUrl,
+                  audioPreviewEntry.mediaKey,
+                  audioPreviewEntry.mediaUrl
+                )}
+                <div className="flex justify-end">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => void audioPreviewEntry.onDownload()}
+                    className="gap-2"
+                  >
+                    <Download className="h-4 w-4" />
+                    {t("download")}
+                  </Button>
+                </div>
+              </div>
+            ) : null}
+          </DialogContent>
+        </Dialog>
+      </div>
+    )
+  }
 
   if (hasMultipleFiles) {
     const galleryImages = imageEntries.map(({ file, originalIndex }) => {

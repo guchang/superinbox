@@ -27,7 +27,7 @@ interface ImageGalleryProps {
   maxDisplayCount?: number
   className?: string
   onOpenChange?: (open: boolean) => void
-  renderTrigger?: (open: () => void) => React.ReactNode
+  renderTrigger?: (openAt: (index?: number) => void) => React.ReactNode
 }
 
 const HIDDEN_TITLE_STYLE = {
@@ -541,6 +541,15 @@ export function ImageGallery({
     </Dialog>
   )
 
+  if (renderTrigger) {
+    return (
+      <>
+        {renderTrigger((index = 0) => openAt(index))}
+        {renderDialog()}
+      </>
+    )
+  }
+
   const isGrid = layout === "grid" || images.length > 1
 
   if (isGrid) {
@@ -594,15 +603,6 @@ export function ImageGallery({
             })}
           </div>
         </div>
-        {renderDialog()}
-      </>
-    )
-  }
-
-  if (renderTrigger) {
-    return (
-      <>
-        {renderTrigger(() => openAt(0))}
         {renderDialog()}
       </>
     )
