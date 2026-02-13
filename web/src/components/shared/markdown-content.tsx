@@ -5,6 +5,7 @@ import ReactMarkdown from 'react-markdown'
 import remarkBreaks from 'remark-breaks'
 import remarkGfm from 'remark-gfm'
 import { cn } from '@/lib/utils'
+import { normalizeMarkdownContent } from '@/lib/utils/markdown'
 import { normalizeExternalUrl, shouldOpenInNewTab } from '@/lib/external-url'
 
 interface MarkdownContentProps {
@@ -42,7 +43,7 @@ export const MARKDOWN_CONTENT_CLASSNAME = [
 ].join(' ')
 
 export function MarkdownContent({ text, className, emptyText }: MarkdownContentProps) {
-  const normalized = text.trim()
+  const normalized = normalizeMarkdownContent(text.trim())
 
   if (!normalized) {
     if (!emptyText) return null

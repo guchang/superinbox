@@ -9,6 +9,7 @@ import StarterKit from '@tiptap/starter-kit'
 import { EditorContent, useEditor } from '@tiptap/react'
 import { MARKDOWN_CONTENT_CLASSNAME } from '@/components/shared/markdown-content'
 import { cn } from '@/lib/utils'
+import { normalizeMarkdownContent } from '@/lib/utils/markdown'
 
 interface DetailMarkdownEditorProps {
   value: string
@@ -41,7 +42,7 @@ const MarkdownTaskListInput = Extension.create({
 })
 
 function normalizeMarkdown(text: string) {
-  return text
+  const normalized = text
     .replace(/\r\n/g, '\n')
     .split('\n')
     .map((line) => {
@@ -50,6 +51,8 @@ function normalizeMarkdown(text: string) {
       return `${'  '.repeat(leadingTabs)}${line.slice(leadingTabs)}`
     })
     .join('\n')
+
+  return normalizeMarkdownContent(normalized)
 }
 
 export function DetailMarkdownEditor({

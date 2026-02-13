@@ -2,10 +2,11 @@
 
 import { Separator } from '@/components/ui/separator'
 import { Badge } from '@/components/ui/badge'
+import { Skeleton } from '@/components/ui/skeleton'
 import { LinkifiedText } from '@/components/shared/linkified-text'
 import { formatRelativeTime, cn } from '@/lib/utils'
 import type { Item, ItemStatus } from '@/types'
-import { Sparkles, Share2 } from 'lucide-react'
+import { Loader2, Sparkles, Share2 } from 'lucide-react'
 
 type InboxDetailTranslations = (key: string, values?: Record<string, any>) => string
 
@@ -55,6 +56,8 @@ export function InboxItemDetailProperties({
   statusLabelMap: Record<ItemStatus, string>
   getStatusBadgeVariant: (status: ItemStatus) => 'secondary' | 'outline' | 'default' | 'destructive'
 }) {
+  const isRoutingProcessing = item.routingStatus === 'processing'
+
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -147,6 +150,12 @@ export function InboxItemDetailProperties({
           <Share2 className="h-3.5 w-3.5" />
           {t('sections.distribution')}
         </div>
+        {isRoutingProcessing ? (
+          <div className="flex items-center gap-2 text-xs text-primary">
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            <span>{t('routingStatus.processing')}</span>
+          </div>
+        ) : null}
         {distributionEntries.length > 0 ? (
           <div className="space-y-2 rounded-xl border border-border bg-muted p-3">
             {distributionEntries.map((entry) => (
@@ -160,6 +169,12 @@ export function InboxItemDetailProperties({
                 <span className="flex-1 truncate text-muted-foreground">{entry.target}</span>
               </div>
             ))}
+          </div>
+        ) : isRoutingProcessing ? (
+          <div className="space-y-2 rounded-xl border border-border bg-muted p-3">
+            <Skeleton className="h-4 w-2/3" />
+            <Skeleton className="h-4 w-1/2" />
+            <Skeleton className="h-4 w-3/5" />
           </div>
         ) : (
           <p className="pl-1 text-xs text-muted-foreground">{t('distribution.empty')}</p>
@@ -203,4 +218,3 @@ export function InboxItemDetailProperties({
     </div>
   )
 }
-

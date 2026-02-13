@@ -13,6 +13,7 @@ import { Separator } from '@/components/ui/separator'
 import { Button } from '@/components/ui/button'
 import { SidebarTrigger } from '@/components/ui/sidebar'
 import { formatRelativeTime, cn } from '@/lib/utils'
+import { normalizeMarkdownContent } from '@/lib/utils/markdown'
 import { getCategoryBadgeStyle, getCategoryIconComponent } from '@/lib/category-appearance'
 import { ContentType, ItemStatus } from '@/types'
 import {
@@ -55,10 +56,11 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { InboxItemDetailProperties } from '@/components/inbox/inbox-item-detail-properties'
+import { RoutingActivityBanner } from '@/components/inbox/routing-activity-banner'
 
-function normalizeDraftContent(value: string) {
-  return value.replace(/\r\n/g, '\n')
-}
+// normalizeDraftContent 已被提取到 @/lib/utils/markdown.ts 的 normalizeMarkdownContent
+// 这里保留为别名以保持向后兼容
+const normalizeDraftContent = normalizeMarkdownContent
 
 type AutoSaveIndicatorState = 'hidden' | 'saving' | 'closed'
 type AutoSaveSnapshot = { content: string; category: string }
@@ -318,10 +320,6 @@ export function InboxItemDetail({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['inbox'] })
       queryClient.invalidateQueries({ queryKey: ['inbox', id] })
-      toast({
-        title: t('toast.redistributeSuccess.title'),
-        description: t('toast.redistributeSuccess.description'),
-      })
     },
     onError: (error) => {
       toast({
@@ -332,8 +330,17 @@ export function InboxItemDetail({
     },
   })
 
+  // 页面可见性监听（用于toast模式选择）
+  const [isPageVisible, setIsPageVisible] = useState(true)
+  useEffect(() => {
+    const update = () => setIsPageVisible(document.visibilityState === 'visible')
+    update()
+    document.addEventListener('visibilitychange', update)
+    return () => document.removeEventListener('visibilitychange', update)
+  }, [])
+
   const updateMutation = useMutation({
-    mutationFn: async ({ content, category }: { content: string; category: string }) => {
+    mutationFn: async ({ content, category }: { content?: string; category?: string }) => {
       const response = await inboxApi.updateItem(id, { content, category })
       if (!response.success || !response.data) {
         throw new Error(response.error || response.message || 'Failed to update item')
@@ -341,6 +348,16 @@ export function InboxItemDetail({
       return response.data
     },
     onSuccess: (updatedItem) => {
+      const normalizedUpdatedItem = {
+        ...updatedItem,
+        content: normalizeDraftContent(updatedItem.content ?? ''),
+        analysis: updatedItem.analysis
+          ? {
+              ...updatedItem.analysis,
+            }
+          : updatedItem.analysis,
+      }
+
       queryClient.setQueryData(['inbox', id], (previous: any) => {
         if (!previous || typeof previous !== 'object') return previous
 
@@ -348,20 +365,115 @@ export function InboxItemDetail({
           ...previous,
           data: {
             ...previous.data,
-            ...updatedItem,
-            content: normalizeDraftContent(updatedItem.content ?? previous.data?.content ?? ''),
+            ...normalizedUpdatedItem,
+            content: normalizeDraftContent(normalizedUpdatedItem.content ?? previous.data?.content ?? ''),
             analysis: {
               ...previous.data?.analysis,
-              ...updatedItem.analysis,
+              ...normalizedUpdatedItem.analysis,
             },
           },
         }
       })
+
+      // 详情页保存后，列表页（useInfiniteQuery / useQuery）可能仍然显示旧缓存。
+      // 这里直接把所有以 ['inbox', <paramsObject>] 为 key 的列表缓存里对应 item 同步更新，
+      // 这样用户返回 Inbox 页面时可以立即看到最新内容，而不必等待 refetch。
+      queryClient.setQueriesData(
+        {
+          predicate: (query) => {
+            const key = query.queryKey
+            return (
+              Array.isArray(key) &&
+              key[0] === 'inbox' &&
+              typeof key[1] === 'object' &&
+              key[1] != null
+            )
+          },
+        },
+        (previous: any) => {
+          if (!previous || typeof previous !== 'object') return previous
+
+          const mergeItem = (entry: any) => {
+            if (!entry || typeof entry !== 'object') return entry
+            if (entry.id !== normalizedUpdatedItem.id) return entry
+
+            return {
+              ...entry,
+              ...normalizedUpdatedItem,
+              content: normalizeDraftContent(normalizedUpdatedItem.content ?? entry.content ?? ''),
+              analysis: {
+                ...entry.analysis,
+                ...normalizedUpdatedItem.analysis,
+              },
+            }
+          }
+
+          // Infinite query shape: { pages: ApiResponse[], pageParams: [] }
+          if (Array.isArray(previous.pages)) {
+            let changed = false
+            const nextPages = previous.pages.map((page: any) => {
+              const items = page?.data?.items
+              if (!Array.isArray(items)) return page
+
+              let pageChanged = false
+              const nextItems = items.map((entry: any) => {
+                const merged = mergeItem(entry)
+                if (merged !== entry) {
+                  changed = true
+                  pageChanged = true
+                }
+                return merged
+              })
+
+              if (!pageChanged) return page
+              return {
+                ...page,
+                data: {
+                  ...page.data,
+                  items: nextItems,
+                },
+              }
+            })
+
+            return changed
+              ? {
+                  ...previous,
+                  pages: nextPages,
+                }
+              : previous
+          }
+
+          // Normal query shape: ApiResponse<{ items: Item[] }>
+          if (Array.isArray(previous.data?.items)) {
+            let changed = false
+            const nextItems = previous.data.items.map((entry: any) => {
+              const merged = mergeItem(entry)
+              if (merged !== entry) changed = true
+              return merged
+            })
+            if (!changed) return previous
+
+            return {
+              ...previous,
+              data: {
+                ...previous.data,
+                items: nextItems,
+              },
+            }
+          }
+
+          return previous
+        }
+      )
     },
   })
 
   const canEditItem = item != null && item.status !== ItemStatus.PROCESSING
   const isReadOnlyMode = viewMode === 'readOnly' || !canEditItem
+
+  const handleDraftContentChange = useCallback((nextValue: string) => {
+    setDraftContent(normalizeDraftContent(nextValue))
+  }, [])
 
   const hasUnsavedChanges =
     savedSnapshot != null &&
@@ -513,12 +625,25 @@ export function InboxItemDetail({
 
   const persistSnapshot = useCallback(
     async (snapshot: AutoSaveSnapshot, options?: FlushAutoSaveOptions): Promise<AutoSaveSnapshot | null> => {
-      if (!canEditItem) return null
+      if (!canEditItem || savedSnapshot == null) return null
+
+      // 只提交发生变化的字段：
+      // - 避免在“仅附件”的条目中，content 为空时还被强行提交（后端更新接口对空字符串校验更严格）
+      // - 也避免无意义的写入，降低自动保存噪音
+      const updatePayload: { content?: string; category?: string } = {}
+      if (snapshot.content !== savedSnapshot.content) updatePayload.content = snapshot.content
+      if (snapshot.category !== savedSnapshot.category) updatePayload.category = snapshot.category
+
+      if (updatePayload.content === undefined && updatePayload.category === undefined) {
+        // 可能是并发情况下 savedSnapshot 已经被其他保存同步了
+        setSavedSnapshot(snapshot)
+        return snapshot
+      }
 
       beginAutoSaveIndicator(Boolean(options?.forceVisual))
 
       try {
-        const updatedItem = await updateMutation.mutateAsync(snapshot)
+        const updatedItem = await updateMutation.mutateAsync(updatePayload)
         const syncedSnapshot = {
           content: normalizeDraftContent(updatedItem.content ?? snapshot.content),
           category: updatedItem.analysis?.category ?? snapshot.category,
@@ -539,6 +664,7 @@ export function InboxItemDetail({
     },
     [
       canEditItem,
+      savedSnapshot,
       beginAutoSaveIndicator,
       updateMutation,
       completeAutoSaveIndicator,
@@ -807,6 +933,21 @@ export function InboxItemDetail({
     [ItemStatus.MANUAL]: t('status.manual'),
     [ItemStatus.FAILED]: t('status.failed'),
   }
+
+  // 简化后的路由活动banner控制逻辑
+  const shouldShowRoutingBanner = item && (
+    item.routingStatus === 'processing' ||
+    redistributeMutation.isPending ||
+    isPolling
+  )
+
+  const sseEnabled = redistributeMutation.isSuccess || item?.routingStatus === 'processing'
+
+  // 根据 API 文档，RoutingActivityBanner 的 toastMode 参数：
+  // - 'none': 默认模式，不显示 toast（页面可见时使用）
+  // - 'final': 仅在路由结束后显示最终结果的 toast（页面不可见时使用）
+  // 这样可以避免在用户查看其他标签页时显示不必要的通知
+  const toastMode = !isPageVisible ? 'final' : 'none'
 
   if (isLoading) {
     return (
@@ -1087,6 +1228,20 @@ export function InboxItemDetail({
         </div>
       </div>
 
+      {shouldShowRoutingBanner ? (
+        <div className="pb-4 pt-3">
+          <RoutingActivityBanner
+            itemId={item.id}
+            enabled
+            sseEnabled={sseEnabled}
+            defaultOpen={redistributeMutation.isPending}
+            toastId={`redistribute-${item.id}`}
+            toastMode={toastMode}
+            className={isDrawerVariant ? 'px-4 md:px-6' : ''}
+          />
+        </div>
+      ) : null}
+
       {isDrawerVariant ? (
         <div className="flex-1 overflow-y-auto px-4 pb-6 pt-4 md:px-6">
           <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
@@ -1113,7 +1268,7 @@ export function InboxItemDetail({
                 ) : (
                   <DetailMarkdownEditor
                     value={draftContent}
-                    onChange={setDraftContent}
+                    onChange={handleDraftContentChange}
                     placeholder={t('edit.placeholder')}
                     disabled={!canEditItem}
                     className="border-0 bg-card focus-within:ring-0"
@@ -1209,7 +1364,7 @@ export function InboxItemDetail({
             ) : (
               <DetailMarkdownEditor
                 value={draftContent}
-                onChange={setDraftContent}
+                onChange={handleDraftContentChange}
                 placeholder={t('edit.placeholder')}
                 disabled={!canEditItem}
                 className="border-0 bg-card focus-within:ring-0"
