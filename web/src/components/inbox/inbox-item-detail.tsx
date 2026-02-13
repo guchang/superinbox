@@ -56,7 +56,6 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { InboxItemDetailProperties } from '@/components/inbox/inbox-item-detail-properties'
-import { RoutingActivityBanner } from '@/components/inbox/routing-activity-banner'
 
 // normalizeDraftContent 已被提取到 @/lib/utils/markdown.ts 的 normalizeMarkdownContent
 // 这里保留为别名以保持向后兼容
