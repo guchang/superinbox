@@ -1,0 +1,126 @@
+name: MCP Auto Publish
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "packages/mcp-server/**"
+      - "backend/src/mcp/server.ts"
+
+concurrency:
+  group: mcp-autopublish-main
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    if: ${{ !startsWith(github.event.head_commit.message, 'chore(mcp): release') }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Detect if MCP publish is needed
+        id: detect
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          PKG="@superinbox/mcp-server"
+          # npm view exits non-zero when package is missing or network hiccups.
+          LAST_GIT_HEAD="$(npm view "${PKG}" gitHead 2>/dev/null || true)"
+          echo "last_git_head=${LAST_GIT_HEAD}" >> "$GITHUB_OUTPUT"
+
+          if [[ -z "${LAST_GIT_HEAD}" ]]; then
+            echo "publish_needed=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Only publish if MCP-relevant paths changed since last published gitHead.
+          if git diff --quiet "${LAST_GIT_HEAD}..HEAD" -- "packages/mcp-server" "backend/src/mcp/server.ts"; then
+            echo "publish_needed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "publish_needed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Bump patch version (sync across entrypoints)
+        if: steps.detect.outputs.publish_needed == 'true'
+        id: bump
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          node <<'NODE'
+          const fs = require('fs');
+          const path = require('path');
+
+          const repoRoot = process.env.GITHUB_WORKSPACE;
+          const pkgJsonPath = path.join(repoRoot, 'packages/mcp-server/package.json');
+          const pkg = JSON.parse(fs.readFileSync(pkgJsonPath, 'utf8'));
+
+          const current = String(pkg.version || '').trim();
+          const match = current.match(/^(\d+)\.(\d+)\.(\d+)$/);
+          if (!match) {
+            throw new Error(`Invalid version in package.json: ${current}`);
+          }
+          const next = `${match[1]}.${match[2]}.${Number(match[3]) + 1}`;
+
+          pkg.version = next;
+          fs.writeFileSync(pkgJsonPath, JSON.stringify(pkg, null, 2) + '\n');
+
+          const targets = [
+            path.join(repoRoot, 'packages/mcp-server/src/index.ts'),
+            path.join(repoRoot, 'backend/src/mcp/server.ts')
+          ];
+
+          for (const filePath of targets) {
+            const content = fs.readFileSync(filePath, 'utf8');
+            const updated = content.replace(/version:\s*'(\d+\.\d+\.\d+)'/g, `version: '${next}'`);
+            if (updated === content) {
+              throw new Error(`Failed to update version in ${filePath}`);
+            }
+            fs.writeFileSync(filePath, updated);
+          }
+
+          process.stdout.write(next);
+          NODE
+
+          NEXT_VERSION="$(node -p \"require('./packages/mcp-server/package.json').version\")"
+          echo "next_version=${NEXT_VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Install, build, publish
+        if: steps.detect.outputs.publish_needed == 'true'
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd packages/mcp-server
+          npm ci
+          npm run build
+          npm publish --access public
+
+      - name: Commit and push release bump
+        if: steps.detect.outputs.publish_needed == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.bump.outputs.next_version }}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add packages/mcp-server/package.json packages/mcp-server/src/index.ts backend/src/mcp/server.ts
+          git commit -m "chore(mcp): release ${VERSION}" -m "- bump @superinbox/mcp-server for npm distribution" -m "- keep MCP server reported version in sync" || exit 0
+          git push
+

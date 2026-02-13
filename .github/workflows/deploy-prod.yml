@@ -1,0 +1,99 @@
+name: Deploy Production
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - "web/**"
+      - "docker-compose.prod.yml"
+      - "deploy/nginx/**"
+      - "deploy/scripts/**"
+      - "deploy/channel-bot/**"
+      - "channel-bot/**"
+
+concurrency:
+  group: deploy-prod-main
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: ${{ !startsWith(github.event.head_commit.message, 'chore(mcp): release') }}
+    steps:
+      - name: Checkout (for change detection)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Decide what to deploy
+        id: decide
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          BEFORE="${{ github.event.before }}"
+          AFTER="${{ github.sha }}"
+
+          # In rare cases (first push), github.event.before can be all zeros.
+          if [[ "${BEFORE}" =~ ^0+$ ]]; then
+            CHANGED="$(git diff --name-only "${AFTER}~1..${AFTER}" || true)"
+          else
+            CHANGED="$(git diff --name-only "${BEFORE}..${AFTER}" || true)"
+          fi
+
+          echo "Changed files:"
+          echo "${CHANGED}"
+
+          DEPLOY_APP=false
+          DEPLOY_BOT=false
+
+          if echo "${CHANGED}" | grep -Eq '^(backend/|web/|docker-compose\.prod\.yml|deploy/nginx/|deploy/scripts/)'; then
+            DEPLOY_APP=true
+          fi
+          if echo "${CHANGED}" | grep -Eq '^(channel-bot/|deploy/channel-bot/)'; then
+            DEPLOY_BOT=true
+          fi
+
+          echo "deploy_app=${DEPLOY_APP}" >> "$GITHUB_OUTPUT"
+          echo "deploy_bot=${DEPLOY_BOT}" >> "$GITHUB_OUTPUT"
+
+      - name: Setup SSH
+        if: steps.decide.outputs.deploy_app == 'true' || steps.decide.outputs.deploy_bot == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+
+          # Strict host key checking (recommended)
+          if [[ -n "${{ secrets.DEPLOY_KNOWN_HOSTS }}" ]]; then
+            printf '%s\n' "${{ secrets.DEPLOY_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+          else
+            echo "::warning::DEPLOY_KNOWN_HOSTS is not set; falling back to ssh-keyscan."
+            ssh-keyscan -H "${{ secrets.DEPLOY_HOST }}" > ~/.ssh/known_hosts
+          fi
+          chmod 600 ~/.ssh/known_hosts
+
+          printf '%s\n' "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+
+      - name: Deploy backend/web
+        if: steps.decide.outputs.deploy_app == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o StrictHostKeyChecking=yes "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" \
+            "cd \"${{ secrets.DEPLOY_PATH }}\" && ./deploy/scripts/update-prod.sh"
+
+      - name: Deploy channel-bot
+        if: steps.decide.outputs.deploy_bot == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o StrictHostKeyChecking=yes "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" \
+            "cd \"${{ secrets.DEPLOY_PATH }}\" && ./deploy/channel-bot/update.sh"
