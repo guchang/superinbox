@@ -445,13 +445,46 @@ export default function SettingsPage() {
     }
   }
 
-  const handleTestConnection = async (id: string) => {
+  const handleTestEditedConnection = async (id: string) => {
+    const provider = dialogDraft.provider.trim()
+    const model = dialogDraft.model.trim()
+    const apiKey = dialogDraft.apiKey.trim()
+
+    if (!provider) {
+      toast({
+        title: t('toast.llmProviderEmpty.title'),
+        description: t('toast.llmProviderEmpty.description'),
+        variant: 'destructive',
+      })
+      return
+    }
+
+    if (!model) {
+      toast({
+        title: t('toast.llmModelEmpty.title'),
+        description: t('toast.llmModelEmpty.description'),
+        variant: 'destructive',
+      })
+      return
+    }
+
+    const validatedNumbers = validateLlmFormNumbers(dialogDraft)
+    if (!validatedNumbers) return
+
     setLlmBusyId(id)
     setDialogTesting(true)
     setDialogConnectionFeedback(null)
 
     try {
-      const response = await settingsApi.testLlmConfig(id)
+      const response = await settingsApi.testLlmConfig(id, {
+        provider,
+        model,
+        baseUrl: dialogDraft.baseUrl.trim() || null,
+        timeout: validatedNumbers.timeout,
+        maxTokens: validatedNumbers.maxTokens,
+        ...(apiKey ? { apiKey } : {}),
+      })
+
       const result = response.data
       if (!result) return
 
@@ -756,7 +789,7 @@ export default function SettingsPage() {
               {dialogMode === 'edit' && editingConfigId ? (
                 <Button
                   variant="outline"
-                  onClick={() => handleTestConnection(editingConfigId)}
+                  onClick={() => handleTestEditedConnection(editingConfigId)}
                   disabled={dialogBusy}
                 >
                   {dialogTesting ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : null}

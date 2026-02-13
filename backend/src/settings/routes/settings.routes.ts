@@ -36,6 +36,8 @@ const llmConfigTestPayloadSchema = z.object({
   maxTokens: z.number().int().positive().optional().nullable(),
 });
 
+const llmConfigTestOverridesSchema = llmConfigTestPayloadSchema.partial();
+
 const llmConfigUpdateSchema = z.object({
   name: z.string().trim().max(100).optional().nullable(),
   provider: z.string().trim().min(1).optional().nullable(),
@@ -408,18 +410,18 @@ router.post('/llm/test', authenticate, async (req: Request, res: Response): Prom
 
     const startedAt = Date.now();
     const client = new LLMClient(runtimeConfig, { userId });
-    const healthy = await client.healthCheck();
+    const health = await client.healthCheckDetailed();
     const latencyMs = Date.now() - startedAt;
 
     res.json({
       success: true,
       data: {
         id: 'draft',
-        ok: healthy,
+        ok: health.ok,
         latencyMs,
         provider: runtimeConfig.provider,
         model: runtimeConfig.model,
-        message: healthy ? 'Connection test passed' : 'Connection test failed'
+        message: health.ok ? 'Connection test passed' : (health.error ?? 'Connection test failed')
       }
     });
   } catch (error) {
@@ -457,7 +459,17 @@ router.post('/llm/:id/test', authenticate, async (req: Request, res: Response): 
       return;
     }
 
-    const runtimeConfig = buildRuntimeLlmConfig(targetConfig);
+    const overrides = llmConfigTestOverridesSchema.parse(req.body ?? {});
+    const mergedConfig = {
+      provider: overrides.provider ?? targetConfig.provider,
+      model: overrides.model ?? targetConfig.model,
+      baseUrl: overrides.baseUrl !== undefined ? overrides.baseUrl : targetConfig.baseUrl,
+      apiKey: overrides.apiKey ?? targetConfig.apiKey,
+      timeout: overrides.timeout !== undefined ? overrides.timeout : targetConfig.timeout,
+      maxTokens: overrides.maxTokens !== undefined ? overrides.maxTokens : targetConfig.maxTokens,
+    };
+
+    const runtimeConfig = buildRuntimeLlmConfig(mergedConfig);
     if (!runtimeConfig) {
       sendError(res, {
         statusCode: 400,
@@ -469,21 +481,30 @@ router.post('/llm/:id/test', authenticate, async (req: Request, res: Response): 
 
     const startedAt = Date.now();
     const client = new LLMClient(runtimeConfig, { userId });
-    const healthy = await client.healthCheck();
+    const health = await client.healthCheckDetailed();
     const latencyMs = Date.now() - startedAt;
 
     res.json({
       success: true,
       data: {
         id: targetConfig.id,
-        ok: healthy,
+        ok: health.ok,
         latencyMs,
         provider: runtimeConfig.provider,
         model: runtimeConfig.model,
-        message: healthy ? 'Connection test passed' : 'Connection test failed'
+        message: health.ok ? 'Connection test passed' : (health.error ?? 'Connection test failed')
       }
     });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      sendError(res, {
+        statusCode: 400,
+        code: 'SETTINGS.INVALID_INPUT',
+        message: 'Invalid request body'
+      });
+      return;
+    }
+
     console.error('LLM config connection test error:', error);
     sendError(res, {
       statusCode: 500,

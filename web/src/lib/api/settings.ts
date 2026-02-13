@@ -68,8 +68,8 @@ export const settingsApi = {
   },
 
   // 测试指定 LLM 配置连接
-  async testLlmConfig(id: string): Promise<ApiResponse<LlmConfigTestResult>> {
-    return apiClient.post<LlmConfigTestResult>(`/settings/llm/${id}/test`)
+  async testLlmConfig(id: string, overrides?: Partial<LlmConfigTestPayload>): Promise<ApiResponse<LlmConfigTestResult>> {
+    return apiClient.post<LlmConfigTestResult>(`/settings/llm/${id}/test`, overrides)
   },
 
   // 测试草稿 LLM 配置连接（用于新增弹窗）
