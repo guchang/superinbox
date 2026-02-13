@@ -72,6 +72,12 @@ function isLikelyOpaqueTargetId(value: string): boolean {
   return compactIdPattern.test(trimmed) && !trimmed.includes('.')
 }
 
+function normalizeBlankishText(value: string): string {
+  if (!value) return ''
+  const normalized = value.replace(/&nbsp;|&#160;|\u00a0/gi, ' ')
+  return normalized.trim() ? normalized : ''
+}
+
 type ConnectorMeta = {
   name: string
   serverType?: string
@@ -265,6 +271,7 @@ function MemoryCardComponent({
   const isImage = lowerMimeType.startsWith('image/') || item.contentType === ContentType.IMAGE
   const isAudio = lowerMimeType.startsWith('audio/') || item.contentType === ContentType.AUDIO
   const isVideo = lowerMimeType.startsWith('video/') || item.contentType === ContentType.VIDEO
+  const displayContent = normalizeBlankishText(item.content)
 
   const rawRoutingStatus = item.routingStatus
   const routingStatusValue = rawRoutingStatus === 'failed' ? 'error' : rawRoutingStatus
@@ -528,10 +535,10 @@ function MemoryCardComponent({
   const handleCopyContent = useCallback(async () => {
     try {
       if (navigator?.clipboard?.writeText) {
-        await navigator.clipboard.writeText(item.content)
+        await navigator.clipboard.writeText(displayContent)
       } else {
         const textarea = document.createElement('textarea')
-        textarea.value = item.content
+        textarea.value = displayContent
         textarea.style.position = 'fixed'
         textarea.style.opacity = '0'
         document.body.appendChild(textarea)
@@ -544,7 +551,7 @@ function MemoryCardComponent({
     } catch (error) {
       setCopied(false)
     }
-  }, [item.content])
+  }, [displayContent])
 
   const animationConfig =
     animationVariant === 'elastic'
@@ -768,7 +775,7 @@ function MemoryCardComponent({
             "line-clamp-3"
           )}>
             <LinkifiedText
-              text={item.content}
+              text={displayContent}
               linkClassName={cn(
                 'text-current hover:opacity-80',
                 item.contentType === ContentType.URL && 'font-semibold'
