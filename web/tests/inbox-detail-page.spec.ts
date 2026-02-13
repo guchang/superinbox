@@ -2,19 +2,29 @@ import { test, expect } from '@playwright/test'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 
-const detailPagePath = path.join(process.cwd(), 'src/app/[locale]/(dashboard)/inbox/[id]/page.tsx')
+const detailPagePath = path.join(process.cwd(), 'src/components/inbox/inbox-item-detail.tsx')
+const detailPropertiesPath = path.join(process.cwd(), 'src/components/inbox/inbox-item-detail-properties.tsx')
 const imageGalleryPath = path.join(process.cwd(), 'src/components/inbox/image-gallery.tsx')
 const zhMessagesPath = path.join(process.cwd(), 'src/messages/zh-CN.json')
 const enMessagesPath = path.join(process.cwd(), 'src/messages/en.json')
 
 test.describe('Inbox detail page refactor contract', () => {
   const source = readFileSync(detailPagePath, 'utf8')
+  const propertiesSource = readFileSync(detailPropertiesPath, 'utf8')
   const imageGallerySource = readFileSync(imageGalleryPath, 'utf8')
 
   test('defaults to edit mode and supports read-only mode', async () => {
     expect(source).toContain("useState<'edit' | 'readOnly'>('edit')")
     expect(source).toContain("viewMode === 'readOnly' || !canEditItem")
     expect(source).toContain("t('edit.mode.readOnly')")
+  })
+
+  test('preserves inbox query params when navigating back to list', async () => {
+    expect(source).toContain('useSearchParams')
+    expect(source).not.toContain('href="/inbox"')
+
+    const listHrefLinks = source.match(/href=\{\s*listHref\s*\}/g) ?? []
+    expect(listHrefLinks.length).toBeGreaterThanOrEqual(2)
   })
 
   test('uses more menu for secondary actions and removes refresh action', async () => {
@@ -33,14 +43,14 @@ test.describe('Inbox detail page refactor contract', () => {
   test('moves AI analysis from main content to properties sheet', async () => {
     expect(source).not.toContain('item.analysis && (item.analysis.summary || entityEntries.length > 0) && (')
     expect(source).toContain('const hasAnalysisSection = hasAnalysisSummary || entityEntries.length > 0')
-    expect(source).toContain('{hasAnalysisSection && (')
-    expect(source).toContain("t('metadata.category')")
+    expect(propertiesSource).toContain('hasAnalysisSection ? (')
+    expect(propertiesSource).toContain("t('metadata.category')")
     expect(source).toContain('const isManualCategoryStatus = item.status === ItemStatus.MANUAL')
     expect(source).toContain('const showCategoryConfidence = hasAnalysisConfidence && !isManualCategoryStatus')
-    expect(source).toContain("t('sections.analysis')")
-    expect(source).toContain("t('analysis.summary')")
-    expect(source).toContain("t('analysis.entities')")
-    expect(source).toContain("t('analysis.confidence')")
+    expect(propertiesSource).toContain("t('sections.analysis')")
+    expect(propertiesSource).toContain("t('analysis.summary')")
+    expect(propertiesSource).toContain("t('analysis.entities')")
+    expect(propertiesSource).toContain("t('analysis.confidence')")
     expect(source).toContain("t('status.manual')")
     expect(source).not.toContain('initialAICategoryRef')
     expect(source).toContain('formatEntityTypeLabel(type)')
@@ -48,7 +58,7 @@ test.describe('Inbox detail page refactor contract', () => {
     expect(source).toContain("hiddenCount: Math.max(0, uniqueValues.length - MAX_VISIBLE_ENTITY_VALUES)")
     expect(source).not.toContain("t('metadata.id')")
 
-    const sourceMatches = source.match(/t\('metadata\.source'\)/g) ?? []
+    const sourceMatches = `${source}\n${propertiesSource}`.match(/t\('metadata\.source'\)/g) ?? []
     expect(sourceMatches).toHaveLength(1)
   })
 

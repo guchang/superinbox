@@ -21,12 +21,11 @@ import {
   Search,
   X,
 } from 'lucide-react'
-import { Link } from '@/i18n/navigation'
+import { Link, useRouter } from '@/i18n/navigation'
 import { useToast } from '@/hooks/use-toast'
 import { useState, useMemo, useEffect, useRef, useCallback, type DragEvent as ReactDragEvent } from 'react'
 import { MemoryCard } from '@/components/inbox/memory-card'
 import { ExpandableInput, type ExpandableInputHandle } from '@/components/inbox/expandable-input'
-import { DetailModal } from '@/components/inbox/detail-modal'
 import { SearchDialog, SearchFilters } from '@/components/shared/search-dialog'
 import { DashboardFilterBar, FilterPillButton } from '@/components/shared/filter-bar'
 import { useAutoRefetch } from '@/hooks/use-auto-refetch'
@@ -121,15 +120,13 @@ export default function InboxPage() {
   const errors = useTranslations('errors')
   const queryClient = useQueryClient()
   const { toast } = useToast()
+  const router = useRouter()
   const searchParams = useSearchParams()
 
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [retryingId, setRetryingId] = useState<string | null>(null)
   const [searchFilters, setSearchFilters] = useState<SearchFilters>({ query: '' })
   const [activeType, setActiveType] = useState<string>('all')
-  const [selectedItem, setSelectedItem] = useState<Item | null>(null)
-  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
-  const [isDetailEditing, setIsDetailEditing] = useState(false)
   const [createdItemId, setCreatedItemId] = useState<string | null>(null)
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const loadMoreRef = useRef<HTMLDivElement>(null)
@@ -641,62 +638,17 @@ export default function InboxPage() {
     await retryMutation.mutateAsync(id)
   }
 
-  const handleCloseDetailModal = useCallback(() => {
-    setIsDetailModalOpen(false)
-    setIsDetailEditing(false)
-  }, [])
-
   // 查看详情
   const handleViewDetail = (item: Item) => {
-    setSelectedItem(item)
-    setIsDetailEditing(false)
-    setIsDetailModalOpen(true)
+    const qs = searchParams.toString()
+    router.push(qs ? `/inbox/${item.id}?${qs}` : `/inbox/${item.id}`)
   }
 
   // 编辑条目
   const handleEdit = (item: Item) => {
-    setSelectedItem(item)
-    setIsDetailEditing(true)
-    setIsDetailModalOpen(true)
+    const qs = searchParams.toString()
+    router.push(qs ? `/inbox/${item.id}?${qs}` : `/inbox/${item.id}`)
   }
-
-  const updateMutation = useMutation({
-    mutationFn: async ({ id, content, category }: { id: string; content: string; category: string }) => {
-      const response = await inboxApi.updateItem(id, { content, category })
-      if (!response.success) {
-        throw new Error(response.error || response.message || 'Failed to update item')
-      }
-      return response.data
-    },
-    onSuccess: (updatedItem) => {
-      queryClient.invalidateQueries({ queryKey: ['inbox'] })
-      if (updatedItem) {
-        setSelectedItem(updatedItem)
-      }
-      setIsDetailEditing(false)
-      toast({
-        title: t('toast.updateSuccess.title'),
-        description: t('toast.updateSuccess.description'),
-        channel: 'development',
-      })
-    },
-    onError: (error) => {
-      toast({
-        title: t('toast.updateFailure.title'),
-        description: getApiErrorMessage(error, errors, common('unknownError')),
-        variant: 'destructive',
-      })
-    },
-  })
-
-  const handleSaveItemEdits = useCallback(async (payload: { content: string; category: string }) => {
-    if (!selectedItem) return
-    await updateMutation.mutateAsync({
-      id: selectedItem.id,
-      content: payload.content,
-      category: payload.category,
-    })
-  }, [selectedItem, updateMutation])
 
   const redistributeMutation = useMutation({
     mutationFn: async (id: string) => {
@@ -768,14 +720,6 @@ export default function InboxPage() {
     const timeout = setTimeout(() => setCreatedItemId(null), 800)
     return () => clearTimeout(timeout)
   }, [createdItemId, items])
-
-  useEffect(() => {
-    if (!selectedItem) return
-    const latestItem = items.find((item) => item.id === selectedItem.id)
-    if (latestItem && latestItem !== selectedItem) {
-      setSelectedItem(latestItem)
-    }
-  }, [items, selectedItem])
 
   // 获取当前分类标签
   const currentCategoryLabel = useMemo(() => {
@@ -975,24 +919,6 @@ export default function InboxPage() {
                 </div>
               ))}
             </div>
-
-            {/* Detail Modal */}
-            <DetailModal
-              item={selectedItem}
-              isOpen={isDetailModalOpen}
-              isEditing={isDetailEditing}
-              isSavingEdit={updateMutation.isPending}
-              categoryMetaMap={categoryMetaMap}
-              categoryOptions={activeCategories.map((category) => ({
-                key: category.key,
-                name: category.name,
-              }))}
-              onClose={handleCloseDetailModal}
-              onEditingChange={setIsDetailEditing}
-              onSaveEdit={handleSaveItemEdits}
-              onRedistribute={(id) => redistributeMutation.mutate(id)}
-              redistributing={redistributeMutation.isPending}
-            />
 
             {/* Load More Trigger */}
             {hasNextPage && (

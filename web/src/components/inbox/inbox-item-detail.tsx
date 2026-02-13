@@ -1,15 +1,15 @@
+/* eslint-disable max-lines */
 "use client"
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useMemo, useState, useEffect, useCallback, useRef, type FocusEvent } from 'react'
-import { useParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { Link, useRouter } from '@/i18n/navigation'
 import { useTheme } from 'next-themes'
+import { useSearchParams } from 'next/navigation'
 import { categoriesApi } from '@/lib/api/categories'
 import { inboxApi } from '@/lib/api/inbox'
 import { Separator } from '@/components/ui/separator'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { SidebarTrigger } from '@/components/ui/sidebar'
 import { formatRelativeTime, cn } from '@/lib/utils'
@@ -44,7 +44,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { LinkifiedText } from '@/components/shared/linkified-text'
 import { DetailMarkdownEditor } from '@/components/inbox/detail-markdown-editor'
 import { MarkdownContent } from '@/components/shared/markdown-content'
 import {
@@ -55,6 +54,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet'
+import { InboxItemDetailProperties } from '@/components/inbox/inbox-item-detail-properties'
 
 function normalizeDraftContent(value: string) {
   return value.replace(/\r\n/g, '\n')
@@ -109,7 +109,15 @@ function AutoSaveProgress({ state }: { state: Exclude<AutoSaveIndicatorState, 'h
   )
 }
 
-export default function InboxDetailPage() {
+export type InboxItemDetailVariant = 'page' | 'drawer'
+
+export function InboxItemDetail({
+  id,
+  variant,
+}: {
+  id: string
+  variant: InboxItemDetailVariant
+}) {
   const t = useTranslations('inboxDetail')
   const common = useTranslations('common')
   const time = useTranslations('time')
@@ -118,8 +126,12 @@ export default function InboxDetailPage() {
   const router = useRouter()
   const queryClient = useQueryClient()
   const { toast } = useToast()
-  const params = useParams()
-  const id = params.id as string
+  const isDrawerVariant = variant === 'drawer'
+  const searchParams = useSearchParams()
+  const listHref = useMemo(() => {
+    const qs = searchParams.toString()
+    return qs ? `/inbox?${qs}` : '/inbox'
+  }, [searchParams])
 
   const { data: itemData, isLoading, refetch } = useQuery({
     queryKey: ['inbox', id],
@@ -140,6 +152,7 @@ export default function InboxDetailPage() {
   const [saveIndicatorMode, setSaveIndicatorMode] = useState<SaveIndicatorMode>('auto')
   const [viewMode, setViewMode] = useState<'edit' | 'readOnly'>('edit')
   const [isPropertiesOpen, setIsPropertiesOpen] = useState(false)
+  const [isDrawerPropertiesOpen, setIsDrawerPropertiesOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const pendingSnapshotRef = useRef<AutoSaveSnapshot | null>(null)
   const debounceTimerRef = useRef<number | null>(null)
@@ -266,7 +279,7 @@ export default function InboxDetailPage() {
         title: t('toast.deleteSuccess.title'),
         description: t('toast.deleteSuccess.description'),
       })
-      router.push('/inbox')
+      router.push(listHref)
     },
     onError: (error) => {
       toast({
@@ -797,8 +810,17 @@ export default function InboxDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="w-full px-4 py-24 md:px-6">
-        <div className="flex items-center justify-center rounded-2xl border border-border bg-card p-10 shadow-sm dark:bg-background/70">
+      <div
+        className={cn(
+          isDrawerVariant ? 'h-full flex items-center justify-center p-6' : 'w-full px-4 py-24 md:px-6'
+        )}
+      >
+        <div
+          className={cn(
+            'flex items-center justify-center rounded-2xl border border-border bg-card shadow-sm dark:bg-background/70',
+            isDrawerVariant ? 'w-full max-w-md p-8' : 'p-10'
+          )}
+        >
           <div className="flex flex-col items-center gap-4">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             <p className="text-sm text-muted-foreground">{t('loading')}</p>
@@ -810,13 +832,22 @@ export default function InboxDetailPage() {
 
   if (!item) {
     return (
-      <div className="w-full px-4 py-24 md:px-6">
-        <div className="flex flex-col items-center justify-center gap-4 rounded-2xl border border-border bg-card p-10 shadow-sm dark:bg-background/70">
+      <div
+        className={cn(
+          isDrawerVariant ? 'h-full flex items-center justify-center p-6' : 'w-full px-4 py-24 md:px-6'
+        )}
+      >
+        <div
+          className={cn(
+            'flex flex-col items-center justify-center gap-4 rounded-2xl border border-border bg-card shadow-sm dark:bg-background/70',
+            isDrawerVariant ? 'w-full max-w-md p-8' : 'p-10'
+          )}
+        >
           <div className="rounded-full bg-muted p-4">
             <AlertCircle className="h-8 w-8 text-muted-foreground" />
           </div>
           <p className="font-medium text-muted-foreground">{t('notFound')}</p>
-          <Link href="/inbox">
+          <Link href={listHref}>
             <Button variant="outline">{t('backToInbox')}</Button>
           </Link>
         </div>
@@ -885,25 +916,32 @@ export default function InboxDetailPage() {
     'h-10 rounded-xl border border-border bg-background px-3 text-sm font-medium shadow-sm transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring/20'
 
   return (
-    <div className="w-full px-4 pb-6 pt-0 md:px-6">
-      <div className="sticky top-0 z-50 -mx-4 flex h-14 items-center bg-white/50 px-3 backdrop-blur-xl dark:bg-[#0b0b0f]/50 md:-mx-6 md:px-6">
+    <div className={cn(isDrawerVariant ? 'h-full flex flex-col' : 'w-full px-4 pb-6 pt-0 md:px-6')}>
+      <div
+        className={cn(
+          'sticky top-0 z-50 flex h-14 items-center bg-white/50 px-3 backdrop-blur-xl dark:bg-[#0b0b0f]/50 md:px-6',
+          isDrawerVariant ? 'border-b border-border pr-14' : '-mx-4 md:-mx-6'
+        )}
+      >
         <div className="flex w-full items-center gap-2 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden md:gap-3">
-          <div className="flex shrink-0 items-center gap-2">
-            <SidebarTrigger className="-ml-1" />
-            <Separator orientation="vertical" className="mx-2 h-4" />
+          {!isDrawerVariant ? (
+            <div className="flex shrink-0 items-center gap-2">
+              <SidebarTrigger className="-ml-1" />
+              <Separator orientation="vertical" className="mx-2 h-4" />
 
-            <Button
-              asChild
-              variant="ghost"
-              size="sm"
-              className="hidden h-8 gap-1 px-2 md:inline-flex"
-            >
-              <Link href="/inbox" className="flex items-center gap-2">
-                <ArrowLeft className="h-3.5 w-3.5 shrink-0" />
-                <span className="text-sm">{t('actions.back')}</span>
-              </Link>
-            </Button>
-          </div>
+              <Button
+                asChild
+                variant="ghost"
+                size="sm"
+                className="hidden h-8 gap-1 px-2 md:inline-flex"
+              >
+                <Link href={listHref} className="flex items-center gap-2">
+                  <ArrowLeft className="h-3.5 w-3.5 shrink-0" />
+                  <span className="text-sm">{t('actions.back')}</span>
+                </Link>
+              </Button>
+            </div>
+          ) : null}
 
           <div className="ml-auto flex shrink-0 items-center gap-2 md:gap-3">
             <DropdownMenu>
@@ -990,9 +1028,17 @@ export default function InboxDetailPage() {
             <Button
               variant="outline"
               size="icon"
-              className={cn(headerPillClass, 'w-10')}
+              className={cn(headerPillClass, 'w-10', isDrawerVariant && 'lg:hidden')}
               aria-label={t('actions.viewProperties')}
-              onClick={() => setIsPropertiesOpen(true)}
+              aria-pressed={isDrawerVariant ? isDrawerPropertiesOpen : undefined}
+              onClick={() => {
+                if (isDrawerVariant) {
+                  setIsDrawerPropertiesOpen((previous) => !previous)
+                  return
+                }
+
+                setIsPropertiesOpen(true)
+              }}
             >
               <Settings2 className="h-4 w-4" />
             </Button>
@@ -1041,208 +1087,191 @@ export default function InboxDetailPage() {
         </div>
       </div>
 
-      <div className="mt-4 space-y-6">
-        <section className="relative grid gap-3" onBlurCapture={!isReadOnlyMode ? handleEditorBlurCapture : undefined}>
-          {!isReadOnlyMode && autoSaveLabel ? (
-            <div className="pointer-events-none absolute right-2 top-2 z-10">
-              <div
-                className={cn(
-                  'inline-flex items-center gap-2 rounded-full bg-background/85 px-2 py-1 text-sm font-medium text-muted-foreground shadow-sm backdrop-blur transition-opacity duration-200',
-                  autoSaveIndicatorState === 'hidden' ? 'opacity-0' : 'opacity-100'
-                )}
-              >
-                {autoSaveIndicatorState === 'hidden' ? null : <AutoSaveProgress state={autoSaveIndicatorState} />}
-                <span>{autoSaveLabel}</span>
-              </div>
-            </div>
-          ) : null}
-
-          {isReadOnlyMode ? (
-            <div className="rounded-xl bg-background p-4 text-sm leading-relaxed">
-              <MarkdownContent text={draftContent} emptyText={t('content.empty')} />
-            </div>
-          ) : (
-            <DetailMarkdownEditor
-              value={draftContent}
-              onChange={setDraftContent}
-              placeholder={t('edit.placeholder')}
-              disabled={!canEditItem}
-              className="border-0 bg-card focus-within:ring-0"
-            />
-          )}
-        </section>
-
-        {item.hasFile && (
-          <>
-            <Separator className="h-[2px] bg-border" />
-            <section className="grid gap-3">
-              <div className="flex items-center gap-2 text-base font-semibold">
-                <Paperclip className="h-4 w-4 text-muted-foreground" />
-                <span>{t('sections.attachments')}</span>
-              </div>
-
-              <FilePreview
-                itemId={item.id}
-                fileName={item.fileName}
-                mimeType={item.mimeType}
-                allFiles={item.allFiles}
-                variant="detailTypeAware"
-              />
-            </section>
-          </>
-        )}
-
-      </div>
-
-      <Sheet open={isPropertiesOpen} onOpenChange={setIsPropertiesOpen}>
-        <SheetContent side="right" className="w-full overflow-y-auto sm:max-w-lg">
-          <SheetHeader>
-            <SheetTitle className="flex items-center gap-2">
-              <Settings2 className="h-4 w-4 text-muted-foreground" />
-              {t('sections.properties')}
-            </SheetTitle>
-            <SheetDescription>{t('subtitle', { id: item.id })}</SheetDescription>
-          </SheetHeader>
-
-          <div className="mt-4 space-y-6">
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div className="grid gap-1.5">
-                <span className="text-xs text-muted-foreground">{t('metadata.status')}</span>
-                <div>
-                  <Badge variant={getStatusBadgeVariant(item.status)}>{statusLabelMap[item.status]}</Badge>
-                </div>
-              </div>
-
-              <div className="grid gap-1.5 sm:col-span-2">
-                <span className="text-xs text-muted-foreground">{t('metadata.category')}</span>
-                <div className="grid gap-2">
-                  <Badge variant="secondary" className="w-fit font-medium">
-                    {selectedCategoryLabel}
-                  </Badge>
-
-                  {showCategoryConfidence && (
-                    <div className="grid gap-1.5">
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="text-muted-foreground">{t('analysis.confidence')}</span>
-                        <span className="font-medium text-muted-foreground">{clampedAnalysisConfidence.toFixed(0)}%</span>
-                      </div>
-                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
-                        <div className="h-full bg-primary" style={{ width: `${clampedAnalysisConfidence}%` }} />
-                      </div>
+      {isDrawerVariant ? (
+        <div className="flex-1 overflow-y-auto px-4 pb-6 pt-4 md:px-6">
+          <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+            <div className="space-y-6 min-w-0">
+              <section className="relative grid gap-3" onBlurCapture={!isReadOnlyMode ? handleEditorBlurCapture : undefined}>
+                {!isReadOnlyMode && autoSaveLabel ? (
+                  <div className="pointer-events-none absolute right-2 top-2 z-10">
+                    <div
+                      className={cn(
+                        'inline-flex items-center gap-2 rounded-full bg-background/85 px-2 py-1 text-sm font-medium text-muted-foreground shadow-sm backdrop-blur transition-opacity duration-200',
+                        autoSaveIndicatorState === 'hidden' ? 'opacity-0' : 'opacity-100'
+                      )}
+                    >
+                      {autoSaveIndicatorState === 'hidden' ? null : <AutoSaveProgress state={autoSaveIndicatorState} />}
+                      <span>{autoSaveLabel}</span>
                     </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {hasAnalysisSection && (
-              <>
-                <Separator />
-                <div className="grid gap-3">
-                  <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-                    <Sparkles className="h-3.5 w-3.5" />
-                    {t('sections.analysis')}
                   </div>
+                ) : null}
 
-                  {hasAnalysisSummary && (
-                    <div className="grid gap-1.5">
-                      <span className="text-xs text-muted-foreground">{t('analysis.summary')}</span>
-                      <p className="rounded-xl border border-border bg-muted p-3 text-xs leading-relaxed text-foreground">
-                        <LinkifiedText text={analysisSummary} linkClassName="text-primary hover:opacity-80" />
-                      </p>
+                {isReadOnlyMode ? (
+                  <div className="rounded-xl bg-background p-4 text-sm leading-relaxed">
+                    <MarkdownContent text={draftContent} emptyText={t('content.empty')} />
+                  </div>
+                ) : (
+                  <DetailMarkdownEditor
+                    value={draftContent}
+                    onChange={setDraftContent}
+                    placeholder={t('edit.placeholder')}
+                    disabled={!canEditItem}
+                    className="border-0 bg-card focus-within:ring-0"
+                  />
+                )}
+              </section>
+
+              {item.hasFile && (
+                <>
+                  <Separator className="h-[2px] bg-border" />
+                  <section className="grid gap-3">
+                    <div className="flex items-center gap-2 text-base font-semibold">
+                      <Paperclip className="h-4 w-4 text-muted-foreground" />
+                      <span>{t('sections.attachments')}</span>
                     </div>
-                  )}
 
-                  {entityEntries.length > 0 && (
-                    <div className="grid gap-1.5">
-                      <span className="text-xs text-muted-foreground">{t('analysis.entities')}</span>
-                      <div className="grid gap-2">
-                        {entityEntries.map((entry) => (
-                          <div key={entry.type} className="rounded-xl border border-border bg-muted/40 p-2.5">
-                            <div className="text-[11px] font-medium text-muted-foreground">{entry.label}</div>
-                            <div className="mt-1.5 flex flex-wrap gap-1.5">
-                              {entry.visibleValues.map((value, index) => (
-                                <Badge key={`${entry.type}-${index}`} variant="secondary" className="px-2 py-0.5 text-[11px] font-normal">
-                                  {value}
-                                </Badge>
-                              ))}
-                              {entry.hiddenCount > 0 ? (
-                                <Badge variant="outline" className="px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
-                                  +{entry.hiddenCount}
-                                </Badge>
-                              ) : null}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                </div>
-              </>
-            )}
-
-            <Separator />
-
-            <div className="grid gap-2">
-              <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-                <Share2 className="h-3.5 w-3.5" />
-                {t('sections.distribution')}
-              </div>
-              {distributionEntries.length > 0 ? (
-                <div className="space-y-2 rounded-xl border border-border bg-muted p-3">
-                  {distributionEntries.map((entry) => (
-                    <div key={entry.key} className="flex items-center gap-2.5 text-xs">
-                      <span
-                        className={cn(
-                          'h-1.5 w-1.5 flex-shrink-0 rounded-full',
-                          entry.isSuccess ? 'bg-emerald-500' : 'bg-rose-500'
-                        )}
-                      />
-                      <span className="flex-1 truncate text-muted-foreground">{entry.target}</span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="pl-1 text-xs text-muted-foreground">{t('distribution.empty')}</p>
+                    <FilePreview
+                      itemId={item.id}
+                      fileName={item.fileName}
+                      mimeType={item.mimeType}
+                      allFiles={item.allFiles}
+                      variant="detailTypeAware"
+                    />
+                  </section>
+                </>
               )}
+
+              {isDrawerPropertiesOpen ? (
+                <div className="lg:hidden rounded-2xl border border-border bg-muted/20 p-4">
+                  <InboxItemDetailProperties
+                    t={t}
+                    time={time}
+                    item={item}
+                    selectedCategoryLabel={selectedCategoryLabel}
+                    showCategoryConfidence={showCategoryConfidence}
+                    clampedAnalysisConfidence={clampedAnalysisConfidence}
+                    hasAnalysisSection={hasAnalysisSection}
+                    hasAnalysisSummary={hasAnalysisSummary}
+                    analysisSummary={analysisSummary}
+                    entityEntries={entityEntries}
+                    distributionEntries={distributionEntries}
+                    contentTypeTags={contentTypeTags}
+                    updatedAtLabel={updatedAtLabel}
+                    statusLabelMap={statusLabelMap}
+                    getStatusBadgeVariant={getStatusBadgeVariant}
+                  />
+                </div>
+              ) : null}
             </div>
 
-            <Separator />
-
-            <div className="grid gap-4 text-xs">
-              <div className="grid gap-2">
-                <span className="text-muted-foreground">{t('metadata.contentType')}</span>
-                <div className="flex flex-wrap gap-2">
-                  {contentTypeTags.map((tag) => (
-                    <Badge key={tag} variant="secondary" className="px-2 py-0.5 text-[11px]">
-                      {tag}
-                    </Badge>
-                  ))}
-                </div>
-
-                <div className="grid gap-1.5 pt-1">
-                  <span className="text-muted-foreground">{t('metadata.source')}</span>
-                  <Badge variant="outline" className="w-fit">
-                    {item.source || '-'}
-                  </Badge>
-                </div>
-              </div>
-
-              <div className="grid gap-2">
-                <div className="flex justify-between gap-2">
-                  <span className="text-muted-foreground">{t('metadata.createdAt')}</span>
-                  <span className="text-right font-medium">{formatRelativeTime(item.createdAtLocal ?? item.createdAt, time)}</span>
-                </div>
-                <div className="flex justify-between gap-2">
-                  <span className="text-muted-foreground">{t('metadata.updatedAt')}</span>
-                  <span className="text-right font-medium">{updatedAtLabel}</span>
-                </div>
-              </div>
-            </div>
+            <aside className="hidden lg:block rounded-2xl border border-border bg-muted/20 p-4">
+              <InboxItemDetailProperties
+                t={t}
+                time={time}
+                item={item}
+                selectedCategoryLabel={selectedCategoryLabel}
+                showCategoryConfidence={showCategoryConfidence}
+                clampedAnalysisConfidence={clampedAnalysisConfidence}
+                hasAnalysisSection={hasAnalysisSection}
+                hasAnalysisSummary={hasAnalysisSummary}
+                analysisSummary={analysisSummary}
+                entityEntries={entityEntries}
+                distributionEntries={distributionEntries}
+                contentTypeTags={contentTypeTags}
+                updatedAtLabel={updatedAtLabel}
+                statusLabelMap={statusLabelMap}
+                getStatusBadgeVariant={getStatusBadgeVariant}
+              />
+            </aside>
           </div>
-        </SheetContent>
-      </Sheet>
+        </div>
+      ) : (
+        <div className="mt-4 space-y-6">
+          <section className="relative grid gap-3" onBlurCapture={!isReadOnlyMode ? handleEditorBlurCapture : undefined}>
+            {!isReadOnlyMode && autoSaveLabel ? (
+              <div className="pointer-events-none absolute right-2 top-2 z-10">
+                <div
+                  className={cn(
+                    'inline-flex items-center gap-2 rounded-full bg-background/85 px-2 py-1 text-sm font-medium text-muted-foreground shadow-sm backdrop-blur transition-opacity duration-200',
+                    autoSaveIndicatorState === 'hidden' ? 'opacity-0' : 'opacity-100'
+                  )}
+                >
+                  {autoSaveIndicatorState === 'hidden' ? null : <AutoSaveProgress state={autoSaveIndicatorState} />}
+                  <span>{autoSaveLabel}</span>
+                </div>
+              </div>
+            ) : null}
+
+            {isReadOnlyMode ? (
+              <div className="rounded-xl bg-background p-4 text-sm leading-relaxed">
+                <MarkdownContent text={draftContent} emptyText={t('content.empty')} />
+              </div>
+            ) : (
+              <DetailMarkdownEditor
+                value={draftContent}
+                onChange={setDraftContent}
+                placeholder={t('edit.placeholder')}
+                disabled={!canEditItem}
+                className="border-0 bg-card focus-within:ring-0"
+              />
+            )}
+          </section>
+
+          {item.hasFile && (
+            <>
+              <Separator className="h-[2px] bg-border" />
+              <section className="grid gap-3">
+                <div className="flex items-center gap-2 text-base font-semibold">
+                  <Paperclip className="h-4 w-4 text-muted-foreground" />
+                  <span>{t('sections.attachments')}</span>
+                </div>
+
+                <FilePreview
+                  itemId={item.id}
+                  fileName={item.fileName}
+                  mimeType={item.mimeType}
+                  allFiles={item.allFiles}
+                  variant="detailTypeAware"
+                />
+              </section>
+            </>
+          )}
+        </div>
+      )}
+
+      {!isDrawerVariant ? (
+        <Sheet open={isPropertiesOpen} onOpenChange={setIsPropertiesOpen}>
+          <SheetContent side="right" className="w-full overflow-y-auto sm:max-w-lg">
+            <SheetHeader>
+              <SheetTitle className="flex items-center gap-2">
+                <Settings2 className="h-4 w-4 text-muted-foreground" />
+                {t('sections.properties')}
+              </SheetTitle>
+              <SheetDescription>{t('subtitle', { id: item.id })}</SheetDescription>
+            </SheetHeader>
+
+            <div className="mt-4">
+              <InboxItemDetailProperties
+                t={t}
+                time={time}
+                item={item}
+                selectedCategoryLabel={selectedCategoryLabel}
+                showCategoryConfidence={showCategoryConfidence}
+                clampedAnalysisConfidence={clampedAnalysisConfidence}
+                hasAnalysisSection={hasAnalysisSection}
+                hasAnalysisSummary={hasAnalysisSummary}
+                analysisSummary={analysisSummary}
+                entityEntries={entityEntries}
+                distributionEntries={distributionEntries}
+                contentTypeTags={contentTypeTags}
+                updatedAtLabel={updatedAtLabel}
+                statusLabelMap={statusLabelMap}
+                getStatusBadgeVariant={getStatusBadgeVariant}
+              />
+            </div>
+          </SheetContent>
+        </Sheet>
+      ) : null}
 
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
