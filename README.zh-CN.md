@@ -2,6 +2,8 @@
 
 语言： [English](./README.md) | **简体中文**
 
+GitHub: [guchang/superinbox](https://github.com/guchang/superinbox)
+
 ## 产品定位
 **采集摩擦**是阻碍人们进行数字化管理的最大痛点。当一个人产生灵感时，如果需要思考“该打开哪个APP”，这个灵感往往转瞬即逝。
 SuperInbox 致力于降低信息记录门槛，让你无压地输入一切想输入的信息，交给 AI 在后台完成分类、提取和分发。
@@ -122,7 +124,7 @@ SuperInbox 已发布 stdio MCP Server npm 包：`@superinbox/mcp-server`。
   "mcpServers": {
     "superinbox": {
       "command": "npx",
-      "args": ["-y", "@superinbox/mcp-server@0.1.0"],
+      "args": ["-y", "@superinbox/mcp-server@<version>"],
       "env": {
         "SUPERINBOX_BASE_URL": "http://127.0.0.1:3000",
         "SUPERINBOX_API_KEY": "sk_xxx"

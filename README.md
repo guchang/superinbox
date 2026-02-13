@@ -2,6 +2,8 @@
 
 Language: **English** | [简体中文](./README.zh-CN.md)
 
+GitHub: [guchang/superinbox](https://github.com/guchang/superinbox)
+
 ## Product Positioning
 
 Reducing capture friction is the core goal of SuperInbox.  
@@ -128,7 +130,7 @@ Optional: pin to an exact package version for reproducibility:
   "mcpServers": {
     "superinbox": {
       "command": "npx",
-      "args": ["-y", "@superinbox/mcp-server@0.1.0"],
+      "args": ["-y", "@superinbox/mcp-server@<version>"],
       "env": {
         "SUPERINBOX_BASE_URL": "http://127.0.0.1:3000",
         "SUPERINBOX_API_KEY": "sk_xxx"

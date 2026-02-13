@@ -2,6 +2,8 @@
 
 SuperInbox MCP server over stdio, published as an npm executable package.
 
+Project: [guchang/superinbox](https://github.com/guchang/superinbox)
+
 ## Requirements
 
 - Node.js >= 18
@@ -34,7 +36,7 @@ For deterministic environments, pin to an exact version:
   "mcpServers": {
     "superinbox": {
       "command": "npx",
-      "args": ["-y", "@superinbox/mcp-server@0.1.0"],
+      "args": ["-y", "@superinbox/mcp-server@<version>"],
       "env": {
         "SUPERINBOX_BASE_URL": "http://127.0.0.1:3000",
         "SUPERINBOX_API_KEY": "sk_xxx"
