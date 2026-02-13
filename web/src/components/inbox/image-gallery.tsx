@@ -1,7 +1,7 @@
 "use client"
 
 import Image from "next/image"
-import React, { useEffect, useRef, useState } from "react"
+import React, { useCallback, useEffect, useRef, useState } from "react"
 import { ChevronLeft, ChevronRight, Download, X } from "lucide-react"
 
 import {
@@ -93,6 +93,7 @@ export function ImageGallery({
   const [activeIndex, setActiveIndex] = useState(0)
   const [dragOffsetX, setDragOffsetX] = useState(0)
   const [isDragging, setIsDragging] = useState(false)
+  const dismissFromOutsideClickRef = useRef(false)
 
   const viewportRef = useRef<HTMLDivElement | null>(null)
   const dragStateRef = useRef<{
@@ -160,6 +161,41 @@ export function ImageGallery({
     }
   }, [isOpen, images.length])
 
+  const handleDialogOpenChange = useCallback((nextOpen: boolean) => {
+    setIsOpen(nextOpen)
+    if (!nextOpen) {
+      dismissFromOutsideClickRef.current = false
+    }
+    onOpenChange?.(nextOpen)
+  }, [onOpenChange])
+
+  useEffect(() => {
+    if (!isOpen) return
+
+    // Radix Dialog 默认在 `pointerdown` 时就 dismiss。此时 overlay 会在同一次点击序列中被卸载，
+    // 后续的 `click` 事件会“穿透”落到背后的卡片上，从而触发卡片详情跳转。
+    // 这里通过拦截 overlay 点击的 `pointerdown outside`，延迟到 `click capture` 才关闭，
+    // 并且吞掉这次 click，避免底层卡片收到点击。
+    const handleClickCapture = (event: MouseEvent) => {
+      if (!dismissFromOutsideClickRef.current) return
+      dismissFromOutsideClickRef.current = false
+      event.preventDefault()
+      event.stopPropagation()
+      handleDialogOpenChange(false)
+    }
+
+    document.addEventListener("click", handleClickCapture, true)
+    return () => document.removeEventListener("click", handleClickCapture, true)
+  }, [isOpen, handleDialogOpenChange])
+
+  const handlePointerDownOutside: React.ComponentPropsWithoutRef<typeof DialogContent>["onPointerDownOutside"] = (
+    event
+  ) => {
+    dismissFromOutsideClickRef.current = true
+    event.preventDefault()
+    event.stopPropagation()
+  }
+
   if (images.length === 0) return null
 
   const safeActiveIndex = Math.min(activeIndex, Math.max(0, images.length - 1))
@@ -171,12 +207,8 @@ export function ImageGallery({
     const next = Math.min(Math.max(index, 0), images.length - 1)
     setActiveIndex(next)
     setIsOpen(true)
+    dismissFromOutsideClickRef.current = false
     onOpenChange?.(true)
-  }
-
-  const handleDialogOpenChange = (nextOpen: boolean) => {
-    setIsOpen(nextOpen)
-    onOpenChange?.(nextOpen)
   }
 
   const goToPrevImage = () => {
@@ -397,6 +429,7 @@ export function ImageGallery({
         data-card-ignore-click
         onClick={(event) => event.stopPropagation()}
         onEscapeKeyDown={(event) => event.stopPropagation()}
+        onPointerDownOutside={handlePointerDownOutside}
         onKeyDownCapture={handleKeyDownCapture}
         className="!z-[130] w-[min(96vw,1720px)] max-w-none h-[88vh] p-0 border-none bg-transparent shadow-none [&>button]:hidden"
         overlayClassName="!z-[120] bg-black/80 backdrop-blur-sm"
