@@ -88,7 +88,7 @@ jobs:
         run: |
           set -euo pipefail
           ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o StrictHostKeyChecking=yes "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" \
-            "cd \"${{ secrets.DEPLOY_PATH }}\" && ./deploy/scripts/update-prod.sh"
+            "cd \"${{ secrets.DEPLOY_PATH }}\" && git fetch origin && git pull --ff-only origin main && ./deploy/scripts/update-prod.sh"
 
       - name: Deploy channel-bot
         if: steps.decide.outputs.deploy_bot == 'true'
@@ -96,4 +96,4 @@ jobs:
         run: |
           set -euo pipefail
           ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o StrictHostKeyChecking=yes "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" \
-            "cd \"${{ secrets.DEPLOY_PATH }}\" && ./deploy/channel-bot/update.sh"
+            "cd \"${{ secrets.DEPLOY_PATH }}\" && git fetch origin && git pull --ff-only origin main && ./deploy/channel-bot/update.sh"
