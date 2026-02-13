@@ -10,6 +10,34 @@ import { getDatabase } from '../storage/database.js';
 const DEFAULT_LLM_TIMEOUT = 30000;
 const DEFAULT_LLM_MAX_TOKENS = 2000;
 
+const normalizeOpenAiCompatibleBaseUrl = (input?: string): string | undefined => {
+  const raw = input?.trim();
+  if (!raw) return undefined;
+
+  // Some users paste the full endpoint; axios baseURL should be the API root.
+  // e.g. "https://api.deepseek.com/v1/chat/completions" -> "https://api.deepseek.com/v1"
+  let cleaned = raw.replace(/\/chat\/completions\/?$/, '');
+  cleaned = cleaned.replace(/\/+$/, '');
+
+  try {
+    const url = new URL(cleaned);
+    const pathname = url.pathname.replace(/\/+$/, '');
+
+    // If the user provided only origin (no path), default to OpenAI-compatible "/v1".
+    if (pathname === '' || pathname === '/') {
+      url.pathname = '/v1';
+    } else {
+      url.pathname = pathname;
+    }
+
+    // URL.toString() is stable and keeps scheme/host/port; remove any trailing slash.
+    return url.toString().replace(/\/+$/, '');
+  } catch {
+    // If it's not a valid URL (e.g. missing scheme), return the cleaned value as-is.
+    return cleaned;
+  }
+};
+
 export interface LLMMessage {
   role: 'system' | 'user' | 'assistant';
   content: string;
@@ -81,11 +109,16 @@ export class LLMClient {
 
     this.entries = configs.map((cfg) => {
       const provider = cfg.provider || 'openai';
+      const normalizedBaseUrl = normalizeOpenAiCompatibleBaseUrl(cfg.baseUrl);
+      const normalizedConfig: LLMConfig = {
+        ...cfg,
+        baseUrl: normalizedBaseUrl ?? cfg.baseUrl,
+      };
       return {
-        config: cfg,
+        config: normalizedConfig,
         provider,
         client: axios.create({
-          baseURL: cfg.baseUrl ?? 'https://api.openai.com/v1',
+          baseURL: normalizedBaseUrl ?? 'https://api.openai.com/v1',
           headers: {
             'Authorization': `Bearer ${cfg.apiKey}`,
             'Content-Type': 'application/json'
@@ -424,6 +457,21 @@ export class LLMClient {
   getProviderName(): string {
     const entry = this.entries[this.lastSuccessfulEntryIndex] ?? this.entries[0];
     return entry.provider;
+  }
+
+  async healthCheckDetailed(): Promise<{ ok: boolean; error?: string }> {
+    const entry = this.entries[this.lastSuccessfulEntryIndex] ?? this.entries[0];
+    try {
+      await this.chatWithEntry(
+        entry,
+        [{ role: 'user', content: 'ping' }],
+        { temperature: 0, maxTokens: 8 }
+      );
+      return { ok: true };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return { ok: false, error: message };
+    }
   }
 
   async healthCheck(): Promise<boolean> {

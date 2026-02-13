@@ -3,6 +3,8 @@
  */
 
 import express from 'express';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
@@ -197,7 +199,22 @@ async function startServer(): Promise<void> {
   }
 }
 
-// Start the server
-startServer();
+// Only start the HTTP server when this file is used as the actual entrypoint.
+// This prevents test suites (which import the Express app) from accidentally
+// starting a listener.
+const currentFilePath = path.resolve(fileURLToPath(import.meta.url));
+const isEntrypoint = process.argv.some((arg) => {
+  // Ignore flags like "--watch"
+  if (!arg || arg.startsWith('-')) return false;
+  try {
+    return path.resolve(arg) === currentFilePath;
+  } catch {
+    return false;
+  }
+});
+
+if (isEntrypoint) {
+  startServer();
+}
 
 export default app;
