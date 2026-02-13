@@ -53,7 +53,7 @@ For deterministic environments, pin to an exact version:
 
 ## Exposed MCP Tools
 
-- `inbox.create` / `inbox_create`: create a new inbox item
+- `inbox.create` / `inbox_create`: create a new inbox item (text/url), or upload local files via `filePath`/`filePaths`/`fileBase64`
 - `inbox.list` / `inbox_list`: list items with filters and pagination
 - `inbox.search` / `inbox_search`: search items by keyword
 - `inbox.get` / `inbox_get`: fetch one item by `id`
@@ -72,6 +72,8 @@ For deterministic environments, pin to an exact version:
   - API key is invalid, expired, or lacks permission.
 - `ECONNREFUSED` or timeout
   - Ensure backend is running and `SUPERINBOX_BASE_URL` is reachable from the MCP client host.
+- `File not found: ...`
+  - When using `filePath`/`filePaths` (or legacy `type="file"` + `content="/path/to/file"`), the file must exist on the same machine where the MCP server process is running. Prefer absolute paths.
 - `npx: command not found`
   - Install Node.js 18+ and ensure Node/npm are in `PATH`.
 
