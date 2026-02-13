@@ -8,6 +8,7 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 COPY tsconfig.json ./
+COPY scripts ./scripts
 
 # Install dependencies
 RUN npm ci
@@ -32,6 +33,7 @@ RUN addgroup -g 1001 -S superinbox && \
 
 # Copy package files
 COPY package*.json ./
+COPY scripts ./scripts
 
 # Install production dependencies only
 RUN npm ci --omit=dev
