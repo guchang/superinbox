@@ -95,3 +95,6 @@ deploy/certbot/conf/
 deploy/certbot/www/
 # Channel bot deploy secrets
 deploy/channel-bot/.env.prod
+
+# Backend tests (do not commit)
+backend/tests/**
