@@ -17,7 +17,7 @@ permissions:
 jobs:
   publish:
     runs-on: ubuntu-latest
-    if: ${{ !startsWith(github.event.head_commit.message, 'chore(mcp): release') }}
+    if: "${{ !startsWith(github.event.head_commit.message, 'chore(mcp): release') }}"
     steps:
       - name: Checkout
         uses: actions/checkout@v4

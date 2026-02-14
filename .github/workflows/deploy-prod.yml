@@ -22,7 +22,7 @@ permissions:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    if: ${{ !startsWith(github.event.head_commit.message, 'chore(mcp): release') }}
+    if: "${{ !startsWith(github.event.head_commit.message, 'chore(mcp): release') }}"
     steps:
       - name: Checkout (for change detection)
         uses: actions/checkout@v4
