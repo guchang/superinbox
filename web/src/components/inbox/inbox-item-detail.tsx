@@ -21,7 +21,6 @@ import {
   Trash2,
   Loader2,
   Share2,
-  X,
   AlertCircle,
   Paperclip,
   Settings2,
@@ -1269,27 +1268,17 @@ export function InboxItemDetail({
 
       {shouldShowRoutingBanner ? (
         <div className="pb-4 pt-3">
-          <div className={cn('flex items-start gap-2', isDrawerVariant ? 'px-4 md:px-6' : '')}>
+          <div className={cn('flex justify-center', isDrawerVariant ? 'px-4 md:px-6' : '')}>
           <RoutingStatus
             itemId={item.id}
             initialDistributedTargets={item.distributedTargets}
             initialRuleNames={item.distributedRuleNames}
             routingStatus={item.routingStatus}
             showAnimation={true}
+            dismissible={routingBannerSticky && item.routingStatus !== 'processing'}
+            onDismiss={() => setRoutingBannerDismissed(true)}
+            dismissLabel={common('close')}
           />
-            {routingBannerSticky && item.routingStatus !== 'processing' ? (
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="mt-0.5 h-8 w-8 text-muted-foreground hover:text-foreground"
-                onClick={() => setRoutingBannerDismissed(true)}
-                aria-label={common('close')}
-                title={common('close')}
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            ) : null}
           </div>
         </div>
       ) : null}

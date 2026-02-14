@@ -3,12 +3,13 @@
  * 显示收件箱条目的实时路由分发状态
  */
 
-import { Badge } from '@/components/ui/badge'
-import { CheckCircle, XCircle, Clock, MinusCircle } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { CheckCircle, XCircle, Clock, MinusCircle, X } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { useRoutingProgress, type RoutingStatus as RoutingProgressStatus } from '@/hooks/use-routing-progress'
 import { useEffect, type CSSProperties } from 'react'
 import { useTranslations } from 'next-intl'
+import { cn } from '@/lib/utils'
 
 const createProcessingTintStyle = (accentColor: string): CSSProperties => ({
   backgroundColor: `color-mix(in srgb, ${accentColor} 14%, transparent)`,
@@ -58,9 +59,31 @@ interface RoutingStatusProps {
   disabled?: boolean  // 禁用 SSE 连接
   showAnimation?: boolean  // 是否显示动画效果
   processingAccentColor?: string
+  dismissible?: boolean
+  onDismiss?: () => void
+  dismissLabel?: string
 }
 
-export function RoutingStatus({ itemId, initialDistributedTargets = [], initialRuleNames = [], routingStatus, className, disabled = false, showAnimation = true, processingAccentColor }: RoutingStatusProps) {
+function stripTrailingEllipsis(input: string): string {
+  // Only strip *trailing* ellipsis-like tokens. Keep interior "..." untouched.
+  return input
+    .replace(/(\.\.\.|…|……)\s*$/g, '')
+    .trimEnd()
+}
+
+export function RoutingStatus({
+  itemId,
+  initialDistributedTargets = [],
+  initialRuleNames = [],
+  routingStatus,
+  className,
+  disabled = false,
+  showAnimation = true,
+  processingAccentColor,
+  dismissible = false,
+  onDismiss,
+  dismissLabel,
+}: RoutingStatusProps) {
   const t = useTranslations('inbox')
   const progress = useRoutingProgress(itemId, { disabled })
 
@@ -133,6 +156,10 @@ export function RoutingStatus({ itemId, initialDistributedTargets = [], initialR
         )
       : (progress.message || getFallbackMessage(effectiveStatus, effectiveRuleNames))
 
+  const displayMessage = effectiveStatus === 'processing'
+    ? stripTrailingEllipsis(effectiveMessage)
+    : effectiveMessage
+
   // 只在允许动画且正在处理中时显示状态指示器
   // 使用 effectiveStatus 确保乐观更新时也能显示
   const showIndicator = showAnimation && !disabled && effectiveStatus === 'processing'
@@ -162,12 +189,15 @@ export function RoutingStatus({ itemId, initialDistributedTargets = [], initialR
     })
   }, [itemId, routingStatus, effectiveStatus, progress.status, progress.message, progress.isConnected, effectiveMessage])
 
+  const isDismissableStatus = ['completed', 'skipped', 'error'].includes(effectiveStatus)
+  const shouldShowDismiss = Boolean(dismissible && isDismissableStatus && onDismiss)
+
   return (
-    <div className="flex flex-col gap-1">
-      <RoutingStatusBadge
+    <div className="flex w-full flex-col gap-1">
+      <RoutingStatusBanner
         className={className}
         status={effectiveStatus}
-        message={effectiveMessage}
+        message={displayMessage}
         distributedTargets={effectiveTargets}
         ruleNames={effectiveRuleNames}
         isConnected={progress.isConnected}
@@ -175,6 +205,9 @@ export function RoutingStatus({ itemId, initialDistributedTargets = [], initialR
         showIndicator={showIndicator}
         showAnimation={showAnimation}
         processingAccentColor={processingAccentColor}
+        dismissible={shouldShowDismiss}
+        onDismiss={onDismiss}
+        dismissLabel={dismissLabel}
       />
       {/* 调试日志显示 */}
       {showDebugUI && (
@@ -198,9 +231,12 @@ interface RoutingStatusBadgeProps {
   showAnimation?: boolean  // 是否显示动画效果
   processingAccentColor?: string
   className?: string
+  dismissible?: boolean
+  onDismiss?: (() => void) | undefined
+  dismissLabel?: string
 }
 
-function RoutingStatusBadge({
+function RoutingStatusBanner({
   status,
   message,
   distributedTargets,
@@ -210,7 +246,10 @@ function RoutingStatusBadge({
   showIndicator = false,
   showAnimation = true,
   processingAccentColor,
-  className
+  className,
+  dismissible = false,
+  onDismiss,
+  dismissLabel,
 }: RoutingStatusBadgeProps) {
   const t = useTranslations('inbox')
   const showDebugUI =
@@ -218,13 +257,12 @@ function RoutingStatusBadge({
     typeof window !== 'undefined' &&
     (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
   
-  // 根据状态返回不同的徽章样式和图标
+  // 根据状态返回不同的横幅样式和图标（沿用原 badge 的配色，确保视觉一致）
   const getStatusConfig = () => {
     switch (status) {
       case 'pending':
         return {
-          variant: 'outline' as const,
-          className: 'text-xs border-amber-400/30 bg-amber-100/10 text-amber-700/80 dark:border-amber-300/18 dark:bg-amber-300/6 dark:text-amber-200/75',
+          cardClassName: 'text-xs border-amber-400/30 bg-amber-100/10 text-amber-700/80 dark:border-amber-300/18 dark:bg-amber-300/6 dark:text-amber-200/75',
           icon: <Clock className="h-2.5 w-2.5 mr-1 opacity-65" />,
           text: message || t('routingStatus.pending'),
           processingBlockClassName: ''
@@ -232,8 +270,7 @@ function RoutingStatusBadge({
 
       case 'skipped':
         return {
-          variant: 'outline' as const,
-          className: 'text-xs border-zinc-400/30 bg-zinc-500/5 text-zinc-600/78 dark:border-zinc-200/16 dark:bg-white/4 dark:text-zinc-300/65',
+          cardClassName: 'text-xs border-zinc-400/30 bg-zinc-500/5 text-zinc-600/78 dark:border-zinc-200/16 dark:bg-white/4 dark:text-zinc-300/65',
           icon: <MinusCircle className="h-2.5 w-2.5 mr-1 opacity-60" />,
           text: message || t('routingStatus.skipped'),
           processingBlockClassName: ''
@@ -241,8 +278,7 @@ function RoutingStatusBadge({
 
       case 'processing':
         return {
-          variant: 'outline' as const,
-          className: 'text-xs border-blue-300/80 bg-blue-50 text-blue-800 dark:border-blue-400/25 dark:bg-blue-500/10 dark:text-blue-200',
+          cardClassName: 'text-xs border-blue-300/80 bg-blue-50 text-blue-800 dark:border-blue-400/25 dark:bg-blue-500/10 dark:text-blue-200',
           icon: null,
           text: message || t('routingStatus.processing'),
           processingBlockClassName: 'bg-blue-600/70 dark:bg-blue-300/80'
@@ -250,8 +286,7 @@ function RoutingStatusBadge({
 
       case 'completed':
         return {
-          variant: 'outline' as const,
-          className: 'text-xs border-emerald-400/30 bg-emerald-100/10 text-emerald-700/80 dark:border-emerald-300/18 dark:bg-emerald-300/6 dark:text-emerald-200/75',
+          cardClassName: 'text-xs border-emerald-400/30 bg-emerald-100/10 text-emerald-700/80 dark:border-emerald-300/18 dark:bg-emerald-300/6 dark:text-emerald-200/75',
           icon: <CheckCircle className="h-2.5 w-2.5 mr-1 opacity-65" />,
           text: ruleNames.length > 0
             ? t('routingStatus.distributedWithRules', { rules: ruleNames.join(', ') })
@@ -261,8 +296,7 @@ function RoutingStatusBadge({
 
       case 'error':
         return {
-          variant: 'outline' as const,
-          className: 'text-xs border-rose-300/80 bg-rose-50 text-rose-800 dark:border-rose-400/25 dark:bg-rose-500/10 dark:text-rose-200',
+          cardClassName: 'text-xs border-rose-300/80 bg-rose-50 text-rose-800 dark:border-rose-400/25 dark:bg-rose-500/10 dark:text-rose-200',
           icon: <XCircle className="h-3 w-3 mr-1" />,
           text: message || t('routingStatus.failed'),
           processingBlockClassName: ''
@@ -270,8 +304,7 @@ function RoutingStatusBadge({
 
       default:
         return {
-          variant: 'outline' as const,
-          className: 'text-xs border-gray-200/80 bg-gray-50 text-gray-600 dark:border-white/15 dark:bg-white/5 dark:text-white/55',
+          cardClassName: 'text-xs border-gray-200/80 bg-gray-50 text-gray-600 dark:border-white/15 dark:bg-white/5 dark:text-white/55',
           icon: <Clock className="h-3 w-3 mr-1" />,
           text: '未知状态',
           processingBlockClassName: ''
@@ -291,33 +324,55 @@ function RoutingStatusBadge({
   const processingBlockClassName = hasProcessingAccent ? '' : config.processingBlockClassName
 
   return (
-    <div className={`flex items-center gap-2 ${showIndicator ? 'pr-1' : ''} ${className ?? ''}`.trim()}>
-      <Badge
-        variant={config.variant}
-        className={`${config.className} max-w-full truncate`}
-        style={processingBadgeStyle}
-        title={error ? `错误: ${error}` : message}
-      >
-        {config.icon}
-        <span className="truncate">{config.text}</span>
-        {status === 'processing' && (
-          <ProcessingBlocks
-            active={showAnimation}
-            blockClassName={processingBlockClassName}
-            blockStyle={processingBlockStyle}
-          />
-        )}
-      </Badge>
+    <div
+      className={cn(
+        'w-full rounded-xl border px-3 py-2',
+        'flex items-center gap-2',
+        // keep low height, avoid wrapping
+        'min-h-10',
+        config.cardClassName,
+        className
+      )}
+      style={processingBadgeStyle}
+      title={error ? `错误: ${error}` : message}
+    >
+      {config.icon}
 
-      {/* 连接状态指示器（仅开发模式 + SSE 活跃时显示） */}
-      {showDebugUI && showIndicator && (
+      <div className="min-w-0 flex-1 truncate whitespace-nowrap">
+        {config.text}
+      </div>
+
+      {status === 'processing' ? (
+        <ProcessingBlocks
+          active={showAnimation}
+          blockClassName={processingBlockClassName}
+          blockStyle={processingBlockStyle}
+        />
+      ) : null}
+
+      {showDebugUI && showIndicator ? (
         <div
-          className={`w-2 h-2 rounded-full flex-shrink-0 ${
+          className={cn(
+            'ml-1 h-2 w-2 flex-shrink-0 rounded-full',
             isConnected ? 'bg-green-400' : 'bg-gray-400'
-          }`}
+          )}
           title={isConnected ? 'SSE 已连接' : 'SSE 连接中'}
         />
-      )}
+      ) : null}
+
+      {dismissible ? (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 flex-shrink-0 text-muted-foreground hover:text-foreground"
+          onClick={onDismiss}
+          aria-label={dismissLabel || '关闭'}
+          title={dismissLabel || '关闭'}
+        >
+          <X className="h-4 w-4" />
+        </Button>
+      ) : null}
     </div>
   )
 }
