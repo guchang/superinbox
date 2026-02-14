@@ -61,6 +61,31 @@ jobs:
           echo "deploy_app=${DEPLOY_APP}" >> "$GITHUB_OUTPUT"
           echo "deploy_bot=${DEPLOY_BOT}" >> "$GITHUB_OUTPUT"
 
+      - name: Validate deploy secrets
+        if: steps.decide.outputs.deploy_app == 'true' || steps.decide.outputs.deploy_bot == 'true'
+        shell: bash
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: |
+          set -euo pipefail
+
+          missing=0
+          for key in DEPLOY_HOST DEPLOY_USER DEPLOY_PATH DEPLOY_SSH_KEY; do
+            val="${!key}"
+            if [[ -z "${val}" ]]; then
+              echo "::error::Missing required secret: ${key}"
+              missing=1
+            fi
+          done
+
+          if [[ "${missing}" -ne 0 ]]; then
+            echo "::error::Deploy aborted due to missing secrets."
+            exit 1
+          fi
+
       - name: Setup SSH
         if: steps.decide.outputs.deploy_app == 'true' || steps.decide.outputs.deploy_bot == 'true'
         shell: bash
@@ -88,7 +113,7 @@ jobs:
         run: |
           set -euo pipefail
           ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o StrictHostKeyChecking=yes "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" \
-            "cd \"${{ secrets.DEPLOY_PATH }}\" && git fetch origin && git pull --ff-only origin main && ./deploy/scripts/update-prod.sh"
+            "cd \"${{ secrets.DEPLOY_PATH }}\" && ./deploy/existing-nginx/update.sh"
 
       - name: Deploy channel-bot
         if: steps.decide.outputs.deploy_bot == 'true'
@@ -96,4 +121,4 @@ jobs:
         run: |
           set -euo pipefail
           ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o StrictHostKeyChecking=yes "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" \
-            "cd \"${{ secrets.DEPLOY_PATH }}\" && git fetch origin && git pull --ff-only origin main && ./deploy/channel-bot/update.sh"
+            "cd \"${{ secrets.DEPLOY_PATH }}\" && ./deploy/channel-bot/update.sh"

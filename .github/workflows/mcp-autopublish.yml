@@ -98,6 +98,19 @@ jobs:
           NEXT_VERSION="$(node -p \"require('./packages/mcp-server/package.json').version\")"
           echo "next_version=${NEXT_VERSION}" >> "$GITHUB_OUTPUT"
 
+      - name: Validate NPM token
+        if: steps.detect.outputs.publish_needed == 'true'
+        shell: bash
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${NPM_TOKEN}" ]]; then
+            echo "::error::Missing required secret: NPM_TOKEN"
+            echo "::error::Create an automation token in npm and add it as a repository secret named NPM_TOKEN."
+            exit 1
+          fi
+
       - name: Install, build, publish
         if: steps.detect.outputs.publish_needed == 'true'
         env:
@@ -123,4 +136,3 @@ jobs:
           git add packages/mcp-server/package.json packages/mcp-server/src/index.ts backend/src/mcp/server.ts
           git commit -m "chore(mcp): release ${VERSION}" -m "- bump @superinbox/mcp-server for npm distribution" -m "- keep MCP server reported version in sync" || exit 0
           git push
-
