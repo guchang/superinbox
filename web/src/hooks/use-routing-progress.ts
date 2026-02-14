@@ -104,11 +104,15 @@ export function useRoutingProgress(itemId: string | null, options?: { disabled?:
           break
 
         case 'routing:start':
+          // 注意：后端在 SSE 初始快照里会用 totalRules=0 作为占位（processing 状态下还没来得及加载规则数）。
+          // 若直接展示“已找到 0 条规则”会误导用户。这里把 0 视为“未知/尚未加载”，展示通用文案。
           setState(prev => ({
             ...prev,
             status: 'processing',
             message: typeof data?.totalRules === 'number'
-              ? t('routingProgress.startWithRules', { count: data.totalRules })
+              ? (data.totalRules > 0
+                  ? t('routingProgress.startWithRules', { count: data.totalRules })
+                  : t('routingProgress.start'))
               : t('routingProgress.start'),
             matchedTargetName: null,
             matchedTargetId: null,
