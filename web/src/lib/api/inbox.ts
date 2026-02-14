@@ -182,6 +182,11 @@ export const inboxApi = {
     return apiClient.post<{ message: string }>(`/inbox/${id}/distribute`)
   },
 
+  // 取消正在进行的路由
+  async cancelRouting(id: string): Promise<ApiResponse<{ message: string; routingStatus: string }>> {
+    return apiClient.post<{ message: string; routingStatus: string }>(`/inbox/${id}/cancel-routing`)
+  },
+
   // 上传文件
   async uploadFile(formData: FormData): Promise<ApiResponse<Item>> {
     // Don't set Content-Type header for FormData - browser will set it with boundary
