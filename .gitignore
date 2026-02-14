@@ -98,3 +98,6 @@ deploy/channel-bot/.env.prod
 
 # Backend tests (do not commit)
 backend/tests/**
+
+# Backend local debug scripts (do not commit)
+backend/test-*.cjs
