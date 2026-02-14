@@ -315,31 +315,17 @@ export function InboxItemDetail({
 
   const redistributeMutation = useMutation({
     mutationFn: async () => {
-      // 如果路由正在处理中，先取消再重新分发
-      if (item?.routingStatus === 'processing') {
-        const cancelResult = await inboxApi.cancelRouting(id)
-        if (!cancelResult.success) {
-          throw new Error(cancelResult.error || '取消路由失败')
-        }
-        // 手动更新本地缓存，确保 distributeItem 看到的是最新状态
-        queryClient.setQueryData(['inbox', id], (oldData: any) => {
-          if (!oldData?.data) return oldData
-          return {
-            ...oldData,
-            data: {
-              ...oldData.data,
-              routingStatus: 'skipped',
-            },
-          }
-        })
-        // 小延迟确保后端状态已更新
-        await new Promise((resolve) => setTimeout(resolve, 100))
-      }
       const result = await inboxApi.distributeItem(id)
       if (!result.success) {
         throw new Error(result.error || '重新分发失败')
       }
-      // 乐观更新：立即将状态设为 processing，让 UI 显示处理中
+      return result
+    },
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ['inbox', id] })
+      const previous = queryClient.getQueryData(['inbox', id])
+
+      // Optimistically show routing banner and keep it mounted while SSE streams.
       queryClient.setQueryData(['inbox', id], (oldData: any) => {
         if (!oldData?.data) return oldData
         return {
@@ -347,23 +333,15 @@ export function InboxItemDetail({
           data: {
             ...oldData.data,
             routingStatus: 'processing',
+            distributedTargets: [],
+            distributedRuleNames: [],
           },
         }
       })
-      return result
+
+      return { previous }
     },
     onSuccess: () => {
-      // 立即将状态设为 completed，让按钮重新启用
-      queryClient.setQueryData(['inbox', id], (oldData: any) => {
-        if (!oldData?.data) return oldData
-        return {
-          ...oldData,
-          data: {
-            ...oldData.data,
-            routingStatus: 'completed',
-          },
-        }
-      })
       // 触发后台刷新获取完整数据
       queryClient.invalidateQueries({ queryKey: ['inbox'] })
       queryClient.invalidateQueries({ queryKey: ['inbox', id] })
@@ -372,7 +350,11 @@ export function InboxItemDetail({
         description: t('toast.redistributeSuccess.description'),
       })
     },
-    onError: (error) => {
+    onError: (error, _variables, context) => {
+      const previous = (context as any)?.previous
+      if (previous) {
+        queryClient.setQueryData(['inbox', id], previous as any)
+      }
       toast({
         title: t('toast.redistributeFailure.title'),
         description: getApiErrorMessage(error, errors, common('unknownError')),
@@ -915,7 +897,12 @@ export function InboxItemDetail({
     refetch,
     items: item ? [item] : [],
     interval: 3000,
-    enabled: !!item && (item.status === ItemStatus.PROCESSING || reclassifyMutation.isPending || redistributeMutation.isPending),
+    enabled: !!item && (
+      item.status === ItemStatus.PROCESSING ||
+      item.routingStatus === 'processing' ||
+      reclassifyMutation.isPending ||
+      redistributeMutation.isPending
+    ),
   })
 
   const contentTypeTags = useMemo(() => {
@@ -1240,7 +1227,7 @@ export function InboxItemDetail({
 
                 <DropdownMenuItem
                   onClick={() => redistributeMutation.mutate()}
-                  disabled={redistributeMutation.isPending || item.routingStatus === 'processing'}
+                  disabled={redistributeMutation.isPending}
                 >
                   {redistributeMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Share2 className="h-4 w-4" />}
                   {t('actions.redistribute')}

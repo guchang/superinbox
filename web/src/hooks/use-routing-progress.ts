@@ -90,6 +90,19 @@ export function useRoutingProgress(itemId: string | null, options?: { disabled?:
           }))
           break
 
+        case 'routing:pending':
+          setState(prev => ({
+            ...prev,
+            status: 'pending',
+            message: t('routePending'),
+            matchedTargetName: null,
+            matchedTargetId: null,
+            matchedTargetServerType: null,
+            matchedTargetLogoColor: null,
+            error: null
+          }))
+          break
+
         case 'routing:start':
           setState(prev => ({
             ...prev,

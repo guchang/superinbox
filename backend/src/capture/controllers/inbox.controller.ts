@@ -13,6 +13,7 @@ import { getRouterService } from '../../router/router.service.js';
 import { formatDateInTimeZone } from '../../utils/timezone.js';
 import { sendError } from '../../utils/error-response.js';
 import { sseManager } from '../../services/sse-manager.js';
+import { buildRoutingProgressInitialEvent } from './routing-progress-initial-event.js';
 import type {
   CreateItemResponse,
   Item,
@@ -77,6 +78,17 @@ export class InboxController {
   private db = getDatabase();
   private ai = getAIService();
   private router = getRouterService();
+  private routingExecutionTokens = new Map<string, string>();
+
+  private issueRoutingExecutionToken(itemId: string): string {
+    const token = uuidv4();
+    this.routingExecutionTokens.set(itemId, token);
+    return token;
+  }
+
+  private isCurrentRoutingExecution(itemId: string, token: string): boolean {
+    return this.routingExecutionTokens.get(itemId) === token;
+  }
 
   /**
    * Create a new item from inbox input
@@ -685,7 +697,8 @@ export class InboxController {
 
       // Only trigger distribution for successfully processed items
       if (!shouldMarkAsFailed && updatedItem) {
-        await this.distributeItemAsync(updatedItem);
+        const executionToken = this.issueRoutingExecutionToken(updatedItem.id);
+        await this.distributeItemAsync(updatedItem, executionToken);
       }
 
       logger.info(`[AI Processing] Completed for item ${itemId}`);
@@ -714,8 +727,18 @@ export class InboxController {
   /**
    * Async item distribution with SSE progress
    */
-  private async distributeItemAsync(item: Item): Promise<void> {
+  private async distributeItemAsync(item: Item, executionToken: string): Promise<void> {
     try {
+      const ensureCurrent = (): boolean => {
+        const isCurrent = this.isCurrentRoutingExecution(item.id, executionToken);
+        if (!isCurrent) {
+          logger.info(`[Routing] Ignoring stale execution for item ${item.id}`);
+        }
+        return isCurrent;
+      };
+
+      if (!ensureCurrent()) return;
+
       logger.info(`Starting distribution for item ${item.id}`);
       
       // 1. Check if there are any active routing rules
@@ -729,12 +752,14 @@ export class InboxController {
       if (ruleCount === 0) {
         // No rules configured, mark as skipped
         logger.info(`No routing rules configured for user ${item.userId}, skipping distribution for item ${item.id}`);
-        
+
+        if (!ensureCurrent()) return;
         this.db.updateItem(item.id, {
           routingStatus: 'skipped'
         });
 
         // Send skipped event
+        if (!ensureCurrent()) return;
         sseManager.sendToItem(item.id, {
           type: 'routing:skipped',
           itemId: item.id,
@@ -748,11 +773,13 @@ export class InboxController {
       }
 
       // 2. Mark as processing
+      if (!ensureCurrent()) return;
       this.db.updateItem(item.id, {
         routingStatus: 'processing'
       });
       
       // 3. Send start event
+      if (!ensureCurrent()) return;
       sseManager.sendToItem(item.id, {
         type: 'routing:start',
         itemId: item.id,
@@ -766,7 +793,7 @@ export class InboxController {
       // 4. Create progress callback
       const progressCallback = (event: any) => {
         // Convert routing service progress events to SSE events
-        this.handleRoutingProgress(item.id, event);
+        this.handleRoutingProgress(item.id, executionToken, event);
       };
 
       // 5. Execute routing rules
@@ -795,12 +822,14 @@ export class InboxController {
       if (totalAttempts === 0) {
         logger.info(`No routing rule matched for item ${item.id}, marking routing as skipped`);
 
+        if (!ensureCurrent()) return;
         this.db.updateItem(item.id, {
           distributedTargets,
           distributionResults: results,
           routingStatus: 'skipped'
         });
 
+        if (!ensureCurrent()) return;
         sseManager.sendToItem(item.id, {
           type: 'routing:skipped',
           itemId: item.id,
@@ -814,6 +843,7 @@ export class InboxController {
       }
 
       // 7. Update item with results and mark as completed
+      if (!ensureCurrent()) return;
       this.db.updateItem(item.id, {
         distributedTargets,
         distributionResults: results,
@@ -821,6 +851,7 @@ export class InboxController {
       });
 
       // 8. Send completion event
+      if (!ensureCurrent()) return;
       sseManager.sendToItem(item.id, {
         type: 'routing:complete',
         itemId: item.id,
@@ -840,11 +871,16 @@ export class InboxController {
       logger.error(`Distribution failed for item ${item.id}:`, error);
       
       // Mark as failed
+      if (!this.isCurrentRoutingExecution(item.id, executionToken)) {
+        logger.info(`[Routing] Ignoring stale failure for item ${item.id}`);
+        return;
+      }
       this.db.updateItem(item.id, {
         routingStatus: 'failed'
       });
       
       // Send error event
+      if (!this.isCurrentRoutingExecution(item.id, executionToken)) return;
       sseManager.sendToItem(item.id, {
         type: 'routing:error',
         itemId: item.id,
@@ -860,8 +896,12 @@ export class InboxController {
   /**
    * 处理路由进度事件，转换为 SSE 事件
    */
-  private handleRoutingProgress(itemId: string, event: any): void {
+  private handleRoutingProgress(itemId: string, executionToken: string, event: any): void {
     try {
+      if (!this.isCurrentRoutingExecution(itemId, executionToken)) {
+        return;
+      }
+
       // 根据事件类型转换为对应的 SSE 事件
       switch (event.type) {
         case 'rules_loaded':
@@ -1528,6 +1568,177 @@ export class InboxController {
   };
 
   /**
+   * Redistribute an item to configured targets
+   * POST /v1/inbox/:id/distribute
+   */
+  distributeItem = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { id } = req.params;
+      const userId = req.user?.id ?? 'default-user';
+
+      const item = this.db.getItemById(id);
+
+      if (!item) {
+        sendError(res, {
+          statusCode: 404,
+          code: 'INBOX.NOT_FOUND',
+          message: 'Item not found',
+          params: { id }
+        });
+        return;
+      }
+
+      // Check ownership
+      if (item.userId !== userId) {
+        sendError(res, {
+          statusCode: 403,
+          code: 'AUTH.FORBIDDEN',
+          message: 'Access denied'
+        });
+        return;
+      }
+
+      const wasProcessing = item.routingStatus === 'processing';
+      const executionToken = this.issueRoutingExecutionToken(id);
+
+      // If an execution is in-flight, emit a cancellation event first.
+      // The execution token swap above guarantees the old async worker will be ignored.
+      if (wasProcessing) {
+        sseManager.sendToItem(id, {
+          type: 'routing:skipped',
+          itemId: id,
+          timestamp: new Date().toISOString(),
+          data: {
+            message: '已取消上一轮分发，准备重新分发'
+          }
+        });
+      }
+
+      // Mark as processing immediately so the UI can show a stable state even if user refreshes.
+      // Clear previous distribution data to prevent SSE from sending stale 'complete' events.
+      this.db.database.prepare('DELETE FROM distribution_results WHERE item_id = ?').run(id);
+      this.db.updateItem(id, {
+        routingStatus: 'processing',
+        distributedTargets: [],
+        distributionResults: []
+      });
+
+      // Send an early "start" event to any connected clients.
+      // The async worker will send a richer routing:start with rule counts.
+      const rules = this.db.database.prepare(`
+        SELECT COUNT(*) as count FROM routing_rules
+        WHERE user_id = ? AND is_active = 1
+      `).get(item.userId) as any;
+
+      sseManager.sendToItem(id, {
+        type: 'routing:start',
+        itemId: id,
+        timestamp: new Date().toISOString(),
+        data: {
+          totalRules: rules?.count || 0,
+          message: 'Redistribution queued'
+        }
+      });
+
+      // Trigger async routing distribution with SSE progress.
+      const latestItem = this.db.getItemById(id) ?? item;
+      void this.distributeItemAsync(latestItem, executionToken).catch((error) => {
+        logger.error(`[Inbox] Redistribution async execution failed for item ${id}:`, error);
+      });
+
+      res.status(202).json({
+        success: true,
+        data: {
+          message: 'Redistribution queued'
+        }
+      });
+
+      logger.info(`[Inbox] Redistribution queued for item ${id}`, {
+        userId
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Cancel ongoing routing and reset status
+   * POST /v1/inbox/:id/cancel-routing
+   */
+  cancelRouting = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { id } = req.params;
+      const userId = req.user?.id ?? 'default-user';
+
+      const item = this.db.getItemById(id);
+
+      if (!item) {
+        sendError(res, {
+          statusCode: 404,
+          code: 'INBOX.NOT_FOUND',
+          message: 'Item not found',
+          params: { id }
+        });
+        return;
+      }
+
+      // Check ownership
+      if (item.userId !== userId) {
+        sendError(res, {
+          statusCode: 403,
+          code: 'AUTH.FORBIDDEN',
+          message: 'Access denied'
+        });
+        return;
+      }
+
+      // Only allow cancel when routing is in progress
+      if (item.routingStatus !== 'processing' && item.routingStatus !== 'pending') {
+        sendError(res, {
+          statusCode: 400,
+          code: 'INBOX.INVALID_STATUS',
+          message: 'Can only cancel routing when status is processing or pending',
+          params: { routingStatus: item.routingStatus }
+        });
+        return;
+      }
+
+      // Invalidate current async routing execution (if any).
+      this.issueRoutingExecutionToken(id);
+
+      // Reset routing status to skipped
+      this.db.database.prepare('DELETE FROM distribution_results WHERE item_id = ?').run(id);
+      this.db.updateItem(id, {
+        routingStatus: 'skipped',
+        distributedTargets: [],
+        distributionResults: []
+      });
+
+      // Send cancellation event via SSE
+      sseManager.sendToItem(id, {
+        type: 'routing:skipped',
+        itemId: id,
+        timestamp: new Date().toISOString(),
+        data: {
+          message: '路由已取消'
+        }
+      });
+
+      res.json({
+        success: true,
+        data: {
+          message: 'Routing status cancelled',
+          routingStatus: 'skipped'
+        }
+      });
+
+      logger.info(`[Inbox] Routing cancelled for item ${id} by user ${userId}`);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
    * Get routing progress via SSE
    * GET /v1/inbox/:id/routing-progress
    */
@@ -1558,51 +1769,9 @@ export class InboxController {
 
       // 创建 SSE 连接
       const connectionId = sseManager.createConnection(id, userId, res);
-      
-      // 如果条目已经完成分发，立即发送完成事件
-      if (item.distributedTargets && item.distributedTargets.length > 0) {
-        // 从 distributionResults 中提取规则名称
-        const successRuleNames = (item.distributionResults || [])
-          .filter((r: any) => r.ruleName && (r.status === 'success' || r.status === 'completed'))
-          .map((r: any) => r.ruleName);
 
-        sseManager.sendToItem(id, {
-          type: 'routing:complete',
-          itemId: id,
-          timestamp: new Date().toISOString(),
-          data: {
-            distributedTargets: item.distributedTargets,
-            ruleNames: successRuleNames,
-            totalSuccess: item.distributedTargets.length,
-            totalFailed: 0,
-            message: successRuleNames.length > 0
-              ? `已分发: ${successRuleNames.join(', ')}`
-              : `已分发到 ${item.distributedTargets.length} 个目标`
-          }
-        });
-      } else if (item.status === 'processing') {
-        // 如果正在处理中，发送处理中事件
-        sseManager.sendToItem(id, {
-          type: 'routing:start',
-          itemId: id,
-          timestamp: new Date().toISOString(),
-          data: {
-            totalRules: 0, // 将在实际分发时更新
-            message: '正在分析路由规则...'
-          }
-        });
-      } else {
-        // 发送待配置状态
-        sseManager.sendToItem(id, {
-          type: 'routing:start',
-          itemId: id,
-          timestamp: new Date().toISOString(),
-          data: {
-            totalRules: 0,
-            message: '分发规则待配置'
-          }
-        });
-      }
+      const initialEvent = buildRoutingProgressInitialEvent(item);
+      sseManager.sendToItem(id, initialEvent);
 
       logger.info(`[SSE] Routing progress connection established for item ${id}, connection ${connectionId}`);
     } catch (error) {

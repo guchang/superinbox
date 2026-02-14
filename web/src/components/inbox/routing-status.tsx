@@ -71,21 +71,35 @@ export function RoutingStatus({ itemId, initialDistributedTargets = [], initialR
   // 如果禁用了 SSE，使用数据库状态
   const useStatic = disabled
 
-  // 优先使用传入的 routingStatus prop（支持乐观更新）
-  // 当 SSE 连接建立并收到事件后，progress.status 会反映真实状态
-  const effectiveStatus = useStatic
-    ? (routingStatus as RoutingProgressStatus || 'pending')
-    : (routingStatus as RoutingProgressStatus) || progress.status
-  const effectiveTargets = useStatic ? initialDistributedTargets : progress.distributedTargets
-  const effectiveRuleNames = useStatic ? initialRuleNames : (progress.ruleNames || [])
+  // 状态优先级：SSE 最终状态 > 传入的 routingStatus prop > SSE 进度状态
+  // 当 SSE 已连接并有明确状态时，优先使用 SSE 状态
+  // 当 SSE 已断开但已达到最终状态（completed/error/skipped），优先使用 SSE 状态
+  const isFinalSSEStatus = ['completed', 'error', 'skipped'].includes(progress.status)
+  const shouldPreferSSE = !useStatic && (
+    progress.isConnected || // SSE 连接中，使用实时状态
+    isFinalSSEStatus        // SSE 已断开但已达到最终状态
+  )
+  const effectiveStatus = shouldPreferSSE
+    ? progress.status
+    : useStatic
+      ? (routingStatus as RoutingProgressStatus || 'pending')
+      : (routingStatus as RoutingProgressStatus) || progress.status
+  // 根据是否优先使用 SSE 状态，选择正确的数据源
+  const effectiveTargets = shouldPreferSSE
+    ? progress.distributedTargets
+    : (useStatic ? initialDistributedTargets : progress.distributedTargets)
+  const effectiveRuleNames = shouldPreferSSE
+    ? (progress.ruleNames || [])
+    : (useStatic ? initialRuleNames : (progress.ruleNames || []))
+
   // SSE 消息后备逻辑：如果 progress.message 为空，根据状态提供默认消息
-  const getFallbackMessage = (status: RoutingProgressStatus): string => {
+  const getFallbackMessage = (status: RoutingProgressStatus, names: string[]): string => {
     switch (status) {
       case 'processing':
         return t('routingStatus.processing')
       case 'completed':
-        return ruleNames.length > 0
-          ? t('routingStatus.distributedWithRules', { rules: ruleNames.join(', ') })
+        return names.length > 0
+          ? t('routingStatus.distributedWithRules', { rules: names.join(', ') })
           : t('routingStatus.completed')
       case 'skipped':
         return t('routingStatus.skipped')
@@ -97,16 +111,19 @@ export function RoutingStatus({ itemId, initialDistributedTargets = [], initialR
     }
   }
 
-  const effectiveMessage = useStatic
-    ? (initialRuleNames.length > 0
-        ? t('routingStatus.distributedWithRules', { rules: initialRuleNames.join(', ') })
-        : hasStaticData
-          ? t('routeDistributed', { count: initialDistributedTargets.length })
-          : routingStatus === 'skipped'
-            ? t('routingStatus.skipped')
-            : t('routingStatus.pending')
-      )
-    : (progress.message || getFallbackMessage(effectiveStatus))
+  // 消息优先级：优先使用 SSE 的消息，特别是当 SSE 已达到最终状态时
+  const effectiveMessage = shouldPreferSSE
+    ? (progress.message || getFallbackMessage(progress.status, progress.ruleNames || []))
+    : useStatic
+      ? (initialRuleNames.length > 0
+          ? t('routingStatus.distributedWithRules', { rules: initialRuleNames.join(', ') })
+          : hasStaticData
+            ? t('routeDistributed', { count: initialDistributedTargets.length })
+            : routingStatus === 'skipped'
+              ? t('routingStatus.skipped')
+              : t('routingStatus.pending')
+        )
+      : (progress.message || getFallbackMessage(effectiveStatus, effectiveRuleNames))
 
   // 只在允许动画且正在处理中时显示状态指示器
   // 使用 effectiveStatus 确保乐观更新时也能显示
@@ -115,13 +132,16 @@ export function RoutingStatus({ itemId, initialDistributedTargets = [], initialR
   // 当 routingStatus 变为 processing 时，强制重新连接 SSE
   useEffect(() => {
     if (routingStatus === 'processing' && !progress.isConnected) {
-      console.log('[RoutingStatus] Status changed to processing, reconnecting SSE...')
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[RoutingStatus] Status changed to processing, reconnecting SSE...')
+      }
       progress.reconnect()
     }
   }, [routingStatus, progress.isConnected, progress.reconnect])
 
   // 添加 SSE 调试日志到 console
   useEffect(() => {
+    if (process.env.NODE_ENV !== 'development') return
     console.log('[RoutingStatus Debug]', {
       itemId,
       routingStatus,
@@ -289,4 +309,3 @@ function RoutingStatusBadge({
     </div>
   )
 }
-

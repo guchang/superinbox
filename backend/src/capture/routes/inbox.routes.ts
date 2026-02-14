@@ -205,6 +205,28 @@ router.post(
 );
 
 /**
+ * @route   POST /v1/inbox/:id/distribute
+ * @desc    Redistribute an item to configured targets
+ * @access  Private (API Key)
+ */
+router.post(
+  '/inbox/:id/distribute',
+  authenticate,
+  inboxController.distributeItem
+);
+
+/**
+ * @route   POST /v1/inbox/:id/cancel-routing
+ * @desc    Cancel ongoing routing and reset status
+ * @access  Private (API Key)
+ */
+router.post(
+  '/inbox/:id/cancel-routing',
+  authenticate,
+  inboxController.cancelRouting
+);
+
+/**
  * @route   POST /v1/inbox/batch-redistribute
  * @desc    Batch redistribute items with safety controls
  * @access  Private (API Key)

@@ -7,6 +7,14 @@ export interface RoutingProgressEvent {
   timestamp: string
 }
 
+// 路由分发待配置/待开始（不应进入 processing）
+export interface RoutingPendingEvent extends RoutingProgressEvent {
+  type: 'routing:pending'
+  data: {
+    message: string
+  }
+}
+
 // 开始路由分发
 export interface RoutingStartEvent extends RoutingProgressEvent {
   type: 'routing:start'
@@ -138,6 +146,7 @@ export interface RoutingDispatcherCompleteEvent extends RoutingProgressEvent {
 
 // 联合类型
 export type RoutingProgressEventType = 
+  | RoutingPendingEvent
   | RoutingStartEvent
   | RoutingRuleMatchEvent
   | RoutingToolCallStartEvent
