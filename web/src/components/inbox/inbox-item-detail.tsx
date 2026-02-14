@@ -339,9 +339,21 @@ export function InboxItemDetail({
       if (!result.success) {
         throw new Error(result.error || '重新分发失败')
       }
+      // 乐观更新：立即将状态设为 processing，让 UI 显示处理中
+      queryClient.setQueryData(['inbox', id], (oldData: any) => {
+        if (!oldData?.data) return oldData
+        return {
+          ...oldData,
+          data: {
+            ...oldData.data,
+            routingStatus: 'processing',
+          },
+        }
+      })
       return result
     },
     onSuccess: () => {
+      // 触发后台刷新获取最新状态
       queryClient.invalidateQueries({ queryKey: ['inbox'] })
       queryClient.invalidateQueries({ queryKey: ['inbox', id] })
       toast({
