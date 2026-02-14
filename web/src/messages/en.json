@@ -415,6 +415,14 @@
       "manual": "Manual",
       "failed": "Failed"
     },
+    "routingStatus": {
+      "pending": "Waiting for routing",
+      "skipped": "Routing skipped",
+      "processing": "Routing in progress",
+      "completed": "Routing completed",
+      "failed": "Routing failed",
+      "distributedWithRules": "Routed to: {rules}"
+    },
     "contentType": {
       "text": "Text",
       "image": "Image",

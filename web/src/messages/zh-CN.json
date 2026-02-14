@@ -416,6 +416,14 @@
       "manual": "手动",
       "failed": "失败"
     },
+    "routingStatus": {
+      "pending": "等待路由分发",
+      "skipped": "不执行路由分发",
+      "processing": "路由分发中",
+      "completed": "路由分发完成",
+      "failed": "路由分发失败",
+      "distributedWithRules": "已分发: {rules}"
+    },
     "contentType": {
       "text": "文本",
       "image": "图片",
