@@ -112,6 +112,14 @@ export function RoutingStatus({ itemId, initialDistributedTargets = [], initialR
   // 使用 effectiveStatus 确保乐观更新时也能显示
   const showIndicator = showAnimation && !disabled && effectiveStatus === 'processing'
 
+  // 当 routingStatus 变为 processing 时，强制重新连接 SSE
+  useEffect(() => {
+    if (routingStatus === 'processing' && !progress.isConnected) {
+      console.log('[RoutingStatus] Status changed to processing, reconnecting SSE...')
+      progress.reconnect()
+    }
+  }, [routingStatus, progress.isConnected, progress.reconnect])
+
   // 添加 SSE 调试日志到 console
   useEffect(() => {
     console.log('[RoutingStatus Debug]', {
