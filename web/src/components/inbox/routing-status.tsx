@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { CheckCircle, XCircle, Clock, MinusCircle } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { useRoutingProgress, type RoutingStatus as RoutingProgressStatus } from '@/hooks/use-routing-progress'
-import type { CSSProperties } from 'react'
+import { useEffect, type CSSProperties } from 'react'
 import { useTranslations } from 'next-intl'
 
 const createProcessingTintStyle = (accentColor: string): CSSProperties => ({
@@ -112,19 +112,42 @@ export function RoutingStatus({ itemId, initialDistributedTargets = [], initialR
   // 使用 effectiveStatus 确保乐观更新时也能显示
   const showIndicator = showAnimation && !disabled && effectiveStatus === 'processing'
 
+  // 添加 SSE 调试日志到 console
+  useEffect(() => {
+    console.log('[RoutingStatus Debug]', {
+      itemId,
+      routingStatus,
+      effectiveStatus,
+      progressStatus: progress.status,
+      progressMessage: progress.message,
+      isConnected: progress.isConnected,
+      effectiveMessage,
+      timestamp: new Date().toISOString()
+    })
+  }, [itemId, routingStatus, effectiveStatus, progress.status, progress.message, progress.isConnected, effectiveMessage])
+
   return (
-    <RoutingStatusBadge
-      className={className}
-      status={effectiveStatus}
-      message={effectiveMessage}
-      distributedTargets={effectiveTargets}
-      ruleNames={effectiveRuleNames}
-      isConnected={progress.isConnected}
-      error={progress.error}
-      showIndicator={showIndicator}
-      showAnimation={showAnimation}
-      processingAccentColor={processingAccentColor}
-    />
+    <div className="flex flex-col gap-1">
+      <RoutingStatusBadge
+        className={className}
+        status={effectiveStatus}
+        message={effectiveMessage}
+        distributedTargets={effectiveTargets}
+        ruleNames={effectiveRuleNames}
+        isConnected={progress.isConnected}
+        error={progress.error}
+        showIndicator={showIndicator}
+        showAnimation={showAnimation}
+        processingAccentColor={processingAccentColor}
+      />
+      {/* 调试日志显示 */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="text-[10px] text-gray-400 font-mono bg-gray-900/5 p-2 rounded">
+          <div>SSE: {progress.isConnected ? '🟢' : '🔴'} | Status: {progress.status} | Prop: {routingStatus}</div>
+          <div>Msg: {progress.message || '(empty)'}</div>
+        </div>
+      )}
+    </div>
   )
 }
 
