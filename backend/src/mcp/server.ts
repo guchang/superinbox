@@ -97,7 +97,7 @@ const request = async <T>(
 
 const mcpServer = new McpServer({
   name: 'superinbox-mcp',
-  version: '0.1.3'
+  version: '0.1.4'
 });
 
 const itemTypeSchema = z.enum(['text', 'image', 'url', 'audio', 'file', 'mixed']);
