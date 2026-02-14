@@ -15,7 +15,6 @@ permissions:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    if: "${{ !startsWith(github.event.head_commit.message, 'chore(mcp): release') }}"
     steps:
       - name: Checkout (for change detection)
         uses: actions/checkout@v4
@@ -44,7 +43,7 @@ jobs:
           DEPLOY_APP=false
           DEPLOY_BOT=false
 
-          if echo "${CHANGED}" | grep -Eq '^(backend/|web/|docker-compose\.prod\.yml|deploy/nginx/|deploy/scripts/)'; then
+          if echo "${CHANGED}" | grep -Eq '^(backend/|web/|docker-compose\.prod\.yml|deploy/existing-nginx/|deploy/nginx/|deploy/scripts/)'; then
             DEPLOY_APP=true
           fi
           if echo "${CHANGED}" | grep -Eq '^(channel-bot/|deploy/channel-bot/)'; then
@@ -53,6 +52,13 @@ jobs:
 
           echo "deploy_app=${DEPLOY_APP}" >> "$GITHUB_OUTPUT"
           echo "deploy_bot=${DEPLOY_BOT}" >> "$GITHUB_OUTPUT"
+
+      - name: Deployment decision summary
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "deploy_app=${{ steps.decide.outputs.deploy_app }}"
+          echo "deploy_bot=${{ steps.decide.outputs.deploy_bot }}"
 
       - name: Validate deploy secrets
         if: steps.decide.outputs.deploy_app == 'true' || steps.decide.outputs.deploy_bot == 'true'
@@ -105,13 +111,42 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o StrictHostKeyChecking=yes "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" \
-            "cd \"${{ secrets.DEPLOY_PATH }}\" && ./deploy/existing-nginx/update.sh"
+          ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o StrictHostKeyChecking=yes "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" bash -lc "
+            set -euo pipefail
+            cd \"${{ secrets.DEPLOY_PATH }}\"
+
+            echo '::group::Server pre-deploy (app)'
+            echo \"pwd=\$(pwd)\"
+            echo \"git_head=\$(git rev-parse --short HEAD 2>/dev/null || echo unknown)\"
+            docker ps --format '{{.Names}}|{{.Image}}|{{.CreatedAt}}|{{.Status}}' | egrep '^(superinbox-web|superinbox-backend)\\|' || true
+            echo '::endgroup::'
+
+            ./deploy/existing-nginx/update.sh
+
+            echo '::group::Server post-deploy (app)'
+            echo \"git_head=\$(git rev-parse --short HEAD 2>/dev/null || echo unknown)\"
+            docker ps --format '{{.Names}}|{{.Image}}|{{.CreatedAt}}|{{.Status}}' | egrep '^(superinbox-web|superinbox-backend)\\|' || true
+            echo '::endgroup::'
+          "
 
       - name: Deploy channel-bot
         if: steps.decide.outputs.deploy_bot == 'true'
         shell: bash
         run: |
           set -euo pipefail
-          ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o StrictHostKeyChecking=yes "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" \
-            "cd \"${{ secrets.DEPLOY_PATH }}\" && ./deploy/channel-bot/update.sh"
+          ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o StrictHostKeyChecking=yes "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" bash -lc "
+            set -euo pipefail
+            cd \"${{ secrets.DEPLOY_PATH }}\"
+
+            echo '::group::Server pre-deploy (channel-bot)'
+            echo \"pwd=\$(pwd)\"
+            echo \"git_head=\$(git rev-parse --short HEAD 2>/dev/null || echo unknown)\"
+            docker ps --format '{{.Names}}|{{.Image}}|{{.CreatedAt}}|{{.Status}}' | egrep '^(superinbox-channel-bot)\\|' || true
+            echo '::endgroup::'
+
+            ./deploy/channel-bot/update.sh
+
+            echo '::group::Server post-deploy (channel-bot)'
+            docker ps --format '{{.Names}}|{{.Image}}|{{.CreatedAt}}|{{.Status}}' | egrep '^(superinbox-channel-bot)\\|' || true
+            echo '::endgroup::'
+          "
