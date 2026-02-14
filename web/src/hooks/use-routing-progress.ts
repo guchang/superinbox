@@ -6,7 +6,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useTranslations } from 'next-intl'
-import { getApiBaseUrl } from '@/lib/api/base-url'
+import { getApiBaseUrl, getBackendDirectUrl } from '@/lib/api/base-url'
 
 // 路由进度状态
 export type RoutingStatus =
@@ -291,8 +291,8 @@ export function useRoutingProgress(itemId: string | null, options?: { disabled?:
 
       setState(prev => ({ ...prev, isConnected: false }))
 
-      // 通过同源 /v1 代理连接 SSE，避免 token 暴露在 URL
-      const sseUrl = `${getApiBaseUrl()}/inbox/${itemId}/routing-progress`
+      // 注意：Next.js 代理在部分环境下会缓冲流式响应，导致前端“连接成功但永远收不到事件”。SSE 必须直连后端。
+      const sseUrl = `${getBackendDirectUrl()}${getApiBaseUrl()}/inbox/${itemId}/routing-progress`
 
       const response = await fetch(sseUrl, {
         method: 'GET',
