@@ -78,19 +78,39 @@ export function RoutingStatus({ itemId, initialDistributedTargets = [], initialR
     : (routingStatus as RoutingProgressStatus) || progress.status
   const effectiveTargets = useStatic ? initialDistributedTargets : progress.distributedTargets
   const effectiveRuleNames = useStatic ? initialRuleNames : (progress.ruleNames || [])
+  // SSE 消息后备逻辑：如果 progress.message 为空，根据状态提供默认消息
+  const getFallbackMessage = (status: RoutingProgressStatus): string => {
+    switch (status) {
+      case 'processing':
+        return t('routingStatus.processing')
+      case 'completed':
+        return ruleNames.length > 0
+          ? t('routingStatus.distributedWithRules', { rules: ruleNames.join(', ') })
+          : t('routingStatus.completed')
+      case 'skipped':
+        return t('routingStatus.skipped')
+      case 'error':
+        return t('routingStatus.failed')
+      case 'pending':
+      default:
+        return t('routingStatus.pending')
+    }
+  }
+
   const effectiveMessage = useStatic
-    ? (initialRuleNames.length > 0 
+    ? (initialRuleNames.length > 0
         ? t('routingStatus.distributedWithRules', { rules: initialRuleNames.join(', ') })
-        : hasStaticData 
+        : hasStaticData
           ? t('routeDistributed', { count: initialDistributedTargets.length })
           : routingStatus === 'skipped'
             ? t('routingStatus.skipped')
             : t('routingStatus.pending')
       )
-    : progress.message
+    : (progress.message || getFallbackMessage(effectiveStatus))
 
-  // 只在允许动画且 SSE 活跃连接时显示状态指示器（正在处理中）
-  const showIndicator = showAnimation && !disabled && progress.status === 'processing'
+  // 只在允许动画且正在处理中时显示状态指示器
+  // 使用 effectiveStatus 确保乐观更新时也能显示
+  const showIndicator = showAnimation && !disabled && effectiveStatus === 'processing'
 
   return (
     <RoutingStatusBadge
@@ -211,7 +231,7 @@ function RoutingStatusBadge({
     <div className={`flex items-center gap-2 ${showIndicator ? 'pr-1' : ''} ${className ?? ''}`.trim()}>
       <Badge
         variant={config.variant}
-        className={`${config.className} max-w-full md:max-w-[320px] truncate`}
+        className={`${config.className} max-w-full truncate`}
         style={processingBadgeStyle}
         title={error ? `错误: ${error}` : message}
       >
