@@ -3,14 +3,7 @@ name: Deploy Production
 on:
   push:
     branches: [main]
-    paths:
-      - "backend/**"
-      - "web/**"
-      - "docker-compose.prod.yml"
-      - "deploy/nginx/**"
-      - "deploy/scripts/**"
-      - "deploy/channel-bot/**"
-      - "channel-bot/**"
+  workflow_dispatch:
 
 concurrency:
   group: deploy-prod-main

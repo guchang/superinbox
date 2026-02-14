@@ -3,9 +3,7 @@ name: MCP Auto Publish
 on:
   push:
     branches: [main]
-    paths:
-      - "packages/mcp-server/**"
-      - "backend/src/mcp/server.ts"
+  workflow_dispatch:
 
 concurrency:
   group: mcp-autopublish-main
