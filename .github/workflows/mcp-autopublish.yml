@@ -93,7 +93,7 @@ jobs:
           process.stdout.write(next);
           NODE
 
-          NEXT_VERSION="$(node -p \"require('./packages/mcp-server/package.json').version\")"
+          NEXT_VERSION="$(node -p "require('./packages/mcp-server/package.json').version")"
           echo "next_version=${NEXT_VERSION}" >> "$GITHUB_OUTPUT"
 
       - name: Validate NPM token
