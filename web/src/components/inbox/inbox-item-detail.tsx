@@ -315,11 +315,39 @@ export function InboxItemDetail({
 
   const redistributeMutation = useMutation({
     mutationFn: async () => {
-      await inboxApi.distributeItem(id)
+      // 如果路由正在处理中，先取消再重新分发
+      if (item?.routingStatus === 'processing') {
+        const cancelResult = await inboxApi.cancelRouting(id)
+        if (!cancelResult.success) {
+          throw new Error(cancelResult.error || '取消路由失败')
+        }
+        // 手动更新本地缓存，确保 distributeItem 看到的是最新状态
+        queryClient.setQueryData(['inbox', id], (oldData: any) => {
+          if (!oldData?.data) return oldData
+          return {
+            ...oldData,
+            data: {
+              ...oldData.data,
+              routingStatus: 'skipped',
+            },
+          }
+        })
+        // 小延迟确保后端状态已更新
+        await new Promise((resolve) => setTimeout(resolve, 100))
+      }
+      const result = await inboxApi.distributeItem(id)
+      if (!result.success) {
+        throw new Error(result.error || '重新分发失败')
+      }
+      return result
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['inbox'] })
       queryClient.invalidateQueries({ queryKey: ['inbox', id] })
+      toast({
+        title: t('toast.redistributeSuccess.title'),
+        description: t('toast.redistributeSuccess.description'),
+      })
     },
     onError: (error) => {
       toast({
