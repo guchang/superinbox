@@ -64,6 +64,14 @@ export function RoutingStatus({ itemId, initialDistributedTargets = [], initialR
   const t = useTranslations('inbox')
   const progress = useRoutingProgress(itemId, { disabled })
 
+  // 避免线上/演示污染 UI：
+  // 仅在 NODE_ENV=development 且访问域名为 localhost/127.0.0.1 时显示调试 UI。
+  // 这样在局域网 IP 访问时（常见演示场景）不会展示调试信息。
+  const showDebugUI =
+    process.env.NODE_ENV === 'development' &&
+    typeof window !== 'undefined' &&
+    (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+
   // 对于禁用 SSE 的条目，使用数据库中的 routingStatus
   // 这些数据会通过 useAutoRefetch 定期更新
   const hasStaticData = initialDistributedTargets && initialDistributedTargets.length > 0
@@ -169,7 +177,7 @@ export function RoutingStatus({ itemId, initialDistributedTargets = [], initialR
         processingAccentColor={processingAccentColor}
       />
       {/* 调试日志显示 */}
-      {process.env.NODE_ENV === 'development' && (
+      {showDebugUI && (
         <div className="text-[10px] text-gray-400 font-mono bg-gray-900/5 p-2 rounded">
           <div>SSE: {progress.isConnected ? '🟢' : '🔴'} | Status: {progress.status} | Prop: {routingStatus}</div>
           <div>Msg: {progress.message || '(empty)'}</div>
@@ -205,6 +213,10 @@ function RoutingStatusBadge({
   className
 }: RoutingStatusBadgeProps) {
   const t = useTranslations('inbox')
+  const showDebugUI =
+    process.env.NODE_ENV === 'development' &&
+    typeof window !== 'undefined' &&
+    (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
   
   // 根据状态返回不同的徽章样式和图标
   const getStatusConfig = () => {
@@ -298,7 +310,7 @@ function RoutingStatusBadge({
       </Badge>
 
       {/* 连接状态指示器（仅开发模式 + SSE 活跃时显示） */}
-      {process.env.NODE_ENV === 'development' && showIndicator && (
+      {showDebugUI && showIndicator && (
         <div
           className={`w-2 h-2 rounded-full flex-shrink-0 ${
             isConnected ? 'bg-green-400' : 'bg-gray-400'
