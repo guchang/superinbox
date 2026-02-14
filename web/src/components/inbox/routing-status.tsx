@@ -3,7 +3,6 @@
  * 显示收件箱条目的实时路由分发状态
  */
 
-import { Button } from '@/components/ui/button'
 import { CheckCircle, XCircle, Clock, MinusCircle, X } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { useRoutingProgress, type RoutingStatus as RoutingProgressStatus } from '@/hooks/use-routing-progress'
@@ -25,7 +24,7 @@ interface ProcessingBlocksProps {
 
 function ProcessingBlocks({ active, blockClassName, blockStyle }: ProcessingBlocksProps) {
   return (
-    <div className="flex gap-0.5 ml-1">
+    <div className="flex gap-0.5">
       {Array.from({ length: 20 }).map((_, index) => (
         <motion.div
           key={index}
@@ -324,55 +323,71 @@ function RoutingStatusBanner({
   const processingBlockClassName = hasProcessingAccent ? '' : config.processingBlockClassName
 
   return (
-    <div
-      className={cn(
-        'w-full rounded-xl border px-3 py-2',
-        'flex items-center gap-2',
-        // keep low height, avoid wrapping
-        'min-h-10',
-        config.cardClassName,
-        className
-      )}
-      style={processingBadgeStyle}
-      title={error ? `错误: ${error}` : message}
-    >
-      {config.icon}
+    <div className={cn('relative w-full', className)}>
+      <div
+        className={cn(
+          'relative w-full rounded-xl border pl-3',
+          dismissible ? 'pr-11' : 'pr-3',
+          'flex h-10 items-center',
+          // keep low height, avoid wrapping
+          'overflow-hidden',
+          config.cardClassName,
+        )}
+        style={processingBadgeStyle}
+        title={error ? `错误: ${error}` : message}
+      >
+        <div className="flex min-w-0 flex-1 items-center gap-2">
+          {status === 'processing' ? null : config.icon}
 
-      <div className="min-w-0 flex-1 truncate whitespace-nowrap">
-        {config.text}
+          {/* Keep blocks visually adjacent to the message (left-aligned),
+              while still allowing the message to truncate before the blocks. */}
+          <div className="min-w-0 flex-1">
+            <div className="inline-flex min-w-0 max-w-full items-center gap-2">
+              <div className="min-w-0 truncate whitespace-nowrap">
+                {config.text}
+              </div>
+
+              {status === 'processing' ? (
+                <div className="flex flex-shrink-0 items-center">
+                  <ProcessingBlocks
+                    active={showAnimation}
+                    blockClassName={processingBlockClassName}
+                    blockStyle={processingBlockStyle}
+                  />
+                </div>
+              ) : null}
+            </div>
+          </div>
+        </div>
+
+        {showDebugUI && showIndicator ? (
+          <div
+            className={cn(
+              'ml-1 h-2 w-2 flex-shrink-0 rounded-full',
+              isConnected ? 'bg-green-400' : 'bg-gray-400'
+            )}
+            title={isConnected ? 'SSE 已连接' : 'SSE 连接中'}
+          />
+        ) : null}
+
+        {dismissible ? (
+          <button
+            type="button"
+            className={cn(
+              'absolute right-2 top-1/2 -translate-y-1/2',
+              'h-7 w-7 rounded-md',
+              'inline-flex items-center justify-center',
+              'text-muted-foreground hover:text-foreground',
+              'hover:bg-background/40'
+            )}
+            onClick={onDismiss}
+            aria-label={dismissLabel || '关闭'}
+            title={dismissLabel || '关闭'}
+          >
+            <X className="h-4 w-4" />
+          </button>
+        ) : null}
       </div>
-
-      {status === 'processing' ? (
-        <ProcessingBlocks
-          active={showAnimation}
-          blockClassName={processingBlockClassName}
-          blockStyle={processingBlockStyle}
-        />
-      ) : null}
-
-      {showDebugUI && showIndicator ? (
-        <div
-          className={cn(
-            'ml-1 h-2 w-2 flex-shrink-0 rounded-full',
-            isConnected ? 'bg-green-400' : 'bg-gray-400'
-          )}
-          title={isConnected ? 'SSE 已连接' : 'SSE 连接中'}
-        />
-      ) : null}
-
-      {dismissible ? (
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8 flex-shrink-0 text-muted-foreground hover:text-foreground"
-          onClick={onDismiss}
-          aria-label={dismissLabel || '关闭'}
-          title={dismissLabel || '关闭'}
-        >
-          <X className="h-4 w-4" />
-        </Button>
-      ) : null}
     </div>
   )
 }

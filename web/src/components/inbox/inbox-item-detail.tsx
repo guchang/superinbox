@@ -1267,7 +1267,7 @@ export function InboxItemDetail({
       </div>
 
       {shouldShowRoutingBanner ? (
-        <div className="pb-4 pt-3">
+        <div className="pt-3 pb-0">
           <div className={cn('flex justify-center', isDrawerVariant ? 'px-4 md:px-6' : '')}>
           <RoutingStatus
             itemId={item.id}
@@ -1275,7 +1275,7 @@ export function InboxItemDetail({
             initialRuleNames={item.distributedRuleNames}
             routingStatus={item.routingStatus}
             showAnimation={true}
-            dismissible={routingBannerSticky && item.routingStatus !== 'processing'}
+            dismissible={routingBannerSticky}
             onDismiss={() => setRoutingBannerDismissed(true)}
             dismissLabel={common('close')}
           />
@@ -1284,7 +1284,12 @@ export function InboxItemDetail({
       ) : null}
 
       {isDrawerVariant ? (
-        <div className="flex-1 overflow-y-auto px-4 pb-6 pt-4 md:px-6">
+        <div
+          className={cn(
+            'flex-1 overflow-y-auto px-4 pb-6 md:px-6',
+            shouldShowRoutingBanner ? 'pt-3' : 'pt-4'
+          )}
+        >
           <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
             <div className="space-y-6 min-w-0">
               <section className="relative grid gap-3" onBlurCapture={!isReadOnlyMode ? handleEditorBlurCapture : undefined}>
@@ -1382,7 +1387,7 @@ export function InboxItemDetail({
           </div>
         </div>
       ) : (
-        <div className="mt-4 space-y-6">
+        <div className={cn('space-y-6', shouldShowRoutingBanner ? 'mt-3' : 'mt-4')}>
           <section className="relative grid gap-3" onBlurCapture={!isReadOnlyMode ? handleEditorBlurCapture : undefined}>
             {!isReadOnlyMode && autoSaveLabel ? (
               <div className="pointer-events-none absolute right-2 top-2 z-10">
