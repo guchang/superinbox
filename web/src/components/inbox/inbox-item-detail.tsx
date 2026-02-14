@@ -21,6 +21,7 @@ import {
   Trash2,
   Loader2,
   Share2,
+  X,
   AlertCircle,
   Paperclip,
   Settings2,
@@ -148,6 +149,8 @@ export function InboxItemDetail({
 
   const item = itemData?.data
   const [draftContent, setDraftContent] = useState('')
+  const [routingBannerSticky, setRoutingBannerSticky] = useState(false)
+  const [routingBannerDismissed, setRoutingBannerDismissed] = useState(false)
   const [draftCategory, setDraftCategory] = useState('unknown')
   const [savedSnapshot, setSavedSnapshot] = useState<AutoSaveSnapshot | null>(null)
   const [autoSaveIndicatorState, setAutoSaveIndicatorState] = useState<AutoSaveIndicatorState>('hidden')
@@ -322,6 +325,10 @@ export function InboxItemDetail({
       return result
     },
     onMutate: async () => {
+      // Keep routing status visible after completion unless user closes it manually.
+      setRoutingBannerSticky(true)
+      setRoutingBannerDismissed(false)
+
       await queryClient.cancelQueries({ queryKey: ['inbox', id] })
       const previous = queryClient.getQueryData(['inbox', id])
 
@@ -362,6 +369,14 @@ export function InboxItemDetail({
       })
     },
   })
+
+  useEffect(() => {
+    if (!item) return
+    if (item.routingStatus === 'processing') {
+      setRoutingBannerSticky(true)
+      setRoutingBannerDismissed(false)
+    }
+  }, [item?.routingStatus])
 
   const updateMutation = useMutation({
     mutationFn: async ({ content, category }: { content?: string; category?: string }) => {
@@ -965,9 +980,12 @@ export function InboxItemDetail({
 
   // 简化后的路由活动banner控制逻辑
   const shouldShowRoutingBanner = item && (
-    item.routingStatus === 'processing' ||
-    redistributeMutation.isPending ||
-    isPolling
+    !routingBannerDismissed && (
+      routingBannerSticky ||
+      item.routingStatus === 'processing' ||
+      redistributeMutation.isPending ||
+      isPolling
+    )
   )
 
   if (isLoading) {
@@ -1251,14 +1269,28 @@ export function InboxItemDetail({
 
       {shouldShowRoutingBanner ? (
         <div className="pb-4 pt-3">
+          <div className={cn('flex items-start gap-2', isDrawerVariant ? 'px-4 md:px-6' : '')}>
           <RoutingStatus
             itemId={item.id}
             initialDistributedTargets={item.distributedTargets}
             initialRuleNames={item.distributedRuleNames}
             routingStatus={item.routingStatus}
             showAnimation={true}
-            className={isDrawerVariant ? 'px-4 md:px-6' : ''}
           />
+            {routingBannerSticky && item.routingStatus !== 'processing' ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="mt-0.5 h-8 w-8 text-muted-foreground hover:text-foreground"
+                onClick={() => setRoutingBannerDismissed(true)}
+                aria-label={common('close')}
+                title={common('close')}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            ) : null}
+          </div>
         </div>
       ) : null}
 
