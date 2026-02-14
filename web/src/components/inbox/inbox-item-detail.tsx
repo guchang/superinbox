@@ -56,6 +56,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { InboxItemDetailProperties } from '@/components/inbox/inbox-item-detail-properties'
+import { RoutingStatus } from '@/components/inbox/routing-status'
 
 // normalizeDraftContent 已被提取到 @/lib/utils/markdown.ts 的 normalizeMarkdownContent
 // 这里保留为别名以保持向后兼容
@@ -328,15 +329,6 @@ export function InboxItemDetail({
       })
     },
   })
-
-  // 页面可见性监听（用于toast模式选择）
-  const [isPageVisible, setIsPageVisible] = useState(true)
-  useEffect(() => {
-    const update = () => setIsPageVisible(document.visibilityState === 'visible')
-    update()
-    document.addEventListener('visibilitychange', update)
-    return () => document.removeEventListener('visibilitychange', update)
-  }, [])
 
   const updateMutation = useMutation({
     mutationFn: async ({ content, category }: { content?: string; category?: string }) => {
@@ -940,14 +932,6 @@ export function InboxItemDetail({
     isPolling
   )
 
-  const sseEnabled = redistributeMutation.isSuccess || item?.routingStatus === 'processing'
-
-  // 根据 API 文档，RoutingActivityBanner 的 toastMode 参数：
-  // - 'none': 默认模式，不显示 toast（页面可见时使用）
-  // - 'final': 仅在路由结束后显示最终结果的 toast（页面不可见时使用）
-  // 这样可以避免在用户查看其他标签页时显示不必要的通知
-  const toastMode = !isPageVisible ? 'final' : 'none'
-
   if (isLoading) {
     return (
       <div
@@ -1229,13 +1213,12 @@ export function InboxItemDetail({
 
       {shouldShowRoutingBanner ? (
         <div className="pb-4 pt-3">
-          <RoutingActivityBanner
+          <RoutingStatus
             itemId={item.id}
-            enabled
-            sseEnabled={sseEnabled}
-            defaultOpen={redistributeMutation.isPending}
-            toastId={`redistribute-${item.id}`}
-            toastMode={toastMode}
+            initialDistributedTargets={item.distributedTargets}
+            initialRuleNames={item.distributedRuleNames}
+            routingStatus={item.routingStatus}
+            showAnimation={true}
             className={isDrawerVariant ? 'px-4 md:px-6' : ''}
           />
         </div>
