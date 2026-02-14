@@ -27,27 +27,43 @@ jobs:
         run: |
           set -euo pipefail
 
+          EVENT_NAME="${{ github.event_name }}"
           BEFORE="${{ github.event.before }}"
           AFTER="${{ github.sha }}"
-
-          # In rare cases (first push), github.event.before can be all zeros.
-          if [[ "${BEFORE}" =~ ^0+$ ]]; then
-            CHANGED="$(git diff --name-only "${AFTER}~1..${AFTER}" || true)"
-          else
-            CHANGED="$(git diff --name-only "${BEFORE}..${AFTER}" || true)"
-          fi
-
-          echo "Changed files:"
-          echo "${CHANGED}"
 
           DEPLOY_APP=false
           DEPLOY_BOT=false
 
-          if echo "${CHANGED}" | grep -Eq '^(backend/|web/|docker-compose\.prod\.yml|deploy/existing-nginx/|deploy/nginx/|deploy/scripts/)'; then
+          if [[ "${EVENT_NAME}" == "workflow_dispatch" ]]; then
+            # Manual runs should deploy by default. This avoids the situation where
+            # a workflow-only change (or an empty diff edge case) produces a green run
+            # but does not actually perform any deploy.
             DEPLOY_APP=true
-          fi
-          if echo "${CHANGED}" | grep -Eq '^(channel-bot/|deploy/channel-bot/)'; then
             DEPLOY_BOT=true
+            echo "Manual dispatch: force deploy_app=true deploy_bot=true"
+          else
+            # In rare cases (first push), github.event.before can be all zeros.
+            if [[ "${BEFORE}" =~ ^0+$ ]]; then
+              CHANGED="$(git diff --name-only "${AFTER}~1..${AFTER}" || true)"
+            else
+              CHANGED="$(git diff --name-only "${BEFORE}..${AFTER}" || true)"
+            fi
+
+            echo "Changed files:"
+            echo "${CHANGED}"
+
+            if echo "${CHANGED}" | grep -Eq '^(backend/|web/|docker-compose\.prod\.yml|deploy/existing-nginx/|deploy/nginx/|deploy/scripts/)'; then
+              DEPLOY_APP=true
+            fi
+            if echo "${CHANGED}" | grep -Eq '^(channel-bot/|deploy/channel-bot/)'; then
+              DEPLOY_BOT=true
+            fi
+
+            # If we are changing the deployment workflow itself, allow it to deploy
+            # so we can validate the end-to-end pipeline.
+            if echo "${CHANGED}" | grep -Eq '^\.github/workflows/deploy-prod\.yml$'; then
+              DEPLOY_APP=true
+            fi
           fi
 
           echo "deploy_app=${DEPLOY_APP}" >> "$GITHUB_OUTPUT"
