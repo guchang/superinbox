@@ -1229,7 +1229,7 @@ export function InboxItemDetail({
 
                 <DropdownMenuItem
                   onClick={() => redistributeMutation.mutate()}
-                  disabled={redistributeMutation.isPending || item.status === ItemStatus.PROCESSING}
+                  disabled={redistributeMutation.isPending || item.routingStatus === 'processing'}
                 >
                   {redistributeMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Share2 className="h-4 w-4" />}
                   {t('actions.redistribute')}
