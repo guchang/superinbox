@@ -71,9 +71,11 @@ export function RoutingStatus({ itemId, initialDistributedTargets = [], initialR
   // 如果禁用了 SSE，使用数据库状态
   const useStatic = disabled
 
-  const effectiveStatus = useStatic 
-    ? (routingStatus as RoutingProgressStatus || 'pending')  // 使用数据库中的状态
-    : progress.status
+  // 优先使用传入的 routingStatus prop（支持乐观更新）
+  // 当 SSE 连接建立并收到事件后，progress.status 会反映真实状态
+  const effectiveStatus = useStatic
+    ? (routingStatus as RoutingProgressStatus || 'pending')
+    : (routingStatus as RoutingProgressStatus) || progress.status
   const effectiveTargets = useStatic ? initialDistributedTargets : progress.distributedTargets
   const effectiveRuleNames = useStatic ? initialRuleNames : (progress.ruleNames || [])
   const effectiveMessage = useStatic
