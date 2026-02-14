@@ -353,7 +353,18 @@ export function InboxItemDetail({
       return result
     },
     onSuccess: () => {
-      // 触发后台刷新获取最新状态
+      // 立即将状态设为 completed，让按钮重新启用
+      queryClient.setQueryData(['inbox', id], (oldData: any) => {
+        if (!oldData?.data) return oldData
+        return {
+          ...oldData,
+          data: {
+            ...oldData.data,
+            routingStatus: 'completed',
+          },
+        }
+      })
+      // 触发后台刷新获取完整数据
       queryClient.invalidateQueries({ queryKey: ['inbox'] })
       queryClient.invalidateQueries({ queryKey: ['inbox', id] })
       toast({
