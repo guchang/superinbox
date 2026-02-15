@@ -192,6 +192,13 @@ export function AppSidebar({ className }: AppSidebarProps) {
     setOpenMobile(false)
   }, [setOpenMobile])
 
+  useEffect(() => {
+    if (!isMobileOpen) return
+
+    const mobileRouter = router as { prefetch?: (href: string) => void }
+    mobileRouter.prefetch?.('/settings/mobile')
+  }, [isMobileOpen, router])
+
   const searchParamsKey = searchParams?.toString() ?? ''
 
   useEffect(() => {
@@ -830,21 +837,23 @@ export function AppSidebar({ className }: AppSidebarProps) {
             <SidebarMenuItem>
               {isMobileViewport ? (
                 <SidebarMenuButton
+                  asChild
                   size="lg"
                   className={cn(
                     'data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground',
                     pathname.startsWith('/settings/mobile') && 'bg-sidebar-accent text-sidebar-accent-foreground'
                   )}
-                  onClick={() => handleNavigate('/settings/mobile')}
                 >
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted text-xs font-semibold text-muted-foreground">
-                    {userInitials}
-                  </div>
-                  <div className="grid flex-1 text-left text-sm leading-tight">
-                    <span className="truncate font-medium">{userName}</span>
-                    <span className="truncate text-xs text-muted-foreground">{userEmail}</span>
-                  </div>
-                  <Settings className="ml-auto size-4 text-muted-foreground" />
+                  <Link href="/settings/mobile" prefetch onClick={closeMobileSidebar}>
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted text-xs font-semibold text-muted-foreground">
+                      {userInitials}
+                    </div>
+                    <div className="grid flex-1 text-left text-sm leading-tight">
+                      <span className="truncate font-medium">{userName}</span>
+                      <span className="truncate text-xs text-muted-foreground">{userEmail}</span>
+                    </div>
+                    <Settings className="ml-auto size-4 text-muted-foreground" />
+                  </Link>
                 </SidebarMenuButton>
               ) : (
                 <DropdownMenu>

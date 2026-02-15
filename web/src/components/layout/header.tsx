@@ -2,7 +2,7 @@
 
 import { useMemo } from "react"
 import { useTranslations } from "next-intl"
-import { usePathname, useRouter } from "@/i18n/navigation"
+import { usePathname } from "@/i18n/navigation"
 import { useSearchParams } from "next/navigation"
 import { ArrowLeft } from "lucide-react"
 import { Separator } from "@/components/ui/separator"
@@ -12,7 +12,6 @@ import { Link } from "@/i18n/navigation"
 
 export function Header() {
   const pathname = usePathname()
-  const router = useRouter()
   const searchParams = useSearchParams()
   const isMobile = useIsMobile()
   const dashboardT = useTranslations("dashboard")
@@ -68,15 +67,11 @@ export function Header() {
   return (
     <div className="flex items-center gap-2">
       {showBackToMobileSettings ? (
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="h-8 gap-1 px-2"
-          onClick={() => router.push('/settings/mobile')}
-        >
-          <ArrowLeft className="h-3.5 w-3.5" />
-          <span className="text-xs">{mobileSettingsT('backAction')}</span>
+        <Button asChild variant="ghost" size="sm" className="h-8 gap-1 px-2">
+          <Link href="/settings/mobile" prefetch>
+            <ArrowLeft className="h-3.5 w-3.5" />
+            <span className="text-xs">{mobileSettingsT('backAction')}</span>
+          </Link>
         </Button>
       ) : null}
       <Separator orientation="vertical" className="mx-2 h-4" />

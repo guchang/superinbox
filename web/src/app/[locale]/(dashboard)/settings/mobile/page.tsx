@@ -40,6 +40,19 @@ export default function MobileSettingsPage() {
     setMounted(true)
   }, [])
 
+  useEffect(() => {
+    const mobileRouter = router as { prefetch?: (href: string) => void }
+    const prefetch = (path: string) => {
+      mobileRouter.prefetch?.(path)
+    }
+
+    prefetch('/dashboard')
+    prefetch('/settings')
+    prefetch('/settings/api-keys')
+    prefetch('/settings/logs')
+    prefetch('/settings/statistics')
+  }, [router])
+
   const navigationItems = useMemo(
     () => [
       { href: '/dashboard', icon: LayoutDashboard, label: sidebarT('items.dashboard') },
@@ -66,6 +79,8 @@ export default function MobileSettingsPage() {
   }
 
   const handleNavigate = (path: string) => {
+    const mobileRouter = router as { prefetch?: (href: string) => void }
+    mobileRouter.prefetch?.(path)
     router.push(`${path}?from=mobile-settings`)
   }
 
