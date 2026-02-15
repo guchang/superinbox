@@ -880,13 +880,6 @@ export function AppSidebar({ className }: AppSidebarProps) {
                     <DropdownMenuSeparator />
 
                     <DropdownMenuItem
-                      onClick={() => handleNavigate('/dashboard')}
-                      className={cn("cursor-pointer", isActive('/dashboard') && "bg-accent")}
-                    >
-                      <LayoutDashboard className="mr-2 h-4 w-4" />
-                      <span>{t('items.dashboard')}</span>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
                       onClick={() => handleNavigate('/settings')}
                       className={cn("cursor-pointer", isActive('/settings') && "bg-accent")}
                     >
@@ -899,6 +892,13 @@ export function AppSidebar({ className }: AppSidebarProps) {
                     >
                       <Key className="mr-2 h-4 w-4" />
                       <span>{t('items.apiKeys')}</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => handleNavigate('/dashboard')}
+                      className={cn("cursor-pointer", isActive('/dashboard') && "bg-accent")}
+                    >
+                      <LayoutDashboard className="mr-2 h-4 w-4" />
+                      <span>{t('items.dashboard')}</span>
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       onClick={() => handleNavigate('/settings/logs')}
