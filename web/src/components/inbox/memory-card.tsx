@@ -7,6 +7,7 @@ import { Item, ItemStatus, ContentType } from '@/types'
 import { Button } from '@/components/ui/button'
 import { FilePreview } from '@/components/file-preview'
 import { AudioWavePlayer } from '@/components/inbox/audio-wave-player'
+import { LinkifiedText } from '@/components/shared/linkified-text'
 import { MarkdownContent } from '@/components/shared/markdown-content'
 import { MCPConnectorLogo } from '@/components/mcp-connectors/mcp-connector-logo'
 import { formatRelativeTime } from '@/lib/utils'
@@ -780,20 +781,41 @@ function MemoryCardComponent({
 
         {/* 内容 */}
         <div className="mb-3 flex-1">
-          <div className="relative max-h-[7.5rem] overflow-hidden">
+          {isAnalyzing ? (
+            <h3 className={cn(
+              "text-[16px] font-semibold leading-[1.58] sm:text-[17px]",
+              'text-muted-foreground italic',
+              item.contentType === ContentType.URL ? 'break-all' : 'break-words',
+              'whitespace-pre-wrap',
+              "line-clamp-3"
+            )}>
+              <LinkifiedText
+                text={displayContent}
+                linkClassName={cn(
+                  'text-current hover:opacity-80',
+                  item.contentType === ContentType.URL && 'font-semibold'
+                )}
+              />
+            </h3>
+          ) : (
             <MarkdownContent
               text={displayContent}
               className={cn(
-                'memory-card-markdown-content space-y-1 text-[16px] font-semibold leading-[1.58] sm:text-[17px]',
-                isAnalyzing ? 'text-muted-foreground italic' : 'text-foreground',
+                'memory-card-markdown-content text-[16px] font-semibold leading-[1.58] text-foreground sm:text-[17px]',
                 item.contentType === ContentType.URL ? 'break-all' : 'break-words',
-                '[&_a]:text-current [&_a]:decoration-solid [&_a]:underline-offset-2 [&_a]:hover:opacity-80',
-                item.contentType === ContentType.URL && '[&_a]:font-semibold',
-                '[&_h1]:text-[16px] [&_h2]:text-[16px] [&_h3]:text-[16px] [&_h4]:text-[16px]',
-                '[&_h1]:font-semibold [&_h2]:font-semibold [&_h3]:font-semibold [&_h4]:font-semibold'
+                'max-h-[7.5rem] overflow-hidden',
+                '[&_p]:my-0',
+                '[&_h1]:text-[16px] sm:[&_h1]:text-[17px]',
+                '[&_h2]:text-[16px] sm:[&_h2]:text-[17px]',
+                '[&_h3]:text-[16px] sm:[&_h3]:text-[17px]',
+                '[&_h4]:text-[16px] sm:[&_h4]:text-[17px]',
+                '[&_ul]:my-0 [&_ul]:space-y-0',
+                '[&_ol]:my-0 [&_ol]:space-y-0',
+                '[&_li]:leading-[1.58]',
+                '[&_a]:text-current [&_a]:font-semibold'
               )}
             />
-          </div>
+          )}
 
           {/* 文件预览 */}
           {item.hasFile && (

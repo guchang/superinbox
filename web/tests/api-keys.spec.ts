@@ -192,4 +192,17 @@ test.describe('Markdown rendering (pure)', () => {
     expect(html).toContain('<a href="https://example.com/" target="_blank" rel="noopener noreferrer">safe</a>');
     expect(html).not.toContain('javascript:alert(1)');
   });
+
+  test('should render inline markdown syntax in card preview content', async () => {
+    const markdown = '**Bold** _Italic_ `Code`';
+
+    const html = renderToStaticMarkup(
+      React.createElement(MarkdownContent, { text: markdown })
+    );
+
+    expect(html).toContain('<strong>Bold</strong>');
+    expect(html).toContain('<em>Italic</em>');
+    expect(html).toContain('<code>Code</code>');
+    expect(html).not.toContain('**Bold**');
+  });
 });
