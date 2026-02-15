@@ -232,4 +232,39 @@
   .detail-markdown-editor-content li[data-checked] > div > ul[data-type='taskList'] {
     margin-top: 0.25rem;
   }
+
+  .memory-card-markdown-content li.task-list-item > input[type='checkbox'],
+  .memory-card-markdown-content li.task-list-item > label > input[type='checkbox'] {
+    appearance: none;
+    width: 1rem;
+    height: 1rem;
+    margin: 0.25rem 0.5rem 0 0;
+    border-radius: 0.25rem;
+    border: 1.5px solid rgb(17 24 39);
+    background-color: rgb(0 0 0 / 0.03);
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: 0.72rem 0.72rem;
+    flex: 0 0 auto;
+    pointer-events: none;
+  }
+
+  .dark .memory-card-markdown-content li.task-list-item > input[type='checkbox'],
+  .dark .memory-card-markdown-content li.task-list-item > label > input[type='checkbox'] {
+    border-color: rgb(255 255 255 / 0.95);
+    background-color: rgb(255 255 255 / 0.08);
+  }
+
+  .memory-card-markdown-content li.task-list-item > input[type='checkbox']:disabled,
+  .memory-card-markdown-content li.task-list-item > label > input[type='checkbox']:disabled {
+    opacity: 1;
+    cursor: default;
+  }
+
+  .memory-card-markdown-content li.task-list-item > input[type='checkbox']:checked,
+  .memory-card-markdown-content li.task-list-item > label > input[type='checkbox']:checked {
+    border-color: rgb(16 185 129);
+    background-color: rgb(16 185 129);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 14' fill='none'%3E%3Cpath d='M3 7.2L5.8 10L11 4.8' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  }
 }
