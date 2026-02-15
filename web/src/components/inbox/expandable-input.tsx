@@ -27,6 +27,7 @@ export interface ExpandableInputHandle {
 type AnimationPhase = 'idle' | 'absorbing' | 'collapsing' | 'diving'
 
 type UploadPreviewType = 'image' | 'video' | 'file'
+const MOBILE_EXPANDED_HEIGHT = '50dvh'
 
 interface SelectedUpload {
   file: File
@@ -283,7 +284,7 @@ export const ExpandableInput = forwardRef<ExpandableInputHandle, ExpandableInput
   const panelMotionProps = isMobile
     ? {
         initial: { opacity: 0, scale: 0.96, y: 12, height: 56, borderRadius: 28 },
-        animate: { opacity: 1, scale: 1, y: 0, height: 220, borderRadius: 32 },
+        animate: { opacity: 1, scale: 1, y: 0, height: MOBILE_EXPANDED_HEIGHT, borderRadius: 32 },
         exit: { opacity: 0, scale: 0.98, y: 12, transition: { duration: 0.18, ease: 'easeOut' as const } },
         transition: { type: 'spring' as const, stiffness: 400, damping: 30 },
       }
@@ -361,7 +362,7 @@ export const ExpandableInput = forwardRef<ExpandableInputHandle, ExpandableInput
               "fixed bottom-[calc(env(safe-area-inset-bottom)+16px)] right-4 flex h-12 items-center gap-2 rounded-full px-4 md:hidden",
               openMobile ? 'z-30 opacity-0 pointer-events-none' : 'z-[60]',
               "ring-1 transition-all duration-200 active:scale-95",
-              'border border-border bg-card text-foreground ring-ring/30 shadow-lg'
+              'border border-border bg-card text-foreground ring-ring/30 shadow-lg dark:border-white/20 dark:bg-popover/95 dark:backdrop-blur-md dark:shadow-[0_12px_30px_rgba(0,0,0,0.55)]'
             )}
           >
             <Plus size={16} strokeWidth={2.8} />
@@ -391,7 +392,9 @@ export const ExpandableInput = forwardRef<ExpandableInputHandle, ExpandableInput
               data-drop-target="compose"
               className={cn(
                 'relative border overflow-hidden shadow-2xl cursor-text transition-colors flex flex-col mx-auto w-full',
-                'bg-card border-border',
+                isMobile && isDark
+                  ? 'bg-popover/95 border-white/15 backdrop-blur-xl shadow-[0_24px_56px_rgba(0,0,0,0.55)]'
+                  : 'bg-card border-border',
                 dropTargetActive && 'border-ring/50'
               )}
               onClick={(event) => {
