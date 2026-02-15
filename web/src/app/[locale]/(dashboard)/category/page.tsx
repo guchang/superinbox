@@ -80,6 +80,7 @@ type CategoryDraft = {
 }
 
 const UNKNOWN_CATEGORY_KEY = 'unknown'
+const TRASH_CATEGORY_KEY = 'trash'
 const HEX_COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/
 
 const normalizeDraftColor = (value?: string): string => String(value ?? '').trim().toLowerCase()
@@ -92,6 +93,14 @@ const isDraftColorValid = (value?: string): boolean => {
 const isUnknownCategory = (
   category?: Pick<CategoryDraft, 'key'> | Pick<Category, 'key'> | null
 ) => category?.key?.trim().toLowerCase() === UNKNOWN_CATEGORY_KEY
+
+const isTrashCategory = (
+  category?: Pick<CategoryDraft, 'key'> | Pick<Category, 'key'> | null
+) => category?.key?.trim().toLowerCase() === TRASH_CATEGORY_KEY
+
+const isSystemCategory = (
+  category?: Pick<CategoryDraft, 'key'> | Pick<Category, 'key'> | null
+) => isUnknownCategory(category) || isTrashCategory(category)
 
 const createLibrarySelectionKey = (scenarioId: string, categoryKey: string) =>
   `${scenarioId}::${categoryKey.trim().toLowerCase()}`
@@ -177,7 +186,7 @@ export default function CategoryPage() {
       examples: category.examples || [],
       icon: resolveCategoryIconName(category.key, category.icon),
       color: resolveCategoryColor(category.key, category.color),
-      isActive: isUnknownCategory(category) ? true : category.isActive,
+      isActive: isSystemCategory(category) ? true : category.isActive,
     }))
   }, [categoriesData])
 
@@ -192,12 +201,24 @@ export default function CategoryPage() {
   )
 
   const categoryList = useMemo(() => {
-    return [...categories].sort((a, b) => {
-      const aIsUnknown = isUnknownCategory(a)
-      const bIsUnknown = isUnknownCategory(b)
+    const systemOrder = (category: Category) => {
+      if (isUnknownCategory(category)) return 1
+      if (isTrashCategory(category)) return 2
+      return 0
+    }
 
-      if (aIsUnknown !== bIsUnknown) {
-        return aIsUnknown ? 1 : -1
+    return [...categories].sort((a, b) => {
+      const aSystemOrder = systemOrder(a)
+      const bSystemOrder = systemOrder(b)
+      const aIsSystem = aSystemOrder > 0
+      const bIsSystem = bSystemOrder > 0
+
+      if (aIsSystem !== bIsSystem) {
+        return aIsSystem ? 1 : -1
+      }
+
+      if (aIsSystem && bIsSystem) {
+        return aSystemOrder - bSystemOrder
       }
 
       const aSortOrder = typeof a.sortOrder === 'number' ? a.sortOrder : Number.MAX_SAFE_INTEGER
@@ -231,7 +252,7 @@ export default function CategoryPage() {
     resolvedDraftIconName === defaultDraftIcon &&
     isColorAutoMode
   const canRestoreDefaultAppearance =
-    !isUnknownCategory(categoryDraft) &&
+    !isSystemCategory(categoryDraft) &&
     hasDefaultAppearance &&
     !isDefaultDraftAppearance
 
@@ -320,7 +341,7 @@ export default function CategoryPage() {
       examplesText: (category?.examples || []).join('\n'),
       icon: resolveCategoryIconName(category?.key, category?.icon),
       color: normalizeDraftColor(category?.color),
-      isActive: isUnknownCategory(category) ? true : (category?.isActive ?? true),
+      isActive: isSystemCategory(category) ? true : (category?.isActive ?? true),
     })
     setCategoryDialogOpen(true)
   }
@@ -350,10 +371,10 @@ export default function CategoryPage() {
       description: categoryDraft.description.trim(),
       examples,
       icon: resolveCategoryIconName(categoryDraft.key, categoryDraft.icon),
-      color: isUnknownCategory(categoryDraft)
+      color: isSystemCategory(categoryDraft)
         ? undefined
         : (draftColorValue || undefined),
-      isActive: isUnknownCategory(categoryDraft) ? true : categoryDraft.isActive,
+      isActive: isSystemCategory(categoryDraft) ? true : categoryDraft.isActive,
     }
 
     try {
@@ -384,7 +405,7 @@ export default function CategoryPage() {
   }
 
   const toggleCategoryActive = async (category: Category) => {
-    if (isUnknownCategory(category)) {
+    if (isSystemCategory(category)) {
       return
     }
 
@@ -404,7 +425,7 @@ export default function CategoryPage() {
   }
 
   const handleDeleteCategory = async (category: Category) => {
-    if (isUnknownCategory(category)) {
+    if (isSystemCategory(category)) {
       return
     }
 
@@ -772,7 +793,7 @@ export default function CategoryPage() {
                   const previewExamples = (category.examples || []).slice(0, 2)
                   const extraExamples =
                     (category.examples?.length || 0) - previewExamples.length
-                  const isSystemFallbackCategory = isUnknownCategory(category)
+                  const isSystemFallbackCategory = isSystemCategory(category)
                   const toggleDisabled =
                     togglingCategoryId === category.id || isSystemFallbackCategory
                   const CategoryIcon = getCategoryIconComponent(category.icon, category.key)
@@ -851,7 +872,11 @@ export default function CategoryPage() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => openCategoryDialog(category)}>
+                            <DropdownMenuItem
+                              onClick={() => openCategoryDialog(category)}
+                              disabled={isSystemFallbackCategory}
+                              className={isSystemFallbackCategory ? 'text-muted-foreground' : undefined}
+                            >
                               <Pencil className="mr-2 h-4 w-4" />
                               {t('actions.editCategory')}
                             </DropdownMenuItem>
@@ -878,7 +903,7 @@ export default function CategoryPage() {
                 const nameLabel = category.name?.trim() || t('labels.unnamed')
                 const keyLabel = category.key?.trim() || common('empty')
                 const descriptionLabel = category.description?.trim() || common('empty')
-                const isSystemFallbackCategory = isUnknownCategory(category)
+                const isSystemFallbackCategory = isSystemCategory(category)
                 const toggleDisabled =
                   togglingCategoryId === category.id || isSystemFallbackCategory
                 const CategoryIcon = getCategoryIconComponent(category.icon, category.key)
@@ -950,7 +975,11 @@ export default function CategoryPage() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => openCategoryDialog(category)}>
+                            <DropdownMenuItem
+                              onClick={() => openCategoryDialog(category)}
+                              disabled={isSystemFallbackCategory}
+                              className={isSystemFallbackCategory ? 'text-muted-foreground' : undefined}
+                            >
                               <Pencil className="mr-2 h-4 w-4" />
                               {t('actions.editCategory')}
                             </DropdownMenuItem>
@@ -1462,7 +1491,7 @@ export default function CategoryPage() {
                   )
                 }
                 placeholder={t('categoryDialog.fields.key.placeholder')}
-                disabled={isUnknownCategory(categoryDraft)}
+                disabled={isSystemCategory(categoryDraft)}
               />
               <p className="text-xs text-muted-foreground">
                 {t('categoryDialog.fields.key.hint')}
@@ -1541,7 +1570,7 @@ export default function CategoryPage() {
                           : prev
                       )
                     }
-                    disabled={isUnknownCategory(categoryDraft)}
+                    disabled={isSystemCategory(categoryDraft)}
                     className="h-10 w-16 shrink-0 cursor-pointer p-1"
                   />
                   <Input
@@ -1558,13 +1587,13 @@ export default function CategoryPage() {
                       )
                     }
                     placeholder={t('categoryDialog.fields.color.placeholder')}
-                    disabled={isUnknownCategory(categoryDraft)}
+                    disabled={isSystemCategory(categoryDraft)}
                     className="min-w-0 flex-1 font-mono"
                   />
                 </div>
               </div>
 
-              {isUnknownCategory(categoryDraft) ? (
+              {isSystemCategory(categoryDraft) ? (
                 <p className="text-xs text-muted-foreground">
                   {t('categoryDialog.fields.color.systemFallbackHint')}
                 </p>
@@ -1618,13 +1647,13 @@ export default function CategoryPage() {
               <Checkbox
                 id="category-active"
                 checked={categoryDraft?.isActive ?? true}
-                disabled={isUnknownCategory(categoryDraft)}
+                disabled={isSystemCategory(categoryDraft)}
                 onCheckedChange={(checked) =>
                   setCategoryDraft((prev) =>
                     prev
                       ? {
                           ...prev,
-                          isActive: isUnknownCategory(prev)
+                          isActive: isSystemCategory(prev)
                             ? true
                             : Boolean(checked),
                         }
@@ -1636,7 +1665,7 @@ export default function CategoryPage() {
                 {t('categoryDialog.fields.active.label')}
               </Label>
             </div>
-            {isUnknownCategory(categoryDraft) && (
+            {isSystemCategory(categoryDraft) && (
               <p className="text-xs text-muted-foreground">
                 {t('categoryDialog.fields.active.systemFallbackHint')}
               </p>

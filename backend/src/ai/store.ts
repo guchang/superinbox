@@ -88,8 +88,8 @@ const compareCategoryOrder = (a: CategoryRecord, b: CategoryRecord): number => {
   const normalizeKey = (key: string | undefined): string =>
     String(key ?? '').trim().toLowerCase();
   const keyOrder = (key: string): number => {
-    if (key === TRASH_CATEGORY_KEY) return 1;
-    if (key === UNKNOWN_CATEGORY_KEY) return 2;
+    if (key === UNKNOWN_CATEGORY_KEY) return 1;
+    if (key === TRASH_CATEGORY_KEY) return 2;
     return 0;
   };
 
@@ -186,7 +186,7 @@ const defaultCategorySeed = () => {
     },
     {
       key: 'trash',
-      name: '废纸篓',
+      name: '回收站',
       description: '已删除分类的记录会被迁移到这里。',
       examples: ['历史归档记录'],
       isActive: false,
@@ -228,6 +228,11 @@ const ensureUserCategories = (userId: string): void => {
     const missingSystemCategories = defaultCategories.filter(
       (item) => SYSTEM_CATEGORY_KEYS.has(item.key) && !existingKeySet.has(item.key)
     );
+    const defaultSystemCategories = new Map(
+      defaultCategories
+        .filter((item) => SYSTEM_CATEGORY_KEYS.has(item.key))
+        .map((item) => [item.key, item])
+    );
 
     if (missingSystemCategories.length > 0) {
       const now = new Date().toISOString();
@@ -265,6 +270,7 @@ const ensureUserCategories = (userId: string): void => {
     for (const item of refreshed) {
       const patch: Partial<CategoryRecord> = {};
       const normalizedKey = String(item.key ?? '').trim().toLowerCase();
+      const defaultSystemCategory = defaultSystemCategories.get(normalizedKey);
 
       if (!item.icon) {
         patch.icon = resolveCategoryIcon(item.key);
@@ -272,6 +278,23 @@ const ensureUserCategories = (userId: string): void => {
 
       if (!item.color) {
         patch.color = resolveCategoryColor(item.key);
+      }
+
+      if (defaultSystemCategory) {
+        const expectedIcon = resolveCategoryIcon(defaultSystemCategory.key);
+        const expectedColor = resolveCategoryColor(defaultSystemCategory.key);
+
+        if (item.name !== defaultSystemCategory.name) {
+          patch.name = defaultSystemCategory.name;
+        }
+
+        if (item.icon !== expectedIcon) {
+          patch.icon = expectedIcon;
+        }
+
+        if (item.color !== expectedColor) {
+          patch.color = expectedColor;
+        }
       }
 
       if (normalizedKey === UNKNOWN_CATEGORY_KEY && !item.isActive) {

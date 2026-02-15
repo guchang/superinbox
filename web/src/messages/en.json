@@ -78,7 +78,7 @@
       "moveUp": "Move up",
       "moveDown": "Move down",
       "fixedBottom": "Fixed at bottom",
-      "hint": "Drag to reorder categories on desktop, use move up/down on mobile; unknown stays fixed at the bottom.",
+      "hint": "Drag to reorder categories on desktop, use move up/down on mobile; unknown and trash stay fixed at the bottom, with trash last.",
       "disabled": "At least two active categories are required to sort"
     }
   },

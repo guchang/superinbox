@@ -78,7 +78,7 @@
       "moveUp": "上移",
       "moveDown": "下移",
       "fixedBottom": "固定在最后",
-      "hint": "桌面端可拖拽排序，移动端可上移/下移；unknown 固定在末位。",
+      "hint": "桌面端可拖拽排序，移动端可上移/下移；unknown 和 trash 固定在底部，且 trash 最后。",
       "disabled": "至少需要两个启用分类才可排序"
     }
   },

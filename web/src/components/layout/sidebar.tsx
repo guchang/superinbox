@@ -120,17 +120,41 @@ interface AppSidebarProps {
 }
 
 const UNKNOWN_CATEGORY_KEY = 'unknown'
+const TRASH_CATEGORY_KEY = 'trash'
 
-const isUnknownCategory = (category: Pick<Category, 'key'>) => {
-  return category.key.trim().toLowerCase() === UNKNOWN_CATEGORY_KEY
+const normalizeCategoryKey = (category: Pick<Category, 'key'> | null | undefined) =>
+  category?.key?.trim().toLowerCase() ?? ''
+
+const isUnknownCategory = (category: Pick<Category, 'key'> | null | undefined) => {
+  return normalizeCategoryKey(category) === UNKNOWN_CATEGORY_KEY
+}
+
+const isTrashCategory = (category: Pick<Category, 'key'> | null | undefined) => {
+  return normalizeCategoryKey(category) === TRASH_CATEGORY_KEY
+}
+
+const isSystemCategory = (category: Pick<Category, 'key'> | null | undefined) => {
+  return isUnknownCategory(category) || isTrashCategory(category)
 }
 
 const compareCategoryOrder = (a: Category, b: Category) => {
-  const aIsUnknown = isUnknownCategory(a)
-  const bIsUnknown = isUnknownCategory(b)
+  const systemOrder = (category: Category) => {
+    if (isUnknownCategory(category)) return 1
+    if (isTrashCategory(category)) return 2
+    return 0
+  }
 
-  if (aIsUnknown !== bIsUnknown) {
-    return aIsUnknown ? 1 : -1
+  const aSystemOrder = systemOrder(a)
+  const bSystemOrder = systemOrder(b)
+  const aIsSystem = aSystemOrder > 0
+  const bIsSystem = bSystemOrder > 0
+
+  if (aIsSystem !== bIsSystem) {
+    return aIsSystem ? 1 : -1
+  }
+
+  if (aIsSystem && bIsSystem) {
+    return aSystemOrder - bSystemOrder
   }
 
   const aSortOrder = typeof a.sortOrder === 'number' ? a.sortOrder : Number.MAX_SAFE_INTEGER
@@ -249,14 +273,36 @@ export function AppSidebar({ className }: AppSidebarProps) {
     [categories]
   )
 
+  const unknownCategory = useMemo(
+    () => categories.find((category) => isUnknownCategory(category)) ?? null,
+    [categories]
+  )
+
+  const trashCategory = useMemo(
+    () => categories.find((category) => isTrashCategory(category)) ?? null,
+    [categories]
+  )
+
+  const visibleIntentCategories = useMemo(() => {
+    const categoryMap = new Map<string, Category>()
+    activeCategories.forEach((category) => categoryMap.set(category.id, category))
+    if (trashCategory) {
+      categoryMap.set(trashCategory.id, trashCategory)
+    }
+    return [...categoryMap.values()].sort(compareCategoryOrder)
+  }, [activeCategories, trashCategory])
+
   const knownActiveCategories = useMemo(
-    () => activeCategories.filter((category) => !isUnknownCategory(category)),
+    () => activeCategories.filter((category) => !isSystemCategory(category)),
     [activeCategories]
   )
 
-  const unknownActiveCategory = useMemo(
-    () => activeCategories.find((category) => isUnknownCategory(category)) ?? null,
-    [activeCategories]
+  const fixedSystemCategories = useMemo(
+    () =>
+      [unknownCategory, trashCategory].filter(
+        (category): category is Category => Boolean(category)
+      ),
+    [trashCategory, unknownCategory]
   )
 
   useEffect(() => {
@@ -465,14 +511,6 @@ export function AppSidebar({ className }: AppSidebarProps) {
       .filter((category): category is Category => Boolean(category))
   }, [knownActiveCategories, intentOrderDraft])
 
-  const UnknownCategoryIcon = useMemo(() => {
-    if (!unknownActiveCategory) {
-      return null
-    }
-
-    return getCategoryIconComponent(unknownActiveCategory.icon, unknownActiveCategory.key)
-  }, [unknownActiveCategory])
-
   const isMobileViewport = mounted && !isDesktopViewport
 
   // Mailbox 分组
@@ -482,7 +520,7 @@ export function AppSidebar({ className }: AppSidebarProps) {
 
   // Intents (AI Labels) 分组 - 基于 API 返回的 categories
   const intentItems = useMemo(() => {
-    if (activeCategories.length === 0) {
+    if (visibleIntentCategories.length === 0) {
       const fallback = [
         { key: 'todo', label: 'Todo' },
         { key: 'idea', label: 'Idea' },
@@ -502,7 +540,7 @@ export function AppSidebar({ className }: AppSidebarProps) {
       }))
     }
 
-    return activeCategories.map((category) => ({
+    return visibleIntentCategories.map((category) => ({
       id: category.key,
       label: category.name,
       href: `/inbox?category=${category.key}`,
@@ -510,7 +548,7 @@ export function AppSidebar({ className }: AppSidebarProps) {
       iconStyle: getCategorySoftStyle(category.key, category.color, isDark ? 'dark' : 'light'),
       count: countData?.categoryTotals?.get(category.key) ?? 0,
     }))
-  }, [activeCategories, countData, isDark])
+  }, [countData, isDark, visibleIntentCategories])
 
   // Management 分组
   const managementItems = [
@@ -727,31 +765,34 @@ export function AppSidebar({ className }: AppSidebarProps) {
                         </SidebarMenuItem>
                       )
                     })}
-                    {unknownActiveCategory && (
-                      <SidebarMenuItem key={unknownActiveCategory.id}>
-                        <div className="flex items-center gap-2 rounded-xl border border-border bg-muted/30 px-2 py-1.5 opacity-75">
-                          <GripVertical className="h-3.5 w-3.5 text-muted-foreground/40" />
-                          <div className="flex min-w-0 flex-1 items-center gap-2">
-                            <span
-                              className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg"
-                              style={getCategorySoftStyle(
-                                unknownActiveCategory.key,
-                                unknownActiveCategory.color,
-                                isDark ? 'dark' : 'light'
-                              )}
-                            >
-                              {UnknownCategoryIcon ? <UnknownCategoryIcon className="h-4 w-4" /> : null}
-                            </span>
-                            <span className="truncate text-sm text-foreground">
-                              {unknownActiveCategory.name}
+                    {fixedSystemCategories.map((category) => {
+                      const Icon = getCategoryIconComponent(category.icon, category.key)
+                      return (
+                        <SidebarMenuItem key={category.id}>
+                          <div className="flex items-center gap-2 rounded-xl border border-border bg-muted/30 px-2 py-1.5 opacity-75">
+                            <GripVertical className="h-3.5 w-3.5 text-muted-foreground/40" />
+                            <div className="flex min-w-0 flex-1 items-center gap-2">
+                              <span
+                                className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg"
+                                style={getCategorySoftStyle(
+                                  category.key,
+                                  category.color,
+                                  isDark ? 'dark' : 'light'
+                                )}
+                              >
+                                <Icon className="h-4 w-4" />
+                              </span>
+                              <span className="truncate text-sm text-foreground">
+                                {category.name}
+                              </span>
+                            </div>
+                            <span className="text-[10px] font-medium text-muted-foreground">
+                              {t('sorting.fixedBottom')}
                             </span>
                           </div>
-                          <span className="text-[10px] font-medium text-muted-foreground">
-                            {t('sorting.fixedBottom')}
-                          </span>
-                        </div>
-                      </SidebarMenuItem>
-                    )}
+                        </SidebarMenuItem>
+                      )
+                    })}
                   </SidebarMenu>
                   <p className="px-3 pt-2 text-[10px] text-muted-foreground">
                     {t('sorting.hint')}

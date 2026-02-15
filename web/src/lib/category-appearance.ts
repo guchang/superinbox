@@ -17,6 +17,7 @@ import {
   Receipt,
   ShoppingCart,
   Star,
+  Trash2,
   Target,
   Wallet,
   Wrench,
@@ -39,7 +40,9 @@ const CATEGORY_COLOR_PALETTE = [
 ] as const
 
 const UNKNOWN_CATEGORY_KEY = 'unknown'
+const TRASH_CATEGORY_KEY = 'trash'
 const UNKNOWN_CATEGORY_COLOR = '#6b7280'
+const TRASH_CATEGORY_COLOR = '#9ca3af'
 
 const CATEGORY_ICON_COMPONENTS = {
   inbox: Inbox,
@@ -62,6 +65,7 @@ const CATEGORY_ICON_COMPONENTS = {
   plane: Plane,
   code: Code,
   star: Star,
+  trash: Trash2,
 } as const satisfies Record<string, LucideIcon>
 
 type CategoryIconName = keyof typeof CATEGORY_ICON_COMPONENTS
@@ -78,6 +82,7 @@ const DEFAULT_ICON_BY_KEY: Record<string, CategoryIconName> = {
   note: 'notebook',
   bookmark: 'bookmark',
   unknown: 'help-circle',
+  trash: 'trash',
   movie: 'film',
   books: 'book-open',
   sinbox: 'wrench',
@@ -163,6 +168,10 @@ export const resolveCategoryColor = (key?: string, color?: string): string => {
 
   if (normalizedKey === UNKNOWN_CATEGORY_KEY) {
     return UNKNOWN_CATEGORY_COLOR
+  }
+
+  if (normalizedKey === TRASH_CATEGORY_KEY) {
+    return TRASH_CATEGORY_COLOR
   }
 
   const normalized = String(color ?? '').trim().toLowerCase()

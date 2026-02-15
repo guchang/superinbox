@@ -14,7 +14,9 @@ const CATEGORY_COLOR_PALETTE = [
 ];
 
 const UNKNOWN_CATEGORY_KEY = 'unknown';
+const TRASH_CATEGORY_KEY = 'trash';
 const UNKNOWN_CATEGORY_COLOR = '#6b7280';
+const TRASH_CATEGORY_COLOR = '#9ca3af';
 
 const CATEGORY_ICON_SET = new Set([
   'inbox',
@@ -37,6 +39,7 @@ const CATEGORY_ICON_SET = new Set([
   'plane',
   'code',
   'star',
+  'trash',
 ]);
 
 const DEFAULT_ICON_BY_KEY: Record<string, string> = {
@@ -47,6 +50,7 @@ const DEFAULT_ICON_BY_KEY: Record<string, string> = {
   note: 'notebook',
   bookmark: 'bookmark',
   unknown: 'help-circle',
+  trash: 'trash',
   movie: 'film',
   books: 'book-open',
   sinbox: 'wrench',
@@ -96,6 +100,10 @@ export const resolveCategoryColor = (key?: string, color?: string): string => {
 
   if (normalizedKey === UNKNOWN_CATEGORY_KEY) {
     return UNKNOWN_CATEGORY_COLOR;
+  }
+
+  if (normalizedKey === TRASH_CATEGORY_KEY) {
+    return TRASH_CATEGORY_COLOR;
   }
 
   const normalizedColor = String(color ?? '').trim();
