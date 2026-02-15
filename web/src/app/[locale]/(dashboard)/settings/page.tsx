@@ -104,7 +104,7 @@ export default function SettingsPage() {
   const [currentTimezone, setCurrentTimezone] = useState<string | null>(null)
   const [timezoneLoading, setTimezoneLoading] = useState(false)
   const [deletePreference, setDeletePreference] = useState<DeletePreference>('trash')
-  const [currentDeletePreference, setCurrentDeletePreference] = useState<DeletePreference>('trash')
+  const [savedDeletePreference, setSavedDeletePreference] = useState<DeletePreference>('trash')
   const [deletePreferenceLoading, setDeletePreferenceLoading] = useState(false)
 
   const [llmConfigs, setLlmConfigs] = useState<LlmConfigItem[]>([])
@@ -173,9 +173,9 @@ export default function SettingsPage() {
 
     settingsApi.getDeletePreference()
       .then((response) => {
-        const preference = response.data?.deletePreference ?? 'trash'
+        const preference = response.data?.deletePreference === 'hard' ? 'hard' : 'trash'
         setDeletePreference(preference)
-        setCurrentDeletePreference(preference)
+        setSavedDeletePreference(preference)
       })
       .catch(() => {
         // Ignore when unauthenticated or endpoint is unavailable
@@ -599,20 +599,23 @@ export default function SettingsPage() {
     void handleSaveTimezone(detected)
   }
 
-  const handleSaveDeletePreference = async () => {
+  const handleDeletePreferenceChange = async (nextValue: string) => {
+    const nextPreference: DeletePreference = nextValue === 'hard' ? 'hard' : 'trash'
+    if (nextPreference === savedDeletePreference) {
+      setDeletePreference(nextPreference)
+      return
+    }
+
+    const previousPreference = savedDeletePreference
+    setDeletePreference(nextPreference)
     setDeletePreferenceLoading(true)
     try {
-      const response = await settingsApi.updateDeletePreference(deletePreference)
-      const updatedPreference = response.data?.deletePreference ?? deletePreference
+      const response = await settingsApi.updateDeletePreference(nextPreference)
+      const updatedPreference = response.data?.deletePreference === 'hard' ? 'hard' : 'trash'
       setDeletePreference(updatedPreference)
-      setCurrentDeletePreference(updatedPreference)
-      toast({
-        title: t('toast.deletePreferenceSaved.title'),
-        description: t('toast.deletePreferenceSaved.description', {
-          deletePreference: t(`deletePreference.options.${updatedPreference}`),
-        }),
-      })
+      setSavedDeletePreference(updatedPreference)
     } catch (error) {
+      setDeletePreference(previousPreference)
       toast({
         title: t('toast.deletePreferenceSaveFailure.title'),
         description: getApiErrorMessage(error, errors, common('tryLater')),
@@ -877,19 +880,12 @@ export default function SettingsPage() {
         <CardContent className="space-y-4">
           <RadioGroup
             value={deletePreference}
-            onValueChange={(value) => setDeletePreference(value as DeletePreference)}
+            onValueChange={(value) => {
+              void handleDeletePreferenceChange(value)
+            }}
             disabled={deletePreferenceLoading}
             className="space-y-2"
           >
-            <div className="flex items-start space-x-3 rounded-md border p-3">
-              <RadioGroupItem value="none" id="delete-preference-none" />
-              <div className="space-y-1">
-                <Label htmlFor="delete-preference-none" className="font-medium">
-                  {t('deletePreference.options.none')}
-                </Label>
-                <p className="text-sm text-muted-foreground">{t('deletePreference.helper.none')}</p>
-              </div>
-            </div>
             <div className="flex items-start space-x-3 rounded-md border p-3">
               <RadioGroupItem value="trash" id="delete-preference-trash" />
               <div className="space-y-1">
@@ -910,20 +906,6 @@ export default function SettingsPage() {
             </div>
           </RadioGroup>
 
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Check className="h-4 w-4 text-green-500" />
-              <span>{t('deletePreference.current', { deletePreference: t(`deletePreference.options.${currentDeletePreference}`) })}</span>
-            </div>
-            <Button
-              onClick={() => void handleSaveDeletePreference()}
-              disabled={deletePreferenceLoading || deletePreference === currentDeletePreference}
-              className="shrink-0"
-            >
-              {deletePreferenceLoading ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : null}
-              {t('actions.save')}
-            </Button>
-          </div>
         </CardContent>
       </Card>
 

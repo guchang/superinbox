@@ -578,6 +578,11 @@ export default function InboxPage() {
     return sourcesData?.data || []
   }, [sourcesData])
 
+  const invalidateInboxRelatedQueries = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ['inbox'] })
+    queryClient.invalidateQueries({ queryKey: ['inbox-counts'] })
+  }, [queryClient])
+
   // 删除 mutation
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
@@ -585,7 +590,7 @@ export default function InboxPage() {
       await inboxApi.deleteItem(id)
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['inbox'] })
+      invalidateInboxRelatedQueries()
       toast({
         title: t('toast.deleteSuccess.title'),
         description: t('toast.deleteSuccess.description'),
@@ -691,7 +696,7 @@ export default function InboxPage() {
       }
     },
     onSuccess: (response) => {
-      queryClient.invalidateQueries({ queryKey: ['inbox'] })
+      invalidateInboxRelatedQueries()
       toast({
         title: t('toast.createSuccess.title'),
         description: t('toast.createSuccess.description'),
@@ -741,7 +746,7 @@ export default function InboxPage() {
       {/* playground 风格：移除固定容器限制，让输入框可以自由定位 */}
       <div
         ref={desktopDropZoneRef}
-        className="hidden md:block shrink-0 px-4 md:px-6 pt-6 pb-4 bg-card/70 dark:bg-background/50 backdrop-blur-xl relative"
+        className="hidden md:sticky md:top-14 md:z-30 md:block shrink-0 px-4 md:px-6 pt-6 pb-4 bg-card/70 dark:bg-background/50 backdrop-blur-xl relative"
         onDragEnter={handleComposerDragEnter}
         onDragOver={handleComposerDragOver}
         onDragLeave={handleComposerDragLeave}

@@ -294,6 +294,7 @@ export interface CreateItemResponse {
 export interface QueryFilter {
   status?: ItemStatus;
   category?: CategoryKey;
+  excludeCategory?: CategoryKey | CategoryKey[];
   source?: string;
   query?: string; // Full-text search
   hasType?: 'image' | 'audio' | 'video' | 'file' | 'text' | 'url';

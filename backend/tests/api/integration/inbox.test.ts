@@ -215,6 +215,39 @@ describe('GET /v1/inbox', () => {
       expect(entry.status).toBe('completed');
     });
   });
+
+  it('should exclude trash items from default inbox list and total count', async () => {
+    const source = `exclude-trash-${crypto.randomUUID()}`;
+    const activeItem = createTestItem({ source, category: 'idea' });
+    const trashItem = createTestItem({ source, category: 'trash' });
+
+    try {
+      const response = await request(app)
+        .get('/v1/inbox')
+        .set('Authorization', `Bearer ${testContext.testApiKey}`)
+        .query({ source, limit: 20 });
+
+      expect(response.status).toBe(200);
+      expect(response.body).toHaveProperty('total', 1);
+      expect(response.body.entries).toHaveLength(1);
+      expect(response.body.entries[0]).toHaveProperty('id', activeItem.id);
+      expect(response.body.entries[0]).toHaveProperty('category', 'idea');
+
+      const trashResponse = await request(app)
+        .get('/v1/inbox')
+        .set('Authorization', `Bearer ${testContext.testApiKey}`)
+        .query({ source, category: 'trash', limit: 20 });
+
+      expect(trashResponse.status).toBe(200);
+      expect(trashResponse.body).toHaveProperty('total', 1);
+      expect(trashResponse.body.entries).toHaveLength(1);
+      expect(trashResponse.body.entries[0]).toHaveProperty('id', trashItem.id);
+      expect(trashResponse.body.entries[0]).toHaveProperty('category', 'trash');
+    } finally {
+      cleanupTestItem(activeItem.id);
+      cleanupTestItem(trashItem.id);
+    }
+  });
 });
 
 describe('GET /v1/inbox/:id', () => {

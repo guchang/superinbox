@@ -1002,16 +1002,15 @@
       "title": "删除偏好",
       "description": "设置删除记录时的处理方式，统一作用于 Web 与 API Token。",
       "options": {
-        "none": "不允许删除",
-        "trash": "仅移入回收站",
+        "trash": "移入回收站",
         "hard": "直接删除"
       },
       "helper": {
-        "none": "删除请求会被拒绝，并返回权限错误。",
         "trash": "删除请求会把记录移入回收站，不会直接清除。",
         "hard": "删除请求会直接永久删除记录。"
       },
-      "current": "当前删除偏好：{deletePreference}"
+      "autoSaveHint": "选择后将自动保存。",
+      "autoSaving": "正在保存删除偏好..."
     }
   },
   "logs": {

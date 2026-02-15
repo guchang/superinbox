@@ -324,6 +324,7 @@ export default function InboxCapturePage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["inbox"] })
+      queryClient.invalidateQueries({ queryKey: ["inbox-counts"] })
       toast({
         title: tInbox("toast.deleteSuccess.title"),
         description: tInbox("toast.deleteSuccess.description"),

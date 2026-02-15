@@ -279,6 +279,7 @@ export function InboxItemDetail({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['inbox'] })
+      queryClient.invalidateQueries({ queryKey: ['inbox-counts'] })
       toast({
         title: t('toast.deleteSuccess.title'),
         description: t('toast.deleteSuccess.description'),

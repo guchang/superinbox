@@ -1001,16 +1001,15 @@
       "title": "Delete Preference",
       "description": "Choose how delete requests are handled for both Web and API tokens.",
       "options": {
-        "none": "Disallow delete",
-        "trash": "Move to recycle bin only",
+        "trash": "Move to recycle bin",
         "hard": "Delete permanently"
       },
       "helper": {
-        "none": "Delete requests are denied with a permission error.",
         "trash": "Delete requests move records to recycle bin instead of removing permanently.",
         "hard": "Delete requests permanently remove records."
       },
-      "current": "Current delete preference: {deletePreference}"
+      "autoSaveHint": "Changes are saved automatically after selection.",
+      "autoSaving": "Saving delete preference..."
     }
   },
   "logs": {

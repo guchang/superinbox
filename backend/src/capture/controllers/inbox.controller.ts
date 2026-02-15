@@ -259,6 +259,7 @@ export class InboxController {
       const filter: QueryFilter = {
         status: req.query.status as any,
         category: req.query.category as any,
+        excludeCategory: req.query.category ? undefined : 'trash',
         source: req.query.source as string,
         query: req.query.query as string,
         hasType: hasType as any,

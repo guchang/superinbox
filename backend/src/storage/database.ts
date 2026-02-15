@@ -388,6 +388,21 @@ export class DatabaseManager {
       params.push(filter.category);
     }
 
+    if (filter.excludeCategory) {
+      const excludedCategories = Array.isArray(filter.excludeCategory)
+        ? filter.excludeCategory.filter((category): category is string => Boolean(category))
+        : [filter.excludeCategory];
+
+      if (excludedCategories.length === 1) {
+        query += ' AND category != ?';
+        params.push(excludedCategories[0]);
+      } else if (excludedCategories.length > 1) {
+        const placeholders = excludedCategories.map(() => '?').join(', ');
+        query += ` AND category NOT IN (${placeholders})`;
+        params.push(...excludedCategories);
+      }
+    }
+
     if (filter.source) {
       query += ' AND source = ?';
       params.push(filter.source);
@@ -453,6 +468,21 @@ export class DatabaseManager {
     if (filter.category) {
       query += ' AND category = ?';
       params.push(filter.category);
+    }
+
+    if (filter.excludeCategory) {
+      const excludedCategories = Array.isArray(filter.excludeCategory)
+        ? filter.excludeCategory.filter((category): category is string => Boolean(category))
+        : [filter.excludeCategory];
+
+      if (excludedCategories.length === 1) {
+        query += ' AND category != ?';
+        params.push(excludedCategories[0]);
+      } else if (excludedCategories.length > 1) {
+        const placeholders = excludedCategories.map(() => '?').join(', ');
+        query += ` AND category NOT IN (${placeholders})`;
+        params.push(...excludedCategories);
+      }
     }
 
     if (filter.source) {
