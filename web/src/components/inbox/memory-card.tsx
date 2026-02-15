@@ -7,7 +7,7 @@ import { Item, ItemStatus, ContentType } from '@/types'
 import { Button } from '@/components/ui/button'
 import { FilePreview } from '@/components/file-preview'
 import { AudioWavePlayer } from '@/components/inbox/audio-wave-player'
-import { LinkifiedText } from '@/components/shared/linkified-text'
+import { MarkdownContent } from '@/components/shared/markdown-content'
 import { MCPConnectorLogo } from '@/components/mcp-connectors/mcp-connector-logo'
 import { formatRelativeTime } from '@/lib/utils'
 import { cn } from '@/lib/utils'
@@ -780,21 +780,20 @@ function MemoryCardComponent({
 
         {/* 内容 */}
         <div className="mb-3 flex-1">
-          <h3 className={cn(
-            "text-[16px] font-semibold leading-[1.58] sm:text-[17px]",
-            isAnalyzing ? 'text-muted-foreground italic' : 'text-foreground',
-            item.contentType === ContentType.URL ? 'break-all' : 'break-words',
-            'whitespace-pre-wrap',
-            "line-clamp-3"
-          )}>
-            <LinkifiedText
+          <div className="relative max-h-[7.5rem] overflow-hidden">
+            <MarkdownContent
               text={displayContent}
-              linkClassName={cn(
-                'text-current hover:opacity-80',
-                item.contentType === ContentType.URL && 'font-semibold'
+              className={cn(
+                'space-y-1 text-[16px] font-semibold leading-[1.58] sm:text-[17px]',
+                isAnalyzing ? 'text-muted-foreground italic' : 'text-foreground',
+                item.contentType === ContentType.URL ? 'break-all' : 'break-words',
+                '[&_a]:text-current [&_a]:decoration-solid [&_a]:underline-offset-2 [&_a]:hover:opacity-80',
+                item.contentType === ContentType.URL && '[&_a]:font-semibold',
+                '[&_h1]:text-[16px] [&_h2]:text-[16px] [&_h3]:text-[16px] [&_h4]:text-[16px]',
+                '[&_h1]:font-semibold [&_h2]:font-semibold [&_h3]:font-semibold [&_h4]:font-semibold'
               )}
             />
-          </h3>
+          </div>
 
           {/* 文件预览 */}
           {item.hasFile && (
