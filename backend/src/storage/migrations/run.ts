@@ -470,6 +470,11 @@ const migrations = [
     version: '018',
     name: 'ensure_legacy_schema_compatibility',
     up: '-- handled in code for idempotency'
+  },
+  {
+    version: '019',
+    name: 'add_user_delete_preference',
+    up: '-- handled in code for idempotency'
   }
 ];
 
@@ -495,6 +500,8 @@ export const runMigrations = async (): Promise<void> => {
         ensureAiQualityColumnsAndFeedbackTable(db);
       } else if (migration.version === '018') {
         ensureLegacySchemaCompatibility(db);
+      } else if (migration.version === '019') {
+        ensureUserSettingsDeletePreference(db);
       } else {
         (db as any).db.exec(migration.up);
       }
@@ -562,6 +569,17 @@ const ensureUserSettingsLlmColumns = (db: ReturnType<typeof getDatabase>): void 
   ]);
 };
 
+const ensureUserSettingsDeletePreference = (db: ReturnType<typeof getDatabase>): void => {
+  const database = (db as any).db;
+  ensureTableColumns(database, 'user_settings', [
+    { name: 'delete_preference', definition: "TEXT DEFAULT 'trash'" },
+  ]);
+
+  if (tableExists(database, 'user_settings')) {
+    database.exec("UPDATE user_settings SET delete_preference = 'trash' WHERE delete_preference IS NULL OR delete_preference = ''");
+  }
+};
+
 const ensureLlmUsageSessionColumns = (db: ReturnType<typeof getDatabase>): void => {
   const database = (db as any).db;
   ensureTableColumns(database, 'llm_usage_logs', [
@@ -596,6 +614,7 @@ const ensureItemsRoutingStatus = (db: ReturnType<typeof getDatabase>): void => {
 
 const ensureLegacySchemaCompatibility = (db: ReturnType<typeof getDatabase>): void => {
   ensureUserSettingsLlmColumns(db);
+  ensureUserSettingsDeletePreference(db);
   ensureLlmUsageSessionColumns(db);
   ensureDistributionResultRuleNameColumn(db);
   ensureItemsRoutingStatus(db);

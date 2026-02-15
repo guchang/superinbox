@@ -76,32 +76,6 @@ const searchSchema = z.object({
 
 type ApiKeyDeleteMode = 'none' | 'trash' | 'hard';
 
-const API_KEY_DELETE_SCOPE_NONE = 'inbox:delete:none';
-const API_KEY_DELETE_SCOPE_TRASH = 'inbox:delete:trash';
-const API_KEY_DELETE_SCOPE_HARD = 'inbox:delete:hard';
-const API_KEY_DELETE_SCOPE_LEGACY = 'inbox:delete';
-
-const resolveApiKeyDeleteMode = (scopes: string[] = []): ApiKeyDeleteMode => {
-  if (
-    scopes.includes('admin:full')
-    || scopes.includes('full')
-    || scopes.includes(API_KEY_DELETE_SCOPE_HARD)
-    || scopes.includes(API_KEY_DELETE_SCOPE_LEGACY)
-  ) {
-    return 'hard';
-  }
-
-  if (scopes.includes(API_KEY_DELETE_SCOPE_TRASH)) {
-    return 'trash';
-  }
-
-  if (scopes.includes(API_KEY_DELETE_SCOPE_NONE)) {
-    return 'none';
-  }
-
-  return 'none';
-};
-
 export class InboxController {
   private db = getDatabase();
   private ai = getAIService();
@@ -448,8 +422,7 @@ export class InboxController {
     try {
       const { id } = req.params;
       const userId = req.user?.id ?? 'default-user';
-      const isApiKeyRequest = Boolean(req.apiKey);
-      const deleteMode = isApiKeyRequest ? resolveApiKeyDeleteMode(req.user?.scopes) : 'hard';
+      const deleteMode: ApiKeyDeleteMode = this.db.getUserDeletePreference(userId);
 
       const existing = this.db.getItemById(id);
 
@@ -477,7 +450,7 @@ export class InboxController {
         sendError(res, {
           statusCode: 403,
           code: 'INBOX.DELETE_NOT_ALLOWED',
-          message: 'Current API token does not allow deleting records',
+          message: 'Current delete preference does not allow deleting records',
           params: { deleteMode: 'none' }
         });
         return;

@@ -4,6 +4,8 @@ import type {
   Statistics,
   ApiResponse,
   UserSettings,
+  DeletePreferenceSettings,
+  DeletePreference,
   LlmSettings,
   LlmConfigCreatePayload,
   LlmConfigUpdatePayload,
@@ -45,6 +47,16 @@ export const settingsApi = {
   // 更新用户时区设置
   async updateTimezone(timezone: string): Promise<ApiResponse<UserSettings>> {
     return apiClient.put<UserSettings>('/settings/timezone', { timezone })
+  },
+
+  // 获取删除偏好设置
+  async getDeletePreference(): Promise<ApiResponse<DeletePreferenceSettings>> {
+    return apiClient.get<DeletePreferenceSettings>('/settings/delete-preference')
+  },
+
+  // 更新删除偏好设置
+  async updateDeletePreference(deletePreference: DeletePreference): Promise<ApiResponse<DeletePreferenceSettings>> {
+    return apiClient.put<DeletePreferenceSettings>('/settings/delete-preference', { deletePreference })
   },
 
   // 获取 LLM 配置列表

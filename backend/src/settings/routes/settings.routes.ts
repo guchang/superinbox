@@ -16,6 +16,10 @@ const timezoneSchema = z.object({
   timezone: z.string().min(1)
 });
 
+const deletePreferenceSchema = z.object({
+  deletePreference: z.enum(['none', 'trash', 'hard'])
+});
+
 const llmConfigCreateSchema = z.object({
   name: z.string().trim().max(100).optional().nullable(),
   provider: z.string().trim().min(1),
@@ -213,6 +217,60 @@ router.put('/timezone', authenticate, (req: Request, res: Response): void => {
       statusCode: 500,
       code: 'INTERNAL_ERROR',
       message: 'Failed to update timezone'
+    });
+  }
+});
+
+router.get('/delete-preference', authenticate, (req: Request, res: Response): void => {
+  try {
+    const userId = req.user?.id ?? 'default-user';
+    const db = getDatabase();
+    const deletePreference = db.getUserDeletePreference(userId);
+
+    res.json({
+      success: true,
+      data: {
+        deletePreference
+      }
+    });
+  } catch (error) {
+    console.error('Delete preference fetch error:', error);
+    sendError(res, {
+      statusCode: 500,
+      code: 'INTERNAL_ERROR',
+      message: 'Failed to fetch delete preference'
+    });
+  }
+});
+
+router.put('/delete-preference', authenticate, (req: Request, res: Response): void => {
+  try {
+    const userId = req.user?.id ?? 'default-user';
+    const body = deletePreferenceSchema.parse(req.body);
+    const db = getDatabase();
+    const result = db.setUserDeletePreference(userId, body.deletePreference);
+
+    res.json({
+      success: true,
+      data: {
+        deletePreference: result.deletePreference,
+        updatedAt: result.updatedAt
+      }
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      sendError(res, {
+        statusCode: 400,
+        code: 'SETTINGS.INVALID_INPUT',
+        message: 'Invalid request body'
+      });
+      return;
+    }
+    console.error('Delete preference update error:', error);
+    sendError(res, {
+      statusCode: 500,
+      code: 'INTERNAL_ERROR',
+      message: 'Failed to update delete preference'
     });
   }
 });

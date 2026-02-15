@@ -11,6 +11,7 @@ import crypto from 'crypto';
 import app from '../../../src/index.js';
 import { testContext, createTestItem, cleanupTestItem } from './setup.js';
 import { getDatabase } from '../../../src/storage/database.js';
+import { generateAccessToken } from '../../../src/utils/jwt.js';
 
 describe('POST /v1/inbox', () => {
   describe('Current Implementation Behavior', () => {
@@ -342,7 +343,7 @@ ${'Paragraph with markdown content.\n\n'.repeat(600)}
 
 // Task 5: DELETE /v1/inbox/:id
 describe('DELETE /v1/inbox/:id', () => {
-  const createApiKeyWithScopes = (scopes: string[]) => {
+  const createApiKey = (scopes: string[]) => {
     const db = getDatabase();
     const plainApiKey = `delete-mode-key-${crypto.randomUUID()}`;
     const hashedKey = crypto.createHash('sha256').update(plainApiKey).digest('hex');
@@ -360,30 +361,52 @@ describe('DELETE /v1/inbox/:id', () => {
     return { keyId, plainApiKey };
   };
 
-  it('should delete an item', async () => {
-    const createResponse = await request(app)
-      .post('/v1/inbox')
-      .set('Authorization', `Bearer ${testContext.testApiKey}`)
-      .send({ content: 'To be deleted', source: 'test' });
-    const itemId = createResponse.body.data.id;
+  const setDeletePreference = (deletePreference: 'none' | 'trash' | 'hard') => {
+    const db = getDatabase();
+    db.setUserDeletePreference(testContext.testUserId, deletePreference);
+  };
 
-    const response = await request(app)
-      .delete(`/v1/inbox/${itemId}`)
-      .set('Authorization', `Bearer ${testContext.testApiKey}`);
+  const clearDeletePreference = () => {
+    const db = getDatabase();
+    db.database.prepare('DELETE FROM user_settings WHERE user_id = ?').run(testContext.testUserId);
+  };
 
-    expect(response.status).toBe(200);
-    expect(response.body).toHaveProperty('success', true);
-    expect(response.body.data).toHaveProperty('action', 'deleted');
-    expect(response.body.data).toHaveProperty('deleteMode', 'hard');
+  const createJwtToken = () => generateAccessToken({
+    userId: testContext.testUserId,
+    username: 'integration-user',
+    email: 'integration@example.com',
+    role: 'user',
+    scopes: ['admin:full', 'read', 'write'],
+  });
 
-    // Verify deletion
-    const getResponse = await request(app)
-      .get(`/v1/inbox/${itemId}`)
-      .set('Authorization', `Bearer ${testContext.testApiKey}`);
-    expect(getResponse.status).toBe(404);
+  it('should hard delete when user delete preference is hard', async () => {
+    setDeletePreference('hard');
+
+    const item = createTestItem({ content: 'Delete preference hard test item' });
+
+    try {
+      const response = await request(app)
+        .delete(`/v1/inbox/${item.id}`)
+        .set('Authorization', `Bearer ${testContext.testApiKey}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body).toHaveProperty('success', true);
+      expect(response.body.data).toHaveProperty('action', 'deleted');
+      expect(response.body.data).toHaveProperty('deleteMode', 'hard');
+
+      const getResponse = await request(app)
+        .get(`/v1/inbox/${item.id}`)
+        .set('Authorization', `Bearer ${testContext.testApiKey}`);
+
+      expect(getResponse.status).toBe(404);
+    } finally {
+      cleanupTestItem(item.id);
+      setDeletePreference('trash');
+    }
   });
 
   it('should return 404 when deleting non-existent item', async () => {
+    setDeletePreference('trash');
     const response = await request(app)
       .delete('/v1/inbox/non-existent-id')
       .set('Authorization', `Bearer ${testContext.testApiKey}`);
@@ -393,9 +416,10 @@ describe('DELETE /v1/inbox/:id', () => {
     expect(response.body.error).toHaveProperty('code', 'INBOX.NOT_FOUND');
   });
 
-  it('should reject delete when API key delete mode is none', async () => {
-    const item = createTestItem({ content: 'Delete mode none test item' });
-    const { keyId, plainApiKey } = createApiKeyWithScopes(['inbox:delete:none']);
+  it('should reject delete when user delete preference is none', async () => {
+    setDeletePreference('none');
+    const item = createTestItem({ content: 'Delete preference none test item' });
+    const { keyId, plainApiKey } = createApiKey(['read']);
 
     try {
       const deleteResponse = await request(app)
@@ -414,12 +438,14 @@ describe('DELETE /v1/inbox/:id', () => {
     } finally {
       getDatabase().deleteApiKey(keyId);
       cleanupTestItem(item.id);
+      setDeletePreference('trash');
     }
   });
 
-  it('should move item to trash when API key delete mode is trash', async () => {
-    const item = createTestItem({ content: 'Delete mode trash test item', category: 'todo' });
-    const { keyId, plainApiKey } = createApiKeyWithScopes(['inbox:delete:trash']);
+  it('should move item to trash when user delete preference is trash', async () => {
+    setDeletePreference('trash');
+    const item = createTestItem({ content: 'Delete preference trash test item', category: 'todo' });
+    const { keyId, plainApiKey } = createApiKey(['read']);
 
     try {
       const deleteResponse = await request(app)
@@ -442,9 +468,10 @@ describe('DELETE /v1/inbox/:id', () => {
     }
   });
 
-  it('should hard delete item when API key delete mode is hard', async () => {
-    const item = createTestItem({ content: 'Delete mode hard test item' });
-    const { keyId, plainApiKey } = createApiKeyWithScopes(['inbox:delete:hard']);
+  it('should default to trash when delete preference is unset', async () => {
+    clearDeletePreference();
+    const item = createTestItem({ content: 'Delete preference unset test item', category: 'todo' });
+    const { keyId, plainApiKey } = createApiKey(['read']);
 
     try {
       const deleteResponse = await request(app)
@@ -452,42 +479,96 @@ describe('DELETE /v1/inbox/:id', () => {
         .set('Authorization', `Bearer ${plainApiKey}`);
 
       expect(deleteResponse.status).toBe(200);
-      expect(deleteResponse.body.data).toHaveProperty('action', 'deleted');
-      expect(deleteResponse.body.data).toHaveProperty('deleteMode', 'hard');
+      expect(deleteResponse.body.data).toHaveProperty('action', 'moved_to_trash');
+      expect(deleteResponse.body.data).toHaveProperty('deleteMode', 'trash');
 
       const getResponse = await request(app)
         .get(`/v1/inbox/${item.id}`)
-        .set('Authorization', `Bearer ${testContext.testApiKey}`);
+        .set('Authorization', `Bearer ${plainApiKey}`);
 
-      expect(getResponse.status).toBe(404);
+      expect(getResponse.status).toBe(200);
+      expect(getResponse.body.parsed).toHaveProperty('category', 'trash');
     } finally {
       getDatabase().deleteApiKey(keyId);
       cleanupTestItem(item.id);
+      setDeletePreference('trash');
     }
   });
 
-  it('should treat legacy inbox:delete scope as hard delete', async () => {
-    const item = createTestItem({ content: 'Legacy delete scope test item' });
-    const { keyId, plainApiKey } = createApiKeyWithScopes(['inbox:delete']);
+  it('should apply same delete preference to JWT requests', async () => {
+    setDeletePreference('none');
+    const item = createTestItem({ content: 'Delete preference jwt none test item' });
+    const jwtToken = createJwtToken();
 
     try {
       const deleteResponse = await request(app)
         .delete(`/v1/inbox/${item.id}`)
-        .set('Authorization', `Bearer ${plainApiKey}`);
+        .set('Authorization', `Bearer ${jwtToken}`);
 
-      expect(deleteResponse.status).toBe(200);
-      expect(deleteResponse.body.data).toHaveProperty('action', 'deleted');
-      expect(deleteResponse.body.data).toHaveProperty('deleteMode', 'hard');
+      expect(deleteResponse.status).toBe(403);
+      expect(deleteResponse.body.error).toHaveProperty('code', 'INBOX.DELETE_NOT_ALLOWED');
+      expect(deleteResponse.body.error.params).toHaveProperty('deleteMode', 'none');
 
       const getResponse = await request(app)
         .get(`/v1/inbox/${item.id}`)
         .set('Authorization', `Bearer ${testContext.testApiKey}`);
 
-      expect(getResponse.status).toBe(404);
+      expect(getResponse.status).toBe(200);
     } finally {
-      getDatabase().deleteApiKey(keyId);
       cleanupTestItem(item.id);
+      setDeletePreference('trash');
     }
+  });
+});
+
+describe('DELETE preference settings', () => {
+  const clearDeletePreference = () => {
+    const db = getDatabase();
+    db.database.prepare('DELETE FROM user_settings WHERE user_id = ?').run(testContext.testUserId);
+  };
+
+  it('should return trash when delete preference is unset', async () => {
+    clearDeletePreference();
+
+    const response = await request(app)
+      .get('/v1/settings/delete-preference')
+      .set('Authorization', `Bearer ${testContext.testApiKey}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body).toHaveProperty('success', true);
+    expect(response.body.data).toHaveProperty('deletePreference', 'trash');
+  });
+
+  it('should update delete preference', async () => {
+    const response = await request(app)
+      .put('/v1/settings/delete-preference')
+      .set('Authorization', `Bearer ${testContext.testApiKey}`)
+      .send({ deletePreference: 'hard' });
+
+    expect(response.status).toBe(200);
+    expect(response.body).toHaveProperty('success', true);
+    expect(response.body.data).toHaveProperty('deletePreference', 'hard');
+    expect(response.body.data).toHaveProperty('updatedAt');
+
+    const followUp = await request(app)
+      .get('/v1/settings/delete-preference')
+      .set('Authorization', `Bearer ${testContext.testApiKey}`);
+
+    expect(followUp.status).toBe(200);
+    expect(followUp.body.data).toHaveProperty('deletePreference', 'hard');
+
+    getDatabase().setUserDeletePreference(testContext.testUserId, 'trash');
+  });
+
+  it('should return 400 for invalid delete preference value', async () => {
+    const response = await request(app)
+      .put('/v1/settings/delete-preference')
+      .set('Authorization', `Bearer ${testContext.testApiKey}`)
+      .send({ deletePreference: 'invalid-mode' });
+
+    expect(response.status).toBe(400);
+    expect(response.body).toHaveProperty('success', false);
+    expect(response.body.error).toHaveProperty('code', 'SETTINGS.INVALID_INPUT');
   });
 });
 

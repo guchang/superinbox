@@ -57,6 +57,7 @@ export class DatabaseManager {
       CREATE TABLE IF NOT EXISTS user_settings (
         user_id TEXT PRIMARY KEY,
         timezone TEXT,
+        delete_preference TEXT DEFAULT 'trash',
         llm_provider TEXT,
         llm_model TEXT,
         llm_base_url TEXT,
@@ -262,6 +263,7 @@ export class DatabaseManager {
     this.ensureTableColumn('ai_categories', 'icon', 'TEXT');
     this.ensureTableColumn('ai_categories', 'color', 'TEXT');
     this.ensureTableColumn('ai_categories', 'sort_order', 'INTEGER');
+    this.ensureTableColumn('user_settings', 'delete_preference', "TEXT DEFAULT 'trash'");
     this.ensureTableColumn('items', 'ai_confidence', 'REAL');
     this.ensureTableColumn('items', 'ai_reasoning', 'TEXT');
     this.ensureTableColumn('items', 'ai_prompt_version', 'TEXT');
@@ -859,6 +861,48 @@ export class DatabaseManager {
     }
 
     return { timezone, updatedAt: now };
+  }
+
+  /**
+   * Get user delete preference
+   */
+  getUserDeletePreference(userId: string): 'none' | 'trash' | 'hard' {
+    const stmt = this.db.prepare('SELECT delete_preference FROM user_settings WHERE user_id = ?');
+    const row = stmt.get(userId) as { delete_preference?: string | null } | undefined;
+
+    if (row?.delete_preference === 'none' || row?.delete_preference === 'hard' || row?.delete_preference === 'trash') {
+      return row.delete_preference;
+    }
+
+    return 'trash';
+  }
+
+  /**
+   * Update or create user delete preference
+   */
+  setUserDeletePreference(
+    userId: string,
+    deletePreference: 'none' | 'trash' | 'hard'
+  ): { deletePreference: 'none' | 'trash' | 'hard'; updatedAt: string } {
+    const now = new Date().toISOString();
+    const existing = this.db.prepare('SELECT user_id FROM user_settings WHERE user_id = ?').get(userId);
+
+    if (existing) {
+      const updateStmt = this.db.prepare(`
+        UPDATE user_settings
+        SET delete_preference = ?, updated_at = ?
+        WHERE user_id = ?
+      `);
+      updateStmt.run(deletePreference, now, userId);
+    } else {
+      const insertStmt = this.db.prepare(`
+        INSERT INTO user_settings (user_id, delete_preference, created_at, updated_at)
+        VALUES (?, ?, ?, ?)
+      `);
+      insertStmt.run(userId, deletePreference, now, now);
+    }
+
+    return { deletePreference, updatedAt: now };
   }
 
   /**

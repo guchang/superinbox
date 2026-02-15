@@ -372,11 +372,11 @@
       "reclassify": "Reclassify",
       "redistribute": "Redistribute",
       "refresh": "Refresh",
-    "editContent": "Edit content",
-    "cancelEdit": "Cancel",
-    "back": "Back",
-    "saveEdit": "Save",
-    "copyRaw": "Copy raw text",
+      "editContent": "Edit content",
+      "cancelEdit": "Cancel",
+      "back": "Back",
+      "saveEdit": "Save",
+      "copyRaw": "Copy raw text",
       "openInPage": "Open in detail page",
       "more": "More",
       "viewProperties": "View item properties"
@@ -390,13 +390,13 @@
         "readOnly": "Read-only"
       },
       "previewEmpty": "Nothing to preview yet",
-    "autoSave": {
-      "saving": "Saving...",
-      "saved": "Saved",
-      "pending": "Changes will be saved automatically",
-      "error": "Auto-save failed. Keep typing to retry.",
-      "disabled": "Processing, editing is temporarily disabled",
-      "indicator": "Auto save"
+      "autoSave": {
+        "saving": "Saving...",
+        "saved": "Saved",
+        "pending": "Changes will be saved automatically",
+        "error": "Auto-save failed. Keep typing to retry.",
+        "disabled": "Processing, editing is temporarily disabled",
+        "indicator": "Auto save"
       }
     },
     "categories": {
@@ -988,7 +988,29 @@
       },
       "llmConnectionTestResult": {
         "description": "{message} ({latency}ms)"
+      },
+      "deletePreferenceSaved": {
+        "title": "Delete preference saved",
+        "description": "Updated to {deletePreference}"
+      },
+      "deletePreferenceSaveFailure": {
+        "title": "Failed to save delete preference"
       }
+    },
+    "deletePreference": {
+      "title": "Delete Preference",
+      "description": "Choose how delete requests are handled for both Web and API tokens.",
+      "options": {
+        "none": "Disallow delete",
+        "trash": "Move to recycle bin only",
+        "hard": "Delete permanently"
+      },
+      "helper": {
+        "none": "Delete requests are denied with a permission error.",
+        "trash": "Delete requests move records to recycle bin instead of removing permanently.",
+        "hard": "Delete requests permanently remove records."
+      },
+      "current": "Current delete preference: {deletePreference}"
     }
   },
   "logs": {
@@ -1538,7 +1560,7 @@
       "noFiles": "No files uploaded",
       "invalidInput": "Inbox request is invalid",
       "invalidStatus": "Item status does not allow this action",
-      "deleteNotAllowed": "This API token is not allowed to delete records"
+      "deleteNotAllowed": "Current delete preference does not allow deleting records"
     },
     "apiKeys": {
       "notFound": "API key not found",

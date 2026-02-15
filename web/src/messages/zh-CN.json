@@ -373,11 +373,11 @@
       "reclassify": "重新分类",
       "redistribute": "重新分发",
       "refresh": "刷新",
-    "editContent": "编辑内容",
-    "cancelEdit": "取消",
-    "back": "返回",
-    "saveEdit": "保存",
-    "copyRaw": "复制原文",
+      "editContent": "编辑内容",
+      "cancelEdit": "取消",
+      "back": "返回",
+      "saveEdit": "保存",
+      "copyRaw": "复制原文",
       "openInPage": "在详情页打开",
       "more": "更多",
       "viewProperties": "查看记录属性"
@@ -391,13 +391,13 @@
         "readOnly": "只读"
       },
       "previewEmpty": "暂无可预览内容",
-    "autoSave": {
-      "saving": "保存中...",
-      "saved": "已保存",
-      "pending": "编辑后将自动保存",
-      "error": "自动保存失败，继续编辑后会重试",
-      "disabled": "处理中，暂不可编辑",
-      "indicator": "自动保存"
+      "autoSave": {
+        "saving": "保存中...",
+        "saved": "已保存",
+        "pending": "编辑后将自动保存",
+        "error": "自动保存失败，继续编辑后会重试",
+        "disabled": "处理中，暂不可编辑",
+        "indicator": "自动保存"
       }
     },
     "categories": {
@@ -989,7 +989,29 @@
       },
       "llmConnectionTestResult": {
         "description": "{message}（耗时 {latency}ms）"
+      },
+      "deletePreferenceSaved": {
+        "title": "删除偏好已保存",
+        "description": "已更新为 {deletePreference}"
+      },
+      "deletePreferenceSaveFailure": {
+        "title": "删除偏好保存失败"
       }
+    },
+    "deletePreference": {
+      "title": "删除偏好",
+      "description": "设置删除记录时的处理方式，统一作用于 Web 与 API Token。",
+      "options": {
+        "none": "不允许删除",
+        "trash": "仅移入回收站",
+        "hard": "直接删除"
+      },
+      "helper": {
+        "none": "删除请求会被拒绝，并返回权限错误。",
+        "trash": "删除请求会把记录移入回收站，不会直接清除。",
+        "hard": "删除请求会直接永久删除记录。"
+      },
+      "current": "当前删除偏好：{deletePreference}"
     }
   },
   "logs": {
@@ -1445,7 +1467,7 @@
       "noFiles": "未上传文件",
       "invalidInput": "收件箱请求无效",
       "invalidStatus": "当前状态不允许此操作",
-      "deleteNotAllowed": "当前 API Token 不允许删除记录"
+      "deleteNotAllowed": "当前删除偏好不允许删除记录"
     },
     "apiKeys": {
       "notFound": "API 密钥不存在",

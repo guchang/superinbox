@@ -257,6 +257,13 @@ export interface UserSettings {
   updatedAt?: string
 }
 
+export type DeletePreference = 'none' | 'trash' | 'hard'
+
+export interface DeletePreferenceSettings {
+  deletePreference: DeletePreference
+  updatedAt?: string
+}
+
 export interface LlmConfigItem {
   id: string
   name: string | null
