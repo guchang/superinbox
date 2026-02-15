@@ -790,7 +790,15 @@ function MemoryCardComponent({
                 '[&_a]:text-current [&_a]:decoration-solid [&_a]:underline-offset-2 [&_a]:hover:opacity-80',
                 item.contentType === ContentType.URL && '[&_a]:font-semibold',
                 '[&_h1]:text-[16px] [&_h2]:text-[16px] [&_h3]:text-[16px] [&_h4]:text-[16px]',
-                '[&_h1]:font-semibold [&_h2]:font-semibold [&_h3]:font-semibold [&_h4]:font-semibold'
+                '[&_h1]:font-semibold [&_h2]:font-semibold [&_h3]:font-semibold [&_h4]:font-semibold',
+                '[&_li.task-list-item>input[type=\'checkbox\']]:h-4 [&_li.task-list-item>input[type=\'checkbox\']]:w-4',
+                '[&_li.task-list-item>input[type=\'checkbox\']]:mr-2 [&_li.task-list-item>input[type=\'checkbox\']]:mt-1',
+                '[&_li.task-list-item>label>input[type=\'checkbox\']]:h-4 [&_li.task-list-item>label>input[type=\'checkbox\']]:w-4',
+                '[&_li.task-list-item>label>input[type=\'checkbox\']]:mt-1',
+                '[&_li.task-list-item>input[type=\'checkbox\']]:accent-emerald-500',
+                '[&_li.task-list-item>label>input[type=\'checkbox\']]:accent-emerald-500',
+                '[&_li.task-list-item>input[type=\'checkbox\']]:text-black dark:[&_li.task-list-item>input[type=\'checkbox\']]:text-white',
+                '[&_li.task-list-item>label>input[type=\'checkbox\']]:text-black dark:[&_li.task-list-item>label>input[type=\'checkbox\']]:text-white'
               )}
             />
           </div>
