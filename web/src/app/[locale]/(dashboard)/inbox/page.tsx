@@ -608,6 +608,26 @@ export default function InboxPage() {
     },
   })
 
+  const restoreMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await inboxApi.restoreItem(id)
+    },
+    onSuccess: () => {
+      invalidateInboxRelatedQueries()
+      toast({
+        title: t('toast.restoreSuccess.title'),
+        description: t('toast.restoreSuccess.description'),
+      })
+    },
+    onError: (error) => {
+      toast({
+        title: t('toast.restoreFailure.title'),
+        description: getApiErrorMessage(error, errors, common('unknownError')),
+        variant: 'destructive',
+      })
+    },
+  })
+
   // 重试 AI 处理 mutation
   const retryMutation = useMutation({
     mutationFn: async (id: string) => {
@@ -633,10 +653,17 @@ export default function InboxPage() {
     },
   })
 
+  const isTrashView = (searchFilters.category || '').toLowerCase() === 'trash'
+
   const handleDelete = async (id: string) => {
-    if (confirm(t('confirmDelete'))) {
+    const confirmMessage = isTrashView ? t('confirmDeletePermanent') : t('confirmDelete')
+    if (confirm(confirmMessage)) {
       await deleteMutation.mutateAsync(id)
     }
+  }
+
+  const handleRestore = async (id: string) => {
+    await restoreMutation.mutateAsync(id)
   }
 
   const handleRetry = async (id: string) => {
@@ -910,6 +937,7 @@ export default function InboxPage() {
                         categoryMetaMap={categoryMetaMap}
                         connectorMetaMap={connectorMetaMap}
                         onDelete={handleDelete}
+                        onRestore={handleRestore}
                         onRetry={handleRetry}
                         onEdit={handleEdit}
                         onRedistribute={(id) => redistributeMutation.mutate(id)}

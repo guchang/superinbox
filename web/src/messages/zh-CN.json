@@ -269,6 +269,7 @@
       "detail": "详情",
       "reclassify": "重新识别",
       "redistribute": "重新分发",
+      "restore": "放回原处",
       "editContent": "编辑内容",
       "more": "更多"
     },
@@ -284,6 +285,7 @@
       "unknown": "未知"
     },
     "confirmDelete": "确定要删除这条记录吗？",
+    "confirmDeletePermanent": "确定要永久删除这条记录吗？此操作不可恢复。",
     "toast": {
       "deleteSuccess": {
         "title": "删除成功",
@@ -291,6 +293,13 @@
       },
       "deleteFailure": {
         "title": "删除失败"
+      },
+      "restoreSuccess": {
+        "title": "恢复成功",
+        "description": "条目已放回原处"
+      },
+      "restoreFailure": {
+        "title": "恢复失败"
       },
       "retrySuccess": {
         "title": "重试成功",
@@ -367,11 +376,15 @@
     "notFound": "条目不存在",
     "loading": "加载中...",
     "confirmDelete": "确定要删除这条记录吗？",
+    "confirmDeleteDescription": "删除后条目将按当前删除偏好处理。",
+    "confirmDeletePermanent": "确定要永久删除这条记录吗？",
+    "confirmDeletePermanentDescription": "该条目已在回收站，删除后将不可恢复。",
     "actions": {
       "edit": "编辑",
       "detail": "详情",
       "reclassify": "重新分类",
       "redistribute": "重新分发",
+      "restore": "放回原处",
       "refresh": "刷新",
       "editContent": "编辑内容",
       "cancelEdit": "取消",
@@ -491,6 +504,13 @@
       },
       "deleteFailure": {
         "title": "删除失败"
+      },
+      "restoreSuccess": {
+        "title": "恢复成功",
+        "description": "条目已放回原处"
+      },
+      "restoreFailure": {
+        "title": "恢复失败"
       },
       "reclassifySuccess": {
         "title": "重新分类已开始",
@@ -996,11 +1016,15 @@
       },
       "deletePreferenceSaveFailure": {
         "title": "删除偏好保存失败"
+      },
+      "trashRetentionSaveFailure": {
+        "title": "回收站自动清空设置保存失败"
       }
     },
     "deletePreference": {
       "title": "删除偏好",
       "description": "设置删除记录时的处理方式，统一作用于 Web 与 API Token。",
+      "switchLabel": "直接删除",
       "options": {
         "trash": "移入回收站",
         "hard": "直接删除"
@@ -1008,9 +1032,17 @@
       "helper": {
         "trash": "删除请求会把记录移入回收站，不会直接清除。",
         "hard": "删除请求会直接永久删除记录。"
-      },
-      "autoSaveHint": "选择后将自动保存。",
-      "autoSaving": "正在保存删除偏好..."
+      }
+    },
+    "trashRetention": {
+      "label": "回收站自动清空",
+      "description": "按条目进入回收站的时间单独计时，超期后自动永久删除。",
+      "options": {
+        "30": "30 天",
+        "60": "60 天",
+        "90": "90 天",
+        "never": "永不"
+      }
     }
   },
   "logs": {

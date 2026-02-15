@@ -475,6 +475,11 @@ const migrations = [
     version: '019',
     name: 'add_user_delete_preference',
     up: '-- handled in code for idempotency'
+  },
+  {
+    version: '020',
+    name: 'add_trash_retention_and_item_trash_metadata',
+    up: '-- handled in code for idempotency'
   }
 ];
 
@@ -502,6 +507,8 @@ export const runMigrations = async (): Promise<void> => {
         ensureLegacySchemaCompatibility(db);
       } else if (migration.version === '019') {
         ensureUserSettingsDeletePreference(db);
+      } else if (migration.version === '020') {
+        ensureTrashRetentionAndItemTrashMetadata(db);
       } else {
         (db as any).db.exec(migration.up);
       }
@@ -576,7 +583,28 @@ const ensureUserSettingsDeletePreference = (db: ReturnType<typeof getDatabase>):
   ]);
 
   if (tableExists(database, 'user_settings')) {
-    database.exec("UPDATE user_settings SET delete_preference = 'trash' WHERE delete_preference IS NULL OR delete_preference = ''");
+    database.exec("UPDATE user_settings SET delete_preference = 'trash' WHERE delete_preference IS NULL OR delete_preference = '' OR delete_preference = 'none'");
+  }
+};
+
+const ensureTrashRetentionAndItemTrashMetadata = (db: ReturnType<typeof getDatabase>): void => {
+  const database = (db as any).db;
+  ensureTableColumns(database, 'user_settings', [
+    { name: 'trash_retention_days', definition: 'INTEGER DEFAULT 30' },
+  ]);
+
+  ensureTableColumns(database, 'items', [
+    { name: 'trashed_at', definition: 'TEXT' },
+    { name: 'trashed_from_category', definition: 'TEXT' },
+  ]);
+
+  if (tableExists(database, 'user_settings')) {
+    database.exec("UPDATE user_settings SET trash_retention_days = 30 WHERE trash_retention_days IS NULL");
+    database.exec("UPDATE user_settings SET trash_retention_days = 30 WHERE trash_retention_days NOT IN (30, 60, 90) AND trash_retention_days IS NOT NULL");
+  }
+
+  if (tableExists(database, 'items')) {
+    database.exec("UPDATE items SET trashed_at = updated_at WHERE category = 'trash' AND (trashed_at IS NULL OR trashed_at = '')");
   }
 };
 
@@ -615,6 +643,7 @@ const ensureItemsRoutingStatus = (db: ReturnType<typeof getDatabase>): void => {
 const ensureLegacySchemaCompatibility = (db: ReturnType<typeof getDatabase>): void => {
   ensureUserSettingsLlmColumns(db);
   ensureUserSettingsDeletePreference(db);
+  ensureTrashRetentionAndItemTrashMetadata(db);
   ensureLlmUsageSessionColumns(db);
   ensureDistributionResultRuleNameColumn(db);
   ensureItemsRoutingStatus(db);

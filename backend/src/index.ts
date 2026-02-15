@@ -26,6 +26,7 @@ import logsRoutes from './auth/logs.routes.js';
 import apiKeysRoutes from './api-keys/api-keys.routes.js';
 import mcpAdaptersRoutes from './router/routes/mcp-adapters.routes.js';
 import { logger } from './middleware/logger.js';
+import { startTrashRetentionCleaner } from './services/trash-retention-cleaner.js';
 
 // Create Express app
 const app = express();
@@ -175,9 +176,13 @@ async function startServer(): Promise<void> {
       });
     });
 
+    const stopTrashRetentionCleaner = startTrashRetentionCleaner();
+
     // Graceful shutdown
     const shutdown = async (signal: string): Promise<void> => {
       logger.info(`${signal} received, shutting down gracefully...`);
+
+      stopTrashRetentionCleaner();
 
       server.close(() => {
         logger.info('HTTP server closed');

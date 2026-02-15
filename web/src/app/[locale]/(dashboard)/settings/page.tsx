@@ -9,7 +9,6 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import {
   Select,
   SelectContent,
@@ -32,7 +31,7 @@ import { useToast } from '@/hooks/use-toast'
 import { settingsApi } from '@/lib/api/settings'
 import { getApiErrorMessage } from '@/lib/i18n/api-errors'
 import { ThemeSettings } from '@/components/theme/theme-settings'
-import type { DeletePreference, LlmConfigItem } from '@/types'
+import type { DeletePreference, LlmConfigItem, TrashRetentionDays } from '@/types'
 
 interface LlmFormDraft {
   name: string
@@ -92,6 +91,13 @@ const COMMON_TIMEZONE_CANDIDATES = [
   'Pacific/Auckland',
 ]
 
+const TRASH_RETENTION_OPTIONS: Array<{ value: TrashRetentionDays; key: '30' | '60' | '90' | 'never' }> = [
+  { value: 30, key: '30' },
+  { value: 60, key: '60' },
+  { value: 90, key: '90' },
+  { value: null, key: 'never' },
+]
+
 export default function SettingsPage() {
   const t = useTranslations('settings')
   const common = useTranslations('common')
@@ -106,6 +112,9 @@ export default function SettingsPage() {
   const [deletePreference, setDeletePreference] = useState<DeletePreference>('trash')
   const [savedDeletePreference, setSavedDeletePreference] = useState<DeletePreference>('trash')
   const [deletePreferenceLoading, setDeletePreferenceLoading] = useState(false)
+  const [trashRetentionDays, setTrashRetentionDays] = useState<TrashRetentionDays>(30)
+  const [savedTrashRetentionDays, setSavedTrashRetentionDays] = useState<TrashRetentionDays>(30)
+  const [trashRetentionLoading, setTrashRetentionLoading] = useState(false)
 
   const [llmConfigs, setLlmConfigs] = useState<LlmConfigItem[]>([])
   const [llmLoading, setLlmLoading] = useState(false)
@@ -176,6 +185,18 @@ export default function SettingsPage() {
         const preference = response.data?.deletePreference === 'hard' ? 'hard' : 'trash'
         setDeletePreference(preference)
         setSavedDeletePreference(preference)
+      })
+      .catch(() => {
+        // Ignore when unauthenticated or endpoint is unavailable
+      })
+
+    settingsApi.getTrashRetention()
+      .then((response) => {
+        const value = response.data?.trashRetentionDays
+        const normalized: TrashRetentionDays =
+          value === 60 || value === 90 || value === null ? value : 30
+        setTrashRetentionDays(normalized)
+        setSavedTrashRetentionDays(normalized)
       })
       .catch(() => {
         // Ignore when unauthenticated or endpoint is unavailable
@@ -599,8 +620,7 @@ export default function SettingsPage() {
     void handleSaveTimezone(detected)
   }
 
-  const handleDeletePreferenceChange = async (nextValue: string) => {
-    const nextPreference: DeletePreference = nextValue === 'hard' ? 'hard' : 'trash'
+  const handleDeletePreferenceChange = async (nextPreference: DeletePreference) => {
     if (nextPreference === savedDeletePreference) {
       setDeletePreference(nextPreference)
       return
@@ -623,6 +643,34 @@ export default function SettingsPage() {
       })
     } finally {
       setDeletePreferenceLoading(false)
+    }
+  }
+
+  const handleTrashRetentionChange = async (nextRetention: TrashRetentionDays) => {
+    if (nextRetention === savedTrashRetentionDays) {
+      setTrashRetentionDays(nextRetention)
+      return
+    }
+
+    const previousRetention = savedTrashRetentionDays
+    setTrashRetentionDays(nextRetention)
+    setTrashRetentionLoading(true)
+    try {
+      const response = await settingsApi.updateTrashRetention(nextRetention)
+      const value = response.data?.trashRetentionDays
+      const normalized: TrashRetentionDays =
+        value === 60 || value === 90 || value === null ? value : 30
+      setTrashRetentionDays(normalized)
+      setSavedTrashRetentionDays(normalized)
+    } catch (error) {
+      setTrashRetentionDays(previousRetention)
+      toast({
+        title: t('toast.trashRetentionSaveFailure.title'),
+        description: getApiErrorMessage(error, errors, common('tryLater')),
+        variant: 'destructive',
+      })
+    } finally {
+      setTrashRetentionLoading(false)
     }
   }
 
@@ -878,34 +926,49 @@ export default function SettingsPage() {
           <CardDescription>{t('deletePreference.description')}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <RadioGroup
-            value={deletePreference}
-            onValueChange={(value) => {
-              void handleDeletePreferenceChange(value)
-            }}
-            disabled={deletePreferenceLoading}
-            className="space-y-2"
-          >
-            <div className="flex items-start space-x-3 rounded-md border p-3">
-              <RadioGroupItem value="trash" id="delete-preference-trash" />
-              <div className="space-y-1">
-                <Label htmlFor="delete-preference-trash" className="font-medium">
-                  {t('deletePreference.options.trash')}
-                </Label>
-                <p className="text-sm text-muted-foreground">{t('deletePreference.helper.trash')}</p>
-              </div>
+          <div className="flex items-center justify-between rounded-md border p-3">
+            <div className="space-y-1 pr-4">
+              <p className="font-medium">{t('deletePreference.switchLabel')}</p>
+              <p className="text-sm text-muted-foreground">
+                {deletePreference === 'hard'
+                  ? t('deletePreference.helper.hard')
+                  : t('deletePreference.helper.trash')}
+              </p>
             </div>
-            <div className="flex items-start space-x-3 rounded-md border p-3">
-              <RadioGroupItem value="hard" id="delete-preference-hard" />
-              <div className="space-y-1">
-                <Label htmlFor="delete-preference-hard" className="font-medium">
-                  {t('deletePreference.options.hard')}
-                </Label>
-                <p className="text-sm text-muted-foreground">{t('deletePreference.helper.hard')}</p>
-              </div>
-            </div>
-          </RadioGroup>
+            <Switch
+              checked={deletePreference === 'hard'}
+              disabled={deletePreferenceLoading}
+              onCheckedChange={(checked) => {
+                void handleDeletePreferenceChange(checked ? 'hard' : 'trash')
+              }}
+              aria-label={t('deletePreference.switchLabel')}
+            />
+          </div>
 
+          <div className="space-y-2">
+            <Label>{t('trashRetention.label')}</Label>
+            <Select
+              value={trashRetentionDays === null ? 'never' : String(trashRetentionDays)}
+              onValueChange={(value) => {
+                const nextRetention: TrashRetentionDays =
+                  value === 'never' ? null : (Number(value) as 30 | 60 | 90)
+                void handleTrashRetentionChange(nextRetention)
+              }}
+              disabled={trashRetentionLoading}
+            >
+              <SelectTrigger className="w-full sm:w-[240px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {TRASH_RETENTION_OPTIONS.map((option) => (
+                  <SelectItem key={option.key} value={option.value === null ? 'never' : String(option.value)}>
+                    {t(`trashRetention.options.${option.key}`)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-sm text-muted-foreground">{t('trashRetention.description')}</p>
+          </div>
         </CardContent>
       </Card>
 

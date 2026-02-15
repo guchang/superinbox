@@ -26,6 +26,7 @@ import {
 import { motion } from 'framer-motion'
 import {
   Trash2,
+  RotateCcw,
   Loader2,
   RefreshCw,
   Pencil,
@@ -205,6 +206,7 @@ interface MemoryCardProps {
   categoryMetaMap?: Map<string, { name: string; icon?: string; color?: string }>
   connectorMetaMap?: Map<string, ConnectorMeta>
   onDelete: (id: string) => void
+  onRestore?: (id: string) => void
   onRetry: (id: string) => void
   onEdit?: (item: Item) => void
   onReclassify?: (id: string) => void
@@ -222,6 +224,7 @@ function MemoryCardComponent({
   categoryMetaMap,
   connectorMetaMap,
   onDelete,
+  onRestore,
   onRetry,
   onEdit,
   onReclassify,
@@ -238,6 +241,7 @@ function MemoryCardComponent({
   const filePreview = useTranslations('filePreview')
   const { resolvedTheme } = useTheme()
   const isDark = resolvedTheme === 'dark'
+  const isTrashItem = (item.analysis?.category || '').toLowerCase() === 'trash'
 
   // Hover 菜单状态
   const [isMenuOpen, setIsMenuOpen] = useState(false)
@@ -750,6 +754,15 @@ function MemoryCardComponent({
                   >
                     <Send className="h-3.5 w-3.5" />
                     <span>{t('actions.redistribute')}</span>
+                  </DropdownMenuItem>
+                )}
+                {isTrashItem && onRestore && (
+                  <DropdownMenuItem
+                    onClick={() => onRestore(item.id)}
+                    className="cursor-pointer gap-2 text-[11px] font-semibold focus:bg-accent"
+                  >
+                    <RotateCcw className="h-3.5 w-3.5" />
+                    <span>{t('actions.restore')}</span>
                   </DropdownMenuItem>
                 )}
                 <DropdownMenuItem

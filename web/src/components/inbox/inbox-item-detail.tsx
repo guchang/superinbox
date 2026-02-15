@@ -30,6 +30,7 @@ import {
   ChevronDown,
   Check,
   ArrowLeft,
+  RotateCcw,
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { FilePreview } from '@/components/file-preview'
@@ -177,6 +178,7 @@ export function InboxItemDetail({
   const currentItemId = item?.id ?? null
   const currentItemContent = item?.content ?? ''
   const currentItemCategory = item?.analysis?.category ?? 'unknown'
+  const isTrashItem = currentItemCategory.toLowerCase() === 'trash'
 
   const categoryOptions = useMemo(() => {
     const fallback = [
@@ -289,6 +291,32 @@ export function InboxItemDetail({
     onError: (error) => {
       toast({
         title: t('toast.deleteFailure.title'),
+        description: getApiErrorMessage(error, errors, common('unknownError')),
+        variant: 'destructive',
+      })
+    },
+  })
+
+  const restoreMutation = useMutation({
+    mutationFn: async () => {
+      await inboxApi.restoreItem(id)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['inbox'] })
+      queryClient.invalidateQueries({ queryKey: ['inbox-counts'] })
+      queryClient.invalidateQueries({ queryKey: ['inbox', id] })
+      toast({
+        title: t('toast.restoreSuccess.title'),
+        description: t('toast.restoreSuccess.description'),
+      })
+      const activeCategory = searchParams.get('category')
+      if ((activeCategory || '').toLowerCase() === 'trash') {
+        router.push(listHref)
+      }
+    },
+    onError: (error) => {
+      toast({
+        title: t('toast.restoreFailure.title'),
         description: getApiErrorMessage(error, errors, common('unknownError')),
         variant: 'destructive',
       })
@@ -1251,6 +1279,16 @@ export function InboxItemDetail({
                   {t('actions.redistribute')}
                 </DropdownMenuItem>
 
+                {isTrashItem ? (
+                  <DropdownMenuItem
+                    onClick={() => restoreMutation.mutate()}
+                    disabled={restoreMutation.isPending}
+                  >
+                    {restoreMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4" />}
+                    {t('actions.restore')}
+                  </DropdownMenuItem>
+                ) : null}
+
                 <DropdownMenuSeparator />
 
                 <DropdownMenuItem
@@ -1478,8 +1516,10 @@ export function InboxItemDetail({
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{t('confirmDelete')}</AlertDialogTitle>
-            <AlertDialogDescription />
+            <AlertDialogTitle>{isTrashItem ? t('confirmDeletePermanent') : t('confirmDelete')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {isTrashItem ? t('confirmDeletePermanentDescription') : t('confirmDeleteDescription')}
+            </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>{common('cancel')}</AlertDialogCancel>

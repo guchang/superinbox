@@ -17,7 +17,11 @@ const timezoneSchema = z.object({
 });
 
 const deletePreferenceSchema = z.object({
-  deletePreference: z.enum(['none', 'trash', 'hard'])
+  deletePreference: z.enum(['trash', 'hard'])
+});
+
+const trashRetentionSchema = z.object({
+  trashRetentionDays: z.union([z.literal(30), z.literal(60), z.literal(90), z.null()])
 });
 
 const llmConfigCreateSchema = z.object({
@@ -271,6 +275,60 @@ router.put('/delete-preference', authenticate, (req: Request, res: Response): vo
       statusCode: 500,
       code: 'INTERNAL_ERROR',
       message: 'Failed to update delete preference'
+    });
+  }
+});
+
+router.get('/trash-retention', authenticate, (req: Request, res: Response): void => {
+  try {
+    const userId = req.user?.id ?? 'default-user';
+    const db = getDatabase();
+    const trashRetentionDays = db.getUserTrashRetentionDays(userId);
+
+    res.json({
+      success: true,
+      data: {
+        trashRetentionDays
+      }
+    });
+  } catch (error) {
+    console.error('Trash retention fetch error:', error);
+    sendError(res, {
+      statusCode: 500,
+      code: 'INTERNAL_ERROR',
+      message: 'Failed to fetch trash retention setting'
+    });
+  }
+});
+
+router.put('/trash-retention', authenticate, (req: Request, res: Response): void => {
+  try {
+    const userId = req.user?.id ?? 'default-user';
+    const body = trashRetentionSchema.parse(req.body);
+    const db = getDatabase();
+    const result = db.setUserTrashRetentionDays(userId, body.trashRetentionDays);
+
+    res.json({
+      success: true,
+      data: {
+        trashRetentionDays: result.trashRetentionDays,
+        updatedAt: result.updatedAt
+      }
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      sendError(res, {
+        statusCode: 400,
+        code: 'SETTINGS.INVALID_INPUT',
+        message: 'Invalid request body'
+      });
+      return;
+    }
+    console.error('Trash retention update error:', error);
+    sendError(res, {
+      statusCode: 500,
+      code: 'INTERNAL_ERROR',
+      message: 'Failed to update trash retention setting'
     });
   }
 });

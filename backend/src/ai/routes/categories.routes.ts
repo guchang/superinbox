@@ -397,7 +397,7 @@ router.delete('/:id', authenticate, requireCategoryWriteScope, (req, res) => {
   }
 
   const db = getDatabase();
-  const migratedCount = db.reassignItemsCategory(userId, current.key, TRASH_CATEGORY_KEY);
+  const migratedCount = db.reassignItemsCategoryToTrash(userId, current.key);
   const record = deleteCategory(userId, id);
 
   if (!record) {

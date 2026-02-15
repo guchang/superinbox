@@ -152,6 +152,9 @@ const updateItemSchema = z.object({
 const deleteItemSchema = z.object({
   id: z.string().min(1)
 });
+const restoreItemSchema = z.object({
+  id: z.string().min(1)
+});
 const categoryListSchema = z.object({});
 const createCategorySchema = z.object({
   key: z.string().min(1),
@@ -533,7 +536,7 @@ mcpServer.registerTool(
 mcpServer.registerTool(
   'inbox.delete',
   {
-    description: 'Delete an inbox item by id. Depending on token permissions, the result may be denied, moved to trash, or permanently deleted.',
+    description: 'Delete an inbox item by id. The result depends on user delete preference and whether the item is already in trash (move to trash or permanently delete).',
     inputSchema: deleteItemSchema
   },
   async ({ id }) => {
@@ -548,11 +551,41 @@ mcpServer.registerTool(
 mcpServer.registerTool(
   'inbox_delete',
   {
-    description: 'Delete an inbox item by id. Depending on token permissions, the result may be denied, moved to trash, or permanently deleted.',
+    description: 'Delete an inbox item by id. The result depends on user delete preference and whether the item is already in trash (move to trash or permanently delete).',
     inputSchema: deleteItemSchema
   },
   async ({ id }) => {
     const result = await request('DELETE', `/v1/inbox/${id}`);
+    if (!result.ok) {
+      return toolError(result.message);
+    }
+    return toolOk(applyLocalTimestamps(result.data));
+  }
+);
+
+mcpServer.registerTool(
+  'inbox.restore',
+  {
+    description: 'Restore an inbox item from trash to its original category, or fallback to unknown if the original category no longer exists.',
+    inputSchema: restoreItemSchema
+  },
+  async ({ id }) => {
+    const result = await request('POST', `/v1/inbox/${id}/restore`);
+    if (!result.ok) {
+      return toolError(result.message);
+    }
+    return toolOk(applyLocalTimestamps(result.data));
+  }
+);
+
+mcpServer.registerTool(
+  'inbox_restore',
+  {
+    description: 'Restore an inbox item from trash to its original category, or fallback to unknown if the original category no longer exists.',
+    inputSchema: restoreItemSchema
+  },
+  async ({ id }) => {
+    const result = await request('POST', `/v1/inbox/${id}/restore`);
     if (!result.ok) {
       return toolError(result.message);
     }

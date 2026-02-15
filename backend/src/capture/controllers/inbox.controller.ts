@@ -74,7 +74,9 @@ const searchSchema = z.object({
   limit: z.coerce.number().int().positive().max(100).optional()
 });
 
-type ApiKeyDeleteMode = 'none' | 'trash' | 'hard';
+type UserDeleteMode = 'trash' | 'hard';
+const TRASH_CATEGORY_KEY = 'trash';
+const UNKNOWN_CATEGORY_KEY = 'unknown';
 
 export class InboxController {
   private db = getDatabase();
@@ -423,7 +425,7 @@ export class InboxController {
     try {
       const { id } = req.params;
       const userId = req.user?.id ?? 'default-user';
-      const deleteMode: ApiKeyDeleteMode = this.db.getUserDeletePreference(userId);
+      const deleteMode: UserDeleteMode = this.db.getUserDeletePreference(userId);
 
       const existing = this.db.getItemById(id);
 
@@ -447,38 +449,100 @@ export class InboxController {
         return;
       }
 
-      if (deleteMode === 'none') {
-        sendError(res, {
-          statusCode: 403,
-          code: 'INBOX.DELETE_NOT_ALLOWED',
-          message: 'Current delete preference does not allow deleting records',
-          params: { deleteMode: 'none' }
-        });
-        return;
-      }
-
-      if (deleteMode === 'trash') {
-        this.db.updateItem(id, { category: 'trash' as any });
+      if (existing.category === TRASH_CATEGORY_KEY || deleteMode === 'hard') {
+        this.db.deleteItem(id);
 
         res.json({
           success: true,
-          message: 'Item moved to trash',
+          message: 'Item deleted',
           data: {
-            action: 'moved_to_trash',
-            deleteMode: 'trash'
+            action: 'deleted',
+            deleteMode: 'hard'
           }
         });
         return;
       }
 
-      this.db.deleteItem(id);
+      this.db.updateItem(id, {
+        category: TRASH_CATEGORY_KEY as any,
+        trashedAt: new Date(),
+        trashedFromCategory: existing.category,
+      });
 
       res.json({
         success: true,
-        message: 'Item deleted',
+        message: 'Item moved to trash',
         data: {
-          action: 'deleted',
-          deleteMode: 'hard'
+          action: 'moved_to_trash',
+          deleteMode: 'trash'
+        }
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Restore an item from trash to its original category.
+   * POST /v1/inbox/:id/restore
+   */
+  restoreItemFromTrash = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { id } = req.params;
+      const userId = req.user?.id ?? 'default-user';
+      const existing = this.db.getItemById(id);
+
+      if (!existing) {
+        sendError(res, {
+          statusCode: 404,
+          code: 'INBOX.NOT_FOUND',
+          message: 'Item not found',
+          params: { id }
+        });
+        return;
+      }
+
+      if (existing.userId !== userId) {
+        sendError(res, {
+          statusCode: 403,
+          code: 'AUTH.FORBIDDEN',
+          message: 'Access denied'
+        });
+        return;
+      }
+
+      if (existing.category !== TRASH_CATEGORY_KEY) {
+        sendError(res, {
+          statusCode: 400,
+          code: 'INBOX.INVALID_STATUS',
+          message: 'Only trash items can be restored',
+          params: { id, category: existing.category }
+        });
+        return;
+      }
+
+      const allCategories = this.db.listAiCategories(userId);
+      const originalCategory = String(existing.trashedFromCategory ?? '').trim().toLowerCase();
+      const hasOriginalCategory = Boolean(originalCategory) &&
+        originalCategory !== TRASH_CATEGORY_KEY &&
+        allCategories.some(
+        (category) => String(category.key ?? '').trim().toLowerCase() === originalCategory
+      );
+      const restoredTo = hasOriginalCategory ? originalCategory : UNKNOWN_CATEGORY_KEY;
+
+      this.db.updateItem(id, {
+        category: restoredTo as any,
+        trashedAt: null,
+        trashedFromCategory: null,
+      });
+
+      res.json({
+        success: true,
+        message: 'Item restored',
+        data: {
+          action: 'restored',
+          restoredTo,
+          fallbackToUnknown: !hasOriginalCategory,
         }
       });
     } catch (error) {

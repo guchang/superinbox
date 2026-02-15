@@ -143,6 +143,8 @@ export interface Item {
 
   // AI analysis result
   category: CategoryKey;
+  trashedAt?: Date | null;
+  trashedFromCategory?: string | null;
   entities: ExtractedEntities;
   summary?: string;
   suggestedTitle?: string;

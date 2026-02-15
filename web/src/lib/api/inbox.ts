@@ -167,6 +167,11 @@ export const inboxApi = {
     return apiClient.delete<void>(`/inbox/${id}`)
   },
 
+  // 从回收站恢复条目
+  async restoreItem(id: string): Promise<ApiResponse<{ action: 'restored'; restoredTo: string; fallbackToUnknown: boolean }>> {
+    return apiClient.post<{ action: 'restored'; restoredTo: string; fallbackToUnknown: boolean }>(`/inbox/${id}/restore`)
+  },
+
   // 重试AI处理
   async retryAIProcessing(id: string): Promise<ApiResponse<{ message: string; status: string }>> {
     return apiClient.post<{ message: string; status: string }>(`/inbox/${id}/retry`)

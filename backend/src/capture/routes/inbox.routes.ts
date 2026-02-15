@@ -128,6 +128,17 @@ router.delete(
 );
 
 /**
+ * @route   POST /v1/inbox/:id/restore
+ * @desc    Restore an item from trash
+ * @access  Private (JWT or API Key)
+ */
+router.post(
+  '/inbox/:id/restore',
+  authenticate,
+  inboxController.restoreItemFromTrash
+);
+
+/**
  * @route   GET /v1/inbox/:id/routing-progress
  * @desc    Get real-time routing progress via SSE
  * @access  Private (JWT or API Key)

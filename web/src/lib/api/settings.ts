@@ -6,6 +6,8 @@ import type {
   UserSettings,
   DeletePreferenceSettings,
   DeletePreference,
+  TrashRetentionSettings,
+  TrashRetentionDays,
   LlmSettings,
   LlmConfigCreatePayload,
   LlmConfigUpdatePayload,
@@ -57,6 +59,16 @@ export const settingsApi = {
   // 更新删除偏好设置
   async updateDeletePreference(deletePreference: DeletePreference): Promise<ApiResponse<DeletePreferenceSettings>> {
     return apiClient.put<DeletePreferenceSettings>('/settings/delete-preference', { deletePreference })
+  },
+
+  // 获取回收站保留天数设置
+  async getTrashRetention(): Promise<ApiResponse<TrashRetentionSettings>> {
+    return apiClient.get<TrashRetentionSettings>('/settings/trash-retention')
+  },
+
+  // 更新回收站保留天数设置
+  async updateTrashRetention(trashRetentionDays: TrashRetentionDays): Promise<ApiResponse<TrashRetentionSettings>> {
+    return apiClient.put<TrashRetentionSettings>('/settings/trash-retention', { trashRetentionDays })
   },
 
   // 获取 LLM 配置列表

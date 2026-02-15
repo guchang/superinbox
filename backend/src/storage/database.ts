@@ -58,6 +58,7 @@ export class DatabaseManager {
         user_id TEXT PRIMARY KEY,
         timezone TEXT,
         delete_preference TEXT DEFAULT 'trash',
+        trash_retention_days INTEGER DEFAULT 30,
         llm_provider TEXT,
         llm_model TEXT,
         llm_base_url TEXT,
@@ -102,6 +103,8 @@ export class DatabaseManager {
         content_type TEXT NOT NULL,
         source TEXT NOT NULL,
         category TEXT NOT NULL,
+        trashed_at TEXT,
+        trashed_from_category TEXT,
         entities TEXT,
         summary TEXT,
         suggested_title TEXT,
@@ -264,11 +267,16 @@ export class DatabaseManager {
     this.ensureTableColumn('ai_categories', 'color', 'TEXT');
     this.ensureTableColumn('ai_categories', 'sort_order', 'INTEGER');
     this.ensureTableColumn('user_settings', 'delete_preference', "TEXT DEFAULT 'trash'");
+    this.ensureTableColumn('user_settings', 'trash_retention_days', 'INTEGER DEFAULT 30');
     this.ensureTableColumn('items', 'ai_confidence', 'REAL');
     this.ensureTableColumn('items', 'ai_reasoning', 'TEXT');
     this.ensureTableColumn('items', 'ai_prompt_version', 'TEXT');
     this.ensureTableColumn('items', 'ai_model', 'TEXT');
     this.ensureTableColumn('items', 'ai_parse_status', "TEXT DEFAULT 'pending' CHECK(ai_parse_status IN ('pending', 'success', 'failed'))");
+    this.ensureTableColumn('items', 'trashed_at', 'TEXT');
+    this.ensureTableColumn('items', 'trashed_from_category', 'TEXT');
+
+    this.db.exec("UPDATE items SET trashed_at = updated_at WHERE category = 'trash' AND (trashed_at IS NULL OR trashed_at = '')");
 
     this.initialized = true;
   }
@@ -296,11 +304,11 @@ export class DatabaseManager {
     const stmt = this.db.prepare(`
       INSERT INTO items (
         id, user_id, original_content, content_type, source,
-        category, entities, summary, suggested_title,
+        category, trashed_at, trashed_from_category, entities, summary, suggested_title,
         ai_confidence, ai_reasoning, ai_prompt_version, ai_model, ai_parse_status,
         status, distributed_targets, routing_status,
         created_at, updated_at, processed_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     stmt.run(
@@ -310,6 +318,8 @@ export class DatabaseManager {
       item.contentType,
       item.source,
       item.category,
+      item.trashedAt ? item.trashedAt.toISOString() : null,
+      item.trashedFromCategory ?? null,
       JSON.stringify(item.entities),
       item.summary ?? null,
       item.suggestedTitle ?? null,
@@ -568,6 +578,8 @@ export class DatabaseManager {
         original_content = ?,
         content_type = ?,
         category = ?,
+        trashed_at = ?,
+        trashed_from_category = ?,
         entities = ?,
         summary = ?,
         suggested_title = ?,
@@ -588,6 +600,8 @@ export class DatabaseManager {
       updated.originalContent,
       updated.contentType,
       updated.category,
+      updated.trashedAt?.toISOString() ?? null,
+      updated.trashedFromCategory ?? null,
       JSON.stringify(updated.entities),
       updated.summary ?? null,
       updated.suggestedTitle ?? null,
@@ -637,6 +651,64 @@ export class DatabaseManager {
       fromCategory
     );
 
+    return result.changes;
+  }
+
+  /**
+   * Reassign items to trash while preserving the original category for restore.
+   */
+  reassignItemsCategoryToTrash(userId: string, fromCategory: string): number {
+    const stmt = this.db.prepare(`
+      UPDATE items
+      SET category = 'trash',
+          trashed_at = ?,
+          trashed_from_category = ?,
+          updated_at = ?
+      WHERE user_id = ? AND category = ?
+    `);
+
+    const now = new Date().toISOString();
+    const result = stmt.run(
+      now,
+      fromCategory,
+      now,
+      userId,
+      fromCategory
+    );
+
+    return result.changes;
+  }
+
+  /**
+   * Cleanup expired trash items according to per-user retention settings.
+   * Returns the number of deleted items.
+   */
+  cleanupExpiredTrashItems(referenceTime: Date = new Date()): number {
+    const stmt = this.db.prepare(`
+      DELETE FROM items
+      WHERE id IN (
+        SELECT items.id
+        FROM items
+        LEFT JOIN user_settings ON user_settings.user_id = items.user_id
+        WHERE items.category = 'trash'
+          AND (
+            CASE
+              WHEN user_settings.user_id IS NULL THEN 30
+              ELSE user_settings.trash_retention_days
+            END
+          ) IS NOT NULL
+          AND julianday(COALESCE(items.trashed_at, items.updated_at)) <= (
+            julianday(?) - (
+              CASE
+                WHEN user_settings.user_id IS NULL THEN 30
+                ELSE user_settings.trash_retention_days
+              END
+            )
+          )
+      )
+    `);
+
+    const result = stmt.run(referenceTime.toISOString());
     return result.changes;
   }
 
@@ -733,6 +805,8 @@ export class DatabaseManager {
       contentType: row.content_type,
       source: row.source,
       category: row.category,
+      trashedAt: row.trashed_at ? new Date(row.trashed_at) : null,
+      trashedFromCategory: row.trashed_from_category ?? null,
       entities: JSON.parse(row.entities || '{}'),
       summary: row.summary,
       suggestedTitle: row.suggested_title,
@@ -896,11 +970,11 @@ export class DatabaseManager {
   /**
    * Get user delete preference
    */
-  getUserDeletePreference(userId: string): 'none' | 'trash' | 'hard' {
+  getUserDeletePreference(userId: string): 'trash' | 'hard' {
     const stmt = this.db.prepare('SELECT delete_preference FROM user_settings WHERE user_id = ?');
     const row = stmt.get(userId) as { delete_preference?: string | null } | undefined;
 
-    if (row?.delete_preference === 'none' || row?.delete_preference === 'hard' || row?.delete_preference === 'trash') {
+    if (row?.delete_preference === 'hard' || row?.delete_preference === 'trash') {
       return row.delete_preference;
     }
 
@@ -912,8 +986,8 @@ export class DatabaseManager {
    */
   setUserDeletePreference(
     userId: string,
-    deletePreference: 'none' | 'trash' | 'hard'
-  ): { deletePreference: 'none' | 'trash' | 'hard'; updatedAt: string } {
+    deletePreference: 'trash' | 'hard'
+  ): { deletePreference: 'trash' | 'hard'; updatedAt: string } {
     const now = new Date().toISOString();
     const existing = this.db.prepare('SELECT user_id FROM user_settings WHERE user_id = ?').get(userId);
 
@@ -933,6 +1007,49 @@ export class DatabaseManager {
     }
 
     return { deletePreference, updatedAt: now };
+  }
+
+  /**
+   * Get user trash retention days. null means never auto-clean.
+   */
+  getUserTrashRetentionDays(userId: string): 30 | 60 | 90 | null {
+    const stmt = this.db.prepare('SELECT trash_retention_days FROM user_settings WHERE user_id = ?');
+    const row = stmt.get(userId) as { trash_retention_days?: number | null } | undefined;
+    const value = row?.trash_retention_days;
+
+    if (value === 30 || value === 60 || value === 90 || value === null) {
+      return value;
+    }
+
+    return 30;
+  }
+
+  /**
+   * Update or create user trash retention days setting.
+   */
+  setUserTrashRetentionDays(
+    userId: string,
+    trashRetentionDays: 30 | 60 | 90 | null
+  ): { trashRetentionDays: 30 | 60 | 90 | null; updatedAt: string } {
+    const now = new Date().toISOString();
+    const existing = this.db.prepare('SELECT user_id FROM user_settings WHERE user_id = ?').get(userId);
+
+    if (existing) {
+      const updateStmt = this.db.prepare(`
+        UPDATE user_settings
+        SET trash_retention_days = ?, updated_at = ?
+        WHERE user_id = ?
+      `);
+      updateStmt.run(trashRetentionDays, now, userId);
+    } else {
+      const insertStmt = this.db.prepare(`
+        INSERT INTO user_settings (user_id, trash_retention_days, created_at, updated_at)
+        VALUES (?, ?, ?, ?)
+      `);
+      insertStmt.run(userId, trashRetentionDays, now, now);
+    }
+
+    return { trashRetentionDays, updatedAt: now };
   }
 
   /**

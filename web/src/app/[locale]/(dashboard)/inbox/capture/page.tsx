@@ -28,6 +28,7 @@ import {
   Plus,
   Send,
   Trash2,
+  RotateCcw,
   Video,
   X,
   Zap,
@@ -339,6 +340,27 @@ export default function InboxCapturePage() {
     },
   })
 
+  const restoreMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await inboxApi.restoreItem(id)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["inbox"] })
+      queryClient.invalidateQueries({ queryKey: ["inbox-counts"] })
+      toast({
+        title: tInbox("toast.restoreSuccess.title"),
+        description: tInbox("toast.restoreSuccess.description"),
+      })
+    },
+    onError: (error: unknown) => {
+      toast({
+        title: tInbox("toast.restoreFailure.title"),
+        description: getApiErrorMessage(error, errors, common("unknownError")),
+        variant: "destructive",
+      })
+    },
+  })
+
   const handleSubmit = async () => {
     if (isUploading || isCollapsing) {
       return
@@ -360,10 +382,18 @@ export default function InboxCapturePage() {
     await createMutation.mutateAsync()
   }
 
-  const handleDelete = async (id: string) => {
-    if (confirm(tInbox("confirmDelete"))) {
-      await deleteMutation.mutateAsync(id)
+  const handleDelete = async (item: Item) => {
+    const isTrashItem = (item.analysis?.category || "").toLowerCase() === "trash"
+    const confirmMessage = isTrashItem
+      ? tInbox("confirmDeletePermanent")
+      : tInbox("confirmDelete")
+    if (confirm(confirmMessage)) {
+      await deleteMutation.mutateAsync(item.id)
     }
+  }
+
+  const handleRestore = async (id: string) => {
+    await restoreMutation.mutateAsync(id)
   }
 
   const handleMicClick = () => {
@@ -679,12 +709,29 @@ export default function InboxCapturePage() {
                           variant="ghost"
                           size="sm"
                           className="h-7 px-2 text-muted-foreground hover:text-destructive"
-                          onClick={() => handleDelete(item.id)}
+                          onClick={() => handleDelete(item)}
                           disabled={deleteMutation.isPending}
                         >
                           <Trash2 className="mr-1 h-3 w-3" />
                           {t("actions.delete")}
                         </Button>
+                        {(item.analysis?.category || "").toLowerCase() === "trash" && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-2"
+                            onClick={() => handleRestore(item.id)}
+                            disabled={restoreMutation.isPending}
+                          >
+                            {restoreMutation.isPending ? (
+                              <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                            ) : (
+                              <RotateCcw className="mr-1 h-3 w-3" />
+                            )}
+                            {tInbox("actions.restore")}
+                          </Button>
+                        )}
                       </div>
                     </div>
                   </motion.div>

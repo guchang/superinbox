@@ -394,7 +394,7 @@ describe('DELETE /v1/inbox/:id', () => {
     return { keyId, plainApiKey };
   };
 
-  const setDeletePreference = (deletePreference: 'none' | 'trash' | 'hard') => {
+  const setDeletePreference = (deletePreference: 'trash' | 'hard') => {
     const db = getDatabase();
     db.setUserDeletePreference(testContext.testUserId, deletePreference);
   };
@@ -449,32 +449,6 @@ describe('DELETE /v1/inbox/:id', () => {
     expect(response.body.error).toHaveProperty('code', 'INBOX.NOT_FOUND');
   });
 
-  it('should reject delete when user delete preference is none', async () => {
-    setDeletePreference('none');
-    const item = createTestItem({ content: 'Delete preference none test item' });
-    const { keyId, plainApiKey } = createApiKey(['read']);
-
-    try {
-      const deleteResponse = await request(app)
-        .delete(`/v1/inbox/${item.id}`)
-        .set('Authorization', `Bearer ${plainApiKey}`);
-
-      expect(deleteResponse.status).toBe(403);
-      expect(deleteResponse.body.error).toHaveProperty('code', 'INBOX.DELETE_NOT_ALLOWED');
-      expect(deleteResponse.body.error.params).toHaveProperty('deleteMode', 'none');
-
-      const getResponse = await request(app)
-        .get(`/v1/inbox/${item.id}`)
-        .set('Authorization', `Bearer ${testContext.testApiKey}`);
-
-      expect(getResponse.status).toBe(200);
-    } finally {
-      getDatabase().deleteApiKey(keyId);
-      cleanupTestItem(item.id);
-      setDeletePreference('trash');
-    }
-  });
-
   it('should move item to trash when user delete preference is trash', async () => {
     setDeletePreference('trash');
     const item = createTestItem({ content: 'Delete preference trash test item', category: 'todo' });
@@ -489,12 +463,47 @@ describe('DELETE /v1/inbox/:id', () => {
       expect(deleteResponse.body.data).toHaveProperty('action', 'moved_to_trash');
       expect(deleteResponse.body.data).toHaveProperty('deleteMode', 'trash');
 
+      const storedItem = getDatabase().getItemById(item.id);
+      expect(storedItem?.trashedFromCategory).toBe('todo');
+      expect(storedItem?.trashedAt).toBeTruthy();
+
       const getResponse = await request(app)
         .get(`/v1/inbox/${item.id}`)
         .set('Authorization', `Bearer ${plainApiKey}`);
 
       expect(getResponse.status).toBe(200);
       expect(getResponse.body.parsed).toHaveProperty('category', 'trash');
+    } finally {
+      getDatabase().deleteApiKey(keyId);
+      cleanupTestItem(item.id);
+    }
+  });
+
+  it('should hard delete item already in trash even when delete preference is trash', async () => {
+    setDeletePreference('trash');
+    const item = createTestItem({
+      content: 'Delete from trash should be hard',
+      category: 'trash',
+      trashedAt: new Date(Date.now() - 5 * 60 * 1000),
+      trashedFromCategory: 'idea',
+    });
+
+    const { keyId, plainApiKey } = createApiKey(['read']);
+
+    try {
+      const deleteResponse = await request(app)
+        .delete(`/v1/inbox/${item.id}`)
+        .set('Authorization', `Bearer ${plainApiKey}`);
+
+      expect(deleteResponse.status).toBe(200);
+      expect(deleteResponse.body.data).toHaveProperty('action', 'deleted');
+      expect(deleteResponse.body.data).toHaveProperty('deleteMode', 'hard');
+
+      const getResponse = await request(app)
+        .get(`/v1/inbox/${item.id}`)
+        .set('Authorization', `Bearer ${testContext.testApiKey}`);
+
+      expect(getResponse.status).toBe(404);
     } finally {
       getDatabase().deleteApiKey(keyId);
       cleanupTestItem(item.id);
@@ -529,7 +538,7 @@ describe('DELETE /v1/inbox/:id', () => {
   });
 
   it('should apply same delete preference to JWT requests', async () => {
-    setDeletePreference('none');
+    setDeletePreference('trash');
     const item = createTestItem({ content: 'Delete preference jwt none test item' });
     const jwtToken = createJwtToken();
 
@@ -538,18 +547,93 @@ describe('DELETE /v1/inbox/:id', () => {
         .delete(`/v1/inbox/${item.id}`)
         .set('Authorization', `Bearer ${jwtToken}`);
 
-      expect(deleteResponse.status).toBe(403);
-      expect(deleteResponse.body.error).toHaveProperty('code', 'INBOX.DELETE_NOT_ALLOWED');
-      expect(deleteResponse.body.error.params).toHaveProperty('deleteMode', 'none');
+      expect(deleteResponse.status).toBe(200);
+      expect(deleteResponse.body.data).toHaveProperty('action', 'moved_to_trash');
+      expect(deleteResponse.body.data).toHaveProperty('deleteMode', 'trash');
 
       const getResponse = await request(app)
         .get(`/v1/inbox/${item.id}`)
         .set('Authorization', `Bearer ${testContext.testApiKey}`);
 
       expect(getResponse.status).toBe(200);
+      expect(getResponse.body.parsed).toHaveProperty('category', 'trash');
     } finally {
       cleanupTestItem(item.id);
       setDeletePreference('trash');
+    }
+  });
+});
+
+describe('POST /v1/inbox/:id/restore', () => {
+  it('should restore trash item to original category', async () => {
+    const item = createTestItem({
+      content: 'Restore to original category',
+      category: 'trash',
+      trashedAt: new Date(Date.now() - 10 * 60 * 1000),
+      trashedFromCategory: 'idea',
+    });
+
+    try {
+      const restoreResponse = await request(app)
+        .post(`/v1/inbox/${item.id}/restore`)
+        .set('Authorization', `Bearer ${testContext.testApiKey}`);
+
+      expect(restoreResponse.status).toBe(200);
+      expect(restoreResponse.body.data).toHaveProperty('action', 'restored');
+      expect(restoreResponse.body.data).toHaveProperty('restoredTo', 'idea');
+      expect(restoreResponse.body.data).toHaveProperty('fallbackToUnknown', false);
+
+      const getResponse = await request(app)
+        .get(`/v1/inbox/${item.id}`)
+        .set('Authorization', `Bearer ${testContext.testApiKey}`);
+
+      expect(getResponse.status).toBe(200);
+      expect(getResponse.body.parsed).toHaveProperty('category', 'idea');
+
+      const storedItem = getDatabase().getItemById(item.id);
+      expect(storedItem?.trashedFromCategory).toBeNull();
+      expect(storedItem?.trashedAt).toBeNull();
+    } finally {
+      cleanupTestItem(item.id);
+    }
+  });
+
+  it('should fallback to unknown when original category is missing', async () => {
+    const item = createTestItem({
+      content: 'Restore fallback unknown',
+      category: 'trash',
+      trashedAt: new Date(Date.now() - 10 * 60 * 1000),
+      trashedFromCategory: 'non-existent-category',
+    });
+
+    try {
+      const restoreResponse = await request(app)
+        .post(`/v1/inbox/${item.id}/restore`)
+        .set('Authorization', `Bearer ${testContext.testApiKey}`);
+
+      expect(restoreResponse.status).toBe(200);
+      expect(restoreResponse.body.data).toHaveProperty('restoredTo', 'unknown');
+      expect(restoreResponse.body.data).toHaveProperty('fallbackToUnknown', true);
+    } finally {
+      cleanupTestItem(item.id);
+    }
+  });
+
+  it('should return 400 when restoring non-trash item', async () => {
+    const item = createTestItem({
+      content: 'Restore should fail for non-trash',
+      category: 'todo',
+    });
+
+    try {
+      const restoreResponse = await request(app)
+        .post(`/v1/inbox/${item.id}/restore`)
+        .set('Authorization', `Bearer ${testContext.testApiKey}`);
+
+      expect(restoreResponse.status).toBe(400);
+      expect(restoreResponse.body.error).toHaveProperty('code', 'INBOX.INVALID_STATUS');
+    } finally {
+      cleanupTestItem(item.id);
     }
   });
 });
@@ -597,11 +681,142 @@ describe('DELETE preference settings', () => {
     const response = await request(app)
       .put('/v1/settings/delete-preference')
       .set('Authorization', `Bearer ${testContext.testApiKey}`)
-      .send({ deletePreference: 'invalid-mode' });
+      .send({ deletePreference: 'none' });
 
     expect(response.status).toBe(400);
     expect(response.body).toHaveProperty('success', false);
     expect(response.body.error).toHaveProperty('code', 'SETTINGS.INVALID_INPUT');
+  });
+});
+
+describe('Trash retention settings and cleanup', () => {
+  const clearUserSettings = () => {
+    const db = getDatabase();
+    db.database.prepare('DELETE FROM user_settings WHERE user_id = ?').run(testContext.testUserId);
+  };
+
+  it('should return default trash retention days when setting is missing', async () => {
+    clearUserSettings();
+
+    const response = await request(app)
+      .get('/v1/settings/trash-retention')
+      .set('Authorization', `Bearer ${testContext.testApiKey}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.data).toHaveProperty('trashRetentionDays', 30);
+  });
+
+  it('should update trash retention days and support never mode', async () => {
+    const updateResponse = await request(app)
+      .put('/v1/settings/trash-retention')
+      .set('Authorization', `Bearer ${testContext.testApiKey}`)
+      .send({ trashRetentionDays: 60 });
+
+    expect(updateResponse.status).toBe(200);
+    expect(updateResponse.body.data).toHaveProperty('trashRetentionDays', 60);
+
+    const followUp = await request(app)
+      .get('/v1/settings/trash-retention')
+      .set('Authorization', `Bearer ${testContext.testApiKey}`);
+
+    expect(followUp.status).toBe(200);
+    expect(followUp.body.data).toHaveProperty('trashRetentionDays', 60);
+
+    const neverResponse = await request(app)
+      .put('/v1/settings/trash-retention')
+      .set('Authorization', `Bearer ${testContext.testApiKey}`)
+      .send({ trashRetentionDays: null });
+
+    expect(neverResponse.status).toBe(200);
+    expect(neverResponse.body.data).toHaveProperty('trashRetentionDays', null);
+
+    getDatabase().setUserTrashRetentionDays(testContext.testUserId, 30);
+  });
+
+  it('should return 400 for invalid trash retention value', async () => {
+    const response = await request(app)
+      .put('/v1/settings/trash-retention')
+      .set('Authorization', `Bearer ${testContext.testApiKey}`)
+      .send({ trashRetentionDays: 45 });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toHaveProperty('code', 'SETTINGS.INVALID_INPUT');
+  });
+
+  it('should cleanup expired trash items by per-item timestamp', () => {
+    const db = getDatabase();
+    db.setUserTrashRetentionDays(testContext.testUserId, 30);
+
+    const now = new Date();
+    const expiredDate = new Date(now.getTime() - 31 * 24 * 60 * 60 * 1000);
+    const freshDate = new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000);
+
+    const expiredItem = createTestItem({
+      category: 'trash',
+      updatedAt: expiredDate,
+      trashedAt: expiredDate,
+      trashedFromCategory: 'idea',
+    });
+    const freshItem = createTestItem({
+      category: 'trash',
+      updatedAt: freshDate,
+      trashedAt: freshDate,
+      trashedFromCategory: 'todo',
+    });
+
+    try {
+      const deletedCount = db.cleanupExpiredTrashItems(now);
+      expect(deletedCount).toBeGreaterThanOrEqual(1);
+      expect(db.getItemById(expiredItem.id)).toBeNull();
+      expect(db.getItemById(freshItem.id)).not.toBeNull();
+    } finally {
+      cleanupTestItem(expiredItem.id);
+      cleanupTestItem(freshItem.id);
+    }
+  });
+
+  it('should use updatedAt as fallback when trashedAt is missing', () => {
+    const db = getDatabase();
+    db.setUserTrashRetentionDays(testContext.testUserId, 30);
+
+    const now = new Date();
+    const oldUpdatedAt = new Date(now.getTime() - 31 * 24 * 60 * 60 * 1000);
+    const item = createTestItem({
+      category: 'trash',
+      updatedAt: oldUpdatedAt,
+      trashedAt: null,
+      trashedFromCategory: 'note',
+    });
+
+    try {
+      const deletedCount = db.cleanupExpiredTrashItems(now);
+      expect(deletedCount).toBeGreaterThanOrEqual(1);
+      expect(db.getItemById(item.id)).toBeNull();
+    } finally {
+      cleanupTestItem(item.id);
+    }
+  });
+
+  it('should skip cleanup when retention is never', () => {
+    const db = getDatabase();
+    db.setUserTrashRetentionDays(testContext.testUserId, null);
+
+    const now = new Date();
+    const oldDate = new Date(now.getTime() - 120 * 24 * 60 * 60 * 1000);
+    const item = createTestItem({
+      category: 'trash',
+      updatedAt: oldDate,
+      trashedAt: oldDate,
+      trashedFromCategory: 'bookmark',
+    });
+
+    try {
+      db.cleanupExpiredTrashItems(now);
+      expect(db.getItemById(item.id)).not.toBeNull();
+    } finally {
+      cleanupTestItem(item.id);
+      db.setUserTrashRetentionDays(testContext.testUserId, 30);
+    }
   });
 });
 

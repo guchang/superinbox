@@ -257,10 +257,17 @@ export interface UserSettings {
   updatedAt?: string
 }
 
-export type DeletePreference = 'none' | 'trash' | 'hard'
+export type DeletePreference = 'trash' | 'hard'
 
 export interface DeletePreferenceSettings {
   deletePreference: DeletePreference
+  updatedAt?: string
+}
+
+export type TrashRetentionDays = 30 | 60 | 90 | null
+
+export interface TrashRetentionSettings {
+  trashRetentionDays: TrashRetentionDays
   updatedAt?: string
 }
 
