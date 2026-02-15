@@ -199,6 +199,13 @@ export function AppSidebar({ className }: AppSidebarProps) {
     mobileRouter.prefetch?.('/settings/mobile')
   }, [isMobileOpen, router])
 
+  useEffect(() => {
+    if (!mounted || isDesktopViewport) return
+
+    const mobileRouter = router as { prefetch?: (href: string) => void }
+    mobileRouter.prefetch?.('/settings/mobile')
+  }, [mounted, isDesktopViewport, router])
+
   const searchParamsKey = searchParams?.toString() ?? ''
 
   useEffect(() => {
