@@ -72,7 +72,6 @@ Thumbs.db
 web/tests/*
 !web/tests/api-keys.spec.ts
 !web/tests/inbox-detail-page.spec.ts
-!web/tests/inbox-mobile-composer-style.spec.ts
 
 # 项目根目录文件（可选）
 /package.json
