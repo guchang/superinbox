@@ -926,22 +926,24 @@ export default function SettingsPage() {
           <CardDescription>{t('deletePreference.description')}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-center justify-between rounded-md border p-3">
-            <div className="space-y-1 pr-4">
-              <p className="font-medium">{t('deletePreference.switchLabel')}</p>
+          <div className="flex items-start justify-between gap-4 rounded-md border p-3">
+            <div className="space-y-1">
+              <Label htmlFor="delete-preference-trash-switch" className="font-medium">
+                {t('deletePreference.options.trash')}
+              </Label>
               <p className="text-sm text-muted-foreground">
-                {deletePreference === 'hard'
-                  ? t('deletePreference.helper.hard')
-                  : t('deletePreference.helper.trash')}
+                {deletePreference === 'trash'
+                  ? t('deletePreference.helper.trash')
+                  : t('deletePreference.helper.hard')}
               </p>
             </div>
             <Switch
-              checked={deletePreference === 'hard'}
-              disabled={deletePreferenceLoading}
+              id="delete-preference-trash-switch"
+              checked={deletePreference === 'trash'}
               onCheckedChange={(checked) => {
-                void handleDeletePreferenceChange(checked ? 'hard' : 'trash')
+                void handleDeletePreferenceChange(checked ? 'trash' : 'hard')
               }}
-              aria-label={t('deletePreference.switchLabel')}
+              disabled={deletePreferenceLoading}
             />
           </div>
 
