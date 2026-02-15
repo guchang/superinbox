@@ -1537,7 +1537,8 @@
       "fileIndexOutOfRange": "File index is out of range",
       "noFiles": "No files uploaded",
       "invalidInput": "Inbox request is invalid",
-      "invalidStatus": "Item status does not allow this action"
+      "invalidStatus": "Item status does not allow this action",
+      "deleteNotAllowed": "This API token is not allowed to delete records"
     },
     "apiKeys": {
       "notFound": "API key not found",

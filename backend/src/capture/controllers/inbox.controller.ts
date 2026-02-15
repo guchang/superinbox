@@ -74,6 +74,34 @@ const searchSchema = z.object({
   limit: z.coerce.number().int().positive().max(100).optional()
 });
 
+type ApiKeyDeleteMode = 'none' | 'trash' | 'hard';
+
+const API_KEY_DELETE_SCOPE_NONE = 'inbox:delete:none';
+const API_KEY_DELETE_SCOPE_TRASH = 'inbox:delete:trash';
+const API_KEY_DELETE_SCOPE_HARD = 'inbox:delete:hard';
+const API_KEY_DELETE_SCOPE_LEGACY = 'inbox:delete';
+
+const resolveApiKeyDeleteMode = (scopes: string[] = []): ApiKeyDeleteMode => {
+  if (
+    scopes.includes('admin:full')
+    || scopes.includes('full')
+    || scopes.includes(API_KEY_DELETE_SCOPE_HARD)
+    || scopes.includes(API_KEY_DELETE_SCOPE_LEGACY)
+  ) {
+    return 'hard';
+  }
+
+  if (scopes.includes(API_KEY_DELETE_SCOPE_TRASH)) {
+    return 'trash';
+  }
+
+  if (scopes.includes(API_KEY_DELETE_SCOPE_NONE)) {
+    return 'none';
+  }
+
+  return 'none';
+};
+
 export class InboxController {
   private db = getDatabase();
   private ai = getAIService();
@@ -420,6 +448,8 @@ export class InboxController {
     try {
       const { id } = req.params;
       const userId = req.user?.id ?? 'default-user';
+      const isApiKeyRequest = Boolean(req.apiKey);
+      const deleteMode = isApiKeyRequest ? resolveApiKeyDeleteMode(req.user?.scopes) : 'hard';
 
       const existing = this.db.getItemById(id);
 
@@ -443,11 +473,39 @@ export class InboxController {
         return;
       }
 
+      if (deleteMode === 'none') {
+        sendError(res, {
+          statusCode: 403,
+          code: 'INBOX.DELETE_NOT_ALLOWED',
+          message: 'Current API token does not allow deleting records',
+          params: { deleteMode: 'none' }
+        });
+        return;
+      }
+
+      if (deleteMode === 'trash') {
+        this.db.updateItem(id, { category: 'trash' as any });
+
+        res.json({
+          success: true,
+          message: 'Item moved to trash',
+          data: {
+            action: 'moved_to_trash',
+            deleteMode: 'trash'
+          }
+        });
+        return;
+      }
+
       this.db.deleteItem(id);
 
       res.json({
         success: true,
-        message: 'Item deleted'
+        message: 'Item deleted',
+        data: {
+          action: 'deleted',
+          deleteMode: 'hard'
+        }
       });
     } catch (error) {
       next(error);

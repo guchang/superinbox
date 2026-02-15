@@ -38,6 +38,7 @@ const ERROR_CODE_TO_KEY: Record<string, string> = {
   'INBOX.NO_FILES': 'inbox.noFiles',
   'INBOX.INVALID_INPUT': 'inbox.invalidInput',
   'INBOX.INVALID_STATUS': 'inbox.invalidStatus',
+  'INBOX.DELETE_NOT_ALLOWED': 'inbox.deleteNotAllowed',
   'API_KEYS.NOT_FOUND': 'apiKeys.notFound',
   'API_KEYS.INVALID_INPUT': 'apiKeys.invalidInput',
   'AI.INVALID_INPUT': 'ai.invalidInput',

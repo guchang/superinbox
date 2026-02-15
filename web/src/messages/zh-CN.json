@@ -1444,7 +1444,8 @@
       "fileIndexOutOfRange": "文件索引超出范围",
       "noFiles": "未上传文件",
       "invalidInput": "收件箱请求无效",
-      "invalidStatus": "当前状态不允许此操作"
+      "invalidStatus": "当前状态不允许此操作",
+      "deleteNotAllowed": "当前 API Token 不允许删除记录"
     },
     "apiKeys": {
       "notFound": "API 密钥不存在",

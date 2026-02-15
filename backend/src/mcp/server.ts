@@ -533,7 +533,7 @@ mcpServer.registerTool(
 mcpServer.registerTool(
   'inbox.delete',
   {
-    description: 'Delete an inbox item by id.',
+    description: 'Delete an inbox item by id. Depending on token permissions, the result may be denied, moved to trash, or permanently deleted.',
     inputSchema: deleteItemSchema
   },
   async ({ id }) => {
@@ -548,7 +548,7 @@ mcpServer.registerTool(
 mcpServer.registerTool(
   'inbox_delete',
   {
-    description: 'Delete an inbox item by id.',
+    description: 'Delete an inbox item by id. Depending on token permissions, the result may be denied, moved to trash, or permanently deleted.',
     inputSchema: deleteItemSchema
   },
   async ({ id }) => {
