@@ -32,6 +32,7 @@ export default function MobileSettingsPage() {
   const headerT = useTranslations('header')
   const pathname = usePathname()
   const searchParams = useSearchParams()
+  const searchParamsKey = searchParams?.toString() ?? ''
   const locale = useLocale()
   const router = useRouter()
   const { theme, setTheme } = useTheme()
@@ -91,7 +92,7 @@ export default function MobileSettingsPage() {
 
   useEffect(() => {
     setPendingPath(null)
-  }, [pathname, searchParams])
+  }, [pathname, searchParamsKey])
 
   useEffect(() => {
     if (!pendingPath) return
