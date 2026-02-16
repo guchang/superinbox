@@ -60,9 +60,9 @@ export default function MobileSettingsPage() {
 
   const navigationItems = useMemo(
     () => [
-      { href: '/dashboard', icon: LayoutDashboard, label: sidebarT('items.dashboard') },
       { href: '/settings', icon: Settings, label: sidebarT('items.settings') },
       { href: '/settings/api-keys', icon: Key, label: sidebarT('items.apiKeys') },
+      { href: '/dashboard', icon: LayoutDashboard, label: sidebarT('items.dashboard') },
       { href: '/settings/logs', icon: Shield, label: sidebarT('items.logs') },
       { href: '/settings/statistics', icon: BarChart3, label: sidebarT('items.statistics') },
     ],
