@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { usePathname, useRouter } from '@/i18n/navigation'
+import { useSearchParams } from 'next/navigation'
 import { useTheme } from 'next-themes'
 import {
   LayoutDashboard,
@@ -16,6 +17,7 @@ import {
   Check,
   ChevronRight,
   LogOut,
+  Loader2,
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -29,16 +31,32 @@ export default function MobileSettingsPage() {
   const sidebarT = useTranslations('sidebar')
   const headerT = useTranslations('header')
   const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const searchParamsKey = searchParams?.toString() ?? ''
   const locale = useLocale()
   const router = useRouter()
   const { theme, setTheme } = useTheme()
   const { logout } = useAuth()
   const { toast } = useToast()
   const [mounted, setMounted] = useState(false)
+  const [pendingPath, setPendingPath] = useState<string | null>(null)
 
   useEffect(() => {
     setMounted(true)
   }, [])
+
+  useEffect(() => {
+    const mobileRouter = router as { prefetch?: (href: string) => void }
+    const prefetch = (path: string) => {
+      mobileRouter.prefetch?.(path)
+    }
+
+    prefetch('/dashboard')
+    prefetch('/settings')
+    prefetch('/settings/api-keys')
+    prefetch('/settings/logs')
+    prefetch('/settings/statistics')
+  }, [router])
 
   const navigationItems = useMemo(
     () => [
@@ -66,8 +84,25 @@ export default function MobileSettingsPage() {
   }
 
   const handleNavigate = (path: string) => {
+    setPendingPath(path)
+    const mobileRouter = router as { prefetch?: (href: string) => void }
+    mobileRouter.prefetch?.(path)
     router.push(`${path}?from=mobile-settings`)
   }
+
+  useEffect(() => {
+    setPendingPath(null)
+  }, [pathname, searchParamsKey])
+
+  useEffect(() => {
+    if (!pendingPath) return
+
+    const timer = window.setTimeout(() => {
+      setPendingPath(null)
+    }, 4000)
+
+    return () => window.clearTimeout(timer)
+  }, [pendingPath])
 
   const handleLocaleChange = (nextLocale: string) => {
     if (nextLocale === locale) return
@@ -115,10 +150,15 @@ export default function MobileSettingsPage() {
               variant="ghost"
               className={cn('h-11 w-full justify-start rounded-xl', isActive(item.href) && 'bg-accent')}
               onClick={() => handleNavigate(item.href)}
+              disabled={pendingPath !== null}
             >
               <item.icon className="mr-2 h-4 w-4" />
               <span>{item.label}</span>
-              <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground" />
+              {pendingPath === item.href ? (
+                <Loader2 className="ml-auto h-4 w-4 animate-spin text-muted-foreground" />
+              ) : (
+                <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground" />
+              )}
             </Button>
           ))}
         </CardContent>
