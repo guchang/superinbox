@@ -233,6 +233,7 @@
     margin-top: 0.25rem;
   }
 
+  /* Memory Card Markdown Content Styles */
   .memory-card-markdown-content li.task-list-item > input[type='checkbox'],
   .memory-card-markdown-content li.task-list-item > label > input[type='checkbox'] {
     appearance: none;
