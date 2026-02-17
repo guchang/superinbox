@@ -281,7 +281,7 @@ describe('P0 category permissions and trash migration', () => {
     expect(loginResp.body?.data?.user?.scopes).toContain('admin:full');
   });
 
-  it('blocks non-admin JWT user from creating global logs export task', async () => {
+  it('allows non-admin JWT user to create own logs export task', async () => {
     const app = createLogsAndApiKeysApp();
     const userId = unique('jwt-user');
     const username = uniqueUsername();
@@ -308,8 +308,9 @@ describe('P0 category permissions and trash migration', () => {
         includeFields: ['timestamp', 'endpoint'],
       });
 
-    expect(resp.status).toBe(403);
-    expect(resp.body?.code).toBe('AUTH.FORBIDDEN');
+    expect(resp.status).toBe(200);
+    expect(resp.body?.success).toBe(true);
+    expect(typeof resp.body?.exportId).toBe('string');
   });
 
   it('routes /auth/api-keys/:id/logs to owner-check endpoint for non-admin JWT users', async () => {
@@ -347,5 +348,171 @@ describe('P0 category permissions and trash migration', () => {
     expect(resp.status).toBe(200);
     expect(resp.body?.success).toBe(true);
     expect(resp.body?.data).toHaveProperty('logs');
+  });
+
+  it('scopes /auth/logs results to current authenticated user', async () => {
+    const app = createLogsAndApiKeysApp();
+    const db = getDatabase();
+
+    const userAId = unique('log-user-a');
+    const userAName = uniqueUsername();
+    const userAEmail = `${unique('log-a-mail')}@example.com`;
+    const userBId = unique('log-user-b');
+    const userBName = uniqueUsername();
+    const userBEmail = `${unique('log-b-mail')}@example.com`;
+
+    db.createUser({
+      id: userAId,
+      username: userAName,
+      email: userAEmail,
+      passwordHash: 'test-hash',
+      role: 'user',
+    });
+    db.createUser({
+      id: userBId,
+      username: userBName,
+      email: userBEmail,
+      passwordHash: 'test-hash',
+      role: 'user',
+    });
+
+    const apiKeyAId = unique('apk-a');
+    const apiKeyBId = unique('apk-b');
+    const plainKeyA = unique('sk-a');
+    const plainKeyB = unique('sk-b');
+
+    db.createApiKey({
+      id: apiKeyAId,
+      keyValue: hashApiKey(plainKeyA),
+      keyPreview: `${plainKeyA.slice(0, 8)}...`,
+      userId: userAId,
+      name: unique('key-a'),
+      scopes: ['read'],
+    });
+    db.createApiKey({
+      id: apiKeyBId,
+      keyValue: hashApiKey(plainKeyB),
+      keyPreview: `${plainKeyB.slice(0, 8)}...`,
+      userId: userBId,
+      name: unique('key-b'),
+      scopes: ['read'],
+    });
+
+    db.createAccessLog({
+      id: unique('log-a'),
+      apiKeyId: apiKeyAId,
+      userId: userAId,
+      endpoint: '/v1/inbox',
+      method: 'GET',
+      statusCode: 200,
+    });
+    db.createAccessLog({
+      id: unique('log-b'),
+      apiKeyId: apiKeyBId,
+      userId: userBId,
+      endpoint: '/v1/inbox',
+      method: 'GET',
+      statusCode: 200,
+    });
+
+    const tokenA = createJwtToken({
+      userId: userAId,
+      username: userAName,
+      email: userAEmail,
+      role: 'user',
+    });
+
+    const resp = await request(app)
+      .get('/v1/auth/logs')
+      .set('Authorization', `Bearer ${tokenA}`);
+
+    expect(resp.status).toBe(200);
+    expect(resp.body?.total).toBe(1);
+    expect(Array.isArray(resp.body?.logs)).toBe(true);
+    expect(resp.body?.logs).toHaveLength(1);
+    expect(resp.body?.logs[0]?.apiKeyId).toBe(apiKeyAId);
+  });
+
+  it('scopes /auth/logs/statistics to current authenticated user', async () => {
+    const app = createLogsAndApiKeysApp();
+    const db = getDatabase();
+
+    const userAId = unique('stat-user-a');
+    const userAName = uniqueUsername();
+    const userAEmail = `${unique('stat-a-mail')}@example.com`;
+    const userBId = unique('stat-user-b');
+    const userBName = uniqueUsername();
+    const userBEmail = `${unique('stat-b-mail')}@example.com`;
+
+    db.createUser({
+      id: userAId,
+      username: userAName,
+      email: userAEmail,
+      passwordHash: 'test-hash',
+      role: 'user',
+    });
+    db.createUser({
+      id: userBId,
+      username: userBName,
+      email: userBEmail,
+      passwordHash: 'test-hash',
+      role: 'user',
+    });
+
+    const apiKeyAId = unique('stat-apk-a');
+    const apiKeyBId = unique('stat-apk-b');
+    const plainKeyA = unique('stat-sk-a');
+    const plainKeyB = unique('stat-sk-b');
+
+    db.createApiKey({
+      id: apiKeyAId,
+      keyValue: hashApiKey(plainKeyA),
+      keyPreview: `${plainKeyA.slice(0, 8)}...`,
+      userId: userAId,
+      name: unique('stat-key-a'),
+      scopes: ['read'],
+    });
+    db.createApiKey({
+      id: apiKeyBId,
+      keyValue: hashApiKey(plainKeyB),
+      keyPreview: `${plainKeyB.slice(0, 8)}...`,
+      userId: userBId,
+      name: unique('stat-key-b'),
+      scopes: ['read'],
+    });
+
+    db.createAccessLog({
+      id: unique('stat-log-a'),
+      apiKeyId: apiKeyAId,
+      userId: userAId,
+      endpoint: '/v1/inbox',
+      method: 'GET',
+      statusCode: 200,
+    });
+    db.createAccessLog({
+      id: unique('stat-log-b'),
+      apiKeyId: apiKeyBId,
+      userId: userBId,
+      endpoint: '/v1/inbox',
+      method: 'GET',
+      statusCode: 200,
+    });
+
+    const tokenA = createJwtToken({
+      userId: userAId,
+      username: userAName,
+      email: userAEmail,
+      role: 'user',
+    });
+
+    const resp = await request(app)
+      .get('/v1/auth/logs/statistics')
+      .set('Authorization', `Bearer ${tokenA}`);
+
+    expect(resp.status).toBe(200);
+    expect(resp.body?.summary?.totalRequests).toBe(1);
+    expect(Array.isArray(resp.body?.keyStats)).toBe(true);
+    expect(resp.body?.keyStats).toHaveLength(1);
+    expect(resp.body?.keyStats[0]?.id).toBe(apiKeyAId);
   });
 });

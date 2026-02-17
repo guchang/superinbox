@@ -16,15 +16,15 @@ const router = Router();
 
 /**
  * @route   GET /v1/auth/logs
- * @desc    Get global access logs (admin only)
- * @access  Private (requires admin:full scope)
+ * @desc    Get access logs for current user
+ * @access  Private
  */
 router.get('/logs', authenticateJwt, getGlobalLogs);
 
 /**
  * @route   POST /v1/auth/logs/export
- * @desc    Create export task (async export for large datasets)
- * @access  Private (requires admin:full scope)
+ * @desc    Create export task for current user's logs
+ * @access  Private
  */
 router.post('/logs/export', authenticateJwt, createExportTask);
 
@@ -44,8 +44,8 @@ router.get('/logs/exports/:exportId/download', authenticateJwt, downloadExportFi
 
 /**
  * @route   GET /v1/auth/logs/statistics
- * @desc    Get API usage statistics (admin only)
- * @access  Private (requires admin:full scope)
+ * @desc    Get API usage statistics for current user
+ * @access  Private
  */
 router.get('/logs/statistics', authenticateJwt, getStatistics);
 

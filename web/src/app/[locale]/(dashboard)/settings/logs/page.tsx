@@ -24,8 +24,7 @@ function GlobalLogsPageContent() {
   const [exportDialogOpen, setExportDialogOpen] = useState(false)
   const [statisticsDialogOpen, setStatisticsDialogOpen] = useState(false)
 
-  // All hooks must be called before any conditional returns
-  const hasPermission = authState.user?.scopes?.includes('admin:full') ?? false
+  const canViewLogs = authState.isAuthenticated && Boolean(authState.user)
 
   // Fetch log data - always call useQuery, but only enable when authorized
   const { data, isLoading, error, refetch } = useQuery({
@@ -34,22 +33,7 @@ function GlobalLogsPageContent() {
       ...filters,
       ...dateRange,
     }),
-    enabled: hasPermission && !authState.isLoading,
-  })
-
-  // Debug: Log auth state to help diagnose permission issues
-  console.log('[GlobalLogsPage] Auth state:', {
-    isLoading: authState.isLoading,
-    isAuthenticated: authState.isAuthenticated,
-    hasUser: !!authState.user,
-    hasPermission,
-    user: authState.user ? {
-      id: authState.user.id,
-      username: authState.user.username,
-      email: authState.user.email,
-      role: authState.user.role,
-      scopes: authState.user.scopes,
-    } : null,
+    enabled: canViewLogs && !authState.isLoading,
   })
 
   // Show loading while checking auth
@@ -61,12 +45,7 @@ function GlobalLogsPageContent() {
     )
   }
 
-  // Permission check - use scopes instead of role
-  if (!hasPermission) {
-    console.log('[GlobalLogsPage] Permission check failed:', {
-      hasUser: !!authState.user,
-      scopes: authState.user?.scopes,
-    })
+  if (!canViewLogs) {
     return (
       <Alert variant="destructive">
         <AlertCircle className="h-4 w-4" />

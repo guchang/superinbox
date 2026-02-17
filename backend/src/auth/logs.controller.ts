@@ -11,19 +11,57 @@ import { sendError } from '../utils/error-response.js';
 import crypto from 'crypto';
 import path from 'path';
 
+const normalizeUserId = (value: unknown): string | undefined => {
+  if (typeof value !== 'string') {
+    return undefined;
+  }
+
+  const trimmed = value.trim();
+  return trimmed || undefined;
+};
+
+const resolveAuthorizedUserId = (req: Request, res: Response): string | null => {
+  const authReq = req as any;
+  const currentUserId = normalizeUserId(authReq.user?.userId) || normalizeUserId(authReq.user?.id);
+  if (!currentUserId) {
+    sendError(res, {
+      statusCode: 401,
+      code: 'AUTH.UNAUTHORIZED',
+      message: 'Authentication required'
+    });
+    return null;
+  }
+
+  return currentUserId;
+};
+
+const ensureExportTasksTable = (): void => {
+  const db = getDatabase();
+  (db as any).db.exec(`
+    CREATE TABLE IF NOT EXISTS export_tasks (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      format TEXT NOT NULL,
+      status TEXT NOT NULL,
+      filters TEXT,
+      file_path TEXT,
+      file_size INTEGER DEFAULT 0,
+      record_count INTEGER DEFAULT 0,
+      created_at TEXT NOT NULL,
+      completed_at TEXT,
+      expires_at TEXT,
+      error_message TEXT
+    );
+  `);
+};
+
 /**
- * Query global access logs (admin only)
+ * Query access logs for current user
  */
 export async function getGlobalLogs(req: Request, res: Response): Promise<void> {
   try {
-    // Check admin permission using scopes
-    const authReq = req as any;
-    if (!authReq.user?.scopes?.includes('admin:full')) {
-      sendError(res, {
-        statusCode: 403,
-        code: 'AUTH.FORBIDDEN',
-        message: 'Admin permission required'
-      });
+    const authorizedUserId = resolveAuthorizedUserId(req, res);
+    if (!authorizedUserId) {
       return;
     }
 
@@ -37,6 +75,7 @@ export async function getGlobalLogs(req: Request, res: Response): Promise<void> 
         : undefined;
 
     const query: AccessLogQuery = {
+      userId: authorizedUserId,
       startDate: req.query.startDate as string,
       endDate: req.query.endDate as string,
       methods,
@@ -164,15 +203,11 @@ export async function getApiKeyLogs(req: Request, res: Response): Promise<void> 
  */
 export async function createExportTask(req: Request, res: Response): Promise<void> {
   try {
-    const authReq = req as any;
-    if (!authReq.user?.scopes?.includes('admin:full')) {
-      sendError(res, {
-        statusCode: 403,
-        code: 'AUTH.FORBIDDEN',
-        message: 'Admin permission required'
-      });
+    const authorizedUserId = resolveAuthorizedUserId(req, res);
+    if (!authorizedUserId) {
       return;
     }
+    ensureExportTasksTable();
 
     const { format, startDate, endDate, includeFields } = req.body;
 
@@ -198,7 +233,7 @@ export async function createExportTask(req: Request, res: Response): Promise<voi
 
     // Create export task
     const exportId = crypto.randomUUID();
-    const userId = (req as any).user?.id || 'system';
+    const userId = authorizedUserId;
 
     const db = getDatabase();
     const stmt = (db as any).db.prepare(`
@@ -215,13 +250,19 @@ export async function createExportTask(req: Request, res: Response): Promise<voi
       exportId,
       userId,
       format,
-      JSON.stringify({ startDate, endDate, includeFields }),
+      JSON.stringify({ startDate, endDate, includeFields, userId: authorizedUserId }),
       new Date().toISOString(),
       expiresAt.toISOString()
     );
 
     // Process export asynchronously
-    setImmediate(() => processExport(exportId, req.body));
+    setImmediate(() => processExport(exportId, {
+      format,
+      startDate,
+      endDate,
+      includeFields,
+      userId: authorizedUserId,
+    }));
 
     res.json({
       success: true,
@@ -383,10 +424,12 @@ async function processExport(exportId: string, options: {
   startDate: string;
   endDate: string;
   includeFields: string[];
+  userId: string;
 }): Promise<void> {
   try {
     const db = getDatabase();
     const query: AccessLogQuery = {
+      userId: options.userId,
       startDate: options.startDate,
       endDate: options.endDate,
     };
