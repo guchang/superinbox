@@ -193,6 +193,7 @@ export const accessLogMiddleware = (
  * Query access logs from database
  */
 export interface AccessLogQuery {
+  userId?: string;
   apiKeyId?: string;
   startDate?: string;
   endDate?: string;
@@ -229,6 +230,41 @@ export interface AccessLogEntry {
   };
 }
 
+const ensureAccessLogColumns = (dbInstance: any): void => {
+  const tableInfo = dbInstance.prepare('PRAGMA table_info(api_access_logs)').all() as Array<{ name: string }>;
+  if (tableInfo.length === 0) {
+    return;
+  }
+
+  const existingColumns = new Set(tableInfo.map((column) => column.name));
+  const requiredColumns: Array<{ name: string; definition: string }> = [
+    { name: 'api_key_name', definition: 'TEXT' },
+    { name: 'full_url', definition: 'TEXT' },
+    { name: 'status', definition: "TEXT DEFAULT 'success'" },
+    { name: 'request_size', definition: 'INTEGER DEFAULT 0' },
+    { name: 'response_size', definition: 'INTEGER DEFAULT 0' },
+    { name: 'duration', definition: 'INTEGER DEFAULT 0' },
+    { name: 'request_headers', definition: 'TEXT' },
+    { name: 'request_body', definition: 'TEXT' },
+    { name: 'query_params', definition: 'TEXT' },
+    { name: 'response_body', definition: 'TEXT' },
+    { name: 'error_code', definition: 'TEXT' },
+    { name: 'error_message', definition: 'TEXT' },
+    { name: 'error_details', definition: 'TEXT' },
+  ];
+
+  for (const column of requiredColumns) {
+    if (!existingColumns.has(column.name)) {
+      dbInstance.exec(`ALTER TABLE api_access_logs ADD COLUMN ${column.name} ${column.definition}`);
+    }
+  }
+};
+
+export const ensureAccessLogSchema = (): void => {
+  const db = getDatabase();
+  ensureAccessLogColumns((db as any).db);
+};
+
 /**
  * Query access logs with filters
  */
@@ -238,6 +274,7 @@ export function queryAccessLogs(query: AccessLogQuery): {
   page: number;
   limit: number;
 } {
+  ensureAccessLogSchema();
   const db = getDatabase();
   const page = query.page || 1;
   const limit = Math.min(query.limit || 50, 200);
@@ -250,6 +287,11 @@ export function queryAccessLogs(query: AccessLogQuery): {
   if (query.apiKeyId) {
     conditions.push('api_key_id = ?');
     params.push(query.apiKeyId);
+  }
+
+  if (query.userId) {
+    conditions.push('user_id = ?');
+    params.push(query.userId);
   }
 
   if (query.startDate) {

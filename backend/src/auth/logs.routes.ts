@@ -5,7 +5,6 @@
 import { Router } from 'express';
 import {
   getGlobalLogs,
-  getApiKeyLogs,
   createExportTask,
   getExportStatus,
   downloadExportFile,
@@ -17,21 +16,14 @@ const router = Router();
 
 /**
  * @route   GET /v1/auth/logs
- * @desc    Get global access logs (admin only)
- * @access  Private (requires admin:full scope)
+ * @desc    Get access logs for current user
+ * @access  Private
  */
 router.get('/logs', authenticateJwt, getGlobalLogs);
 
 /**
- * @route   GET /v1/auth/api-keys/:keyId/logs
- * @desc    Get logs for a specific API key
- * @access  Private (admin or key owner)
- */
-router.get('/api-keys/:keyId/logs', authenticateJwt, getApiKeyLogs);
-
-/**
  * @route   POST /v1/auth/logs/export
- * @desc    Create export task (async export for large datasets)
+ * @desc    Create export task for current user's logs
  * @access  Private
  */
 router.post('/logs/export', authenticateJwt, createExportTask);
@@ -52,8 +44,8 @@ router.get('/logs/exports/:exportId/download', authenticateJwt, downloadExportFi
 
 /**
  * @route   GET /v1/auth/logs/statistics
- * @desc    Get API usage statistics (admin only)
- * @access  Private (requires admin:full scope)
+ * @desc    Get API usage statistics for current user
+ * @access  Private
  */
 router.get('/logs/statistics', authenticateJwt, getStatistics);
 

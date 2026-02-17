@@ -7,24 +7,34 @@ import type { Request, Response } from 'express';
 import { getDatabase } from '../storage/database.js';
 import { logger } from '../middleware/logger.js';
 import { sendError } from '../utils/error-response.js';
+import { ensureAccessLogSchema } from '../middleware/access-logger.js';
 import type {
   StatisticsResponse,
   StatisticsQuery,
   StatisticsTimeRange,
 } from '../types/statistics.js';
 
+const normalizeUserId = (value: unknown): string | undefined => {
+  if (typeof value !== 'string') {
+    return undefined;
+  }
+
+  const trimmed = value.trim();
+  return trimmed || undefined;
+};
+
 /**
- * Get API usage statistics (admin only)
+ * Get API usage statistics for current user
  */
 export async function getStatistics(req: Request, res: Response): Promise<void> {
   try {
-    // Check admin permission using scopes
     const authReq = req as any;
-    if (!authReq.user?.scopes?.includes('admin:full')) {
+    const userId = normalizeUserId(authReq.user?.userId) || normalizeUserId(authReq.user?.id);
+    if (!userId) {
       sendError(res, {
-        statusCode: 403,
-        code: 'AUTH.FORBIDDEN',
-        message: 'Admin permission required'
+        statusCode: 401,
+        code: 'AUTH.UNAUTHORIZED',
+        message: 'Authentication required'
       });
       return;
     }
@@ -41,7 +51,7 @@ export async function getStatistics(req: Request, res: Response): Promise<void> 
     const { startDate, endDate } = calculateDateRange(query);
 
     // Fetch statistics from database
-    const stats = fetchStatistics(startDate, endDate, timeRange);
+    const stats = fetchStatistics(startDate, endDate, timeRange, userId);
 
     res.json(stats);
   } catch (error) {
@@ -101,9 +111,14 @@ function calculateDateRange(query: StatisticsQuery): { startDate: string; endDat
 function fetchStatistics(
   startDate: string,
   endDate: string,
-  timeRange: StatisticsTimeRange
+  timeRange: StatisticsTimeRange,
+  userId: string
 ): StatisticsResponse {
+  ensureAccessLogSchema();
   const db = getDatabase();
+
+  const whereClause = 'WHERE timestamp >= ? AND timestamp <= ? AND user_id = ?';
+  const whereParams = [startDate, endDate, userId];
 
   // 1. Get summary statistics
   const summaryStmt = (db as any).db.prepare(`
@@ -112,9 +127,9 @@ function fetchStatistics(
       SUM(CASE WHEN status = 'success' THEN 1 ELSE 0 END) as successCount,
       SUM(CASE WHEN status = 'error' THEN 1 ELSE 0 END) as errorCount
     FROM api_access_logs
-    WHERE timestamp >= ? AND timestamp <= ?
+    ${whereClause}
   `);
-  const summaryRow = summaryStmt.get(startDate, endDate) as any;
+  const summaryRow = summaryStmt.get(...whereParams) as any;
 
   const successRate = summaryRow.totalRequests > 0
     ? (summaryRow.successCount / summaryRow.totalRequests) * 100
@@ -129,11 +144,11 @@ function fetchStatistics(
       SUM(CASE WHEN status = 'success' THEN 1 ELSE 0 END) as successCount,
       MAX(timestamp) as lastUsed
     FROM api_access_logs
-    WHERE timestamp >= ? AND timestamp <= ?
+    ${whereClause}
     GROUP BY api_key_id, api_key_name
     ORDER BY requests DESC
   `);
-  const keyRows = keyStatsStmt.all(startDate, endDate) as any[];
+  const keyRows = keyStatsStmt.all(...whereParams) as any[];
 
   const keyStats = keyRows.map((row: any) => {
     const keySuccessRate = row.requests > 0 ? (row.successCount / row.requests) * 100 : 0;
@@ -153,11 +168,11 @@ function fetchStatistics(
       DATE(timestamp) as date,
       COUNT(*) as requests
     FROM api_access_logs
-    WHERE timestamp >= ? AND timestamp <= ?
+    ${whereClause}
     GROUP BY DATE(timestamp)
     ORDER BY date ASC
   `);
-  const trendRows = trendStmt.all(startDate, endDate) as any[];
+  const trendRows = trendStmt.all(...whereParams) as any[];
 
   const trendData = trendRows.map((row: any) => {
     const date = new Date(row.date);
@@ -174,10 +189,10 @@ function fetchStatistics(
       status,
       COUNT(*) as count
     FROM api_access_logs
-    WHERE timestamp >= ? AND timestamp <= ?
+    ${whereClause}
     GROUP BY status
   `);
-  const statusRows = statusStmt.all(startDate, endDate) as any[];
+  const statusRows = statusStmt.all(...whereParams) as any[];
 
   const statusDistribution = statusRows.map((row: any) => {
     const status = row.status === 'denied' ? 'error' : row.status;

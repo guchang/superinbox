@@ -24,8 +24,7 @@ export default function ApiKeyLogsPage() {
   const { authState } = useAuth()
   const { filters, dateRange, updateFilter, resetFilters } = useLogFilters()
 
-  const isAdmin = Boolean(authState.user?.scopes?.includes('admin:full'))
-  const canQuery = !authState.isLoading && isAdmin && Boolean(keyId)
+  const canQuery = !authState.isLoading && authState.isAuthenticated && Boolean(keyId)
 
   const { data: apiKey } = useQuery({
     queryKey: ['apiKey', keyId],
@@ -54,7 +53,7 @@ export default function ApiKeyLogsPage() {
     )
   }
 
-  if (!isAdmin) {
+  if (!authState.isAuthenticated) {
     return (
       <Alert variant="destructive">
         <AlertCircle className="h-4 w-4" />

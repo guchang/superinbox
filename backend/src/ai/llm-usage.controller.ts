@@ -55,8 +55,17 @@ const resolveAuthorizedUserId = (
   }
 
   const requestedUserId = normalizeUserId(requestedUserIdRaw);
-  const currentUserId = req.user.userId || req.user.id;
+  const currentUserId = normalizeUserId(req.user.userId) || normalizeUserId(req.user.id);
   const isAdmin = req.user.scopes.includes('admin:full');
+
+  if (!currentUserId) {
+    sendError(res, {
+      statusCode: 401,
+      code: 'AUTH.UNAUTHORIZED',
+      message: 'Invalid authenticated user',
+    });
+    return null;
+  }
 
   if (requestedUserId && requestedUserId !== currentUserId && !isAdmin) {
     sendError(res, {
@@ -72,7 +81,7 @@ const resolveAuthorizedUserId = (
     return requestedUserId;
   }
 
-  return isAdmin ? undefined : currentUserId;
+  return currentUserId;
 };
 
 /**
