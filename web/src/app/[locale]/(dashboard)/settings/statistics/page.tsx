@@ -254,22 +254,21 @@ export default function LlmStatisticsPage() {
     { value: 'all', label: t('timeRange.all') },
   ]
 
-  // Check admin permission
-  const hasPermission = authState.user?.scopes?.includes('admin:full') ?? false
+  const canViewStatistics = authState.isAuthenticated && Boolean(authState.user)
   const dateRange = getDateRange(timeRange)
 
   // Fetch statistics data
   const { data: stats, isLoading: statsLoading, error: statsError, refetch: refetchStats } = useQuery({
     queryKey: ['llm-statistics', timeRange],
     queryFn: () => getLlmStatistics(dateRange),
-    enabled: hasPermission && !authState.isLoading,
+    enabled: canViewStatistics && !authState.isLoading,
   })
 
   // Fetch sessions data
   const { data: sessionsData, isLoading: sessionsLoading, error: sessionsError, refetch: refetchSessions } = useQuery({
     queryKey: ['llm-sessions', timeRange, sessionPage, sessionPageSize],
     queryFn: () => getLlmSessions({ ...dateRange, page: sessionPage, pageSize: sessionPageSize }),
-    enabled: hasPermission && !authState.isLoading,
+    enabled: canViewStatistics && !authState.isLoading,
   })
 
   // Toggle session expansion
@@ -423,7 +422,7 @@ export default function LlmStatisticsPage() {
             <MessageSquare className="h-4 w-4 mr-1" />
             {t('session.viewConversation')}
           </Button>
-          {hasPermission && row.original.calls > 0 && (
+          {row.original.calls > 0 && (
             <Button
               variant="ghost"
               size="sm"
@@ -445,7 +444,7 @@ export default function LlmStatisticsPage() {
         </div>
       ),
     },
-  ], [expandedSessions, hasPermission, openConversationDialog, t, toggleSessionExpanded])
+  ], [expandedSessions, openConversationDialog, t, toggleSessionExpanded])
 
   const sessionTable = useReactTable({
     data: sessions,
@@ -490,8 +489,7 @@ export default function LlmStatisticsPage() {
     )
   }
 
-  // Permission check
-  if (!hasPermission) {
+  if (!canViewStatistics) {
     return (
       <Alert variant="destructive">
         <AlertCircle className="h-4 w-4" />
@@ -632,7 +630,7 @@ export default function LlmStatisticsPage() {
                               <SessionLogsContent
                                 session={row.original}
                                 dateRange={dateRange}
-                                hasPermission={hasPermission}
+                                canViewStatistics={canViewStatistics}
                                 onOpenDetail={openDetail}
                               />
                             </div>
@@ -1089,12 +1087,12 @@ export default function LlmStatisticsPage() {
 function SessionLogsContent({
   session,
   dateRange,
-  hasPermission,
+  canViewStatistics,
   onOpenDetail
 }: {
   session: LlmSession
   dateRange: { startDate?: string; endDate?: string }
-  hasPermission: boolean
+  canViewStatistics: boolean
   onOpenDetail: (log: LlmUsageLog) => void
 }) {
   const t = useTranslations('llmStatistics')
@@ -1108,7 +1106,7 @@ function SessionLogsContent({
       page: 1,
       pageSize: 100,
     }),
-    enabled: hasPermission,
+    enabled: canViewStatistics,
   })
 
   const logs = logsData?.data || []
