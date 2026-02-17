@@ -1,6 +1,6 @@
 {
   "name": "@superinbox/mcp-server",
-  "version": "0.1.9",
+  "version": "0.1.10",
   "description": "SuperInbox MCP server (stdio)",
   "type": "module",
   "bin": {
