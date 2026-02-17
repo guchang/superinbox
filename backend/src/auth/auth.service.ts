@@ -39,6 +39,16 @@ export interface AuthResponse {
   refreshToken: string;
 }
 
+const getScopesByRole = (role: string): string[] => {
+  const baseScopes = ['read', 'write', 'content:all'];
+
+  if (role === 'admin') {
+    return ['admin:full', ...baseScopes];
+  }
+
+  return baseScopes;
+};
+
 /**
  * Register a new user
  */
@@ -64,7 +74,7 @@ export async function register(data: RegisterData): Promise<AuthResponse> {
   // Hash password
   const passwordHash = await hashPassword(data.password);
 
-  // Create user (all users get 'user' role, but have admin scopes)
+  // Create user
   const userId = uuidv4();
   const user = db.createUser({
     id: userId,
@@ -74,8 +84,7 @@ export async function register(data: RegisterData): Promise<AuthResponse> {
     role: 'user',
   });
 
-  // All password-login users get admin scopes
-  const userScopes = ['admin:full', 'read', 'write', 'content:all'];
+  const userScopes = getScopesByRole(user.role);
 
   // Generate tokens
   const tokenPayload: TokenPayload = {
@@ -136,8 +145,7 @@ export async function login(credentials: LoginCredentials): Promise<AuthResponse
   // Update last login time
   db.updateUserLastLogin(user.id);
 
-  // All password-login users get admin scopes
-  const userScopes = ['admin:full', 'read', 'write', 'content:all'];
+  const userScopes = getScopesByRole(user.role);
 
   // Generate tokens
   const tokenPayload: TokenPayload = {
@@ -208,8 +216,7 @@ export async function refreshToken(refreshTokenValue: string): Promise<AuthRespo
     throw new Error('用户不存在');
   }
 
-  // All password-login users get admin scopes
-  const userScopes = ['admin:full', 'read', 'write', 'content:all'];
+  const userScopes = getScopesByRole(user.role);
 
   // Generate new tokens
   const newTokenPayload: TokenPayload = {

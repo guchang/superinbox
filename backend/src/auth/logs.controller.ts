@@ -82,11 +82,24 @@ export async function getGlobalLogs(req: Request, res: Response): Promise<void> 
 export async function getApiKeyLogs(req: Request, res: Response): Promise<void> {
   try {
     const { keyId } = req.params;
+    const db = getDatabase();
+    const keyOwnerRecord = db.getApiKeyById(keyId);
+
+    if (!keyOwnerRecord) {
+      sendError(res, {
+        statusCode: 404,
+        code: 'API_KEYS.NOT_FOUND',
+        message: 'API key not found',
+        params: { keyId }
+      });
+      return;
+    }
 
     // Check permission: admin or key owner
     const authReq = req as any;
     const isAdmin = authReq.user?.scopes?.includes('admin:full');
-    const isOwner = authReq.apiKey?.id === keyId;
+    const currentUserId = authReq.user?.id || authReq.user?.userId;
+    const isOwner = currentUserId === keyOwnerRecord.userId;
 
     if (!isAdmin && !isOwner) {
       sendError(res, {
@@ -151,6 +164,16 @@ export async function getApiKeyLogs(req: Request, res: Response): Promise<void> 
  */
 export async function createExportTask(req: Request, res: Response): Promise<void> {
   try {
+    const authReq = req as any;
+    if (!authReq.user?.scopes?.includes('admin:full')) {
+      sendError(res, {
+        statusCode: 403,
+        code: 'AUTH.FORBIDDEN',
+        message: 'Admin permission required'
+      });
+      return;
+    }
+
     const { format, startDate, endDate, includeFields } = req.body;
 
     // Validate format

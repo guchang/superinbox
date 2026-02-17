@@ -3,11 +3,38 @@ import request from 'supertest';
 import { beforeEach, describe, expect, it } from 'vitest';
 import categoriesRoutes from '../../src/ai/routes/categories.routes.js';
 import inboxRoutes from '../../src/capture/routes/inbox.routes.js';
+import authRoutes from '../../src/auth/auth.routes.js';
+import logsRoutes from '../../src/auth/logs.routes.js';
+import apiKeysRoutes from '../../src/api-keys/api-keys.routes.js';
 import { getDatabase } from '../../src/storage/database.js';
 import { hashApiKey } from '../../src/utils/api-key.js';
+import { generateAccessToken } from '../../src/utils/jwt.js';
+import { hashPassword } from '../../src/utils/password.js';
 
 const unique = (prefix: string): string =>
   `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+const uniqueUsername = (): string =>
+  `u${Date.now().toString().slice(-8)}${Math.random().toString(36).slice(2, 6)}`;
+
+const getScopesByRole = (role: 'admin' | 'user'): string[] =>
+  role === 'admin'
+    ? ['admin:full', 'read', 'write', 'content:all']
+    : ['read', 'write', 'content:all'];
+
+const createJwtToken = (params: {
+  userId: string;
+  username: string;
+  email: string;
+  role: 'admin' | 'user';
+}): string =>
+  generateAccessToken({
+    userId: params.userId,
+    username: params.username,
+    email: params.email,
+    role: params.role,
+    scopes: getScopesByRole(params.role),
+  });
 
 const createApiKeyForUser = (userId: string, scopes: string[]): string => {
   const db = getDatabase();
@@ -53,6 +80,21 @@ const createInboxApp = () => {
   const app = express();
   app.use(express.json());
   app.use('/v1', inboxRoutes);
+  return app;
+};
+
+const createAuthApp = () => {
+  const app = express();
+  app.use(express.json());
+  app.use('/v1/auth', authRoutes);
+  return app;
+};
+
+const createLogsAndApiKeysApp = () => {
+  const app = express();
+  app.use(express.json());
+  app.use('/v1/auth', logsRoutes);
+  app.use('/v1/auth/api-keys', apiKeysRoutes);
   return app;
 };
 
@@ -185,5 +227,125 @@ describe('P0 category permissions and trash migration', () => {
 
     expect(resp.status).toBe(400);
     expect(resp.body?.code).toBe('INBOX.INVALID_INPUT');
+  });
+
+  it('does not grant admin:full scope to normal register/login users', async () => {
+    const app = createAuthApp();
+    const username = uniqueUsername();
+    const email = `${unique('mail')}@example.com`;
+    const password = 'password123';
+
+    const registerResp = await request(app)
+      .post('/v1/auth/register')
+      .send({ username, email, password });
+
+    expect(registerResp.status).toBe(201);
+    expect(registerResp.body?.data?.user?.role).toBe('user');
+    expect(registerResp.body?.data?.user?.scopes).not.toContain('admin:full');
+    expect(registerResp.body?.data?.user?.scopes).toEqual(
+      expect.arrayContaining(['read', 'write', 'content:all'])
+    );
+
+    const loginResp = await request(app)
+      .post('/v1/auth/login')
+      .send({ username, password });
+
+    expect(loginResp.status).toBe(200);
+    expect(loginResp.body?.data?.user?.scopes).not.toContain('admin:full');
+    expect(loginResp.body?.data?.user?.scopes).toEqual(
+      expect.arrayContaining(['read', 'write', 'content:all'])
+    );
+  });
+
+  it('grants admin:full scope only to admin role users on login', async () => {
+    const app = createAuthApp();
+    const db = getDatabase();
+    const username = uniqueUsername();
+    const password = 'password123';
+    const passwordHash = await hashPassword(password);
+
+    db.createUser({
+      id: unique('admin-user'),
+      username,
+      email: `${unique('admin-mail')}@example.com`,
+      passwordHash,
+      role: 'admin',
+    });
+
+    const loginResp = await request(app)
+      .post('/v1/auth/login')
+      .send({ username, password });
+
+    expect(loginResp.status).toBe(200);
+    expect(loginResp.body?.data?.user?.role).toBe('admin');
+    expect(loginResp.body?.data?.user?.scopes).toContain('admin:full');
+  });
+
+  it('blocks non-admin JWT user from creating global logs export task', async () => {
+    const app = createLogsAndApiKeysApp();
+    const userId = unique('jwt-user');
+    const username = uniqueUsername();
+    const email = `${unique('jwt-mail')}@example.com`;
+    const db = getDatabase();
+
+    db.createUser({
+      id: userId,
+      username,
+      email,
+      passwordHash: 'test-hash',
+      role: 'user',
+    });
+
+    const token = createJwtToken({ userId, username, email, role: 'user' });
+
+    const resp = await request(app)
+      .post('/v1/auth/logs/export')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        format: 'json',
+        startDate: '2026-01-01T00:00:00.000Z',
+        endDate: '2026-01-31T23:59:59.999Z',
+        includeFields: ['timestamp', 'endpoint'],
+      });
+
+    expect(resp.status).toBe(403);
+    expect(resp.body?.code).toBe('AUTH.FORBIDDEN');
+  });
+
+  it('routes /auth/api-keys/:id/logs to owner-check endpoint for non-admin JWT users', async () => {
+    const app = createLogsAndApiKeysApp();
+    const db = getDatabase();
+    const userId = unique('owner-user');
+    const username = uniqueUsername();
+    const email = `${unique('owner-mail')}@example.com`;
+    const apiKeyId = unique('apk-owner');
+    const plainApiKey = unique('sk-owner');
+
+    db.createUser({
+      id: userId,
+      username,
+      email,
+      passwordHash: 'test-hash',
+      role: 'user',
+    });
+
+    db.createApiKey({
+      id: apiKeyId,
+      keyValue: hashApiKey(plainApiKey),
+      keyPreview: `${plainApiKey.slice(0, 8)}...`,
+      userId,
+      name: unique('owner-key'),
+      scopes: ['read'],
+    });
+
+    const token = createJwtToken({ userId, username, email, role: 'user' });
+
+    const resp = await request(app)
+      .get(`/v1/auth/api-keys/${apiKeyId}/logs`)
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(resp.status).toBe(200);
+    expect(resp.body?.success).toBe(true);
+    expect(resp.body?.data).toHaveProperty('logs');
   });
 });

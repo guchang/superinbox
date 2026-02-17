@@ -5,7 +5,6 @@
 import { Router } from 'express';
 import {
   getGlobalLogs,
-  getApiKeyLogs,
   createExportTask,
   getExportStatus,
   downloadExportFile,
@@ -23,16 +22,9 @@ const router = Router();
 router.get('/logs', authenticateJwt, getGlobalLogs);
 
 /**
- * @route   GET /v1/auth/api-keys/:keyId/logs
- * @desc    Get logs for a specific API key
- * @access  Private (admin or key owner)
- */
-router.get('/api-keys/:keyId/logs', authenticateJwt, getApiKeyLogs);
-
-/**
  * @route   POST /v1/auth/logs/export
  * @desc    Create export task (async export for large datasets)
- * @access  Private
+ * @access  Private (requires admin:full scope)
  */
 router.post('/logs/export', authenticateJwt, createExportTask);
 
