@@ -5,8 +5,10 @@
 
 set -e
 
-# Prefer Node 22 LTS when installed via Homebrew.
-if [ -x "/opt/homebrew/opt/node@22/bin/node" ]; then
+# Prefer Node 22 LTS when installed locally.
+if [ -x "$HOME/.local/n/bin/node" ]; then
+    export PATH="$HOME/.local/n/bin:$PATH"
+elif [ -x "/opt/homebrew/opt/node@22/bin/node" ]; then
     export PATH="/opt/homebrew/opt/node@22/bin:$PATH"
 fi
 
