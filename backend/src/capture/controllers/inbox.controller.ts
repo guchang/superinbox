@@ -550,6 +550,22 @@ export class InboxController {
     }
   };
 
+  emptyTrash = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const userId = req.user?.id ?? 'default-user';
+      const deletedCount = this.db.deleteAllTrashItemsForUser(userId);
+
+      res.json({
+        success: true,
+        data: {
+          deletedCount
+        }
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
   /**
    * Create multiple items in one request
    * POST /v1/inbox/batch

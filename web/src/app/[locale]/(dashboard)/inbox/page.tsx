@@ -628,6 +628,30 @@ export default function InboxPage() {
     },
   })
 
+  const emptyTrashMutation = useMutation({
+    mutationFn: async () => {
+      const response = await inboxApi.emptyTrash()
+      if (!response.success) {
+        throw new Error(response.error || response.message || 'Failed to empty trash')
+      }
+      return response.data
+    },
+    onSuccess: (data) => {
+      invalidateInboxRelatedQueries()
+      toast({
+        title: t('toast.emptyTrashSuccess.title'),
+        description: t('toast.emptyTrashSuccess.description', { count: data?.deletedCount ?? 0 }),
+      })
+    },
+    onError: (error) => {
+      toast({
+        title: t('toast.emptyTrashFailure.title'),
+        description: getApiErrorMessage(error, errors, common('unknownError')),
+        variant: 'destructive',
+      })
+    },
+  })
+
   // 重试 AI 处理 mutation
   const retryMutation = useMutation({
     mutationFn: async (id: string) => {
@@ -883,6 +907,22 @@ export default function InboxPage() {
               <span className="inline-flex h-9 min-w-9 items-center justify-center rounded-xl bg-black/[0.03] px-3 text-xs font-bold text-foreground/70 shrink-0 dark:bg-white/[0.04] dark:text-white/70">
                 {totalCount}
               </span>
+            )}
+            {isTrashView && totalCount > 0 && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-9 px-3 text-xs font-semibold text-muted-foreground hover:text-destructive"
+                onClick={async () => {
+                  if (confirm(t('confirmEmptyTrash'))) {
+                    await emptyTrashMutation.mutateAsync()
+                  }
+                }}
+                disabled={emptyTrashMutation.isPending}
+              >
+                {t('emptyTrash')}
+              </Button>
             )}
           </div>
           {/* 媒体类型筛选 Pills */}

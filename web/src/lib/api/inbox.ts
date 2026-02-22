@@ -167,6 +167,10 @@ export const inboxApi = {
     return apiClient.delete<void>(`/inbox/${id}`)
   },
 
+  async emptyTrash(): Promise<ApiResponse<{ deletedCount: number }>> {
+    return apiClient.post<{ deletedCount: number }>('/inbox/trash/empty')
+  },
+
   // 从回收站恢复条目
   async restoreItem(id: string): Promise<ApiResponse<{ action: 'restored'; restoredTo: string; fallbackToUnknown: boolean }>> {
     return apiClient.post<{ action: 'restored'; restoredTo: string; fallbackToUnknown: boolean }>(`/inbox/${id}/restore`)

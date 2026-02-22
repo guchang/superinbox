@@ -286,6 +286,8 @@
     },
     "confirmDelete": "确定要删除这条记录吗？",
     "confirmDeletePermanent": "确定要永久删除这条记录吗？此操作不可恢复。",
+    "confirmEmptyTrash": "确定要清空回收站吗？此操作不可恢复。",
+    "emptyTrash": "清空",
     "toast": {
       "deleteSuccess": {
         "title": "删除成功",
@@ -335,6 +337,13 @@
       },
       "updateFailure": {
         "title": "保存失败"
+      },
+      "emptyTrashSuccess": {
+        "title": "回收站已清空",
+        "description": "已永久删除 {count} 条记录"
+      },
+      "emptyTrashFailure": {
+        "title": "清空回收站失败"
       }
     },
     "emptyContentError": "请输入内容或选择文件",

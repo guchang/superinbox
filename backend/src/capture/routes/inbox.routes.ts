@@ -94,6 +94,12 @@ router.post(
   inboxController.createItemWithFile
 );
 
+router.post(
+  '/inbox/trash/empty',
+  authenticate,
+  inboxController.emptyTrash
+);
+
 /**
  * @route   GET /v1/inbox/:id
  * @desc    Get a single item by ID (documented API)

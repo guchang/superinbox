@@ -286,6 +286,8 @@
     },
     "confirmDelete": "Delete this item?",
     "confirmDeletePermanent": "Delete this item permanently? This action cannot be undone.",
+    "confirmEmptyTrash": "Empty recycle bin? This action cannot be undone.",
+    "emptyTrash": "Empty",
     "emptyContentError": "Please enter content or select files",
     "fileSelected": "File selected",
     "inputPlaceholder": "Capture something...",
@@ -362,6 +364,13 @@
       },
       "updateFailure": {
         "title": "Save failed"
+      },
+      "emptyTrashSuccess": {
+        "title": "Recycle bin emptied",
+        "description": "Permanently deleted {count} items"
+      },
+      "emptyTrashFailure": {
+        "title": "Failed to empty recycle bin"
       }
     }
   },

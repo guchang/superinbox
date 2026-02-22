@@ -713,6 +713,20 @@ export class DatabaseManager {
   }
 
   /**
+   * Permanently delete all trash items for a specific user.
+   * Returns the number of deleted items.
+   */
+  deleteAllTrashItemsForUser(userId: string): number {
+    const stmt = this.db.prepare(`
+      DELETE FROM items
+      WHERE user_id = ? AND category = 'trash'
+    `);
+
+    const result = stmt.run(userId);
+    return result.changes;
+  }
+
+  /**
    * Add distribution result
    */
   addDistributionResult(result: any): void {
