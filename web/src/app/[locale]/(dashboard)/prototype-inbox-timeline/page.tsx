@@ -217,17 +217,17 @@ export default function CombinedTimelinePrototype() {
                            </div>
                         </div>
 
-                      </motion.div >
+                      </motion.div>
                     ))
 }
-                  </motion.div >
+                  </motion.div>
                 )}
-              </AnimatePresence >
-            </div >
+              </AnimatePresence>
+            </div>
           )
         })}
-      </div >
+      </div>
       
-    </div >
+    </div>
   )
 }
