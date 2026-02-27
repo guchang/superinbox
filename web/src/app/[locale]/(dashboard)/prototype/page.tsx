@@ -17,7 +17,7 @@ const PROTOTYPES = [
     id: 'quick-capture',
     title: 'Universal Quick Capture',
     description: '全局无压输入捕获。仿 Spotlight/Raycast 的极速录入体验，支持文本、语音等混合模态。',
-    path: '/prototype-quick-capture',
+    path: '/zh/prototype-quick-capture',
     icon: <Wand2 className="w-5 h-5 text-emerald-500" />,
     color: 'bg-emerald-500/10 border-emerald-500/20 group-hover:bg-emerald-500/20'
   },
@@ -25,7 +25,7 @@ const PROTOTYPES = [
     id: 'intent-extraction',
     title: 'Intent Extraction (AI 意图拆解)',
     description: '展示如何将用户的原话（Memory）拆解成一个个结构化的原子意图（Intent）。',
-    path: '/prototype-intent-extraction',
+    path: '/zh/prototype-intent-extraction',
     icon: <Sparkles className="w-5 h-5 text-blue-500" />,
     color: 'bg-blue-500/10 border-blue-500/20 group-hover:bg-blue-500/20'
   },
@@ -33,7 +33,7 @@ const PROTOTYPES = [
     id: 'intent-correction',
     title: 'AI Correction & Human Training',
     description: '用户如何对 AI 提取出的结构化意图进行人工纠偏、删除和重新训练。',
-    path: '/prototype-intent-correction',
+    path: '/zh/prototype-intent-correction',
     icon: <Layers className="w-5 h-5 text-indigo-500" />,
     color: 'bg-indigo-500/10 border-indigo-500/20 group-hover:bg-indigo-500/20'
   },
@@ -41,7 +41,7 @@ const PROTOTYPES = [
     id: 'routing-trace',
     title: 'Routing Trace (流转溯源)',
     description: '可视化展示提取出的意图如何被独立路由并分发到特定的第三方服务，以及追踪执行状态。',
-    path: '/prototype-routing-trace',
+    path: '/zh/prototype-routing-trace',
     icon: <Workflow className="w-5 h-5 text-amber-500" />,
     color: 'bg-amber-500/10 border-amber-500/20 group-hover:bg-amber-500/20'
   },
@@ -49,7 +49,7 @@ const PROTOTYPES = [
     id: 'inbox-timeline',
     title: 'Inbox Timeline (主时间线)',
     description: '收件箱核心视图。展示 Parent 原始输入和 Child 结构化动作如如何在信息流中优雅共存。',
-    path: '/prototype-inbox-timeline',
+    path: '/zh/prototype-inbox-timeline',
     icon: <Inbox className="w-5 h-5 text-purple-500" />,
     color: 'bg-purple-500/10 border-purple-500/20 group-hover:bg-purple-500/20'
   }
@@ -84,33 +84,33 @@ export default function PrototypesIndexPage() {
 
                   {/* Icon & Title */}
                   <div className="flex items-start gap-4 mb-4">
-                    <div className={\`shrink-0 p-3 rounded-2xl border transition-colors \${proto.color}\`}>
-                    {proto.icon}
-                  </div>
-                  <div>
-                    <h2 className="text-lg font-semibold text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                      {proto.title}
-                    </h2>
-                    <div className="flex items-center gap-1 mt-1 text-sm font-medium text-slate-500 dark:text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-300 transition-colors">
-                      <span>View Prototype</span>
-                      <ArrowRight className="w-4 h-4 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300" />
+                    <div className={`shrink-0 p-3 rounded-2xl border transition-colors ${proto.color}`}>
+                      {proto.icon}
+                    </div>
+                    <div>
+                      <h2 className="text-lg font-semibold text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                        {proto.title}
+                      </h2>
+                      <div className="flex items-center gap-1 mt-1 text-sm font-medium text-slate-500 dark:text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-300 transition-colors">
+                        <span>View Prototype</span>
+                        <ArrowRight className="w-4 h-4 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300" />
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                {/* Description */}
-                <div className="mt-auto">
-                  <p className="text-sm leading-relaxed text-slate-600 dark:text-slate-500">
-                    {proto.description}
-                  </p>
+                  {/* Description */}
+                  <div className="mt-auto">
+                    <p className="text-sm leading-relaxed text-slate-600 dark:text-slate-500">
+                      {proto.description}
+                    </p>
+                  </div>
                 </div>
-              </div>
-            </Link>
+              </Link>
             </motion.div>
           ))}
-      </div>
+        </div>
 
+      </div>
     </div>
-    </div >
   )
 }
